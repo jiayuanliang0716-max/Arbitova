@@ -39,7 +39,7 @@ app.use((req, res) => {
 // 全域錯誤處理
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', detail: err.message });
 });
 
 app.listen(PORT, () => {
