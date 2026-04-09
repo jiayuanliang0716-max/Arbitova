@@ -15,7 +15,8 @@ if (DATABASE_URL) {
 
   const pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    family: 4
   });
 
   // 初始化資料表
