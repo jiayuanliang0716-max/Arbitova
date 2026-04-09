@@ -9,6 +9,7 @@ require('./db/schema');
 const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
+const telegramRoutes = require('./routes/telegram');
 const { dbGet } = require('./db/helpers');
 
 const app = express();
@@ -138,6 +139,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 app.use('/agents', agentRoutes);
 app.use('/services', serviceRoutes);
 app.use('/orders', orderRoutes);
+app.use('/telegram', telegramRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {

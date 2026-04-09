@@ -22,6 +22,14 @@ if (DATABASE_URL) {
   // 初始化資料表
   async function initSchema() {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS telegram_commands (
+        id           SERIAL PRIMARY KEY,
+        command      TEXT NOT NULL,
+        status       TEXT DEFAULT 'pending',
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        processed_at TIMESTAMPTZ
+      );
+
       CREATE TABLE IF NOT EXISTS agents (
         id          TEXT PRIMARY KEY,
         name        TEXT NOT NULL,
@@ -121,6 +129,14 @@ if (DATABASE_URL) {
   sqlite.pragma('foreign_keys = ON');
 
   sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS telegram_commands (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      command    TEXT NOT NULL,
+      status     TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT (datetime('now')),
+      processed_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS agents (
       id          TEXT PRIMARY KEY,
       name        TEXT NOT NULL,
