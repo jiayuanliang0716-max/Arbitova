@@ -31,6 +31,66 @@ router.post('/register', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/leaderboard — public, top agents by reputation
+router.get('/leaderboard', async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const agents = await dbAll(
+      `SELECT a.id, a.name, a.description, COALESCE(a.reputation_score, 0) as reputation_score,
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
+       FROM agents a
+       ORDER BY COALESCE(a.reputation_score, 0) DESC, a.created_at ASC
+       LIMIT ${p(1)}`,
+      [limit]
+    );
+    res.json({ count: agents.length, agents: agents.map(a => ({
+      ...a,
+      reputation_score: parseInt(a.reputation_score || 0),
+      completed_sales: parseInt(a.completed_sales || 0)
+    })) });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/reputation — public, score + history
+router.get('/:id/reputation', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as reputation_score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+    const history = await dbAll(
+      `SELECT delta, reason, order_id, created_at FROM reputation_history WHERE agent_id = ${p(1)} ORDER BY created_at DESC LIMIT 50`,
+      [req.params.id]
+    );
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      reputation_score: parseInt(agent.reputation_score || 0),
+      history
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/orders — auth required, buyer or seller
+router.get('/:id/orders', requireApiKey, async (req, res, next) => {
+  try {
+    if (req.agent.id !== req.params.id) {
+      return res.status(403).json({ error: 'Can only view your own orders' });
+    }
+    const orders = await dbAll(
+      `SELECT o.*, s.name as service_name
+       FROM orders o
+       JOIN services s ON o.service_id = s.id
+       WHERE o.buyer_id = ${p(1)} OR o.seller_id = ${p(2)}
+       ORDER BY o.created_at DESC
+       LIMIT 100`,
+      [req.params.id, req.params.id]
+    );
+    res.json({ count: orders.length, orders });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id
 router.get('/:id', requireApiKey, async (req, res, next) => {
   try {

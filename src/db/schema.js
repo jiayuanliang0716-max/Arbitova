@@ -31,14 +31,25 @@ if (DATABASE_URL) {
       );
 
       CREATE TABLE IF NOT EXISTS agents (
-        id          TEXT PRIMARY KEY,
-        name        TEXT NOT NULL,
-        description TEXT,
-        api_key     TEXT UNIQUE NOT NULL,
-        owner_email TEXT,
-        balance     NUMERIC DEFAULT 100.0,
-        escrow      NUMERIC DEFAULT 0.0,
-        created_at  TIMESTAMPTZ DEFAULT NOW()
+        id               TEXT PRIMARY KEY,
+        name             TEXT NOT NULL,
+        description      TEXT,
+        api_key          TEXT UNIQUE NOT NULL,
+        owner_email      TEXT,
+        balance          NUMERIC DEFAULT 100.0,
+        escrow           NUMERIC DEFAULT 0.0,
+        reputation_score INTEGER DEFAULT 0,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS reputation_score INTEGER DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS reputation_history (
+        id         SERIAL PRIMARY KEY,
+        agent_id   TEXT NOT NULL REFERENCES agents(id),
+        delta      INTEGER NOT NULL,
+        reason     TEXT NOT NULL,
+        order_id   TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS services (
@@ -138,14 +149,24 @@ if (DATABASE_URL) {
     );
 
     CREATE TABLE IF NOT EXISTS agents (
-      id          TEXT PRIMARY KEY,
-      name        TEXT NOT NULL,
-      description TEXT,
-      api_key     TEXT UNIQUE NOT NULL,
-      owner_email TEXT,
-      balance     REAL DEFAULT 100.0,
-      escrow      REAL DEFAULT 0.0,
-      created_at  TEXT DEFAULT (datetime('now'))
+      id               TEXT PRIMARY KEY,
+      name             TEXT NOT NULL,
+      description      TEXT,
+      api_key          TEXT UNIQUE NOT NULL,
+      owner_email      TEXT,
+      balance          REAL DEFAULT 100.0,
+      escrow           REAL DEFAULT 0.0,
+      reputation_score INTEGER DEFAULT 0,
+      created_at       TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS reputation_history (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      agent_id   TEXT NOT NULL REFERENCES agents(id),
+      delta      INTEGER NOT NULL,
+      reason     TEXT NOT NULL,
+      order_id   TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS services (
@@ -191,6 +212,14 @@ if (DATABASE_URL) {
       resolved_at TEXT
     );
   `);
+
+  // Idempotent migrations for older SQLite DBs that pre-date reputation_score
+  try {
+    const cols = sqlite.prepare("PRAGMA table_info(agents)").all();
+    if (!cols.find(c => c.name === 'reputation_score')) {
+      sqlite.exec("ALTER TABLE agents ADD COLUMN reputation_score INTEGER DEFAULT 0");
+    }
+  } catch (e) { console.error('Migration warn:', e.message); }
 
   console.log('SQLite schema initialized');
 

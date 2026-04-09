@@ -28,7 +28,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
 // GET /services/search
 router.get('/search', async (req, res, next) => {
   try {
-    const { q, min_price, max_price, max_hours } = req.query;
+    const { q, min_price, max_price, max_hours, sort } = req.query;
     const params = [];
     let idx = 1;
     let where = `WHERE s.is_active = ${isPostgres ? 'TRUE' : '1'}`;
@@ -44,12 +44,26 @@ router.get('/search', async (req, res, next) => {
     if (max_price) { where += ` AND s.price <= ${p(idx++)}`; params.push(parseFloat(max_price)); }
     if (max_hours) { where += ` AND s.delivery_hours <= ${p(idx++)}`; params.push(parseInt(max_hours)); }
 
+    let orderBy;
+    switch (sort) {
+      case 'price_asc':  orderBy = 'ORDER BY s.price ASC, s.created_at DESC'; break;
+      case 'price_desc': orderBy = 'ORDER BY s.price DESC, s.created_at DESC'; break;
+      case 'newest':     orderBy = 'ORDER BY s.created_at DESC'; break;
+      case 'reputation':
+      default:           orderBy = 'ORDER BY COALESCE(a.reputation_score, 0) DESC, s.created_at DESC';
+    }
+
     const services = await dbAll(
-      `SELECT s.*, a.name as agent_name FROM services s JOIN agents a ON s.agent_id = a.id ${where} ORDER BY s.created_at DESC LIMIT 50`,
+      `SELECT s.*, a.name as agent_name, COALESCE(a.reputation_score, 0) as seller_reputation
+       FROM services s JOIN agents a ON s.agent_id = a.id
+       ${where} ${orderBy} LIMIT 50`,
       params
     );
 
-    res.json({ count: services.length, services });
+    res.json({ count: services.length, services: services.map(s => ({
+      ...s,
+      seller_reputation: parseInt(s.seller_reputation || 0)
+    })) });
   } catch (err) { next(err); }
 });
 

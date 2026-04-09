@@ -8,6 +8,19 @@ const router = express.Router();
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
 const PLATFORM_FEE_RATE = 0.025;
+const REP_CONFIRM_BONUS = 10;
+const REP_DISPUTE_PENALTY = 20;
+
+async function adjustReputation(agentId, delta, reason, orderId) {
+  await dbRun(
+    `UPDATE agents SET reputation_score = COALESCE(reputation_score, 0) + ${p(1)} WHERE id = ${p(2)}`,
+    [delta, agentId]
+  );
+  await dbRun(
+    `INSERT INTO reputation_history (agent_id, delta, reason, order_id) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
+    [agentId, delta, reason, orderId || null]
+  );
+}
 
 // POST /orders
 router.post('/', requireApiKey, async (req, res, next) => {
@@ -106,6 +119,9 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
     await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
 
+    // Reputation: successful delivery confirmed by buyer
+    try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'order_completed', order.id); } catch (e) { console.error('rep err:', e.message); }
+
     res.json({
       order_id: order.id, status: 'completed',
       amount_paid: order.amount,
@@ -143,6 +159,62 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
     res.status(201).json({
       dispute_id: disputeId, order_id: order.id, status: 'open',
       message: 'Dispute opened. Funds remain locked. A human arbitrator will review within 24 hours.'
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/resolve-dispute
+// Platform admin only. Body: { winner: 'buyer'|'seller', resolution: string }
+// Authorization: X-Admin-Key header must match process.env.ADMIN_KEY
+router.post('/:id/resolve-dispute', async (req, res, next) => {
+  try {
+    const adminKey = process.env.ADMIN_KEY;
+    if (!adminKey) return res.status(503).json({ error: 'Admin key not configured on server' });
+    if (req.headers['x-admin-key'] !== adminKey) return res.status(401).json({ error: 'Invalid admin key' });
+
+    const { winner, resolution } = req.body || {};
+    if (!['buyer', 'seller'].includes(winner)) {
+      return res.status(400).json({ error: 'winner must be "buyer" or "seller"' });
+    }
+
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.status !== 'disputed') return res.status(400).json({ error: `Order is not disputed (status: ${order.status})` });
+
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)} AND status = 'open'`, [order.id]);
+    if (!dispute) return res.status(404).json({ error: 'No open dispute found' });
+
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+
+    if (winner === 'buyer') {
+      // Refund buyer: escrow -> balance
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
+      await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    } else {
+      // Pay seller (net of platform fee)
+      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const sellerReceives = parseFloat(order.amount) - fee;
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+
+    await dbRun(
+      `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
+      [resolution || ('winner: ' + winner), dispute.id]
+    );
+
+    // Reputation penalty on the losing party
+    try { await adjustReputation(loserId, -REP_DISPUTE_PENALTY, 'dispute_lost', order.id); } catch (e) { console.error('rep err:', e.message); }
+
+    res.json({
+      order_id: order.id,
+      dispute_id: dispute.id,
+      winner,
+      loser_id: loserId,
+      new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
+      reputation_penalty: REP_DISPUTE_PENALTY
     });
   } catch (err) { next(err); }
 });
