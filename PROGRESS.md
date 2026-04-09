@@ -6,6 +6,7 @@
 - 完成度：Phase 1 100%
 
 ## 已完成
+- Telegram 雙向通訊整合（通知 + 指令接收）
 - Node.js + Express API 伺服器
 - SQLite（本機）/ PostgreSQL（雲端）雙模式資料庫
 - 5 張資料表：agents、services、orders、deliveries、disputes
@@ -24,7 +25,6 @@
 - 等待下一階段目標確認
 
 ## 待完成
-- Telegram Bot 通知整合
 - Phase 2：真實 USDC 支付（Coinbase AgentKit）
 - 前端介面
 - 信用評分系統
