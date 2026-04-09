@@ -1,4 +1,5 @@
 const { dbGet } = require('../db/helpers');
+const db = require('../db/schema');
 
 async function requireApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
@@ -8,8 +9,10 @@ async function requireApiKey(req, res, next) {
   }
 
   try {
-    const agent = await dbGet('SELECT * FROM agents WHERE api_key = $1', [apiKey])
-      || await dbGet('SELECT * FROM agents WHERE api_key = ?', [apiKey]);
+    const sql = db.type === 'pg'
+      ? 'SELECT * FROM agents WHERE api_key = $1'
+      : 'SELECT * FROM agents WHERE api_key = ?';
+    const agent = await dbGet(sql, [apiKey]);
 
     if (!agent) {
       return res.status(401).json({ error: 'Invalid API key' });
