@@ -19,10 +19,11 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 
-// Rate limiting：每個 IP 每分鐘最多 60 次請求
+// Rate limiting：每個 IP 每分鐘最多 60 次請求（測試模式提高上限）
+const rateMax = process.env.NODE_ENV === 'test' || process.env.DISABLE_RATE_LIMIT ? 10000 : 60;
 app.use(rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: rateMax,
   message: { error: 'Too many requests, please slow down.' }
 }));
 

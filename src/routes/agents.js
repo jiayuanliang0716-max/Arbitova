@@ -95,7 +95,7 @@ router.get('/:id/orders', requireApiKey, async (req, res, next) => {
 router.get('/:id', requireApiKey, async (req, res, next) => {
   try {
     const agent = await dbGet(
-      `SELECT id, name, description, owner_email, balance, escrow, created_at FROM agents WHERE id = ${p(1)}`,
+      `SELECT id, name, description, owner_email, balance, escrow, COALESCE(stake, 0) as stake, COALESCE(reputation_score, 0) as reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
       [req.params.id]
     );
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
@@ -114,6 +114,44 @@ router.get('/:id', requireApiKey, async (req, res, next) => {
       completed_sales: parseInt(completed_sales?.c || 0),
       completed_purchases: parseInt(completed_purchases?.c || 0)
     });
+  } catch (err) { next(err); }
+});
+
+// POST /agents/stake — lock balance as stake (trust bond)
+router.post('/stake', requireApiKey, async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+    const n = parseFloat(amount);
+    if (!(n > 0)) return res.status(400).json({ error: 'amount must be positive' });
+    const agent = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (parseFloat(agent.balance) < n) {
+      return res.status(400).json({ error: 'Insufficient balance', balance: agent.balance });
+    }
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)}, stake = COALESCE(stake, 0) + ${p(2)} WHERE id = ${p(3)}`,
+      [n, n, req.agent.id]
+    );
+    const updated = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    res.json({ message: `Staked ${n} USDC`, balance: updated.balance, stake: updated.stake });
+  } catch (err) { next(err); }
+});
+
+// POST /agents/unstake — release stake back to balance
+router.post('/unstake', requireApiKey, async (req, res, next) => {
+  try {
+    const { amount } = req.body;
+    const n = parseFloat(amount);
+    if (!(n > 0)) return res.status(400).json({ error: 'amount must be positive' });
+    const agent = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (parseFloat(agent.stake || 0) < n) {
+      return res.status(400).json({ error: 'Insufficient stake', stake: agent.stake || 0 });
+    }
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)}, stake = stake - ${p(2)} WHERE id = ${p(3)}`,
+      [n, n, req.agent.id]
+    );
+    const updated = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    res.json({ message: `Unstaked ${n} USDC`, balance: updated.balance, stake: updated.stake });
   } catch (err) { next(err); }
 });
 

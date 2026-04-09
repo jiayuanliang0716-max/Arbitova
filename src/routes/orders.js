@@ -78,6 +78,104 @@ router.post('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/bundle — atomically create multiple orders in one transaction
+// Body: { items: [{ service_id, requirements? }, ...] }
+router.post('/bundle', requireApiKey, async (req, res, next) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'items array is required' });
+    }
+    if (items.length > 20) {
+      return res.status(400).json({ error: 'bundle size limited to 20 items' });
+    }
+
+    // Resolve all services + validate each
+    const resolved = [];
+    let totalAmount = 0;
+    for (const item of items) {
+      if (!item.service_id) return res.status(400).json({ error: 'each item needs service_id' });
+      const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+      const svc = await dbGet(`SELECT * FROM services WHERE id = ${p(1)} AND ${activeCheck}`, [item.service_id]);
+      if (!svc) return res.status(404).json({ error: `Service ${item.service_id} not found or inactive` });
+      if (svc.agent_id === req.agent.id) return res.status(400).json({ error: `Cannot purchase own service ${svc.id}` });
+
+      if (svc.input_schema) {
+        const v = verifyInput(svc, item.requirements);
+        if (!v.ok) return res.status(400).json({ error: `Requirements invalid for service ${svc.id}`, details: v.errors });
+      }
+      if (parseFloat(svc.min_seller_stake || 0) > 0) {
+        const seller = await dbGet(`SELECT stake FROM agents WHERE id = ${p(1)}`, [svc.agent_id]);
+        if (parseFloat(seller?.stake || 0) < parseFloat(svc.min_seller_stake)) {
+          return res.status(400).json({ error: `Seller ${svc.agent_id} stake below requirement` });
+        }
+      }
+      totalAmount += parseFloat(svc.price);
+      resolved.push({ svc, requirements: item.requirements || null });
+    }
+
+    // Balance check for the full bundle (all-or-nothing)
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (parseFloat(buyer.balance) < totalAmount) {
+      return res.status(400).json({ error: 'Insufficient balance for bundle', balance: buyer.balance, required: totalAmount });
+    }
+
+    const bundleId = uuidv4();
+    await dbRun(
+      `INSERT INTO order_bundles (id, buyer_id, total_amount, status) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
+      [bundleId, req.agent.id, totalAmount, 'active']
+    );
+
+    // Lock total escrow once, then create each order row
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
+      [totalAmount, totalAmount, req.agent.id]
+    );
+
+    const childIds = [];
+    for (const { svc, requirements } of resolved) {
+      const orderId = uuidv4();
+      const deadline = new Date();
+      deadline.setHours(deadline.getHours() + svc.delivery_hours);
+      await dbRun(
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, bundle_id, deadline)
+         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
+        [orderId, req.agent.id, svc.agent_id, svc.id, svc.price, requirements, bundleId, deadline.toISOString()]
+      );
+      childIds.push(orderId);
+    }
+
+    res.status(201).json({
+      bundle_id: bundleId,
+      total_amount: totalAmount,
+      order_ids: childIds,
+      count: childIds.length,
+      status: 'active',
+      message: 'Bundle created. All orders locked in escrow atomically.'
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/bundle/:id — bundle status + child orders
+router.get('/bundle/:id', requireApiKey, async (req, res, next) => {
+  try {
+    const bundle = await dbGet(`SELECT * FROM order_bundles WHERE id = ${p(1)}`, [req.params.id]);
+    if (!bundle) return res.status(404).json({ error: 'Bundle not found' });
+    if (bundle.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Access denied' });
+    const children = await dbAll(
+      `SELECT o.*, s.name as service_name FROM orders o JOIN services s ON o.service_id = s.id WHERE o.bundle_id = ${p(1)} ORDER BY o.created_at ASC`,
+      [req.params.id]
+    );
+    const statuses = children.map(c => c.status);
+    const allDone = statuses.every(s => s === 'completed' || s === 'refunded');
+    if (allDone && bundle.status === 'active') {
+      await dbRun(`UPDATE order_bundles SET status = ${p(1)} WHERE id = ${p(2)}`, ['settled', bundle.id]);
+      bundle.status = 'settled';
+    }
+    res.json({ ...bundle, children, child_count: children.length });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/:id
 router.get('/:id', requireApiKey, async (req, res, next) => {
   try {
@@ -275,13 +373,27 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
     // Reputation penalty on the losing party
     try { await adjustReputation(loserId, -REP_DISPUTE_PENALTY, 'dispute_lost', order.id); } catch (e) { console.error('rep err:', e.message); }
 
+    // Slash the loser's stake (up to the order amount) and credit the winner
+    let slashed = 0;
+    try {
+      const loser = await dbGet(`SELECT COALESCE(stake, 0) as stake FROM agents WHERE id = ${p(1)}`, [loserId]);
+      const available = parseFloat(loser?.stake || 0);
+      slashed = Math.min(available, parseFloat(order.amount));
+      if (slashed > 0) {
+        const winnerId = winner === 'buyer' ? order.buyer_id : order.seller_id;
+        await dbRun(`UPDATE agents SET stake = stake - ${p(1)} WHERE id = ${p(2)}`, [slashed, loserId]);
+        await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [slashed, winnerId]);
+      }
+    } catch (e) { console.error('stake slash err:', e.message); }
+
     res.json({
       order_id: order.id,
       dispute_id: dispute.id,
       winner,
       loser_id: loserId,
       new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
-      reputation_penalty: REP_DISPUTE_PENALTY
+      reputation_penalty: REP_DISPUTE_PENALTY,
+      stake_slashed: slashed
     });
   } catch (err) { next(err); }
 });
