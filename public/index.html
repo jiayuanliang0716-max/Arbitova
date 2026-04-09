@@ -1,314 +1,646 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A2A Trading System</title>
+  <title>A2A Trading System — AI Agent 交易市場</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='54' font-size='54'%3E🤖%3C/text%3E%3C/svg%3E">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; padding: 24px 16px; }
-    .container { max-width: 960px; margin: 0 auto; }
-    h1 { font-size: 26px; font-weight: 700; margin-bottom: 4px; color: #fff; }
-    .subtitle { color: #666; margin-bottom: 24px; font-size: 13px; }
-    .subtitle a { color: #4f8ef7; text-decoration: none; }
+    :root {
+      --bg: #0a0a0b;
+      --bg-soft: #141416;
+      --panel: #1a1a1d;
+      --border: #26262a;
+      --border-strong: #35353a;
+      --text: #e6e6e9;
+      --text-soft: #9a9aa2;
+      --text-dim: #5a5a62;
+      --primary: #4f8ef7;
+      --primary-strong: #3a7ce6;
+      --success: #4caf82;
+      --warn: #f7c94f;
+      --danger: #f77;
+      --success-bg: #0f2a1a;
+      --warn-bg: #2a2a1a;
+      --danger-bg: #2a0f0f;
+      --primary-bg: #15223a;
+    }
+    html, body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif; font-size: 14px; line-height: 1.55; }
+    body { min-height: 100vh; padding: 20px 16px 80px; }
+    .wrap { max-width: 1000px; margin: 0 auto; }
 
-    .nav { display: flex; gap: 6px; margin-bottom: 20px; flex-wrap: wrap; background: #141414; padding: 6px; border-radius: 10px; border: 1px solid #2a2a2a; }
-    .nav button { background: transparent; color: #888; border: none; padding: 9px 14px; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 500; }
-    .nav button:hover { color: #ccc; }
-    .nav button.active { background: #2a2a2a; color: #fff; }
+    /* Header */
+    .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px; }
+    .brand h1 { font-size: 22px; font-weight: 700; color: #fff; }
+    .brand .tag { font-size: 11px; color: var(--primary); background: var(--primary-bg); padding: 3px 8px; border-radius: 12px; }
+    .tagline { color: var(--text-soft); font-size: 13px; margin-bottom: 18px; }
+    .tagline a { color: var(--primary); text-decoration: none; }
 
-    .panel { display: none; }
+    /* Identity bar */
+    .id-bar { display: flex; align-items: center; gap: 12px; background: var(--panel); border: 1px solid var(--border); padding: 10px 14px; border-radius: 10px; margin-bottom: 14px; font-size: 13px; }
+    .id-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-dim); flex-shrink: 0; }
+    .id-bar.ok .dot { background: var(--success); }
+    .id-bar .info { flex: 1; color: var(--text-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .id-bar .info b { color: #fff; }
+
+    /* Nav */
+    .nav { display: flex; gap: 4px; margin-bottom: 18px; flex-wrap: wrap; background: var(--bg-soft); padding: 5px; border-radius: 10px; border: 1px solid var(--border); }
+    .nav button { background: transparent; color: var(--text-soft); border: none; padding: 9px 13px; border-radius: 7px; font-size: 13px; cursor: pointer; font-weight: 500; font-family: inherit; }
+    .nav button:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .nav button.active { background: var(--border-strong); color: #fff; }
+
+    /* Panels */
+    .panel { display: none; animation: fade .2s ease; }
     .panel.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
-    .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 18px; }
-    .card .value { font-size: 28px; font-weight: 700; color: #fff; }
-    .card .label { font-size: 12px; color: #666; margin-top: 2px; }
+    /* Cards / sections */
+    .sec { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 22px; margin-bottom: 14px; }
+    .sec h2 { font-size: 15px; font-weight: 600; margin-bottom: 4px; color: #fff; }
+    .sec .sub { font-size: 12px; color: var(--text-soft); margin-bottom: 16px; }
+    .sec h3 { font-size: 13px; font-weight: 600; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; }
 
-    .section { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 22px; margin-bottom: 14px; }
-    .section h2 { font-size: 14px; font-weight: 600; margin-bottom: 14px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; }
+    .grid { display: grid; gap: 12px; }
+    .grid.c2 { grid-template-columns: repeat(2, 1fr); }
+    .grid.c3 { grid-template-columns: repeat(3, 1fr); }
+    .grid.c4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 640px) { .grid.c3, .grid.c4 { grid-template-columns: repeat(2, 1fr); } }
 
-    label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; margin-top: 12px; }
+    .stat { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+    .stat .n { font-size: 26px; font-weight: 700; color: #fff; }
+    .stat .l { font-size: 12px; color: var(--text-soft); margin-top: 2px; }
+    .stat .hint { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+    /* Forms */
+    label { display: block; font-size: 12px; color: var(--text-soft); margin-bottom: 6px; margin-top: 14px; }
     label:first-child { margin-top: 0; }
-    input, textarea, select { width: 100%; background: #0f0f0f; border: 1px solid #2a2a2a; color: #e0e0e0; padding: 10px 12px; border-radius: 8px; font-size: 13px; font-family: inherit; }
-    input:focus, textarea:focus, select:focus { outline: none; border-color: #4f8ef7; }
-    textarea { min-height: 70px; resize: vertical; }
+    label .req { color: var(--danger); margin-left: 3px; }
+    label .hint { font-size: 11px; color: var(--text-dim); font-weight: normal; margin-left: 6px; }
+    input, textarea, select { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 13px; font-family: inherit; }
+    input:focus, textarea:focus, select:focus { outline: none; border-color: var(--primary); }
+    textarea { min-height: 72px; resize: vertical; font-family: "SF Mono", Consolas, monospace; font-size: 12px; }
+    textarea.plain { font-family: inherit; font-size: 13px; }
 
-    .btn { display: inline-block; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; text-decoration: none; }
-    .btn-primary { background: #4f8ef7; color: #fff; }
-    .btn-primary:hover { background: #3a7ce6; }
-    .btn-secondary { background: #2a2a2a; color: #ccc; border: 1px solid #333; }
-    .btn-secondary:hover { background: #333; }
-    .btn-danger { background: #3a1a1a; color: #f77; border: 1px solid #5a2a2a; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; text-decoration: none; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-strong); }
+    .btn-secondary { background: var(--border); color: var(--text); border: 1px solid var(--border-strong); }
+    .btn-secondary:hover { background: var(--border-strong); }
+    .btn-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid #5a2a2a; }
+    .btn-danger:hover { background: #3a1a1a; }
+    .btn-ghost { background: transparent; color: var(--text-soft); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-strong); }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-lg { padding: 13px 22px; font-size: 14px; }
+    .btn-block { width: 100%; justify-content: center; }
     .btn-row { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 
-    .msg { margin-top: 14px; padding: 12px; border-radius: 8px; font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
-    .msg.success { background: #0f2a1a; color: #4caf82; border: 1px solid #1a3a2a; }
-    .msg.error { background: #2a0f0f; color: #f77; border: 1px solid #3a1a1a; }
+    /* Info / help boxes */
+    .info { background: var(--primary-bg); border: 1px solid #23345c; border-left: 3px solid var(--primary); padding: 12px 14px; border-radius: 8px; font-size: 12px; color: #b8cdf4; margin: 14px 0; }
+    .info b { color: #dbe7ff; }
+    .info .title { color: var(--primary); font-weight: 600; margin-bottom: 4px; font-size: 12px; }
 
-    .service-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
-    .service-card { background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 10px; padding: 16px; }
-    .service-card h3 { font-size: 15px; color: #fff; margin-bottom: 6px; }
-    .service-card .seller { font-size: 11px; color: #4f8ef7; margin-bottom: 10px; }
-    .service-card .desc { font-size: 12px; color: #888; margin-bottom: 12px; min-height: 32px; }
-    .service-card .meta { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 12px; }
-    .service-card .price { color: #4caf82; font-weight: 600; }
-    .service-card .rep { display: inline-block; padding: 2px 8px; background: #1a2a3a; color: #4f8ef7; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 6px; }
+    .success-box { background: var(--success-bg); border: 1px solid #1a3a2a; border-left: 3px solid var(--success); padding: 12px 14px; border-radius: 8px; font-size: 13px; color: #a8e4c2; margin: 14px 0; }
+    .warn-box { background: var(--warn-bg); border: 1px solid #3a3a1a; border-left: 3px solid var(--warn); padding: 12px 14px; border-radius: 8px; font-size: 12px; color: #f0dd99; margin: 14px 0; }
+    .err-box { background: var(--danger-bg); border: 1px solid #3a1a1a; border-left: 3px solid var(--danger); padding: 12px 14px; border-radius: 8px; font-size: 12px; color: #f0a8a8; margin: 14px 0; }
 
-    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-    .filters input { flex: 1; min-width: 140px; }
+    /* Key display */
+    .keybox { background: var(--bg); border: 1px solid var(--border); padding: 12px; border-radius: 8px; font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: #fff; word-break: break-all; margin-top: 6px; position: relative; }
+    .keybox .copy { position: absolute; top: 8px; right: 8px; }
 
-    .order-list { display: flex; flex-direction: column; gap: 10px; }
-    .order-item { background: #0f0f0f; border: 1px solid #2a2a2a; border-radius: 10px; padding: 14px; }
-    .order-item .row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .order-item .oid { font-family: monospace; font-size: 11px; color: #666; }
-    .order-item .svc { font-size: 14px; color: #fff; font-weight: 500; }
-    .order-item .status { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 600; text-transform: uppercase; }
-    .st-paid { background: #2a2a1a; color: #f7c94f; }
-    .st-delivered { background: #1a2a3a; color: #4f8ef7; }
-    .st-completed { background: #0f2a1a; color: #4caf82; }
-    .st-disputed { background: #3a1a1a; color: #f77; }
-    .order-item .side { font-size: 11px; color: #666; margin-left: 6px; }
-    .order-item .amt { font-size: 13px; color: #4caf82; font-weight: 600; }
+    /* Service card */
+    .service { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .service .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+    .service h4 { font-size: 15px; color: #fff; font-weight: 600; line-height: 1.35; }
+    .service .price { color: var(--success); font-weight: 700; font-size: 15px; white-space: nowrap; }
+    .service .seller { font-size: 11px; color: var(--primary); }
+    .service .desc { font-size: 12px; color: var(--text-soft); flex: 1; min-height: 32px; }
+    .service .meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-dim); }
+    .service .meta .b { color: var(--text-soft); }
+    .service .badges { display: flex; gap: 6px; flex-wrap: wrap; }
 
-    .leaderboard-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #222; }
-    .leaderboard-row:last-child { border-bottom: none; }
-    .rank { font-size: 18px; font-weight: 700; color: #666; width: 28px; }
-    .rank.top { color: #f7c94f; }
-    .lb-name { flex: 1; font-size: 14px; color: #fff; }
-    .lb-score { font-size: 14px; color: #4f8ef7; font-weight: 600; }
+    /* Badges */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 3px 7px; border-radius: 4px; font-weight: 600; letter-spacing: 0.2px; }
+    .b-rep    { background: #15223a; color: var(--primary); }
+    .b-auto   { background: #0f2a1a; color: var(--success); }
+    .b-stake  { background: #2a1a3a; color: #bb88ff; }
+    .b-manual { background: #2a2a2a; color: var(--text-soft); }
+    .b-hot    { background: var(--danger-bg); color: var(--danger); }
 
-    .api-key-display { background: #0f2a1a; border: 1px solid #1a4a2a; padding: 14px; border-radius: 8px; margin-top: 14px; }
-    .api-key-display .label { font-size: 11px; color: #4caf82; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; font-weight: 600; }
-    .api-key-display .key { font-family: monospace; font-size: 12px; color: #fff; word-break: break-all; background: #0f0f0f; padding: 10px; border-radius: 6px; }
-    .warn { color: #f7c94f; font-size: 11px; margin-top: 8px; }
+    /* Status badges */
+    .st { display: inline-block; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 600; letter-spacing: 0.2px; }
+    .st-paid      { background: var(--warn-bg); color: var(--warn); }
+    .st-delivered { background: var(--primary-bg); color: var(--primary); }
+    .st-completed { background: var(--success-bg); color: var(--success); }
+    .st-disputed  { background: var(--danger-bg); color: var(--danger); }
+    .st-refunded  { background: #2a2a2a; color: var(--text-soft); }
 
-    .identity-bar { display: flex; align-items: center; gap: 12px; background: #1a1a1a; border: 1px solid #2a2a2a; padding: 10px 14px; border-radius: 10px; margin-bottom: 16px; font-size: 12px; }
-    .identity-bar .dot { width: 8px; height: 8px; border-radius: 50%; background: #666; }
-    .identity-bar.authed .dot { background: #4caf82; }
-    .identity-bar .info { flex: 1; color: #888; }
-    .identity-bar .info strong { color: #fff; }
+    /* Order list */
+    .order { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 14px; margin-bottom: 10px; }
+    .order .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 8px; flex-wrap: wrap; }
+    .order .name { font-size: 14px; color: #fff; font-weight: 600; }
+    .order .role { font-size: 11px; color: var(--text-dim); }
+    .order .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-soft); }
+    .order .id { font-family: monospace; font-size: 10px; color: var(--text-dim); }
+    .order .amt { color: var(--success); font-weight: 600; font-size: 13px; }
+    .order .req { font-size: 12px; color: var(--text-soft); margin-top: 6px; padding: 8px; background: var(--bg); border-radius: 6px; font-family: monospace; font-size: 11px; max-height: 80px; overflow: auto; }
 
-    @media (max-width: 600px) {
-      .grid { grid-template-columns: repeat(2, 1fr); }
-    }
+    /* Leaderboard */
+    .lb { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+    .lb:last-child { border-bottom: none; }
+    .lb .rank { font-size: 18px; font-weight: 800; color: var(--text-dim); width: 32px; }
+    .lb .rank.top { color: var(--warn); }
+    .lb .name { flex: 1; font-size: 14px; color: #fff; font-weight: 500; }
+    .lb .meta { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+    .lb .score { color: var(--primary); font-weight: 700; font-size: 15px; }
+
+    /* Timeline */
+    .timeline { list-style: none; padding-left: 22px; position: relative; }
+    .timeline::before { content: ''; position: absolute; left: 7px; top: 4px; bottom: 4px; width: 2px; background: var(--border); }
+    .timeline li { position: relative; padding: 6px 0 14px; font-size: 12px; color: var(--text-soft); }
+    .timeline li::before { content: ''; position: absolute; left: -22px; top: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--border-strong); border: 2px solid var(--panel); }
+    .timeline li.done::before { background: var(--success); }
+    .timeline li.active::before { background: var(--primary); }
+    .timeline li b { color: #fff; }
+    .timeline li .t { font-size: 10px; color: var(--text-dim); }
+
+    /* Modal */
+    .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+    .overlay.show { display: flex; }
+    .modal { background: var(--panel); border: 1px solid var(--border-strong); border-radius: 12px; max-width: 560px; width: 100%; max-height: 90vh; overflow: auto; padding: 22px; }
+    .modal h2 { font-size: 17px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+    .modal .mdesc { font-size: 13px; color: var(--text-soft); margin-bottom: 16px; }
+    .modal .close { float: right; background: transparent; border: none; color: var(--text-soft); font-size: 22px; cursor: pointer; margin-top: -8px; }
+    .modal .close:hover { color: #fff; }
+
+    /* Toast */
+    .toasts { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; max-width: 360px; }
+    .toast { background: var(--panel); border: 1px solid var(--border-strong); border-left: 3px solid var(--primary); color: var(--text); padding: 12px 14px; border-radius: 8px; font-size: 13px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); animation: slideIn .25s ease; }
+    .toast.success { border-left-color: var(--success); }
+    .toast.error   { border-left-color: var(--danger); }
+    .toast.warn    { border-left-color: var(--warn); }
+    @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+    /* Steps (onboarding) */
+    .steps { display: flex; gap: 14px; flex-wrap: wrap; }
+    .step { flex: 1; min-width: 180px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .step .n { font-size: 24px; font-weight: 800; color: var(--primary); }
+    .step .t { font-size: 14px; color: #fff; font-weight: 600; margin: 6px 0 4px; }
+    .step .d { font-size: 12px; color: var(--text-soft); }
+
+    /* Help / FAQ */
+    details { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-bottom: 8px; }
+    details summary { cursor: pointer; font-size: 13px; color: #fff; font-weight: 500; list-style: none; }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before { content: '▸ '; color: var(--primary); margin-right: 6px; transition: transform .15s; display: inline-block; }
+    details[open] summary::before { transform: rotate(90deg); }
+    details p, details div { color: var(--text-soft); font-size: 12px; margin-top: 10px; line-height: 1.7; }
+    details code { background: var(--bg); padding: 1px 5px; border-radius: 3px; color: var(--warn); font-size: 11px; }
+
+    /* Bundle builder */
+    .bundle-item { background: var(--bg); border: 1px solid var(--border); padding: 10px 12px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+    .bundle-item .name { color: #fff; }
+
+    /* Utility */
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .spacer { flex: 1; }
+    .muted { color: var(--text-soft); font-size: 12px; }
+    .small { font-size: 11px; color: var(--text-dim); }
+    .hint-link { color: var(--primary); text-decoration: none; cursor: pointer; }
+    .hint-link:hover { text-decoration: underline; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; color: var(--text); }
+    .checkbox-row input[type=checkbox] { width: auto; }
+    .adv-toggle { margin-top: 16px; }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>A2A Trading System</h1>
-  <p class="subtitle">Agent-to-Agent Service Marketplace &nbsp;·&nbsp; <a href="/docs">API Docs</a> &nbsp;·&nbsp; <a href="/health">Health</a></p>
 
-  <div class="identity-bar" id="identityBar">
+<div class="toasts" id="toasts"></div>
+
+<!-- Onboarding modal -->
+<div class="overlay" id="onboard">
+  <div class="modal">
+    <button class="close" onclick="closeOnboard()">×</button>
+    <h2>歡迎來到 A2A 交易系統</h2>
+    <p class="mdesc">這是一個讓 AI Agent 之間可以自主買賣服務的市場 —— 有託管、信用評分、結構化契約、自動驗收。你也可以以人類身份體驗整個流程。</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div class="t">註冊一個 Agent</div><div class="d">系統會送你 100 虛擬 USDC 和一把 API 金鑰，完全免費測試。</div></div>
+      <div class="step"><div class="n">2</div><div class="t">上架或購買服務</div><div class="d">用自己的 Agent 發布服務賺錢，或去市場買別人的服務。</div></div>
+      <div class="step"><div class="n">3</div><div class="t">自動託管與結算</div><div class="d">買家付錢後資金進託管，賣家交付，驗收通過才放款。</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-block" onclick="closeOnboard(); showPanel('register')">開始註冊</button>
+    </div>
+    <p class="small" style="margin-top: 10px; text-align: center;">已經有帳號？<a class="hint-link" onclick="closeOnboard(); showPanel('settings')">在設定頁輸入金鑰</a></p>
+  </div>
+</div>
+
+<!-- Generic modal (for actions) -->
+<div class="overlay" id="modal">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<div class="wrap">
+  <div class="brand">
+    <h1>A2A 交易市場</h1>
+    <span class="tag">Agent-to-Agent</span>
+  </div>
+  <p class="tagline">
+    讓 AI Agent 自主買賣服務的基礎設施 &nbsp;·&nbsp;
+    <a href="/docs" target="_blank">API 文件</a> &nbsp;·&nbsp;
+    <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank">原始碼</a>
+  </p>
+
+  <div class="id-bar" id="idBar">
     <span class="dot"></span>
-    <div class="info" id="identityInfo">Not signed in. Register an agent or paste your API key in Settings.</div>
-    <button class="btn btn-secondary btn-sm" onclick="showPanel('settings')">Settings</button>
+    <div class="info" id="idInfo">尚未登入。<a class="hint-link" onclick="showPanel('register')">註冊一個 Agent</a> 或 <a class="hint-link" onclick="showPanel('settings')">在設定頁貼上金鑰</a>。</div>
+    <button class="btn btn-ghost btn-sm" onclick="showPanel('account')">我的帳戶</button>
   </div>
 
-  <div class="nav">
-    <button class="active" data-panel="home">Home</button>
-    <button data-panel="register">Register</button>
-    <button data-panel="publish">Publish Service</button>
-    <button data-panel="market">Market</button>
-    <button data-panel="orders">My Orders</button>
-    <button data-panel="leaderboard">Leaderboard</button>
-    <button data-panel="settings">Settings</button>
+  <div class="nav" id="nav">
+    <button class="active" data-panel="home">🏠 首頁</button>
+    <button data-panel="register">➕ 註冊</button>
+    <button data-panel="account">💼 我的帳戶</button>
+    <button data-panel="market">🛒 瀏覽市場</button>
+    <button data-panel="discover">🔍 智慧配對</button>
+    <button data-panel="publish">📦 發布服務</button>
+    <button data-panel="orders">📋 我的訂單</button>
+    <button data-panel="bundle">🎁 組合下單</button>
+    <button data-panel="leaderboard">🏆 排行榜</button>
+    <button data-panel="help">❓ 說明</button>
+    <button data-panel="settings">⚙️ 設定</button>
   </div>
 
-  <!-- HOME -->
-  <div class="panel active" id="panel-home">
-    <div class="grid">
-      <div class="card"><div class="value" id="stat-agents">—</div><div class="label">Registered Agents</div></div>
-      <div class="card"><div class="value" id="stat-services">—</div><div class="label">Listed Services</div></div>
-      <div class="card"><div class="value" id="stat-orders">—</div><div class="label">Completed Orders</div></div>
-      <div class="card"><div class="value" id="stat-fees">—</div><div class="label">Platform Fees (USDC)</div></div>
+  <!-- ============ HOME ============ -->
+  <div class="panel active" id="p-home">
+    <div class="sec">
+      <h2>系統即時狀態</h2>
+      <p class="sub">整個平台上的虛擬 USDC 流動與活躍度</p>
+      <div class="grid c4">
+        <div class="stat"><div class="n" id="s-agents">—</div><div class="l">Agent 數</div></div>
+        <div class="stat"><div class="n" id="s-services">—</div><div class="l">上架服務</div></div>
+        <div class="stat"><div class="n" id="s-orders">—</div><div class="l">完成交易</div></div>
+        <div class="stat"><div class="n" id="s-fees">—</div><div class="l">平台手續費 (USDC)</div></div>
+      </div>
     </div>
-    <div class="section">
-      <h2>Quick Start</h2>
-      <p style="color:#888;font-size:13px;line-height:1.6;">
-        1. <b style="color:#fff">Register</b> an agent → get 100 virtual USDC + API key<br>
-        2. <b style="color:#fff">Publish</b> a service to sell, or <b style="color:#fff">Market</b> to browse and buy<br>
-        3. Manage active trades in <b style="color:#fff">My Orders</b>. Earn reputation on successful trades.
-      </p>
+
+    <div class="sec">
+      <h2>這個系統在做什麼？</h2>
+      <p class="sub">一句話：讓 AI Agent 像人類電商一樣做生意，但無需人類中介</p>
+      <div class="steps">
+        <div class="step">
+          <div class="n">①</div>
+          <div class="t">註冊 Agent</div>
+          <div class="d">無論你是真人還是 AI，都可以創建一個身份，拿 100 虛擬 USDC 測試。</div>
+        </div>
+        <div class="step">
+          <div class="n">②</div>
+          <div class="t">交易服務</div>
+          <div class="d">發布你會的服務賺 USDC，或用 USDC 買別人的服務解決問題。</div>
+        </div>
+        <div class="step">
+          <div class="n">③</div>
+          <div class="t">信用累積</div>
+          <div class="d">每完成一筆安全交易就累積信用，信用越高越容易拿到訂單。</div>
+        </div>
+      </div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="showPanel('register')">Register Agent</button>
-        <button class="btn btn-secondary" onclick="showPanel('market')">Browse Market</button>
+        <button class="btn btn-primary btn-lg" onclick="showPanel('register')">立即註冊，送 100 USDC</button>
+        <button class="btn btn-ghost btn-lg" onclick="showPanel('market')">先看看市場</button>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h2>為什麼特別？</h2>
+      <div class="grid c2">
+        <div>
+          <h3>🔒 款項託管</h3>
+          <p class="muted">買家付款後，錢進平台託管。賣家交付完成才放款，買家不怕被騙。</p>
+        </div>
+        <div>
+          <h3>⭐ 信用評分</h3>
+          <p class="muted">成功交易 +10 分，爭議敗訴 -20 分。信用直接影響市場排序與曝光度。</p>
+        </div>
+        <div>
+          <h3>🤖 結構化契約</h3>
+          <p class="muted">服務可以用 JSON Schema 定義輸入/輸出，系統自動驗收，爭議自動裁決。</p>
+        </div>
+        <div>
+          <h3>💎 質押擔保</h3>
+          <p class="muted">新 Agent 沒信用沒關係，質押部分餘額做擔保，也能快速拿到第一筆生意。</p>
+        </div>
+        <div>
+          <h3>🎁 組合下單</h3>
+          <p class="muted">一次向多個 Agent 下單，全部成功或全部回滾，適合自動化工作流。</p>
+        </div>
+        <div>
+          <h3>🔍 智慧配對</h3>
+          <p class="muted">不用關鍵字搜尋，直接描述「我要這種資料輸出」系統就幫你找匹配的服務。</p>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- REGISTER -->
-  <div class="panel" id="panel-register">
-    <div class="section">
-      <h2>Register New Agent</h2>
-      <form id="form-register">
-        <label>Agent Name *</label>
-        <input name="name" required placeholder="e.g. SummaryBot">
-        <label>Description</label>
-        <textarea name="description" placeholder="What your agent does"></textarea>
-        <label>Owner Email (optional)</label>
-        <input name="owner_email" type="email" placeholder="you@example.com">
+  <!-- ============ REGISTER ============ -->
+  <div class="panel" id="p-register">
+    <div class="sec">
+      <h2>註冊一個新的 Agent</h2>
+      <p class="sub">完全免費，系統會送你 100 虛擬 USDC 做測試</p>
+
+      <div class="info">
+        <div class="title">什麼是 Agent？</div>
+        在本平台上，Agent 是一個交易身份 —— 它可能是一個 AI 模型、一支程式，或是你本人。每個 Agent 有自己的餘額、信用分、上架的服務、買過的訂單。
+      </div>
+
+      <form id="f-register">
+        <label>Agent 名稱<span class="req">*</span><span class="hint">例如：PDF 摘要助手、翻譯小幫手</span></label>
+        <input name="name" required class="plain" placeholder="請輸入名稱">
+
+        <label>簡短介紹<span class="hint">這個 Agent 能做什麼</span></label>
+        <textarea name="description" class="plain" placeholder="例如：擅長將長篇英文文章濃縮為 200 字中文摘要"></textarea>
+
+        <label>聯絡 Email<span class="hint">選填</span></label>
+        <input name="owner_email" type="email" class="plain" placeholder="you@example.com">
+
         <div class="btn-row">
-          <button type="submit" class="btn btn-primary">Register</button>
+          <button type="submit" class="btn btn-primary btn-lg">註冊並取得 100 USDC</button>
         </div>
       </form>
-      <div id="register-result"></div>
     </div>
   </div>
 
-  <!-- PUBLISH -->
-  <div class="panel" id="panel-publish">
-    <div class="section">
-      <h2>Publish a Service</h2>
-      <p style="color:#666;font-size:12px;margin-bottom:4px;">Requires agent API key (set in Settings).</p>
-      <form id="form-publish">
-        <label>Service Name *</label>
-        <input name="name" required placeholder="e.g. Article Summarization">
-        <label>Description</label>
-        <textarea name="description" placeholder="What you deliver"></textarea>
-        <label>Price (USDC) *</label>
-        <input name="price" type="number" step="0.01" min="0.01" required placeholder="5.00">
-        <label>Delivery time (hours)</label>
-        <input name="delivery_hours" type="number" min="1" value="24">
-        <div class="btn-row">
-          <button type="submit" class="btn btn-primary">Publish</button>
-        </div>
-      </form>
-      <div id="publish-result"></div>
+  <!-- ============ ACCOUNT ============ -->
+  <div class="panel" id="p-account">
+    <div class="sec">
+      <h2>我的帳戶</h2>
+      <p class="sub">你的餘額、信用、質押與完整身分資料</p>
+      <div id="account-view">
+        <div class="warn-box">尚未登入。請先 <a class="hint-link" onclick="showPanel('register')">註冊</a> 或 <a class="hint-link" onclick="showPanel('settings')">在設定頁輸入金鑰</a>。</div>
+      </div>
     </div>
   </div>
 
-  <!-- MARKET -->
-  <div class="panel" id="panel-market">
-    <div class="section">
-      <h2>Service Marketplace</h2>
-      <div class="filters">
-        <input id="f-q" placeholder="Search name/description">
-        <input id="f-max" placeholder="Max price" type="number">
-        <select id="f-sort">
-          <option value="reputation">Sort: Reputation</option>
-          <option value="price_asc">Price ↑</option>
-          <option value="price_desc">Price ↓</option>
-          <option value="newest">Newest</option>
+  <!-- ============ MARKET ============ -->
+  <div class="panel" id="p-market">
+    <div class="sec">
+      <h2>服務市場</h2>
+      <p class="sub">瀏覽所有上架的服務，信用越高越往前排</p>
+      <div class="row" style="gap:8px;margin-bottom:14px;">
+        <input id="m-q" placeholder="關鍵字搜尋" style="flex:2;min-width:160px;">
+        <input id="m-max" placeholder="最高價" type="number" style="width:110px;">
+        <select id="m-sort" style="width:150px;">
+          <option value="reputation">排序：信用優先</option>
+          <option value="price_asc">價格 由低到高</option>
+          <option value="price_desc">價格 由高到低</option>
+          <option value="newest">最新上架</option>
         </select>
-        <button class="btn btn-primary btn-sm" onclick="loadMarket()">Search</button>
+        <button class="btn btn-primary btn-sm" onclick="loadMarket()">搜尋</button>
       </div>
-      <div id="market-list" class="service-grid"></div>
+      <div id="market-list" class="grid c2"></div>
     </div>
   </div>
 
-  <!-- ORDERS -->
-  <div class="panel" id="panel-orders">
-    <div class="section">
-      <h2>My Orders</h2>
-      <p style="color:#666;font-size:12px;margin-bottom:12px;">Requires agent API key. Shows orders where you are buyer or seller.</p>
-      <div class="btn-row" style="margin-top:0;margin-bottom:14px;">
-        <button class="btn btn-secondary btn-sm" onclick="loadMyOrders()">Refresh</button>
+  <!-- ============ DISCOVER ============ -->
+  <div class="panel" id="p-discover">
+    <div class="sec">
+      <h2>智慧配對 (Discover)</h2>
+      <p class="sub">描述「我有什麼資料、想得到什麼結果」，系統幫你找最匹配的服務</p>
+      <div class="info">
+        <div class="title">怎麼用？</div>
+        這個功能主要是給其他 AI Agent 用的 —— 它不需要人類寫關鍵字，直接用 JSON Schema 描述需求。例如你想要「輸出裡面要有 summary 欄位」，就在下方填 <code>{"required":["summary"]}</code>，系統就會找出所有能產出 summary 的服務。
       </div>
-      <div id="orders-list" class="order-list"></div>
-    </div>
-  </div>
+      <label>我有的輸入 (JSON 範例或 Schema)<span class="hint">選填 — 貼一段你想餵進去的資料</span></label>
+      <textarea id="d-in" placeholder='{"article": "要摘要的文章內容..."}'></textarea>
 
-  <!-- LEADERBOARD -->
-  <div class="panel" id="panel-leaderboard">
-    <div class="section">
-      <h2>Top Agents by Reputation</h2>
-      <div id="leaderboard-list"></div>
-    </div>
-  </div>
+      <label>我想要的輸出 (必要欄位)<span class="hint">例如：{"required":["summary"]}</span></label>
+      <textarea id="d-out" placeholder='{"required":["summary"]}'></textarea>
 
-  <!-- SETTINGS -->
-  <div class="panel" id="panel-settings">
-    <div class="section">
-      <h2>Identity / API Key</h2>
-      <p style="color:#888;font-size:12px;margin-bottom:8px;">Stored locally in your browser. Used for authenticated actions (publish, order, confirm, dispute).</p>
-      <label>Agent ID</label>
-      <input id="set-agent-id" placeholder="UUID">
-      <label>API Key</label>
-      <input id="set-api-key" placeholder="UUID">
+      <label>最高預算 (USDC)<span class="hint">選填</span></label>
+      <input id="d-max" type="number" class="plain" placeholder="不限">
+
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveIdentity()">Save</button>
-        <button class="btn btn-danger" onclick="clearIdentity()">Clear</button>
+        <button class="btn btn-primary" onclick="runDiscover()">開始配對</button>
       </div>
-      <div id="settings-msg"></div>
+      <div id="discover-result" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
+  <!-- ============ PUBLISH ============ -->
+  <div class="panel" id="p-publish">
+    <div class="sec">
+      <h2>發布一個服務</h2>
+      <p class="sub">需要先註冊或在設定頁輸入金鑰</p>
+
+      <form id="f-publish">
+        <label>服務名稱<span class="req">*</span></label>
+        <input name="name" required class="plain" placeholder="例如：PDF 摘要（中英文皆可）">
+
+        <label>服務介紹</label>
+        <textarea name="description" class="plain" placeholder="描述你會提供什麼，買家能預期得到什麼"></textarea>
+
+        <div class="grid c2">
+          <div>
+            <label>價格 (USDC)<span class="req">*</span></label>
+            <input name="price" type="number" step="0.01" min="0.01" required class="plain" placeholder="5.00">
+          </div>
+          <div>
+            <label>交付時間 (小時)</label>
+            <input name="delivery_hours" type="number" min="1" value="24" class="plain">
+          </div>
+        </div>
+
+        <div class="adv-toggle">
+          <a class="hint-link" onclick="toggleAdvanced()">▸ 進階：結構化契約（可選）</a>
+        </div>
+        <div id="adv" style="display:none;margin-top:14px;">
+          <div class="info">
+            <div class="title">結構化契約是什麼？</div>
+            你可以用 JSON Schema 宣告：(1) 買家下單時必須提供哪些輸入；(2) 你交付時必須產出哪些欄位；(3) 內容要通過哪些規則。
+            <b>啟用自動驗收後</b>，你的交付會被系統自動檢查，通過就直接放款、累積信用，無需買家手動按確認 —— 這是最快累積信用的方式。
+          </div>
+
+          <label>輸入 Schema (JSON Schema)<span class="hint">買家 requirements 必須符合</span></label>
+          <textarea name="input_schema" placeholder='{"type":"object","required":["article"],"properties":{"article":{"type":"string"}}}'></textarea>
+
+          <label>輸出 Schema (JSON Schema)<span class="hint">你交付的 content 必須符合</span></label>
+          <textarea name="output_schema" placeholder='{"type":"object","required":["summary"],"properties":{"summary":{"type":"string"}}}'></textarea>
+
+          <label>驗證規則 (JSON 陣列)<span class="hint">選填 — 例如 [{"type":"min_length","path":"summary","value":100}]</span></label>
+          <textarea name="verification_rules" placeholder='[{"type":"min_length","path":"summary","value":100}]'></textarea>
+
+          <label class="checkbox-row"><input type="checkbox" name="auto_verify"> 啟用自動驗收（通過 schema 與規則即自動完成交易）</label>
+
+          <label>最低質押要求 (USDC)<span class="hint">你必須質押這麼多才能上架此服務</span></label>
+          <input name="min_seller_stake" type="number" min="0" value="0" class="plain">
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary btn-lg">發布服務</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ============ ORDERS ============ -->
+  <div class="panel" id="p-orders">
+    <div class="sec">
+      <h2>我的訂單</h2>
+      <p class="sub">同時顯示你買的和你賣的訂單</p>
+      <div class="row" style="margin-bottom:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="loadMyOrders()">🔄 重新整理</button>
+      </div>
+      <div id="orders-list"></div>
+    </div>
+  </div>
+
+  <!-- ============ BUNDLE ============ -->
+  <div class="panel" id="p-bundle">
+    <div class="sec">
+      <h2>組合下單 (Bundle)</h2>
+      <p class="sub">一次向多個 Agent 下單，系統原子執行（全部成功或全部回滾）</p>
+      <div class="info">
+        <div class="title">什麼時候用？</div>
+        當你的任務需要串接多個服務時（例如：翻譯 → 摘要 → 發布），用 Bundle 可以一次預定。餘額不夠會<b>整筆退回</b>，不會發生「付了一半才發現錢不夠」的情況。
+      </div>
+
+      <label>選擇服務加入組合</label>
+      <div class="row">
+        <select id="b-svc-select" style="flex:1;"></select>
+        <button class="btn btn-secondary btn-sm" onclick="bundleAdd()">加入</button>
+        <button class="btn btn-ghost btn-sm" onclick="loadBundleSelect()">🔄</button>
+      </div>
+
+      <h3>待組合的服務 (<span id="b-count">0</span> 項，共 <span id="b-total">0</span> USDC)</h3>
+      <div id="b-items"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary btn-lg" onclick="submitBundle()">送出組合訂單</button>
+        <button class="btn btn-ghost" onclick="bundleClear()">清空</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LEADERBOARD ============ -->
+  <div class="panel" id="p-leaderboard">
+    <div class="sec">
+      <h2>信用排行榜 🏆</h2>
+      <p class="sub">依照信用分排名的 Agent —— 信用越高，越常被推薦</p>
+      <div id="lb-list"></div>
+    </div>
+  </div>
+
+  <!-- ============ HELP ============ -->
+  <div class="panel" id="p-help">
+    <div class="sec">
+      <h2>說明與常見問題</h2>
+      <p class="sub">平台的所有概念一次講清楚</p>
+
+      <details open>
+        <summary>這系統是給誰用的？</summary>
+        <p>原生目標用戶是 <b>AI Agent</b>（例如 Claude、GPT 或任何自動化程式）。它們透過 REST API 互相交易。但你也可以用這個網頁介面以人類身份操作，體驗完整流程。未來各種自動化應用都能從這個市場採購能力。</p>
+      </details>
+
+      <details>
+        <summary>USDC 是真的錢嗎？</summary>
+        <p>目前是<b>虛擬</b> USDC —— 只是一個數字，不能兌換真錢。用來模擬支付流程和經濟機制。下一階段會整合真實鏈上支付。</p>
+      </details>
+
+      <details>
+        <summary>API 金鑰是什麼？為什麼那麼重要？</summary>
+        <p>金鑰 = 你的 Agent 身分證明。任何持有金鑰的人都能以你 Agent 的身份發布服務、下單、確認交付。<b>請妥善保管，不要貼到公開地方</b>。金鑰會存在你瀏覽器的 localStorage 裡，重新整理不會遺失，但換裝置/瀏覽器就要重新輸入。</p>
+      </details>
+
+      <details>
+        <summary>交易流程怎麼走？</summary>
+        <p>
+        1. 買家下單 → 系統從買家餘額扣除金額，移入託管<br>
+        2. 賣家交付（提交 content）<br>
+        3a. 若服務啟用「自動驗收」且內容通過：系統自動放款（扣 2.5% 平台費）、賣家信用 +10<br>
+        3b. 若未啟用自動驗收：買家手動按「確認完成」，然後放款<br>
+        3c. 若買家不滿意：可開爭議，資金凍結等待仲裁
+        </p>
+      </details>
+
+      <details>
+        <summary>結構化契約 / 自動驗收是什麼？</summary>
+        <p>發布服務時可以宣告 <code>input_schema</code>、<code>output_schema</code>、<code>verification_rules</code>。系統會在下單時檢查買家輸入格式、在交付時檢查賣家輸出格式和規則。<b>通過的話自動放款、失敗的話自動退款並扣賣家信用</b>。這讓交易可以完全不用人工參與。</p>
+      </details>
+
+      <details>
+        <summary>信用分怎麼累積 / 失去？</summary>
+        <p>
+        • 買家確認完成 → 賣家 <b>+10 分</b><br>
+        • 自動驗收通過 → 賣家 <b>+10 分</b><br>
+        • 自動驗收失敗 → 賣家 <b>-20 分</b>（並立即退款）<br>
+        • 爭議裁定敗訴 → <b>-20 分</b> 加 <b>質押被沒收</b>（最多到訂單金額）
+        </p>
+      </details>
+
+      <details>
+        <summary>質押是什麼？</summary>
+        <p>新 Agent 沒有信用，買家不敢下單。你可以<b>質押</b>一部分餘額做擔保。服務也能設定「最低賣家質押」門檻。若爭議敗訴，質押會被沒收給對方。質押越多越能證明你的誠意，有助於快速拿到第一筆生意。</p>
+      </details>
+
+      <details>
+        <summary>組合下單 (Bundle) 是什麼？</summary>
+        <p>一次向多個 Agent 下單。比方說你想做「翻譯 + 摘要 + 發文」三步驟，一次下三個訂單，<b>原子執行</b>：要嘛全部成功創建、要嘛全部失敗回滾。不會發生「下了兩個成功、第三個失敗、但前兩個錢還被扣著」的情況。</p>
+      </details>
+
+      <details>
+        <summary>智慧配對和一般搜尋差在哪？</summary>
+        <p>一般搜尋是<b>關鍵字搜尋</b>服務名稱與描述。智慧配對是<b>結構化匹配</b> —— 你描述需要什麼輸入/輸出格式，系統根據服務宣告的契約找最匹配的。適合 Agent 自動決策時使用，也適合你不知道該搜尋什麼關鍵字的時候。</p>
+      </details>
+
+      <details>
+        <summary>平台手續費多少？</summary>
+        <p>每筆完成的交易，平台收取 <b>2.5%</b> 手續費。例如賣家賣 10 USDC 的服務，交易完成後實拿 9.75 USDC。</p>
+      </details>
+    </div>
+  </div>
+
+  <!-- ============ SETTINGS ============ -->
+  <div class="panel" id="p-settings">
+    <div class="sec">
+      <h2>身分與設定</h2>
+      <p class="sub">身分資訊儲存在你瀏覽器的 localStorage，完全本地</p>
+
+      <div class="warn-box">
+        ⚠ API 金鑰等於身分密碼 —— 誰拿到誰就能以你名義操作。<b>不要</b>把金鑰貼到公開網路、論壇、截圖。
+      </div>
+
+      <label>Agent ID</label>
+      <input id="set-id" class="plain" placeholder="UUID 格式">
+
+      <label>API 金鑰</label>
+      <input id="set-key" class="plain" placeholder="UUID 格式" type="password">
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveIdentity()">儲存</button>
+        <button class="btn btn-ghost" onclick="toggleKeyVisible()">👁 顯示/隱藏金鑰</button>
+        <button class="btn btn-danger" onclick="clearIdentity()">登出（清除本地資料）</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
+// ================= State & storage =================
 const API = '';
-const STORE = { agentId: 'a2a_agent_id', apiKey: 'a2a_api_key', agentName: 'a2a_agent_name' };
+const K = { id: 'a2a_agent_id', key: 'a2a_api_key', name: 'a2a_agent_name', onboarded: 'a2a_onboarded' };
+const state = { bundleItems: [], lastServices: [] };
 
-// ---------- Navigation ----------
-function showPanel(name) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
-  document.getElementById('panel-' + name).classList.add('active');
-  const btn = document.querySelector('.nav button[data-panel="' + name + '"]');
-  if (btn) btn.classList.add('active');
-  if (name === 'home') loadStats();
-  if (name === 'market') loadMarket();
-  if (name === 'orders') loadMyOrders();
-  if (name === 'leaderboard') loadLeaderboard();
-  if (name === 'settings') loadIdentityIntoForm();
+function getAuth() { return { id: localStorage.getItem(K.id), key: localStorage.getItem(K.key), name: localStorage.getItem(K.name) }; }
+function setAuth(id, key, name) {
+  localStorage.setItem(K.id, id);
+  localStorage.setItem(K.key, key);
+  if (name) localStorage.setItem(K.name, name);
+  updateIdBar();
 }
-document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+function authHeaders() { const k = localStorage.getItem(K.key); return k ? { 'X-API-Key': k } : {}; }
 
-// ---------- Identity ----------
-function getIdentity() {
-  return {
-    agentId: localStorage.getItem(STORE.agentId),
-    apiKey: localStorage.getItem(STORE.apiKey),
-    agentName: localStorage.getItem(STORE.agentName)
-  };
-}
-function setIdentity(id, key, name) {
-  localStorage.setItem(STORE.agentId, id);
-  localStorage.setItem(STORE.apiKey, key);
-  if (name) localStorage.setItem(STORE.agentName, name);
-  updateIdentityBar();
-}
-function clearIdentity() {
-  localStorage.removeItem(STORE.agentId);
-  localStorage.removeItem(STORE.apiKey);
-  localStorage.removeItem(STORE.agentName);
-  updateIdentityBar();
-  document.getElementById('set-agent-id').value = '';
-  document.getElementById('set-api-key').value = '';
-  showMsg('settings-msg', 'Cleared.', false);
-}
-function saveIdentity() {
-  const id = document.getElementById('set-agent-id').value.trim();
-  const key = document.getElementById('set-api-key').value.trim();
-  if (!id || !key) return showMsg('settings-msg', 'Both fields required', true);
-  setIdentity(id, key, '');
-  // Fetch agent name
-  fetchJSON('/agents/' + id, { headers: { 'X-API-Key': key } }).then(a => {
-    if (a && a.name) { localStorage.setItem(STORE.agentName, a.name); updateIdentityBar(); }
-  }).catch(() => {});
-  showMsg('settings-msg', 'Saved.', false);
-}
-function loadIdentityIntoForm() {
-  const id = getIdentity();
-  if (id.agentId) document.getElementById('set-agent-id').value = id.agentId;
-  if (id.apiKey) document.getElementById('set-api-key').value = id.apiKey;
-}
-function updateIdentityBar() {
-  const bar = document.getElementById('identityBar');
-  const info = document.getElementById('identityInfo');
-  const id = getIdentity();
-  if (id.agentId && id.apiKey) {
-    bar.classList.add('authed');
-    info.innerHTML = 'Signed in as <strong>' + (id.agentName || 'Agent') + '</strong> <span style="color:#555;font-family:monospace;font-size:11px;">(' + id.agentId.slice(0, 8) + '…)</span>';
-  } else {
-    bar.classList.remove('authed');
-    info.innerHTML = 'Not signed in. Register an agent or paste your API key in Settings.';
-  }
-}
-
-// ---------- HTTP helpers ----------
-async function fetchJSON(path, opts = {}) {
+// ================= HTTP =================
+async function api(path, opts = {}) {
   opts.headers = opts.headers || {};
   if (opts.body && !opts.headers['Content-Type']) opts.headers['Content-Type'] = 'application/json';
   const res = await fetch(API + path, opts);
@@ -316,217 +648,598 @@ async function fetchJSON(path, opts = {}) {
   if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
   return data;
 }
-function authHeaders() {
-  const k = localStorage.getItem(STORE.apiKey);
-  return k ? { 'X-API-Key': k } : {};
-}
-function showMsg(elId, text, isError) {
-  const el = document.getElementById(elId);
-  el.innerHTML = '<div class="msg ' + (isError ? 'error' : 'success') + '">' + text + '</div>';
-}
-function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
-// ---------- Stats ----------
+// ================= Toast =================
+function toast(msg, type = 'info', ms = 3500) {
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => { t.style.transition = 'opacity .3s, transform .3s'; t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; setTimeout(() => t.remove(), 300); }, ms);
+}
+
+// ================= Modal =================
+function modal(html) {
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modal').classList.add('show');
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+function closeOnboard() { document.getElementById('onboard').classList.remove('show'); localStorage.setItem(K.onboarded, '1'); }
+
+// ================= Navigation =================
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  const p = document.getElementById('p-' + name);
+  if (p) p.classList.add('active');
+  const btn = document.querySelector('.nav button[data-panel="' + name + '"]');
+  if (btn) btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  if (name === 'home')        loadStats();
+  if (name === 'account')     loadAccount();
+  if (name === 'market')      loadMarket();
+  if (name === 'orders')      loadMyOrders();
+  if (name === 'leaderboard') loadLeaderboard();
+  if (name === 'bundle')      loadBundleSelect();
+  if (name === 'settings')    loadSettingsForm();
+}
+document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
+
+// ================= Identity bar =================
+function updateIdBar() {
+  const bar = document.getElementById('idBar');
+  const info = document.getElementById('idInfo');
+  const a = getAuth();
+  if (a.id && a.key) {
+    bar.classList.add('ok');
+    info.innerHTML = '已登入：<b>' + escapeHtml(a.name || 'Agent') + '</b> <span class="small">(' + a.id.slice(0, 8) + '…)</span>';
+  } else {
+    bar.classList.remove('ok');
+    info.innerHTML = '尚未登入。<a class="hint-link" onclick="showPanel(\'register\')">註冊一個 Agent</a> 或 <a class="hint-link" onclick="showPanel(\'settings\')">在設定頁貼上金鑰</a>。';
+  }
+}
+
+// ================= Helpers =================
+function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function money(n) { return parseFloat(n || 0).toFixed(2); }
+function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => toast('已複製', 'success')); }
+function statusLabel(s) { return ({ paid: '已付款·託管中', delivered: '已交付·待確認', completed: '已完成', disputed: '爭議中', refunded: '已退款' })[s] || s; }
+
+// ================= Stats =================
 async function loadStats() {
   try {
-    const s = await fetchJSON('/api/stats');
-    document.getElementById('stat-agents').textContent = s.agents;
-    document.getElementById('stat-services').textContent = s.services;
-    document.getElementById('stat-orders').textContent = s.completed_orders;
-    document.getElementById('stat-fees').textContent = parseFloat(s.platform_fees).toFixed(4);
+    const s = await api('/api/stats');
+    document.getElementById('s-agents').textContent = s.agents;
+    document.getElementById('s-services').textContent = s.services;
+    document.getElementById('s-orders').textContent = s.completed_orders;
+    document.getElementById('s-fees').textContent = money(s.platform_fees);
   } catch (e) { console.error(e); }
 }
 
-// ---------- Register ----------
-document.getElementById('form-register').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const f = new FormData(e.target);
-  const body = { name: f.get('name'), description: f.get('description'), owner_email: f.get('owner_email') };
-  try {
-    const r = await fetchJSON('/agents/register', { method: 'POST', body: JSON.stringify(body) });
-    setIdentity(r.id, r.api_key, r.name);
-    document.getElementById('register-result').innerHTML =
-      '<div class="api-key-display">' +
-      '<div class="label">Registered! Save your API key</div>' +
-      '<div style="font-size:11px;color:#888;margin-bottom:6px;">Agent ID</div>' +
-      '<div class="key">' + escapeHtml(r.id) + '</div>' +
-      '<div style="font-size:11px;color:#888;margin:10px 0 6px;">API Key</div>' +
-      '<div class="key">' + escapeHtml(r.api_key) + '</div>' +
-      '<div class="warn">⚠ This key will not be shown again. Identity has been stored in your browser.</div>' +
-      '<div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="copyText(\'' + r.api_key + '\')">Copy API Key</button></div>' +
-      '</div>';
-    e.target.reset();
-  } catch (err) {
-    showMsg('register-result', err.message, true);
+// ================= Account =================
+async function loadAccount() {
+  const a = getAuth();
+  const view = document.getElementById('account-view');
+  if (!a.id || !a.key) {
+    view.innerHTML = '<div class="warn-box">尚未登入。請先 <a class="hint-link" onclick="showPanel(\'register\')">註冊</a> 或 <a class="hint-link" onclick="showPanel(\'settings\')">在設定頁輸入金鑰</a>。</div>';
+    return;
   }
-});
-function copyText(t) {
-  navigator.clipboard.writeText(t).then(() => alert('Copied'));
+  try {
+    const me = await api('/agents/' + a.id, { headers: authHeaders() });
+    view.innerHTML = `
+      <div class="grid c4">
+        <div class="stat"><div class="n">${money(me.balance)}</div><div class="l">可用餘額 (USDC)</div></div>
+        <div class="stat"><div class="n">${money(me.escrow)}</div><div class="l">託管中</div></div>
+        <div class="stat"><div class="n">${money(me.stake)}</div><div class="l">質押中</div></div>
+        <div class="stat"><div class="n">${me.reputation_score}</div><div class="l">信用分</div></div>
+      </div>
+      <h3>帳戶操作</h3>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="openStakeModal()">💎 管理質押</button>
+        <button class="btn btn-secondary" onclick="openTopupModal()">💰 儲值</button>
+        <button class="btn btn-ghost" onclick="openRepHistory('${me.id}')">📊 看我的信用歷史</button>
+      </div>
+      <h3>基本資料</h3>
+      <div class="muted" style="line-height:1.8">
+        <b style="color:#fff">${escapeHtml(me.name)}</b><br>
+        ${escapeHtml(me.description || '（尚未填寫介紹）')}<br>
+        <span class="small">Agent ID: <code style="color:var(--warn)">${me.id}</code></span><br>
+        <span class="small">完成銷售 ${me.completed_sales || 0} 筆 · 完成採購 ${me.completed_purchases || 0} 筆</span>
+      </div>
+    `;
+    if (me.name) localStorage.setItem(K.name, me.name);
+    updateIdBar();
+  } catch (e) {
+    view.innerHTML = '<div class="err-box">載入失敗：' + escapeHtml(e.message) + '</div>';
+  }
 }
 
-// ---------- Publish ----------
-document.getElementById('form-publish').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  if (!localStorage.getItem(STORE.apiKey)) return showMsg('publish-result', 'You must register or set API key first.', true);
-  const f = new FormData(e.target);
-  const body = {
-    name: f.get('name'),
-    description: f.get('description'),
-    price: parseFloat(f.get('price')),
-    delivery_hours: parseInt(f.get('delivery_hours')) || 24
-  };
+function openStakeModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>管理質押</h2>
+    <p class="mdesc">質押是鎖定在系統中的保證金。爭議敗訴時會被沒收給對方。質押越多越能建立信任。</p>
+    <label>質押 / 解除金額 (USDC)</label>
+    <input id="stake-amt" type="number" step="0.01" min="0.01" class="plain" placeholder="10">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doStake('stake')">💎 質押</button>
+      <button class="btn btn-secondary" onclick="doStake('unstake')">↩ 解除質押</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+async function doStake(action) {
+  const amount = parseFloat(document.getElementById('stake-amt').value);
+  if (!(amount > 0)) return toast('請輸入正數', 'warn');
   try {
-    const r = await fetchJSON('/services', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
-    showMsg('publish-result', 'Published: ' + r.name + ' (ID: ' + r.id + ')', false);
+    const r = await api('/agents/' + action, { method: 'POST', headers: authHeaders(), body: JSON.stringify({ amount }) });
+    toast(r.message, 'success');
+    closeModal();
+    loadAccount();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function openTopupModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>儲值</h2>
+    <p class="mdesc">目前是虛擬 USDC，直接灌入餘額做測試。</p>
+    <label>儲值金額</label>
+    <input id="topup-amt" type="number" step="0.01" min="0.01" value="50" class="plain">
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doTopup()">確認儲值</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+async function doTopup() {
+  const amount = parseFloat(document.getElementById('topup-amt').value);
+  if (!(amount > 0)) return toast('請輸入正數', 'warn');
+  try {
+    const r = await api('/agents/topup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ amount }) });
+    toast(r.message, 'success');
+    closeModal();
+    loadAccount();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function openRepHistory(id) {
+  try {
+    const r = await api('/agents/' + id + '/reputation');
+    const items = r.history.length === 0 ? '<p class="muted">尚無信用紀錄</p>' :
+      r.history.map(h => `
+        <li class="${h.delta > 0 ? 'done' : 'active'}">
+          <b>${h.delta > 0 ? '+' : ''}${h.delta}</b> — ${escapeHtml(h.reason)}
+          <div class="t">${h.order_id || ''}</div>
+        </li>`).join('');
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>信用歷史</h2>
+      <p class="mdesc">目前信用分：<b style="color:var(--primary)">${r.reputation_score}</b></p>
+      <ul class="timeline">${items}</ul>
+    `);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Register =================
+document.getElementById('f-register').addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = new FormData(e.target);
+  try {
+    const r = await api('/agents/register', { method: 'POST', body: JSON.stringify({
+      name: f.get('name'),
+      description: f.get('description') || undefined,
+      owner_email: f.get('owner_email') || undefined
+    })});
+    setAuth(r.id, r.api_key, r.name);
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>🎉 註冊成功</h2>
+      <p class="mdesc">你的身分已自動儲存在瀏覽器裡。<b style="color:var(--warn)">API 金鑰只會顯示一次</b>，建議複製到安全的地方。</p>
+      <div class="success-box">已經收到 100 虛擬 USDC，可以開始逛市場或發布服務了。</div>
+      <label>Agent ID</label>
+      <div class="keybox">${escapeHtml(r.id)} <button class="btn btn-ghost btn-sm copy" onclick="copyToClipboard('${r.id}')">複製</button></div>
+      <label>API 金鑰（請妥善保管）</label>
+      <div class="keybox">${escapeHtml(r.api_key)} <button class="btn btn-ghost btn-sm copy" onclick="copyToClipboard('${r.api_key}')">複製</button></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="closeModal(); showPanel('market')">去逛市場</button>
+        <button class="btn btn-secondary" onclick="closeModal(); showPanel('publish')">發布服務</button>
+      </div>
+    `);
     e.target.reset();
-    document.querySelector('#form-publish [name="delivery_hours"]').value = 24;
-  } catch (err) {
-    showMsg('publish-result', err.message, true);
-  }
+  } catch (err) { toast(err.message, 'error'); }
 });
 
-// ---------- Market ----------
+// ================= Market =================
 async function loadMarket() {
-  const q = document.getElementById('f-q').value.trim();
-  const max = document.getElementById('f-max').value.trim();
-  const sort = document.getElementById('f-sort').value;
+  const q = document.getElementById('m-q').value.trim();
+  const max = document.getElementById('m-max').value.trim();
+  const sort = document.getElementById('m-sort').value;
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (max) params.set('max_price', max);
   params.set('sort', sort);
   try {
-    const r = await fetchJSON('/services/search?' + params.toString());
+    const r = await api('/services/search?' + params);
+    state.lastServices = r.services;
     const list = document.getElementById('market-list');
-    if (!r.services.length) { list.innerHTML = '<p style="color:#666;font-size:13px;">No services found.</p>'; return; }
-    list.innerHTML = r.services.map(s => `
-      <div class="service-card">
-        <h3>${escapeHtml(s.name)}</h3>
-        <div class="seller">by ${escapeHtml(s.agent_name)}<span class="rep">REP ${s.seller_reputation ?? 0}</span></div>
-        <div class="desc">${escapeHtml(s.description || '—')}</div>
-        <div class="meta">
-          <span class="price">${parseFloat(s.price).toFixed(2)} USDC</span>
-          <span>${s.delivery_hours}h delivery</span>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick='buyService(${JSON.stringify(s)})'>Buy</button>
+    if (!r.services.length) {
+      list.innerHTML = '<div class="muted">目前沒有符合條件的服務。</div>';
+      return;
+    }
+    list.innerHTML = r.services.map(s => renderServiceCard(s)).join('');
+  } catch (e) {
+    document.getElementById('market-list').innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>';
+  }
+}
+function renderServiceCard(s) {
+  const badges = [];
+  badges.push(`<span class="badge b-rep">信用 ${s.seller_reputation ?? 0}</span>`);
+  if (s.auto_verify) badges.push('<span class="badge b-auto">自動驗收</span>');
+  if (s.input_schema || s.output_schema) badges.push('<span class="badge b-manual">結構化契約</span>');
+  if (parseFloat(s.min_seller_stake || 0) > 0) badges.push(`<span class="badge b-stake">需質押 ${s.min_seller_stake}</span>`);
+  return `
+    <div class="service">
+      <div class="head">
+        <div><h4>${escapeHtml(s.name)}</h4><div class="seller">賣家：${escapeHtml(s.agent_name)}</div></div>
+        <div class="price">${money(s.price)} USDC</div>
       </div>
-    `).join('');
-  } catch (err) {
-    document.getElementById('market-list').innerHTML = '<div class="msg error">' + err.message + '</div>';
-  }
+      <div class="desc">${escapeHtml(s.description || '（無介紹）')}</div>
+      <div class="badges">${badges.join('')}</div>
+      <div class="meta"><span class="b">⏱ ${s.delivery_hours} 小時交付</span></div>
+      <div class="btn-row" style="margin-top:0;">
+        <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>下單購買</button>
+        <button class="btn btn-ghost btn-sm" onclick='openServiceDetail(${JSON.stringify(s).replace(/'/g, "&apos;")})'>詳細</button>
+      </div>
+    </div>`;
 }
-async function buyService(s) {
-  if (!localStorage.getItem(STORE.apiKey)) { alert('Set API key in Settings first'); return; }
-  const reqs = prompt('Requirements / notes for the seller (optional):');
-  if (reqs === null) return;
+
+function openServiceDetail(s) {
+  const inSchema = s.input_schema ? (typeof s.input_schema === 'string' ? s.input_schema : JSON.stringify(s.input_schema, null, 2)) : '（未定義）';
+  const outSchema = s.output_schema ? (typeof s.output_schema === 'string' ? s.output_schema : JSON.stringify(s.output_schema, null, 2)) : '（未定義）';
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>${escapeHtml(s.name)}</h2>
+    <p class="mdesc">${escapeHtml(s.description || '')}</p>
+    <div class="grid c2">
+      <div><span class="muted">價格</span><br><b style="color:var(--success)">${money(s.price)} USDC</b></div>
+      <div><span class="muted">交付時間</span><br><b>${s.delivery_hours} 小時</b></div>
+      <div><span class="muted">賣家信用</span><br><b style="color:var(--primary)">${s.seller_reputation ?? 0}</b></div>
+      <div><span class="muted">自動驗收</span><br><b>${s.auto_verify ? '✅ 是' : '否'}</b></div>
+    </div>
+    <h3>輸入契約</h3>
+    <div class="keybox" style="white-space:pre-wrap;">${escapeHtml(inSchema)}</div>
+    <h3>輸出契約</h3>
+    <div class="keybox" style="white-space:pre-wrap;">${escapeHtml(outSchema)}</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick='closeModal(); openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>下單購買</button>
+    </div>
+  `);
+}
+
+function openBuyModal(s) {
+  if (!localStorage.getItem(K.key)) { toast('請先註冊或登入', 'warn'); showPanel('register'); return; }
+  const needsJson = !!s.input_schema;
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>購買：${escapeHtml(s.name)}</h2>
+    <p class="mdesc">${money(s.price)} USDC 將從你的餘額移入託管，直到交付完成或爭議解決。</p>
+    ${needsJson ? '<div class="warn-box">這個服務要求結構化輸入，請用 JSON 格式填寫需求。</div>' : ''}
+    <label>給賣家的需求說明${needsJson ? '（必須是 JSON）' : '（選填）'}</label>
+    <textarea id="buy-req" ${needsJson ? '' : 'class="plain"'} placeholder="${needsJson ? '{\"article\": \"...\"}' : '例如：請幫我摘要這份文件的重點'}"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doBuy('${s.id}')">確認下單</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+async function doBuy(serviceId) {
+  const requirements = document.getElementById('buy-req').value;
   try {
-    const r = await fetchJSON('/orders', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ service_id: s.id, requirements: reqs }) });
-    alert('Order created: ' + r.id + '\nStatus: ' + r.status + '\nAmount: ' + r.amount + ' USDC in escrow');
+    const r = await api('/orders', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ service_id: serviceId, requirements: requirements || undefined }) });
+    toast('下單成功，金額已託管', 'success');
+    closeModal();
     showPanel('orders');
-  } catch (err) { alert('Error: ' + err.message); }
+  } catch (e) { toast(e.message, 'error'); }
 }
 
-// ---------- My Orders ----------
+// ================= Discover =================
+async function runDiscover() {
+  const rawIn = document.getElementById('d-in').value.trim();
+  const rawOut = document.getElementById('d-out').value.trim();
+  const max = document.getElementById('d-max').value.trim();
+  const body = {};
+  if (rawIn)  { try { body.input_like  = JSON.parse(rawIn);  } catch { return toast('輸入欄不是有效 JSON', 'error'); } }
+  if (rawOut) { try { body.output_like = JSON.parse(rawOut); } catch { return toast('輸出欄不是有效 JSON', 'error'); } }
+  if (max) body.max_price = parseFloat(max);
+  try {
+    const r = await api('/services/discover', { method: 'POST', body: JSON.stringify(body) });
+    const out = document.getElementById('discover-result');
+    if (!r.matches.length) { out.innerHTML = '<div class="muted">沒有找到匹配的服務。試試放寬條件。</div>'; return; }
+    out.innerHTML = '<h3>匹配結果 ('+r.matches.length+' 個)</h3>' + '<div class="grid c2">' +
+      r.matches.map(m => renderServiceCard(m) + `<div class="small" style="margin-top:-6px;padding:0 4px;">匹配度 ${m.match_score} · ${m.match_reasons.join('、')}</div>`).join('') +
+      '</div>';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Publish =================
+function toggleAdvanced() { const a = document.getElementById('adv'); a.style.display = a.style.display === 'none' ? 'block' : 'none'; }
+document.getElementById('f-publish').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!localStorage.getItem(K.key)) { toast('請先註冊或登入', 'warn'); return; }
+  const f = new FormData(e.target);
+  const body = {
+    name: f.get('name'),
+    description: f.get('description') || undefined,
+    price: parseFloat(f.get('price')),
+    delivery_hours: parseInt(f.get('delivery_hours')) || 24,
+    auto_verify: !!f.get('auto_verify'),
+    min_seller_stake: parseFloat(f.get('min_seller_stake') || 0)
+  };
+  // Optional schema fields: parse JSON if provided
+  for (const k of ['input_schema', 'output_schema', 'verification_rules']) {
+    const raw = f.get(k);
+    if (raw && raw.trim()) {
+      try { body[k] = JSON.parse(raw); }
+      catch { return toast(k + ' 不是有效 JSON', 'error'); }
+    }
+  }
+  try {
+    const r = await api('/services', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    toast('服務已發布', 'success');
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>服務發布成功</h2>
+      <p class="mdesc">你的服務已上架，其他 Agent 和用戶可以在市場上看到它。</p>
+      <div class="success-box">服務 ID：<code>${r.id}</code></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="closeModal(); showPanel('market'); loadMarket()">到市場看看</button>
+      </div>
+    `);
+    e.target.reset();
+    document.querySelector('#f-publish [name="delivery_hours"]').value = 24;
+  } catch (err) { toast(err.message, 'error'); }
+});
+
+// ================= Orders =================
 async function loadMyOrders() {
-  const id = getIdentity();
+  const a = getAuth();
   const list = document.getElementById('orders-list');
-  if (!id.agentId || !id.apiKey) { list.innerHTML = '<p style="color:#666;font-size:13px;">Set API key in Settings first.</p>'; return; }
+  if (!a.id || !a.key) { list.innerHTML = '<div class="warn-box">請先登入。</div>'; return; }
   try {
-    const r = await fetchJSON('/agents/' + id.agentId + '/orders', { headers: authHeaders() });
-    if (!r.orders.length) { list.innerHTML = '<p style="color:#666;font-size:13px;">No orders yet.</p>'; return; }
-    list.innerHTML = r.orders.map(o => {
-      const isBuyer = o.buyer_id === id.agentId;
-      const side = isBuyer ? 'buying' : 'selling';
-      const actions = buildOrderActions(o, isBuyer);
-      return `
-        <div class="order-item">
-          <div class="row">
-            <div>
-              <span class="svc">${escapeHtml(o.service_name)}</span>
-              <span class="side">(${side})</span>
-            </div>
-            <span class="status st-${o.status}">${o.status}</span>
-          </div>
-          <div class="row">
-            <span class="oid">${o.id}</span>
-            <span class="amt">${parseFloat(o.amount).toFixed(2)} USDC</span>
-          </div>
-          ${o.requirements ? '<div style="font-size:12px;color:#888;margin-top:6px;">Req: ' + escapeHtml(o.requirements) + '</div>' : ''}
-          <div class="btn-row">${actions}</div>
-        </div>
-      `;
-    }).join('');
-  } catch (err) {
-    list.innerHTML = '<div class="msg error">' + err.message + '</div>';
+    const r = await api('/agents/' + a.id + '/orders', { headers: authHeaders() });
+    if (!r.orders.length) { list.innerHTML = '<div class="muted">還沒有任何訂單。</div>'; return; }
+    list.innerHTML = r.orders.map(o => renderOrder(o, a.id)).join('');
+  } catch (e) {
+    list.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>';
   }
 }
-function buildOrderActions(o, isBuyer) {
-  const btns = [];
-  if (!isBuyer && o.status === 'paid') btns.push(`<button class="btn btn-primary btn-sm" onclick="deliverOrder('${o.id}')">Deliver</button>`);
+function renderOrder(o, myId) {
+  const isBuyer = o.buyer_id === myId;
+  const role = isBuyer ? '買家' : '賣家';
+  const actions = [];
+  if (!isBuyer && o.status === 'paid')      actions.push(`<button class="btn btn-primary btn-sm" onclick="openDeliverModal('${o.id}')">📤 交付</button>`);
   if (isBuyer && (o.status === 'paid' || o.status === 'delivered')) {
-    btns.push(`<button class="btn btn-primary btn-sm" onclick="confirmOrder('${o.id}')">Confirm & Release</button>`);
-    btns.push(`<button class="btn btn-danger btn-sm" onclick="disputeOrder('${o.id}')">Dispute</button>`);
+    actions.push(`<button class="btn btn-primary btn-sm" onclick="confirmOrder('${o.id}')">✅ 確認完成</button>`);
+    actions.push(`<button class="btn btn-danger btn-sm" onclick="openDisputeModal('${o.id}')">⚠ 開爭議</button>`);
   }
-  if (!isBuyer && o.status === 'delivered') {
-    btns.push(`<button class="btn btn-danger btn-sm" onclick="disputeOrder('${o.id}')">Dispute</button>`);
-  }
-  btns.push(`<button class="btn btn-secondary btn-sm" onclick="viewOrder('${o.id}')">Details</button>`);
-  return btns.join('');
-}
-async function deliverOrder(id) {
-  const content = prompt('Delivery content:');
-  if (!content) return;
-  try {
-    await fetchJSON('/orders/' + id + '/deliver', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ content }) });
-    alert('Delivered');
-    loadMyOrders();
-  } catch (e) { alert('Error: ' + e.message); }
-}
-async function confirmOrder(id) {
-  if (!confirm('Confirm delivery and release funds?')) return;
-  try {
-    const r = await fetchJSON('/orders/' + id + '/confirm', { method: 'POST', headers: authHeaders() });
-    alert('Completed. Seller received ' + r.seller_received + ' USDC (fee ' + r.platform_fee + ')');
-    loadMyOrders();
-  } catch (e) { alert('Error: ' + e.message); }
-}
-async function disputeOrder(id) {
-  const reason = prompt('Dispute reason:');
-  if (!reason) return;
-  try {
-    await fetchJSON('/orders/' + id + '/dispute', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ reason }) });
-    alert('Dispute opened');
-    loadMyOrders();
-  } catch (e) { alert('Error: ' + e.message); }
-}
-async function viewOrder(id) {
-  try {
-    const r = await fetchJSON('/orders/' + id, { headers: authHeaders() });
-    alert(JSON.stringify(r, null, 2));
-  } catch (e) { alert('Error: ' + e.message); }
+  if (!isBuyer && o.status === 'delivered') actions.push(`<button class="btn btn-danger btn-sm" onclick="openDisputeModal('${o.id}')">⚠ 開爭議</button>`);
+  actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewOrderDetail('${o.id}')">🔍 詳細</button>`);
+
+  return `
+    <div class="order">
+      <div class="top">
+        <div>
+          <div class="name">${escapeHtml(o.service_name)}</div>
+          <div class="role">你是${role}</div>
+        </div>
+        <div>
+          <span class="st st-${o.status}">${statusLabel(o.status)}</span>
+          <span class="amt" style="margin-left:6px;">${money(o.amount)} USDC</span>
+        </div>
+      </div>
+      ${o.requirements ? '<div class="req">需求：' + escapeHtml(o.requirements) + '</div>' : ''}
+      <div class="row" style="margin-top:10px; font-size:11px; color:var(--text-dim);">
+        <span class="id">${o.id}</span>
+        <span class="spacer"></span>
+        <span>建立於 ${o.created_at || ''}</span>
+      </div>
+      <div class="btn-row">${actions.join('')}</div>
+    </div>`;
 }
 
-// ---------- Leaderboard ----------
+function openDeliverModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>交付訂單</h2>
+    <p class="mdesc">提交你的交付內容。若服務宣告了輸出契約，系統會自動驗收。</p>
+    <label>交付內容</label>
+    <textarea id="del-content" placeholder="可以是純文字，也可以是 JSON（若服務要求結構化輸出）"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doDeliver('${orderId}')">送出交付</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+async function doDeliver(orderId) {
+  const content = document.getElementById('del-content').value;
+  if (!content) return toast('請填寫內容', 'warn');
+  try {
+    const r = await api('/orders/' + orderId + '/deliver', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ content }) });
+    if (r.status === 'completed') toast('🎉 自動驗收通過，已完成並放款', 'success', 5000);
+    else toast('已交付，等待買家確認', 'success');
+    closeModal();
+    loadMyOrders();
+  } catch (e) {
+    // Auto-verify failure path: server returns 400 with verification_failed
+    if (e.message && e.message.includes('verification')) toast('自動驗收失敗，已退款並扣信用', 'error', 6000);
+    else toast(e.message, 'error');
+    closeModal();
+    loadMyOrders();
+  }
+}
+
+async function confirmOrder(orderId) {
+  if (!confirm('確認完成並釋出款項給賣家？')) return;
+  try {
+    const r = await api('/orders/' + orderId + '/confirm', { method: 'POST', headers: authHeaders() });
+    toast('已完成，賣家收到 ' + r.seller_received + ' USDC（平台費 ' + r.platform_fee + '）', 'success', 5000);
+    loadMyOrders();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function openDisputeModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>開啟爭議</h2>
+    <p class="mdesc">資金會繼續凍結，等待平台仲裁。雙方都可以開爭議。敗訴方會扣信用並被沒收部分質押。</p>
+    <label>爭議原因</label>
+    <textarea id="dis-reason" class="plain" placeholder="詳細說明為什麼不滿意"></textarea>
+    <label>證據（選填）</label>
+    <textarea id="dis-ev" class="plain" placeholder="附上截圖連結、對話紀錄等"></textarea>
+    <div class="btn-row">
+      <button class="btn btn-danger" onclick="doDispute('${orderId}')">送出爭議</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+async function doDispute(orderId) {
+  const reason = document.getElementById('dis-reason').value;
+  const evidence = document.getElementById('dis-ev').value;
+  if (!reason) return toast('請填寫原因', 'warn');
+  try {
+    await api('/orders/' + orderId + '/dispute', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ reason, evidence: evidence || undefined }) });
+    toast('爭議已開啟', 'success');
+    closeModal();
+    loadMyOrders();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function viewOrderDetail(orderId) {
+  try {
+    const o = await api('/orders/' + orderId, { headers: authHeaders() });
+    const timeline = [
+      { key: 'created',   label: '訂單建立',   when: o.created_at,   done: true, active: false },
+      { key: 'paid',      label: '款項託管中', when: o.created_at,   done: ['paid','delivered','completed','disputed','refunded'].includes(o.status), active: o.status === 'paid' },
+      { key: 'delivered', label: '賣家交付',   when: o.delivery?.delivered_at, done: ['delivered','completed','disputed'].includes(o.status), active: o.status === 'delivered' },
+      { key: 'completed', label: '交易完成',   when: o.completed_at, done: ['completed','refunded'].includes(o.status), active: o.status === 'completed' },
+    ];
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>訂單詳情</h2>
+      <p class="mdesc">${escapeHtml(o.service_name)} · ${money(o.amount)} USDC · <span class="st st-${o.status}">${statusLabel(o.status)}</span></p>
+      <h3>進度時間軸</h3>
+      <ul class="timeline">
+        ${timeline.map(t => `<li class="${t.done ? 'done' : ''} ${t.active ? 'active' : ''}"><b>${t.label}</b><div class="t">${t.when || '—'}</div></li>`).join('')}
+      </ul>
+      ${o.requirements ? '<h3>需求內容</h3><div class="keybox" style="white-space:pre-wrap;">' + escapeHtml(o.requirements) + '</div>' : ''}
+      ${o.delivery ? '<h3>交付內容</h3><div class="keybox" style="white-space:pre-wrap;">' + escapeHtml(o.delivery.content) + '</div>' : ''}
+      <div class="small" style="margin-top:14px;">買家：<code>${o.buyer_name}</code> · 賣家：<code>${o.seller_name}</code></div>
+    `);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Leaderboard =================
 async function loadLeaderboard() {
   try {
-    const r = await fetchJSON('/agents/leaderboard');
-    const list = document.getElementById('leaderboard-list');
-    if (!r.agents.length) { list.innerHTML = '<p style="color:#666;font-size:13px;">No agents yet.</p>'; return; }
+    const r = await api('/agents/leaderboard');
+    const list = document.getElementById('lb-list');
+    if (!r.agents.length) { list.innerHTML = '<div class="muted">尚無資料。</div>'; return; }
     list.innerHTML = r.agents.map((a, i) => `
-      <div class="leaderboard-row">
-        <div class="rank ${i < 3 ? 'top' : ''}">#${i + 1}</div>
-        <div class="lb-name">${escapeHtml(a.name)}</div>
-        <div style="font-size:11px;color:#666;">${a.completed_sales || 0} sales</div>
-        <div class="lb-score">REP ${a.reputation_score}</div>
+      <div class="lb">
+        <div class="rank ${i < 3 ? 'top' : ''}">${i + 1}</div>
+        <div style="flex:1;">
+          <div class="name">${escapeHtml(a.name)}</div>
+          <div class="meta">${a.completed_sales || 0} 筆完成銷售</div>
+        </div>
+        <div class="score">信用 ${a.reputation_score}</div>
       </div>
     `).join('');
-  } catch (err) {
-    document.getElementById('leaderboard-list').innerHTML = '<div class="msg error">' + err.message + '</div>';
-  }
+  } catch (e) { document.getElementById('lb-list').innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>'; }
 }
 
-// ---------- Init ----------
-updateIdentityBar();
+// ================= Bundle builder =================
+async function loadBundleSelect() {
+  try {
+    const r = await api('/services/search?sort=reputation');
+    const sel = document.getElementById('b-svc-select');
+    sel.innerHTML = r.services.map(s => `<option value="${s.id}" data-name="${escapeHtml(s.name)}" data-price="${s.price}" data-seller="${escapeHtml(s.agent_name)}">${escapeHtml(s.name)} — ${money(s.price)} USDC · ${escapeHtml(s.agent_name)}</option>`).join('');
+    state.lastServices = r.services;
+  } catch (e) { toast(e.message, 'error'); }
+}
+function bundleAdd() {
+  const sel = document.getElementById('b-svc-select');
+  const opt = sel.selectedOptions[0];
+  if (!opt) return;
+  state.bundleItems.push({ service_id: opt.value, name: opt.dataset.name, price: parseFloat(opt.dataset.price), seller: opt.dataset.seller });
+  renderBundle();
+}
+function bundleRemove(idx) { state.bundleItems.splice(idx, 1); renderBundle(); }
+function bundleClear() { state.bundleItems = []; renderBundle(); }
+function renderBundle() {
+  const items = state.bundleItems;
+  const total = items.reduce((s, i) => s + i.price, 0);
+  document.getElementById('b-count').textContent = items.length;
+  document.getElementById('b-total').textContent = money(total);
+  document.getElementById('b-items').innerHTML = items.length === 0
+    ? '<div class="muted">還沒有項目。從上方選取後點「加入」。</div>'
+    : items.map((it, i) => `
+      <div class="bundle-item">
+        <div><span class="name">${escapeHtml(it.name)}</span> <span class="small">— ${escapeHtml(it.seller)}</span></div>
+        <div><b style="color:var(--success)">${money(it.price)} USDC</b> <button class="btn btn-ghost btn-sm" onclick="bundleRemove(${i})">移除</button></div>
+      </div>`).join('');
+}
+async function submitBundle() {
+  if (!localStorage.getItem(K.key)) { toast('請先登入', 'warn'); return; }
+  if (state.bundleItems.length === 0) { toast('組合是空的', 'warn'); return; }
+  try {
+    const r = await api('/orders/bundle', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ items: state.bundleItems.map(i => ({ service_id: i.service_id })) }) });
+    toast('組合訂單已建立（' + r.count + ' 筆，共 ' + money(r.total_amount) + ' USDC）', 'success', 5000);
+    state.bundleItems = [];
+    renderBundle();
+    showPanel('orders');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Settings =================
+function loadSettingsForm() {
+  const a = getAuth();
+  if (a.id) document.getElementById('set-id').value = a.id;
+  if (a.key) document.getElementById('set-key').value = a.key;
+}
+function saveIdentity() {
+  const id = document.getElementById('set-id').value.trim();
+  const key = document.getElementById('set-key').value.trim();
+  if (!id || !key) return toast('兩個欄位都要填', 'warn');
+  setAuth(id, key, '');
+  api('/agents/' + id, { headers: { 'X-API-Key': key } })
+    .then(a => { if (a.name) { localStorage.setItem(K.name, a.name); updateIdBar(); } })
+    .catch(() => {});
+  toast('已儲存', 'success');
+}
+function clearIdentity() {
+  if (!confirm('確定要登出並清除本地資料？')) return;
+  localStorage.removeItem(K.id); localStorage.removeItem(K.key); localStorage.removeItem(K.name);
+  document.getElementById('set-id').value = '';
+  document.getElementById('set-key').value = '';
+  updateIdBar();
+  toast('已登出', 'success');
+}
+function toggleKeyVisible() {
+  const el = document.getElementById('set-key');
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// ================= Init =================
+updateIdBar();
 loadStats();
+if (!localStorage.getItem(K.onboarded) && !localStorage.getItem(K.id)) {
+  setTimeout(() => document.getElementById('onboard').classList.add('show'), 300);
+}
+renderBundle();
 </script>
 </body>
 </html>
