@@ -8,7 +8,7 @@
  *   Agent A 確認完成，款項釋放
  */
 
-const BASE_URL = 'http://localhost:3000';
+const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
 async function call(method, path, body, apiKey) {
   const res = await fetch(`${BASE_URL}${path}`, {

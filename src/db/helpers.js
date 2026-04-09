@@ -55,7 +55,11 @@ async function dbTransaction(fn) {
       client.release();
     }
   } else {
-    db.transaction(fn)();
+    const tx = {
+      run: async (sql, params = []) => { db.prepare(sql).run(...params); },
+      get: async (sql, params = []) => db.prepare(sql).get(...params)
+    };
+    await fn(tx);
   }
 }
 
