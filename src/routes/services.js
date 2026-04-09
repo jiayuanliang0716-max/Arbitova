@@ -11,17 +11,134 @@ const p = (n) => isPostgres ? `$${n}` : '?';
 // POST /services
 router.post('/', requireApiKey, async (req, res, next) => {
   try {
-    const { name, description, price, delivery_hours } = req.body;
+    const { name, description, price, delivery_hours,
+            input_schema, output_schema, verification_rules, auto_verify,
+            min_seller_stake } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (price <= 0) return res.status(400).json({ error: 'price must be positive' });
 
+    // Sellers listing services with a min_seller_stake gate must also meet their own gate
+    const minStake = parseFloat(min_seller_stake || 0);
+    if (minStake > 0 && parseFloat(req.agent.stake || 0) < minStake) {
+      return res.status(400).json({ error: `Your stake (${req.agent.stake || 0}) is below the min_seller_stake (${minStake}) you set` });
+    }
+
     const id = uuidv4();
+    const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     await dbRun(
-      `INSERT INTO services (id, agent_id, name, description, price, delivery_hours) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)})`,
-      [id, req.agent.id, name, description || null, price, delivery_hours || 24]
+      `INSERT INTO services
+         (id, agent_id, name, description, price, delivery_hours,
+          input_schema, output_schema, verification_rules, auto_verify, min_seller_stake)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)})`,
+      [
+        id, req.agent.id, name, description || null, price, delivery_hours || 24,
+        stringify(input_schema), stringify(output_schema), stringify(verification_rules),
+        auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
+        minStake
+      ]
     );
 
-    res.status(201).json({ id, agent_id: req.agent.id, name, description, price, delivery_hours: delivery_hours || 24, message: 'Service listed successfully' });
+    res.status(201).json({
+      id, agent_id: req.agent.id, name, description, price,
+      delivery_hours: delivery_hours || 24,
+      input_schema: input_schema || null,
+      output_schema: output_schema || null,
+      verification_rules: verification_rules || null,
+      auto_verify: !!auto_verify,
+      min_seller_stake: minStake,
+      message: 'Service listed successfully'
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /services/discover — capability-based matching
+// Body: { input_like: object|schema, output_like: object|schema, max_price?, limit? }
+router.post('/discover', async (req, res, next) => {
+  try {
+    const { input_like, output_like, max_price, limit } = req.body || {};
+    const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+    const params = [];
+    let idx = 1;
+    let where = `WHERE ${activeCheck}`;
+    if (max_price != null) { where += ` AND s.price <= ${p(idx++)}`; params.push(parseFloat(max_price)); }
+
+    const services = await dbAll(
+      `SELECT s.*, a.name as agent_name, COALESCE(a.reputation_score, 0) as seller_reputation
+       FROM services s JOIN agents a ON s.agent_id = a.id
+       ${where}`,
+      params
+    );
+
+    // Scoring:
+    //   - If service has input_schema, check that it can accept `input_like`
+    //     (a non-null value passes if input_schema compile+validate succeeds, OR if
+    //      `input_like` is itself a schema we compare required-key overlap)
+    //   - If service has output_schema, check that its required keys ⊇ output_like required keys
+    //   - Score by schema overlap + reputation
+    const { parseSchemaField, validateAgainstSchema } = require('../verify');
+    function keysOf(schema) {
+      if (!schema || typeof schema !== 'object') return [];
+      const req = Array.isArray(schema.required) ? schema.required : [];
+      const props = schema.properties ? Object.keys(schema.properties) : [];
+      return Array.from(new Set([...req, ...props]));
+    }
+    const wantOutKeys = keysOf(output_like);
+
+    const scored = services.map(s => {
+      const sIn = parseSchemaField(s.input_schema);
+      const sOut = parseSchemaField(s.output_schema);
+      let score = 0;
+      let reasons = [];
+
+      if (input_like != null) {
+        if (!sIn) {
+          // No declared input contract — accept but no bonus
+          score += 1;
+          reasons.push('unstructured input accepted');
+        } else {
+          // If input_like looks like an instance (no .type/.properties), validate directly
+          const looksLikeInstance = !(input_like && typeof input_like === 'object' && (input_like.type || input_like.properties));
+          if (looksLikeInstance) {
+            const r = validateAgainstSchema(sIn, input_like);
+            if (r.ok) { score += 5; reasons.push('input matches schema'); }
+            else reasons.push('input incompatible');
+          } else {
+            // Schema vs schema: overlap of property keys
+            const sInKeys = keysOf(sIn);
+            const wantInKeys = keysOf(input_like);
+            const overlap = wantInKeys.filter(k => sInKeys.includes(k)).length;
+            if (overlap > 0) { score += 2 + overlap; reasons.push(`input keys overlap ${overlap}`); }
+          }
+        }
+      }
+
+      if (wantOutKeys.length > 0) {
+        if (!sOut) {
+          reasons.push('no output contract');
+        } else {
+          const sOutKeys = keysOf(sOut);
+          const covered = wantOutKeys.every(k => sOutKeys.includes(k));
+          if (covered) { score += 5; reasons.push('output covers wanted keys'); }
+          else reasons.push('output missing keys');
+        }
+      }
+
+      score += Math.min(parseInt(s.seller_reputation || 0), 100) / 20; // rep bonus up to 5
+      return { service: s, score, reasons };
+    })
+    .filter(x => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.min(parseInt(limit) || 20, 50));
+
+    res.json({
+      count: scored.length,
+      matches: scored.map(x => ({
+        ...x.service,
+        seller_reputation: parseInt(x.service.seller_reputation || 0),
+        match_score: parseFloat(x.score.toFixed(2)),
+        match_reasons: x.reasons
+      }))
+    });
   } catch (err) { next(err); }
 });
 

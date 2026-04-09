@@ -53,15 +53,26 @@ if (DATABASE_URL) {
       );
 
       CREATE TABLE IF NOT EXISTS services (
-        id             TEXT PRIMARY KEY,
-        agent_id       TEXT NOT NULL REFERENCES agents(id),
-        name           TEXT NOT NULL,
-        description    TEXT,
-        price          NUMERIC NOT NULL,
-        delivery_hours INTEGER DEFAULT 24,
-        is_active      BOOLEAN DEFAULT TRUE,
-        created_at     TIMESTAMPTZ DEFAULT NOW()
+        id                 TEXT PRIMARY KEY,
+        agent_id           TEXT NOT NULL REFERENCES agents(id),
+        name               TEXT NOT NULL,
+        description        TEXT,
+        price              NUMERIC NOT NULL,
+        delivery_hours     INTEGER DEFAULT 24,
+        is_active          BOOLEAN DEFAULT TRUE,
+        input_schema       JSONB,
+        output_schema      JSONB,
+        verification_rules JSONB,
+        auto_verify        BOOLEAN DEFAULT FALSE,
+        min_seller_stake   NUMERIC DEFAULT 0,
+        created_at         TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS input_schema JSONB;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS output_schema JSONB;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS verification_rules JSONB;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS auto_verify BOOLEAN DEFAULT FALSE;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS min_seller_stake NUMERIC DEFAULT 0;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS stake NUMERIC DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS orders (
         id           TEXT PRIMARY KEY,
@@ -71,9 +82,19 @@ if (DATABASE_URL) {
         status       TEXT DEFAULT 'paid',
         amount       NUMERIC NOT NULL,
         requirements TEXT,
+        bundle_id    TEXT,
         deadline     TIMESTAMPTZ,
         created_at   TIMESTAMPTZ DEFAULT NOW(),
         completed_at TIMESTAMPTZ
+      );
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_id TEXT;
+
+      CREATE TABLE IF NOT EXISTS order_bundles (
+        id           TEXT PRIMARY KEY,
+        buyer_id     TEXT NOT NULL REFERENCES agents(id),
+        total_amount NUMERIC NOT NULL,
+        status       TEXT DEFAULT 'active',
+        created_at   TIMESTAMPTZ DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS deliveries (
@@ -170,14 +191,27 @@ if (DATABASE_URL) {
     );
 
     CREATE TABLE IF NOT EXISTS services (
-      id             TEXT PRIMARY KEY,
-      agent_id       TEXT NOT NULL REFERENCES agents(id),
-      name           TEXT NOT NULL,
-      description    TEXT,
-      price          REAL NOT NULL,
-      delivery_hours INTEGER DEFAULT 24,
-      is_active      INTEGER DEFAULT 1,
-      created_at     TEXT DEFAULT (datetime('now'))
+      id                 TEXT PRIMARY KEY,
+      agent_id           TEXT NOT NULL REFERENCES agents(id),
+      name               TEXT NOT NULL,
+      description        TEXT,
+      price              REAL NOT NULL,
+      delivery_hours     INTEGER DEFAULT 24,
+      is_active          INTEGER DEFAULT 1,
+      input_schema       TEXT,
+      output_schema      TEXT,
+      verification_rules TEXT,
+      auto_verify        INTEGER DEFAULT 0,
+      min_seller_stake   REAL DEFAULT 0,
+      created_at         TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS order_bundles (
+      id           TEXT PRIMARY KEY,
+      buyer_id     TEXT NOT NULL REFERENCES agents(id),
+      total_amount REAL NOT NULL,
+      status       TEXT DEFAULT 'active',
+      created_at   TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS orders (
@@ -188,6 +222,7 @@ if (DATABASE_URL) {
       status       TEXT DEFAULT 'paid',
       amount       REAL NOT NULL,
       requirements TEXT,
+      bundle_id    TEXT,
       deadline     TEXT,
       created_at   TEXT DEFAULT (datetime('now')),
       completed_at TEXT
@@ -213,13 +248,23 @@ if (DATABASE_URL) {
     );
   `);
 
-  // Idempotent migrations for older SQLite DBs that pre-date reputation_score
-  try {
-    const cols = sqlite.prepare("PRAGMA table_info(agents)").all();
-    if (!cols.find(c => c.name === 'reputation_score')) {
-      sqlite.exec("ALTER TABLE agents ADD COLUMN reputation_score INTEGER DEFAULT 0");
-    }
-  } catch (e) { console.error('Migration warn:', e.message); }
+  // Idempotent migrations for older SQLite DBs
+  function addColIfMissing(table, col, ddl) {
+    try {
+      const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all();
+      if (!cols.find(c => c.name === col)) {
+        sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${ddl}`);
+      }
+    } catch (e) { console.error('Migration warn:', e.message); }
+  }
+  addColIfMissing('agents', 'reputation_score', 'INTEGER DEFAULT 0');
+  addColIfMissing('agents', 'stake', 'REAL DEFAULT 0');
+  addColIfMissing('services', 'input_schema', 'TEXT');
+  addColIfMissing('services', 'output_schema', 'TEXT');
+  addColIfMissing('services', 'verification_rules', 'TEXT');
+  addColIfMissing('services', 'auto_verify', 'INTEGER DEFAULT 0');
+  addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
+  addColIfMissing('orders', 'bundle_id', 'TEXT');
 
   console.log('SQLite schema initialized');
 
