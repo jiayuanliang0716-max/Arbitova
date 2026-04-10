@@ -434,6 +434,20 @@
     }
     .site-footer a{color:var(--text-soft);text-decoration:none;margin:0 10px}
     .site-footer a:hover{color:var(--text)}
+    .review-item{padding:14px 0;border-bottom:1px solid var(--separator)}
+    .review-item:last-child{border-bottom:none}
+    .review-stars{color:var(--warn);font-size:14px;letter-spacing:1px}
+    .review-meta{font-size:12px;color:var(--text-dim);margin-top:2px}
+    .review-comment{font-size:13px;color:var(--text-soft);margin-top:6px;line-height:1.6}
+    .avg-rating{display:flex;align-items:center;gap:10px;margin-bottom:16px}
+    .avg-rating .big{font-size:28px;font-weight:700;color:var(--text)}
+    .avg-rating .stars{color:var(--warn);font-size:18px}
+    .avg-rating .count{font-size:13px;color:var(--text-dim)}
+    .detail-price{font-size:24px;font-weight:700;color:var(--success);margin:12px 0}
+    .detail-seller{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-soft);margin-bottom:16px}
+    .detail-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
+    .detail-desc{font-size:14px;color:var(--text-soft);line-height:1.7;margin-bottom:20px}
+    .detail-buy-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
   </style>
 </head>
 <body>
@@ -758,6 +772,16 @@
           <input type="hidden" name="file_id" id="f-file-id">
         </div>
 
+        <div style="margin-top:16px">
+          <label><span data-i18n="svc_delivery_type">Delivery Type</span></label>
+          <select name="delivery_type" class="plain">
+            <option value="text" data-i18n="dt_text">Text Content</option>
+            <option value="file" data-i18n="dt_file">File Download</option>
+            <option value="link" data-i18n="dt_link">External Link / URL</option>
+            <option value="credentials" data-i18n="dt_credentials">API Credentials</option>
+          </select>
+        </div>
+
         <div class="adv-toggle">
           <a class="hint-link" onclick="toggleAdvanced()" data-i18n="pub_advanced">› Advanced: Structured Contract (Optional)</a>
         </div>
@@ -1011,6 +1035,7 @@ const LANG = {
     pub_market_label:'Publish to which market?',pub_mkt_h2a:'AI Tools Market',pub_mkt_h2a_sub:'For general users — reports, scripts, digital products',pub_mkt_a2a:'Agent Market',pub_mkt_a2a_sub:'For developers / AI agents — API-first, structured schemas',
     mkt_h2a:'AI Tools',mkt_a2a:'Agent Market',mkt_h2a_sub:'Browse AI-powered tools. Buy a report, get a script, or subscribe for daily updates.',mkt_a2a_sub:'Services for automated agents. Structured schemas, auto-verification, API-first.',
     h2a_by:'by',h2a_digital:'Digital Download',h2a_ai_gen:'AI Generated',h2a_subscribable:'Subscribable',h2a_sub_from:'Subscribe from',h2a_buy_now:'Buy Now',h2a_buy_dl:'Buy & Download',h2a_subscribe:'Subscribe',
+    svc_detail_modal_title:'Service Details',svc_reviews:'Reviews',svc_no_reviews:'No reviews yet',svc_buy_fiat:'Buy with $',svc_delivery_type:'Delivery Type',dt_text:'Text Content',dt_file:'File Download',dt_link:'External Link',dt_credentials:'API Credentials',
     loading:'Loading...',
     not_logged_in:'Not signed in —',free_join:'Join for free',enter_key:'Enter key to sign in',logged_in_as:'Signed in as',
     hero_title:'The Service Market for AI Agents',
@@ -1153,6 +1178,7 @@ const LANG = {
     pub_market_label:'上架到哪個市場？',pub_mkt_h2a:'AI 工具市集',pub_mkt_h2a_sub:'面向一般用戶 — 報告、腳本、數位商品',pub_mkt_a2a:'Agent 市集',pub_mkt_a2a_sub:'面向開發者 / AI Agent — API 優先、結構化 Schema',
     mkt_h2a:'AI 工具',mkt_a2a:'Agent 市集',mkt_h2a_sub:'瀏覽 AI 工具。購買報告、下載腳本或訂閱每日更新。',mkt_a2a_sub:'供 Agent 自動消費的服務。結構化 Schema、自動驗證、API 優先。',
     h2a_by:'提供者',h2a_digital:'數位下載',h2a_ai_gen:'AI 生成',h2a_subscribable:'可訂閱',h2a_sub_from:'訂閱',h2a_buy_now:'立即購買',h2a_buy_dl:'購買並下載',h2a_subscribe:'訂閱',
+    svc_detail_modal_title:'服務詳情',svc_reviews:'評價',svc_no_reviews:'暫無評價',svc_buy_fiat:'用 $ 購買',svc_delivery_type:'交付方式',dt_text:'文字內容',dt_file:'檔案下載',dt_link:'外部連結',dt_credentials:'API 憑證',
     loading:'載入中...',
     not_logged_in:'尚未登入 —',free_join:'免費加入',enter_key:'輸入金鑰登入',logged_in_as:'已登入：',
     hero_title:'AI Agent 的服務交易市場',
@@ -1775,7 +1801,7 @@ function renderH2ACard(s) {
   else badges.push(`<span class="badge b-manual">${t('h2a_ai_gen')}</span>`);
   if (hasSub) badges.push(`<span class="badge b-rep">${t('h2a_subscribable')}</span>`);
   return `
-    <div class="service">
+    <div class="service" style="cursor:pointer" onclick="openH2AServiceDetail('${s.id}')">
       <div class="head">
         <div>
           <h4>${escapeHtml(s.name)}</h4>
@@ -1788,8 +1814,9 @@ function renderH2ACard(s) {
       </div>
       <div class="desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
       <div class="badges" style="margin-bottom:8px">${badges.join('')}</div>
-      <div class="btn-row" style="margin-top:0">
+      <div class="btn-row" style="margin-top:0" onclick="event.stopPropagation()">
         <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${isDigital ? t('h2a_buy_dl') : t('h2a_buy_now')}</button>
+        <button class="btn btn-ghost btn-sm" onclick="buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
         ${hasSub ? `<button class="btn btn-ghost btn-sm" onclick="subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>` : ''}
       </div>
     </div>`;
@@ -1843,6 +1870,7 @@ function renderA2ACard(s) {
 // keep backward compat alias
 function loadMarket() { loadH2AMarket(); }
 
+// A2A service detail (developer/agent market — shows schema contracts)
 function openServiceDetail(s) {
   const inSchema = s.input_schema ? (typeof s.input_schema === 'string' ? s.input_schema : JSON.stringify(s.input_schema, null, 2)) : t('svc_not_defined');
   const outSchema = s.output_schema ? (typeof s.output_schema === 'string' ? s.output_schema : JSON.stringify(s.output_schema, null, 2)) : t('svc_not_defined');
@@ -1864,6 +1892,93 @@ function openServiceDetail(s) {
       <button class="btn btn-primary" onclick='closeModal(); openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${t('svc_buy_btn')}</button>
     </div>
   `);
+}
+
+// H2A service detail modal — shows full service info + reviews + dual buy buttons
+function stars(rating) {
+  const r = Math.round(rating || 0);
+  return '★'.repeat(r) + '☆'.repeat(5 - r);
+}
+
+async function openH2AServiceDetail(serviceId) {
+  // Find service from last loaded list
+  const s = (state.lastServices || []).find(x => x.id === serviceId);
+  if (!s) { toast('Service not found', 'error'); return; }
+
+  const isDigital = !!s.file_id;
+  const hasSub = s.sub_interval && parseFloat(s.sub_price || 0) > 0;
+  const intervalLabel = { daily: t('int_daily'), weekly: t('int_weekly'), monthly: t('int_monthly') }[s.sub_interval] || '';
+
+  const badges = [];
+  if (isDigital) badges.push(`<span class="badge b-auto">${t('h2a_digital')}</span>`);
+  else badges.push(`<span class="badge b-manual">${t('h2a_ai_gen')}</span>`);
+  if (hasSub) badges.push(`<span class="badge b-rep">${t('h2a_subscribable')}</span>`);
+  if (s.auto_verify) badges.push(`<span class="badge b-auto">${t('badge_auto')}</span>`);
+
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>${escapeHtml(s.name)}</h2>
+    <div class="detail-seller">
+      <span>${t('h2a_by')} <b>${escapeHtml(s.agent_name)}</b></span>
+      <span style="color:var(--text-dim)">·</span>
+      <span>${t('svc_detail_rep')}: <b style="color:var(--primary)">${s.seller_reputation ?? 0}</b></span>
+    </div>
+    <div class="detail-badges">${badges.join('')}</div>
+    <div class="detail-price">${money(s.price)} USDC${hasSub ? ` <span style="font-size:14px;font-weight:400;color:var(--text-soft)">· ${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</span>` : ''}</div>
+    <div style="font-size:13px;color:var(--text-soft);margin-bottom:16px">${t('svc_detail_delivery')}: <b>${s.delivery_hours} ${t('svc_detail_hours')}</b></div>
+    <div class="detail-desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
+    <div class="detail-buy-row">
+      <button class="btn btn-primary" onclick='closeModal(); openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${isDigital ? t('h2a_buy_dl') : t('h2a_buy_now')}</button>
+      <button class="btn btn-ghost" onclick="closeModal(); buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
+      ${hasSub ? `<button class="btn btn-ghost" onclick="closeModal(); subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>` : ''}
+    </div>
+    <h3>${t('svc_reviews')}</h3>
+    <div id="h2a-reviews-area"><div class="empty"><span>${t('loading')}</span></div></div>
+  `);
+
+  // Fetch reviews async
+  try {
+    const r = await api('/reviews/service/' + serviceId);
+    const area = document.getElementById('h2a-reviews-area');
+    if (!area) return;
+    if (!r.reviews || !r.reviews.length) {
+      area.innerHTML = `<div class="empty" style="padding:20px 0;text-align:center;color:var(--text-dim)">${t('svc_no_reviews')}</div>`;
+      return;
+    }
+    const avgHtml = `<div class="avg-rating">
+      <span class="big">${parseFloat(r.average_rating).toFixed(1)}</span>
+      <span class="stars">${stars(r.average_rating)}</span>
+      <span class="count">(${r.total_reviews})</span>
+    </div>`;
+    const reviewsHtml = r.reviews.map(rv => `
+      <div class="review-item">
+        <div class="review-stars">${stars(rv.rating)}</div>
+        <div class="review-meta">${escapeHtml(rv.reviewer_name || 'Anonymous')} · ${rv.created_at ? new Date(rv.created_at).toLocaleDateString() : ''}</div>
+        ${rv.comment ? `<div class="review-comment">${escapeHtml(rv.comment)}</div>` : ''}
+      </div>`).join('');
+    area.innerHTML = avgHtml + reviewsHtml;
+  } catch(e) {
+    const area = document.getElementById('h2a-reviews-area');
+    if (area) area.innerHTML = `<div class="empty" style="padding:20px 0;text-align:center;color:var(--text-dim)">${t('svc_no_reviews')}</div>`;
+  }
+}
+
+// LemonSqueezy fiat checkout
+async function buyWithFiat(serviceId) {
+  const a = getAuth();
+  if (!a.key) return toast(t('toast_please_register'), 'warn');
+  try {
+    const r = await api('/payments/checkout', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: serviceId })
+    });
+    if (r.checkout_url) {
+      window.open(r.checkout_url, '_blank');
+    } else {
+      toast('Payment system not configured', 'error');
+    }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 function openBuyModal(s) {
