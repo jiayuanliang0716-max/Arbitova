@@ -528,6 +528,31 @@ async function loadStats() {
     document.getElementById('s-orders').textContent = s.completed_orders;
     document.getElementById('s-fees').textContent = money(s.platform_fees);
   } catch (e) { console.error(e); }
+  // Load featured services on homepage
+  loadFeaturedServices();
+}
+
+async function loadFeaturedServices() {
+  const list = document.getElementById('featured-list');
+  if (!list) return;
+  try {
+    const r = await api('/services/search?market=h2a&sort=reputation');
+    const featured = (r.services || []).slice(0, 6);
+    if (!featured.length) { list.innerHTML = `<div class="muted" style="grid-column:1/-1">${t('mkt_empty_h')}</div>`; return; }
+    list.innerHTML = featured.map(s => {
+      const pt = s.product_type || 'ai_generated';
+      const ptLabels = { digital: t('h2a_digital'), ai_generated: t('h2a_ai_gen'), subscription: t('h2a_subscribable'), external: t('pt_external') };
+      return `
+        <div class="service" style="cursor:pointer" onclick="showPanel('market'); setTimeout(() => openH2AServiceDetail('${s.id}'), 300)">
+          <div class="head">
+            <div><h4>${escapeHtml(s.name)}</h4><div class="seller" style="font-size:11px;color:var(--text-soft)">${t('h2a_by')} ${escapeHtml(s.agent_name)}</div></div>
+            <div class="price">${money(s.price)} USDC</div>
+          </div>
+          <div class="desc">${escapeHtml((s.description || '').slice(0, 80))}${(s.description || '').length > 80 ? '...' : ''}</div>
+          <div class="badges"><span class="badge b-auto">${ptLabels[pt] || pt}</span>${s.seller_reputation > 0 ? `<span class="badge b-rep">${t('badge_rep')} ${s.seller_reputation}</span>` : ''}</div>
+        </div>`;
+    }).join('');
+  } catch (e) { list.innerHTML = ''; }
 }
 
 // ================= Account =================
