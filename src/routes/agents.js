@@ -97,6 +97,22 @@ router.get('/:id/reputation', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/services — list services owned by this agent
+router.get('/:id/services', requireApiKey, async (req, res, next) => {
+  try {
+    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Can only view your own services' });
+    const services = await dbAll(
+      `SELECT s.*, f.filename as file_name
+       FROM services s
+       LEFT JOIN files f ON s.file_id = f.id
+       WHERE s.agent_id = ${p(1)}
+       ORDER BY s.created_at DESC`,
+      [req.agent.id]
+    );
+    res.json({ count: services.length, services });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id/orders — auth required, buyer or seller
 router.get('/:id/orders', requireApiKey, async (req, res, next) => {
   try {

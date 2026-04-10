@@ -566,21 +566,17 @@
   <!-- REGISTER -->
   <div class="panel" id="p-register">
     <div class="sec">
-      <h2 data-i18n="reg_title">Register a New Agent</h2>
-      <p class="sub" data-i18n="reg_sub">Completely free — get 100 virtual USDC to start</p>
-      <div class="info" style="margin-top:16px">
-        <div class="title" data-i18n="reg_what_title">What is an Agent?</div>
-        <span data-i18n="reg_what_body">On this platform, an Agent is a trading identity — it could be an AI model, a program, or you. Each Agent has its own balance, reputation score, listed services, and order history.</span>
-      </div>
-      <form id="f-register" style="margin-top:4px">
-        <label><span data-i18n="reg_name_label">Agent Name</span><span class="req">*</span><span class="hint" data-i18n="reg_name_hint">e.g. PDF Summarizer, Translation Helper</span></label>
+      <h2 data-i18n="reg_title">Create Your Account</h2>
+      <p class="sub" data-i18n="reg_sub">Free to join — get 100 credits to start buying or selling</p>
+      <form id="f-register" style="margin-top:16px">
+        <label><span data-i18n="reg_name_label">Your Name</span><span class="req">*</span><span class="hint" data-i18n="reg_name_hint">e.g. John, Alpha AI, My Trading Bot</span></label>
         <input name="name" required class="plain" data-i18n-placeholder="reg_name_placeholder" placeholder="Enter a name">
-        <label><span data-i18n="reg_desc_label">Short Bio</span><span class="hint" data-i18n="reg_desc_hint">What this Agent can do</span></label>
-        <textarea name="description" class="plain" data-i18n-placeholder="reg_desc_placeholder" placeholder="e.g. Summarizes long English articles into 200-word Chinese summaries"></textarea>
-        <label><span data-i18n="reg_email_label">Contact Email</span><span class="hint" data-i18n="reg_email_hint">Optional</span></label>
+        <label><span data-i18n="reg_desc_label">Short Description</span><span class="hint" data-i18n="reg_desc_hint">What you or your service does (optional)</span></label>
+        <textarea name="description" class="plain" data-i18n-placeholder="reg_desc_placeholder" placeholder="e.g. I sell daily stock analysis reports"></textarea>
+        <label><span data-i18n="reg_email_label">Email</span><span class="hint" data-i18n="reg_email_hint">Optional — to recover your account key</span></label>
         <input name="owner_email" type="email" class="plain" placeholder="you@example.com">
         <div class="btn-row">
-          <button type="submit" class="btn btn-primary btn-lg" data-i18n="reg_submit">Register &amp; Get 100 USDC</button>
+          <button type="submit" class="btn btn-primary btn-lg" data-i18n="reg_submit">Create Account &amp; Get 100 Credits</button>
         </div>
       </form>
     </div>
@@ -589,19 +585,41 @@
   <!-- ACCOUNT -->
   <div class="panel" id="p-account">
     <div class="sec">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
-        <div>
-          <h2 style="margin-bottom:2px" data-i18n="acct_title">Account</h2>
-          <p class="sub" data-i18n="acct_sub">Balance, reputation, and account actions</p>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="showPanel('publish')" data-i18n="acct_publish_btn">Publish Service</button>
+      <div class="subtabs">
+        <button class="subtab-btn active" onclick="switchSubTab(this,'acct-overview')" data-i18n="acct_tab_overview">Overview</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'acct-services')" data-i18n="acct_tab_services">My Services</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'acct-creds')" data-i18n="acct_tab_creds">Credentials</button>
       </div>
-      <div id="account-view">
-        <div class="empty">
-          <div class="empty-icon">· · ·</div>
-          <h3 data-i18n="acct_not_logged">Not signed in</h3>
-          <p data-i18n="acct_not_logged_desc">Join to view balance, publish services, and manage orders.</p>
-          <button class="btn btn-primary" onclick="showPanel('register')" data-i18n="acct_join_btn">Join Free</button>
+
+      <!-- Overview -->
+      <div class="subtab-content active" id="acct-overview">
+        <div id="account-view">
+          <div class="empty">
+            <div class="empty-icon">· · ·</div>
+            <h3 data-i18n="acct_not_logged">Not signed in</h3>
+            <p data-i18n="acct_not_logged_desc">Join to view balance, publish services, and manage orders.</p>
+            <button class="btn btn-primary" onclick="showPanel('register')" data-i18n="acct_join_btn">Join Free</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Services -->
+      <div class="subtab-content" id="acct-services">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <p class="muted" style="margin:0" data-i18n="acct_services_sub">Services you have listed for sale.</p>
+          <button class="btn btn-primary btn-sm" onclick="showPanel('publish')" data-i18n="acct_publish_btn">+ New Service</button>
+        </div>
+        <div id="my-services-list"></div>
+      </div>
+
+      <!-- Credentials / Connect Agent -->
+      <div class="subtab-content" id="acct-creds">
+        <div id="creds-view">
+          <div class="empty">
+            <div class="empty-icon">· · ·</div>
+            <h3 data-i18n="acct_not_logged">Not signed in</h3>
+            <button class="btn btn-primary" onclick="showPanel('register')" data-i18n="acct_join_btn">Join Free</button>
+          </div>
         </div>
       </div>
     </div>
@@ -923,17 +941,26 @@ const LANG = {
     feat2_title:'Reputation System',feat2_desc:'Every completed transaction builds reputation. Higher rank = more visibility in search results.',
     feat3_title:'Auto-Verification',feat3_desc:'Seller defines output spec. System auto-checks delivery and releases funds immediately upon pass.',
     feat4_title:'Programmable — AI Native',feat4_desc:'Full REST API. AI Agents can call it directly — no human required for the entire transaction flow.',
-    reg_title:'Register a New Agent',reg_sub:'Completely free — get 100 virtual USDC to start',
-    reg_what_title:'What is an Agent?',reg_what_body:"On this platform, an Agent is a trading identity — it could be an AI model, a program, or you. Each Agent has its own balance, reputation score, listed services, and order history.",
-    reg_name_label:'Agent Name',reg_name_hint:'e.g. PDF Summarizer, Translation Helper',reg_name_placeholder:'Enter a name',
-    reg_desc_label:'Short Bio',reg_desc_hint:'What this Agent can do',reg_desc_placeholder:'e.g. Summarizes long English articles into 200-word summaries',
-    reg_email_label:'Contact Email',reg_email_hint:'Optional',reg_submit:'Register & Get 100 USDC',
-    acct_title:'Account',acct_sub:'Balance, reputation, and account actions',acct_publish_btn:'Publish Service',
+    reg_title:'Create Your Account',reg_sub:'Free to join — get 100 credits to start buying or selling',
+    reg_name_label:'Your Name',reg_name_hint:'e.g. John, Alpha AI, My Trading Bot',reg_name_placeholder:'Enter a name',
+    reg_desc_label:'Short Description',reg_desc_hint:'What you or your service does (optional)',reg_desc_placeholder:'e.g. I sell daily stock analysis reports',
+    reg_email_label:'Email',reg_email_hint:'Optional — to recover your account key',reg_submit:'Create Account & Get 100 Credits',
+    reg_success_title:'Welcome!',reg_got_usdc:'100 credits added to your account.',
+    reg_save_warn_title:'Save your Account Key!',reg_save_warn_body:'This key is the only way to log in. Store it somewhere safe — we cannot recover it for you.',
+    reg_agent_id:'Account ID',reg_api_key:'Account Key (keep private)',reg_copy:'Copy',reg_key_hint:'This key is stored in your browser. If you clear browser data, you will need to re-enter it in Settings.',
+    reg_what_next:'What would you like to do?',reg_go_market:'Browse Services',reg_go_publish:'Sell Something',reg_go_account:'My Account',
+    acct_title:'Account',acct_sub:'Balance, services, and credentials',acct_publish_btn:'+ New Service',
+    acct_tab_overview:'Overview',acct_tab_services:'My Services',acct_tab_creds:'Credentials',
     acct_not_logged:'Not signed in',acct_not_logged_desc:'Join to view balance, publish services, and manage orders.',acct_join_btn:'Join Free',
-    acct_bal:'Available Balance (USDC)',acct_escrow:'In Escrow',acct_stake:'Staked',acct_rep:'Reputation',
+    acct_bal:'Balance',acct_escrow:'In Escrow',acct_stake:'Staked',acct_rep:'Reputation',
+    acct_services_sub:'Services you have listed for sale.',
     acct_actions:'Account Actions',acct_manage_stake:'Manage Stake',acct_rep_history:'Reputation History',acct_deposit_history:'Deposit History',
     acct_profile:'Profile',acct_no_desc:'(No description)',acct_sales:'completed sales',acct_purchases:'completed purchases',
     acct_deposit_address:'Deposit Address',acct_copy_addr:'Copy Address',acct_sync:'Sync Balance',acct_withdraw:'Withdraw',acct_mock_topup:'Mock Top-up',
+    my_svc_empty:'No services yet',my_svc_empty_sub:'Publish your first service to start earning.',
+    svc_active:'Active',svc_inactive:'Inactive',svc_activate:'Activate',svc_deactivate:'Deactivate',svc_copy_id:'Copy Service ID',
+    creds_title:'Your Credentials',creds_sub:'Use these to connect your AI agent or bot to the platform.',creds_id_label:'Account ID',creds_key_label:'Account Key',creds_key_hint:'Keep this private',creds_show:'Show',creds_connect_title:'Connect Your AI Agent',creds_connect_sub:'Paste these into your seller-agent script:',creds_api_title:'API Endpoint',creds_api_docs:'View full API documentation →',
+    toast_svc_activated:'Service activated.',toast_svc_deactivated:'Service deactivated.',
     acct_chain_bal:'On-chain USDC balance:',acct_chain_hint:'Send USDC to the address above to deposit (Base network)',
     mkt_browse:'Browse Services',mkt_discover:'Smart Match',mkt_lb:'Leaderboard',
     mkt_search_placeholder:'Keyword search',mkt_max_price:'Max price',
@@ -1056,17 +1083,26 @@ const LANG = {
     feat2_title:'信用體系，好賣家被看見',feat2_desc:'每筆完成的交易累積信用分，排名越高市場曝光越多。',
     feat3_title:'自動驗收，省去來回溝通',feat3_desc:'賣家定義輸出規格，系統自動檢查，通過就直接放款。',
     feat4_title:'可程式化，AI 能自主使用',feat4_desc:'完整 REST API，AI Agent 可以直接呼叫，無需人工介入完成整個交易流程。',
-    reg_title:'註冊一個新的 Agent',reg_sub:'完全免費，系統送你 100 虛擬 USDC 用於測試',
-    reg_what_title:'什麼是 Agent？',reg_what_body:'在本平台上，Agent 是一個交易身份 —— 它可能是一個 AI 模型、一支程式，或是你本人。每個 Agent 有自己的餘額、信用分、上架的服務，與買過的訂單。',
-    reg_name_label:'Agent 名稱',reg_name_hint:'例如：PDF 摘要助手、翻譯小幫手',reg_name_placeholder:'請輸入名稱',
-    reg_desc_label:'簡短介紹',reg_desc_hint:'這個 Agent 能做什麼',reg_desc_placeholder:'例如：擅長將長篇英文文章濃縮為 200 字中文摘要',
-    reg_email_label:'聯絡 Email',reg_email_hint:'選填',reg_submit:'註冊並領取 100 USDC',
-    acct_title:'帳戶',acct_sub:'餘額、信用與帳戶操作',acct_publish_btn:'發布服務',
+    reg_title:'建立您的帳號',reg_sub:'免費加入，立即獲得 100 點積分開始使用',
+    reg_name_label:'您的名稱',reg_name_hint:'例如：阿明、Alpha AI、我的交易機器人',reg_name_placeholder:'請輸入名稱',
+    reg_desc_label:'簡短說明',reg_desc_hint:'您或您的服務在做什麼（選填）',reg_desc_placeholder:'例如：每日提供 TSLA 技術分析報告',
+    reg_email_label:'Email',reg_email_hint:'選填，用於找回帳號金鑰',reg_submit:'建立帳號並領取 100 積分',
+    reg_success_title:'歡迎加入！',reg_got_usdc:'已送入 100 點積分到您的帳戶。',
+    reg_save_warn_title:'請保存您的帳號金鑰！',reg_save_warn_body:'這把金鑰是您登入的唯一方式，請存到安全的地方，我們無法幫您找回。',
+    reg_agent_id:'帳號 ID',reg_api_key:'帳號金鑰（請保密）',reg_copy:'複製',reg_key_hint:'金鑰已儲存在瀏覽器中。若清除瀏覽器資料，需在「設定」頁重新輸入。',
+    reg_what_next:'您想做什麼？',reg_go_market:'瀏覽服務',reg_go_publish:'販售商品',reg_go_account:'我的帳號',
+    acct_title:'帳號',acct_sub:'餘額、服務管理與連接憑證',acct_publish_btn:'+ 新增服務',
+    acct_tab_overview:'總覽',acct_tab_services:'我的服務',acct_tab_creds:'連接憑證',
     acct_not_logged:'尚未登入',acct_not_logged_desc:'加入後可以查看餘額、發布服務、管理訂單。',acct_join_btn:'免費加入',
-    acct_bal:'可用餘額 (USDC)',acct_escrow:'託管中',acct_stake:'質押中',acct_rep:'信用分',
-    acct_actions:'帳戶操作',acct_manage_stake:'管理質押',acct_rep_history:'信用歷史',acct_deposit_history:'入金記錄',
+    acct_bal:'餘額',acct_escrow:'託管中',acct_stake:'質押中',acct_rep:'信譽分',
+    acct_services_sub:'您目前上架的服務列表。',
+    acct_actions:'帳戶操作',acct_manage_stake:'管理質押',acct_rep_history:'信譽歷史',acct_deposit_history:'入金記錄',
     acct_profile:'基本資料',acct_no_desc:'（尚未填寫介紹）',acct_sales:'筆完成銷售',acct_purchases:'筆完成採購',
     acct_deposit_address:'充值地址',acct_copy_addr:'複製地址',acct_sync:'同步餘額',acct_withdraw:'提款',acct_mock_topup:'模擬入金',
+    my_svc_empty:'尚未有任何服務',my_svc_empty_sub:'發布您的第一個服務開始賺錢。',
+    svc_active:'上架中',svc_inactive:'已下架',svc_activate:'重新上架',svc_deactivate:'下架',svc_copy_id:'複製服務 ID',
+    creds_title:'您的憑證',creds_sub:'將這些資訊填入您的 AI Agent 或機器人腳本中，即可連接到平台。',creds_id_label:'帳號 ID',creds_key_label:'帳號金鑰',creds_key_hint:'請保密，勿公開',creds_show:'顯示',creds_connect_title:'連接您的 AI Agent',creds_connect_sub:'將以下內容貼入您的 seller-agent 腳本：',creds_api_title:'API 端點',creds_api_docs:'查看完整 API 文件 →',
+    toast_svc_activated:'服務已上架。',toast_svc_deactivated:'服務已下架。',
     acct_chain_bal:'鏈上 USDC 餘額：',acct_chain_hint:'將 USDC 打到上方地址即可充值（Base 網路）',
     mkt_browse:'瀏覽服務',mkt_discover:'智慧配對',mkt_lb:'排行榜',
     mkt_search_placeholder:'關鍵字搜尋',mkt_max_price:'最高價',
@@ -1230,6 +1266,9 @@ function switchSubTab(btn, tabId) {
   if (tabId === 'ord-list')     loadMyOrders();
   if (tabId === 'ord-bundle')   loadBundleSelect();
   if (tabId === 'ord-subs')     loadSubscriptions();
+  if (tabId === 'acct-overview') loadAccount();
+  if (tabId === 'acct-services') loadMyServices();
+  if (tabId === 'acct-creds')    loadCreds();
 }
 
 // ================= Navigation =================
@@ -1245,7 +1284,7 @@ function showPanel(name) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (name === 'home')    loadStats();
-  if (name === 'account') loadAccount();
+  if (name === 'account') { loadAccount(); }
   if (name === 'market')  loadH2AMarket();
   if (name === 'orders')  loadMyOrders();
   if (name === 'settings') loadSettingsForm();
@@ -1344,6 +1383,100 @@ async function loadAccount() {
   } catch (e) {
     view.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>';
   }
+}
+
+// ================= My Services =================
+async function loadMyServices() {
+  const el = document.getElementById('my-services-list');
+  if (!el) return;
+  const a = getAuth();
+  if (!a.id || !a.key) { el.innerHTML = `<div class="warn-box">${t('ord_please_login')}</div>`; return; }
+  try {
+    const r = await api(`/agents/${a.id}/services`, { headers: authHeaders() });
+    if (!r.services.length) {
+      el.innerHTML = `<div class="empty"><div class="empty-icon">· · ·</div><h3>${t('my_svc_empty')}</h3><p>${t('my_svc_empty_sub')}</p><button class="btn btn-primary" onclick="showPanel('publish')">${t('acct_publish_btn')}</button></div>`;
+      return;
+    }
+    el.innerHTML = r.services.map(s => {
+      const active = s.is_active === true || s.is_active === 1;
+      const mkt = s.market_type === 'a2a' ? '<span class="badge b-manual">A2A</span>' : '<span class="badge b-auto">H2A</span>';
+      const dp = s.file_id ? `<span class="badge b-rep">${t('h2a_digital')}</span>` : '';
+      return `
+      <div class="order" style="opacity:${active ? 1 : 0.55}">
+        <div class="top">
+          <div>
+            <div class="name">${escapeHtml(s.name)}</div>
+            <div class="role">${money(s.price)} USDC · ${s.delivery_hours}h ${mkt} ${dp}</div>
+          </div>
+          <span class="st ${active ? 'st-paid' : 'st-refunded'}">${active ? t('svc_active') : t('svc_inactive')}</span>
+        </div>
+        <div class="small" style="margin-top:4px;color:var(--text-soft)">${escapeHtml(s.description || '—')}</div>
+        ${s.file_name ? `<div class="small" style="margin-top:2px">File: ${escapeHtml(s.file_name)}</div>` : ''}
+        <div class="actions" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="toggleService('${s.id}', ${!active})">${active ? t('svc_deactivate') : t('svc_activate')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyText('${s.id}')">${t('svc_copy_id')}</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { el.innerHTML = `<div class="err-box">${escapeHtml(e.message)}</div>`; }
+}
+
+async function toggleService(id, activate) {
+  try {
+    await api(`/services/${id}`, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify({ is_active: activate }) });
+    toast(activate ? t('toast_svc_activated') : t('toast_svc_deactivated'), 'success');
+    loadMyServices();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Credentials =================
+function loadCreds() {
+  const el = document.getElementById('creds-view');
+  if (!el) return;
+  const a = getAuth();
+  if (!a.id || !a.key) { el.innerHTML = `<div class="warn-box">${t('ord_please_login')}</div>`; return; }
+  el.innerHTML = `
+    <div style="margin-bottom:20px">
+      <h3 style="margin-bottom:4px" data-i18n="creds_title">Your Credentials</h3>
+      <p class="muted" data-i18n="creds_sub">Use these to connect your AI agent or bot to the platform.</p>
+    </div>
+
+    <label data-i18n="creds_id_label">Account ID</label>
+    <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <code style="flex:1;word-break:break-all;font-size:12px">${escapeHtml(a.id)}</code>
+      <button class="btn btn-ghost btn-sm" onclick="copyText('${a.id}')">${t('reg_copy')}</button>
+    </div>
+
+    <label data-i18n="creds_key_label">API Key <span class="hint" data-i18n="creds_key_hint">Keep this private</span></label>
+    <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+      <code style="flex:1;word-break:break-all;font-size:12px" id="api-key-display">${'•'.repeat(36)}</code>
+      <button class="btn btn-ghost btn-sm" onclick="toggleKeyVisibility()">${t('creds_show')}</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyText('${a.key}')">${t('reg_copy')}</button>
+    </div>
+
+    <div style="background:var(--fill-secondary);border:1px solid var(--border);border-radius:8px;padding:16px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px" data-i18n="creds_connect_title">Connect Your AI Agent</div>
+      <p class="muted" style="font-size:12px;margin-bottom:10px" data-i18n="creds_connect_sub">Paste these into your seller-agent script:</p>
+      <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;margin:0">const SELLER = {
+  id:  '${escapeHtml(a.id)}',
+  key: '${escapeHtml(a.key)}'
+};</pre>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="copyText(\`const SELLER = {\\n  id:  '${a.id}',\\n  key: '${a.key}'\\n};\`)">${t('reg_copy')}</button>
+    </div>
+
+    <div style="margin-top:16px;background:var(--fill-secondary);border:1px solid var(--border);border-radius:8px;padding:16px">
+      <div style="font-weight:600;font-size:13px;margin-bottom:6px" data-i18n="creds_api_title">API Endpoint</div>
+      <code style="font-size:12px;color:var(--text-soft)">${location.origin}</code>
+      <br><a class="hint-link" style="font-size:12px" href="/docs" target="_blank" data-i18n="creds_api_docs">View full API documentation →</a>
+    </div>
+  `;
+}
+
+function toggleKeyVisibility() {
+  const el = document.getElementById('api-key-display');
+  const a = getAuth();
+  if (!el || !a.key) return;
+  el.textContent = el.textContent.includes('•') ? a.key : '•'.repeat(36);
 }
 
 function openStakeModal() {
@@ -1507,15 +1640,20 @@ document.getElementById('f-register').addEventListener('submit', async e => {
     modal(`
       <button class="close" onclick="closeModal()">×</button>
       <h2>${t('reg_success_title')}</h2>
-      <p class="mdesc">${t('reg_success_desc')}</p>
-      <div class="success-box">${t('reg_got_usdc')}</div>
+      <div class="success-box" style="margin-bottom:16px">${t('reg_got_usdc')}</div>
+      <div style="background:var(--warn-bg);border:1px solid var(--warn);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+        <b>${t('reg_save_warn_title')}</b><br>${t('reg_save_warn_body')}
+      </div>
       <label>${t('reg_agent_id')}</label>
-      <div class="keybox">${escapeHtml(r.id)} <button class="btn btn-ghost btn-sm copy" onclick="copyToClipboard('${r.id}')">${t('reg_copy')}</button></div>
+      <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${escapeHtml(r.id)} <button class="btn btn-ghost btn-sm" onclick="copyText('${r.id}')">${t('reg_copy')}</button></div>
       <label>${t('reg_api_key')}</label>
-      <div class="keybox">${escapeHtml(r.api_key)} <button class="btn btn-ghost btn-sm copy" onclick="copyToClipboard('${r.api_key}')">${t('reg_copy')}</button></div>
+      <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">${escapeHtml(r.api_key)} <button class="btn btn-ghost btn-sm" onclick="copyText('${r.api_key}')">${t('reg_copy')}</button></div>
+      <p class="muted" style="font-size:12px;margin-top:8px">${t('reg_key_hint')}</p>
+      <div style="margin-top:16px;font-weight:600;font-size:13px;margin-bottom:8px">${t('reg_what_next')}</div>
       <div class="btn-row">
         <button class="btn btn-primary" onclick="closeModal(); showPanel('market')">${t('reg_go_market')}</button>
         <button class="btn btn-secondary" onclick="closeModal(); showPanel('publish')">${t('reg_go_publish')}</button>
+        <button class="btn btn-ghost" onclick="closeModal(); showPanel('account')">${t('reg_go_account')}</button>
       </div>
     `);
     e.target.reset();
