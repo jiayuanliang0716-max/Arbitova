@@ -256,6 +256,27 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       });
     }
 
+    // Subscription content orders: auto-complete (payment already settled) + write inbox message
+    if (order.subscription_id) {
+      const now = isPostgres ? 'NOW()' : "datetime('now')";
+      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      const service = await dbRun(`SELECT name FROM services WHERE id = ${p(1)}`, [order.service_id]).catch(() => null);
+      const msgId = uuidv4();
+      const subject = order.requirements || 'Subscription Update';
+      await dbRun(
+        `INSERT INTO messages (id, recipient_id, sender_id, subject, body, order_id, subscription_id)
+         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)})`,
+        [msgId, order.buyer_id, order.seller_id, subject, content, order.id, order.subscription_id]
+      );
+      return res.json({
+        delivery_id: deliveryId,
+        order_id: order.id,
+        status: 'completed',
+        message_id: msgId,
+        message: 'Subscription delivery complete. Message sent to buyer inbox.'
+      });
+    }
+
     await dbRun(`UPDATE orders SET status = 'delivered' WHERE id = ${p(1)}`, [order.id]);
     res.json({
       delivery_id: deliveryId,

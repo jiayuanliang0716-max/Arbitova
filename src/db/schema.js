@@ -154,6 +154,20 @@ if (DATABASE_URL) {
         created_at     TIMESTAMPTZ DEFAULT NOW(),
         cancelled_at   TIMESTAMPTZ
       );
+
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS subscription_id TEXT;
+
+      CREATE TABLE IF NOT EXISTS messages (
+        id              TEXT PRIMARY KEY,
+        recipient_id    TEXT NOT NULL REFERENCES agents(id),
+        sender_id       TEXT REFERENCES agents(id),
+        subject         TEXT,
+        body            TEXT NOT NULL,
+        order_id        TEXT REFERENCES orders(id),
+        subscription_id TEXT,
+        is_read         BOOLEAN DEFAULT FALSE,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
     console.log('PostgreSQL schema initialized');
   }
@@ -299,6 +313,18 @@ if (DATABASE_URL) {
       cancelled_at    TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS messages (
+      id              TEXT PRIMARY KEY,
+      recipient_id    TEXT NOT NULL REFERENCES agents(id),
+      sender_id       TEXT REFERENCES agents(id),
+      subject         TEXT,
+      body            TEXT NOT NULL,
+      order_id        TEXT REFERENCES orders(id),
+      subscription_id TEXT,
+      is_read         INTEGER DEFAULT 0,
+      created_at      TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS deposits (
       id           TEXT PRIMARY KEY,
       agent_id     TEXT NOT NULL REFERENCES agents(id),
@@ -342,6 +368,7 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'parent_order_id', 'TEXT');
   addColIfMissing('agents', 'wallet_address', 'TEXT');
   addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
+  addColIfMissing('orders', 'subscription_id', 'TEXT');
 
   console.log('SQLite schema initialized');
 

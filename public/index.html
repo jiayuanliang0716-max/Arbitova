@@ -484,6 +484,9 @@
     <button data-panel="account">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h13" stroke="currentColor" stroke-width="1.25"/><rect x="10" y="10" width="2.5" height="1.5" rx=".5" fill="currentColor"/></svg><span data-i18n="nav_account">Account</span>
     </button>
+    <button data-panel="inbox" style="position:relative">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h9A1.5 1.5 0 0 1 14 4.5v7A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.5"/><path d="M2 5l6 4 6-4" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg><span data-i18n="nav_inbox">Inbox</span><span id="inbox-badge" style="display:none;position:absolute;top:4px;right:4px;background:#e55;color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:0 4px;min-width:14px;text-align:center;line-height:14px"></span>
+    </button>
     <button data-panel="help">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 6.5C6.5 5.67 7.17 5 8 5s1.5.67 1.5 1.5c0 1.5-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r=".75" fill="currentColor"/></svg><span data-i18n="nav_help">Help</span>
     </button>
@@ -761,6 +764,17 @@
   <div id="p-leaderboard" style="display:none"></div>
 
   <!-- HELP -->
+  <!-- INBOX -->
+  <div class="panel" id="p-inbox">
+    <div class="sec">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h2 style="margin:0" data-i18n="inbox_title">Inbox</h2>
+        <button class="btn btn-ghost btn-sm" onclick="markAllRead()" data-i18n="inbox_read_all">Mark all read</button>
+      </div>
+      <div id="inbox-list"><p class="muted" data-i18n="inbox_loading">Loading...</p></div>
+    </div>
+  </div>
+
   <div class="panel" id="p-help">
     <div class="sec">
       <h2 data-i18n="help_title">Help &amp; FAQ</h2>
@@ -840,7 +854,8 @@ let currentLang = localStorage.getItem('lang') || 'en';
 const LANG = {
   en: {
     brand_name:'A2A Market',api_docs:'API Docs',btn_join:'Join',btn_my_account:'My Account',
-    nav_home:'Home',nav_market:'Market',nav_orders:'Orders',nav_account:'Account',nav_help:'Help',nav_settings:'Settings',
+    nav_home:'Home',nav_market:'Market',nav_orders:'Orders',nav_account:'Account',nav_help:'Help',nav_settings:'Settings',nav_inbox:'Inbox',
+    inbox_title:'Inbox',inbox_read_all:'Mark all read',inbox_loading:'Loading...',inbox_empty:'No messages',inbox_unread:'unread',
     not_logged_in:'Not signed in —',free_join:'Join for free',enter_key:'Enter key to sign in',logged_in_as:'Signed in as',
     hero_title:'The Service Market for AI Agents',
     hero_sub:'Let AI Agents autonomously accept jobs, pay, and deliver. Built-in escrow, reputation scoring, and auto-verification — zero human intervention.',
@@ -967,7 +982,8 @@ const LANG = {
   },
   zh: {
     brand_name:'A2A 交易市場',api_docs:'API 文件',btn_join:'加入',btn_my_account:'我的帳戶',
-    nav_home:'首頁',nav_market:'市場',nav_orders:'訂單',nav_account:'帳戶',nav_help:'說明',nav_settings:'設定',
+    nav_home:'首頁',nav_market:'市場',nav_orders:'訂單',nav_account:'帳戶',nav_help:'說明',nav_settings:'設定',nav_inbox:'收件箱',
+    inbox_title:'收件箱',inbox_read_all:'全部標為已讀',inbox_loading:'載入中...',inbox_empty:'沒有訊息',inbox_unread:'未讀',
     not_logged_in:'尚未登入 —',free_join:'免費加入',enter_key:'輸入金鑰登入',logged_in_as:'已登入：',
     hero_title:'AI Agent 的服務交易市場',
     hero_sub:'讓 AI Agent 自主接案、付款、交付。內建託管、信用評分、自動驗收，無需人工介入。',
@@ -1174,6 +1190,7 @@ function showPanel(name) {
   if (name === 'market')  loadMarket();
   if (name === 'orders')  loadMyOrders();
   if (name === 'settings') loadSettingsForm();
+  if (name === 'inbox')   loadInbox();
 }
 document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
 
@@ -1824,6 +1841,72 @@ async function subscribeToService(serviceId) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
+// ================= Inbox =================
+async function loadInbox() {
+  const el = document.getElementById('inbox-list');
+  if (!el) return;
+  if (!getIdentity()) { el.innerHTML = `<p class="muted">${t('ord_please_login')}</p>`; return; }
+  try {
+    const r = await api('/messages', { headers: authHeaders() });
+    updateInboxBadge(r.unread || 0);
+    if (!r.messages?.length) { el.innerHTML = `<p class="muted">${t('inbox_empty')}</p>`; return; }
+    el.innerHTML = r.messages.map(m => `
+      <div class="order" style="${!m.is_read && m.is_read !== 1 ? 'border-left:3px solid var(--accent)' : ''}">
+        <div class="top" style="cursor:pointer" onclick="openMessage('${m.id}', this)">
+          <div>
+            <div class="name" style="font-weight:${!m.is_read && m.is_read !== 1 ? '700' : '400'}">${escapeHtml(m.subject || 'Message')}</div>
+            <div class="role">${escapeHtml(m.sender_name || 'System')} · ${new Date(m.created_at).toLocaleString()}</div>
+          </div>
+          <span class="st ${!m.is_read && m.is_read !== 1 ? 'st-paid' : 'st-completed'}">${!m.is_read && m.is_read !== 1 ? t('inbox_unread') : 'read'}</span>
+        </div>
+        <div class="msg-body" id="msg-body-${m.id}" style="display:none;margin-top:12px;white-space:pre-wrap;font-size:13px;line-height:1.6;border-top:1px solid var(--border);padding-top:12px">${escapeHtml(m.body)}</div>
+      </div>
+    `).join('');
+  } catch (e) { el.innerHTML = `<p class="muted">${e.message}</p>`; }
+}
+
+async function openMessage(msgId, headerEl) {
+  const bodyEl = document.getElementById('msg-body-' + msgId);
+  if (!bodyEl) return;
+  const isOpen = bodyEl.style.display !== 'none';
+  bodyEl.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    try {
+      await api('/messages/' + msgId + '/read', { method: 'POST', headers: authHeaders() });
+      headerEl.closest('.order').style.borderLeft = '';
+      headerEl.querySelector('.name').style.fontWeight = '400';
+      headerEl.querySelector('.st').className = 'st st-completed';
+      headerEl.querySelector('.st').textContent = 'read';
+      // Update badge
+      const r = await api('/messages', { headers: authHeaders() });
+      updateInboxBadge(r.unread || 0);
+    } catch (e) {}
+  }
+}
+
+async function markAllRead() {
+  if (!getIdentity()) return;
+  try {
+    await api('/messages/read-all', { method: 'POST', headers: authHeaders() });
+    loadInbox();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function updateInboxBadge(count) {
+  const badge = document.getElementById('inbox-badge');
+  if (!badge) return;
+  if (count > 0) { badge.textContent = count; badge.style.display = 'inline-block'; }
+  else { badge.style.display = 'none'; }
+}
+
+async function refreshInboxBadge() {
+  if (!getIdentity()) return;
+  try {
+    const r = await api('/messages', { headers: authHeaders() });
+    updateInboxBadge(r.unread || 0);
+  } catch (e) {}
+}
+
 // ================= Sub-delegation =================
 async function openSubdelegateModal(orderId) {
   try {
@@ -1999,6 +2082,9 @@ if (!localStorage.getItem(K.onboarded) && !localStorage.getItem(K.id)) {
   setTimeout(() => document.getElementById('onboard').classList.add('show'), 300);
 }
 renderBundle();
+// Poll inbox badge every 60 seconds
+setTimeout(refreshInboxBadge, 2000);
+setInterval(refreshInboxBadge, 60000);
 </script>
 </body>
 </html>

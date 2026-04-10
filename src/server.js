@@ -16,7 +16,9 @@ const telegramRoutes = require('./routes/telegram');
 const subscriptionRoutes = require('./routes/subscriptions');
 const withdrawalRoutes = require('./routes/withdrawals');
 const webhookRouter = require('./webhook');
-const { dbAll } = require('./db/helpers');
+const messageRoutes = require('./routes/messages');
+const { dbAll, dbRun } = require('./db/helpers');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -126,6 +128,7 @@ app.use('/telegram', telegramRoutes);
 app.use('/subscriptions', subscriptionRoutes);
 app.use('/withdrawals', withdrawalRoutes);
 app.use('/webhook', webhookRouter);
+app.use('/messages', messageRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {
@@ -178,6 +181,17 @@ cron.schedule('0 * * * *', async () => {
       await dbAll(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, sub.buyer_id]);
       await dbAll(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, sub.seller_id]);
       await dbAll(`UPDATE subscriptions SET next_billing_at = ${p(1)} WHERE id = ${p(2)}`, [nextBilling, sub.id]);
+
+      // Create a content-delivery order so seller-agent can generate and deliver
+      const contentOrderId = uuidv4();
+      const deadline = new Date();
+      deadline.setHours(deadline.getHours() + 2);
+      await dbAll(
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, subscription_id, deadline)
+         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',0,${p(5)},${p(6)},${p(7)})`,
+        [contentOrderId, sub.buyer_id, sub.seller_id, sub.service_id, sub.service_name, sub.id, deadline.toISOString()]
+      );
+
       billed++;
     }
     if (due.length > 0) console.log(`[cron] subscription billing: ${billed} billed, ${cancelled} cancelled`);
