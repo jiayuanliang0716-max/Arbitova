@@ -14,7 +14,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
             input_schema, output_schema, verification_rules, auto_verify,
-            min_seller_stake, sub_price, sub_interval, file_id } = req.body;
+            min_seller_stake, sub_price, sub_interval, file_id, market_type } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
     if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
@@ -38,19 +38,22 @@ router.post('/', requireApiKey, async (req, res, next) => {
       resolvedFileId = file_id;
     }
 
+    const validMarkets = ['h2a', 'a2a'];
+    const mktType = validMarkets.includes(market_type) ? market_type : 'h2a';
+
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
           input_schema, output_schema, verification_rules, auto_verify, min_seller_stake,
-          sub_price, sub_interval, file_id)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)})`,
+          sub_price, sub_interval, file_id, market_type)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
         auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake, subPrice, subInterval, resolvedFileId
+        minStake, subPrice, subInterval, resolvedFileId, mktType
       ]
     );
 
@@ -66,6 +69,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       sub_interval: subInterval,
       file_id: resolvedFileId,
       is_digital_product: !!resolvedFileId,
+      market_type: mktType,
       message: 'Service listed successfully'
     });
   } catch (err) { next(err); }
@@ -183,10 +187,13 @@ router.post('/discover', async (req, res, next) => {
 // GET /services/search
 router.get('/search', async (req, res, next) => {
   try {
-    const { q, min_price, max_price, max_hours, sort } = req.query;
+    const { q, min_price, max_price, max_hours, sort, market } = req.query;
     const params = [];
     let idx = 1;
     let where = `WHERE s.is_active = ${isPostgres ? 'TRUE' : '1'}`;
+    if (market === 'h2a' || market === 'a2a') {
+      where += ` AND s.market_type = ${p(idx++)}`; params.push(market);
+    }
 
     if (q) {
       where += isPostgres

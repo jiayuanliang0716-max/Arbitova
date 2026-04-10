@@ -167,6 +167,7 @@ if (DATABASE_URL) {
         created_at  TIMESTAMPTZ DEFAULT NOW()
       );
       ALTER TABLE services ADD COLUMN IF NOT EXISTS file_id TEXT REFERENCES files(id);
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS market_type TEXT DEFAULT 'h2a';
 
       CREATE TABLE IF NOT EXISTS messages (
         id              TEXT PRIMARY KEY,
@@ -391,6 +392,7 @@ if (DATABASE_URL) {
   addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
   addColIfMissing('orders', 'subscription_id', 'TEXT');
   addColIfMissing('services', 'file_id', 'TEXT');
+  addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
 
   console.log('SQLite schema initialized');
 

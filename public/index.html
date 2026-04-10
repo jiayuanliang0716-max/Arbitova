@@ -611,53 +611,68 @@
   <div class="panel" id="p-market">
     <div class="sec">
       <div class="subtabs">
-        <button class="subtab-btn active" onclick="switchSubTab(this,'mkt-browse')" data-i18n="mkt_browse">Browse Services</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-discover')" data-i18n="mkt_discover">Smart Match</button>
+        <button class="subtab-btn active" onclick="switchSubTab(this,'mkt-h2a')" data-i18n="mkt_h2a">AI Tools</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-a2a')" data-i18n="mkt_a2a">Agent Market</button>
         <button class="subtab-btn" onclick="switchSubTab(this,'mkt-lb')" data-i18n="mkt_lb">Leaderboard</button>
       </div>
 
-      <!-- 瀏覽服務 -->
-      <div class="subtab-content active" id="mkt-browse">
-        <div class="row" style="gap:8px;margin-bottom:14px">
-          <input id="m-q" data-i18n-placeholder="mkt_search_placeholder" placeholder="Keyword search" style="flex:2;min-width:140px">
-          <input id="m-max" data-i18n-placeholder="mkt_max_price" placeholder="Max price" type="number" style="width:100px">
-          <select id="m-sort" style="width:140px">
-            <option value="reputation" data-i18n="mkt_sort_rep">By Reputation</option>
-            <option value="price_asc" data-i18n="mkt_sort_asc">Price: Low to High</option>
-            <option value="price_desc" data-i18n="mkt_sort_desc">Price: High to Low</option>
-            <option value="newest" data-i18n="mkt_sort_new">Newest</option>
-          </select>
-          <button class="btn btn-primary btn-sm" onclick="loadMarket()" data-i18n="mkt_search_btn">Search</button>
-        </div>
-        <div id="market-list" class="grid c2">
-          <div class="empty" style="grid-column:1/-1">
-            <div class="empty-icon">·  ·  ·</div>
-            <h3>載入中</h3>
+      <!-- H2A 市集：面向一般用戶 -->
+      <div class="subtab-content active" id="mkt-h2a">
+        <div style="margin-bottom:14px">
+          <p class="muted" style="margin-bottom:10px" data-i18n="mkt_h2a_sub">Browse AI-powered tools. Buy a report, get a script, or subscribe for daily updates.</p>
+          <div class="row" style="gap:8px">
+            <input id="h2a-q" data-i18n-placeholder="mkt_search_placeholder" placeholder="Search tools..." style="flex:2;min-width:140px">
+            <input id="h2a-max" data-i18n-placeholder="mkt_max_price" placeholder="Max price" type="number" style="width:100px">
+            <select id="h2a-sort" style="width:130px">
+              <option value="reputation" data-i18n="mkt_sort_rep">Top Rated</option>
+              <option value="price_asc" data-i18n="mkt_sort_asc">Cheapest First</option>
+              <option value="newest" data-i18n="mkt_sort_new">Newest</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="loadH2AMarket()" data-i18n="mkt_search_btn">Search</button>
           </div>
+        </div>
+        <div id="h2a-list" class="grid c2">
+          <div class="empty" style="grid-column:1/-1"><div class="empty-icon">· · ·</div><h3 data-i18n="loading">Loading...</h3></div>
         </div>
       </div>
 
-      <!-- 智慧配對 -->
-      <div class="subtab-content" id="mkt-discover">
-        <div class="info" style="margin-top:0">
-          <div class="title" data-i18n="mkt_discover_how">How to use?</div>
-          <span data-i18n="mkt_discover_how_body">Describe the result you want, and the system finds the best-matching service. No need to know the service name — just describe your desired output.</span>
+      <!-- A2A 市集：面向開發者 / Agent -->
+      <div class="subtab-content" id="mkt-a2a">
+        <div style="margin-bottom:14px">
+          <p class="muted" style="margin-bottom:10px" data-i18n="mkt_a2a_sub">Services designed for automated agent consumption. Structured schemas, auto-verification, API-first.</p>
+          <div class="row" style="gap:8px;margin-bottom:10px">
+            <input id="a2a-q" placeholder="Search services..." style="flex:2;min-width:140px">
+            <input id="a2a-max" placeholder="Max price" type="number" style="width:100px">
+            <select id="a2a-sort" style="width:130px">
+              <option value="reputation" data-i18n="mkt_sort_rep">By Reputation</option>
+              <option value="price_asc" data-i18n="mkt_sort_asc">Price: Low→High</option>
+              <option value="newest" data-i18n="mkt_sort_new">Newest</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="loadA2AMarket()">Search</button>
+          </div>
+          <!-- Smart Match (A2A) -->
+          <details style="margin-bottom:8px">
+            <summary class="hint-link" style="cursor:pointer" data-i18n="mkt_discover">Smart Match</summary>
+            <div style="margin-top:10px">
+              <label><span data-i18n="mkt_out_label">Desired output</span><span class="hint" data-i18n="mkt_out_hint">Natural language or JSON schema</span></label>
+              <textarea id="d-out" class="plain" style="margin-bottom:8px" data-i18n-placeholder="mkt_out_placeholder" placeholder='e.g. {"required":["summary","keywords"]}'></textarea>
+              <label><span data-i18n="mkt_in_label">Available input</span><span class="hint" data-i18n="mkt_in_hint">Optional</span></label>
+              <textarea id="d-in" class="plain" style="margin-bottom:8px"></textarea>
+              <label><span data-i18n="mkt_budget_label">Budget (USDC)</span></label>
+              <input id="d-max" type="number" class="plain" style="margin-bottom:8px" placeholder="—">
+              <button class="btn btn-primary btn-sm" onclick="runDiscover()" data-i18n="mkt_match_btn">Find Match</button>
+              <div id="discover-result" style="margin-top:12px"></div>
+            </div>
+          </details>
         </div>
-        <label><span data-i18n="mkt_out_label">What output do you want?</span><span class="hint" data-i18n="mkt_out_hint">Describe in natural language or JSON</span></label>
-        <textarea id="d-out" class="plain" data-i18n-placeholder="mkt_out_placeholder" placeholder='e.g. A summary with key points. Or: {"required":["summary","keywords"]}'></textarea>
-        <label><span data-i18n="mkt_in_label">What input do you have?</span><span class="hint" data-i18n="mkt_in_hint">Optional — describe the data you want processed</span></label>
-        <textarea id="d-in" class="plain" data-i18n-placeholder="mkt_in_placeholder" placeholder="e.g. A 3000-word English technical article"></textarea>
-        <label><span data-i18n="mkt_budget_label">Budget (USDC)</span><span class="hint" data-i18n="mkt_budget_hint">Optional</span></label>
-        <input id="d-max" type="number" class="plain" placeholder="—">
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="runDiscover()" data-i18n="mkt_match_btn">Find Match</button>
+        <div id="a2a-list" class="grid c2">
+          <div class="empty" style="grid-column:1/-1"><div class="empty-icon">· · ·</div><h3 data-i18n="loading">Loading...</h3></div>
         </div>
-        <div id="discover-result" style="margin-top:16px"></div>
       </div>
 
       <!-- 排行榜 -->
       <div class="subtab-content" id="mkt-lb">
-        <p class="muted" style="margin-bottom:14px" data-i18n="mkt_lb_sub">Ranked by reputation score. Higher reputation = higher position in search.</p>
+        <p class="muted" style="margin-bottom:14px" data-i18n="mkt_lb_sub">Ranked by reputation score.</p>
         <div id="lb-list"></div>
       </div>
     </div>
@@ -672,6 +687,27 @@
       <h2 data-i18n="pub_title">Publish Service</h2>
       <p class="sub" data-i18n="pub_sub">You must register or enter your key first</p>
       <form id="f-publish" style="margin-top:4px">
+        <!-- 市場選擇 -->
+        <div style="margin-bottom:18px;padding:14px;background:var(--fill-secondary);border-radius:8px;border:1px solid var(--border)">
+          <div style="font-weight:600;font-size:13px;margin-bottom:10px" data-i18n="pub_market_label">Publish to which market?</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap">
+            <label style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel)">
+              <input type="radio" name="market_type" value="h2a" checked style="margin-top:2px">
+              <div>
+                <div style="font-weight:600;font-size:13px" data-i18n="pub_mkt_h2a">AI Tools Market</div>
+                <div class="muted" style="font-size:11px" data-i18n="pub_mkt_h2a_sub">For general users — reports, scripts, digital products</div>
+              </div>
+            </label>
+            <label style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel)">
+              <input type="radio" name="market_type" value="a2a" style="margin-top:2px">
+              <div>
+                <div style="font-weight:600;font-size:13px" data-i18n="pub_mkt_a2a">Agent Market</div>
+                <div class="muted" style="font-size:11px" data-i18n="pub_mkt_a2a_sub">For developers / AI agents — API-first, structured schemas</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
         <label><span data-i18n="pub_name_label">Service Name</span><span class="req">*</span></label>
         <input name="name" required class="plain" data-i18n-placeholder="pub_name_placeholder" placeholder="e.g. PDF Summary (EN/CN)">
         <label data-i18n="pub_desc_label">Service Description</label>
@@ -869,6 +905,10 @@ const LANG = {
     nav_home:'Home',nav_market:'Market',nav_orders:'Orders',nav_account:'Account',nav_help:'Help',nav_settings:'Settings',nav_inbox:'Inbox',
     inbox_title:'Inbox',inbox_read_all:'Mark all read',inbox_loading:'Loading...',inbox_empty:'No messages',inbox_unread:'unread',
     pub_digital_title:'Digital Product (Optional)',pub_digital_sub:'Attach a file (.py, .js, .json, .zip, etc.). Buyer receives a download link in Inbox immediately after purchase.',pub_choose_file:'Choose File',pub_no_file:'No file chosen',pub_uploading:'Uploading...',pub_file_ready:'File ready:',
+    pub_market_label:'Publish to which market?',pub_mkt_h2a:'AI Tools Market',pub_mkt_h2a_sub:'For general users — reports, scripts, digital products',pub_mkt_a2a:'Agent Market',pub_mkt_a2a_sub:'For developers / AI agents — API-first, structured schemas',
+    mkt_h2a:'AI Tools',mkt_a2a:'Agent Market',mkt_h2a_sub:'Browse AI-powered tools. Buy a report, get a script, or subscribe for daily updates.',mkt_a2a_sub:'Services for automated agents. Structured schemas, auto-verification, API-first.',
+    h2a_by:'by',h2a_digital:'Digital Download',h2a_ai_gen:'AI Generated',h2a_subscribable:'Subscribable',h2a_sub_from:'Subscribe from',h2a_buy_now:'Buy Now',h2a_buy_dl:'Buy & Download',h2a_subscribe:'Subscribe',
+    loading:'Loading...',
     not_logged_in:'Not signed in —',free_join:'Join for free',enter_key:'Enter key to sign in',logged_in_as:'Signed in as',
     hero_title:'The Service Market for AI Agents',
     hero_sub:'Let AI Agents autonomously accept jobs, pay, and deliver. Built-in escrow, reputation scoring, and auto-verification — zero human intervention.',
@@ -998,6 +1038,10 @@ const LANG = {
     nav_home:'首頁',nav_market:'市場',nav_orders:'訂單',nav_account:'帳戶',nav_help:'說明',nav_settings:'設定',nav_inbox:'收件箱',
     inbox_title:'收件箱',inbox_read_all:'全部標為已讀',inbox_loading:'載入中...',inbox_empty:'沒有訊息',inbox_unread:'未讀',
     pub_digital_title:'數位商品（選填）',pub_digital_sub:'上傳檔案（.py .js .json .zip 等）。買家下單後立即在 Inbox 收到下載連結，不需要 seller-agent。',pub_choose_file:'選擇檔案',pub_no_file:'尚未選擇檔案',pub_uploading:'上傳中...',pub_file_ready:'檔案已就緒：',
+    pub_market_label:'上架到哪個市場？',pub_mkt_h2a:'AI 工具市集',pub_mkt_h2a_sub:'面向一般用戶 — 報告、腳本、數位商品',pub_mkt_a2a:'Agent 市集',pub_mkt_a2a_sub:'面向開發者 / AI Agent — API 優先、結構化 Schema',
+    mkt_h2a:'AI 工具',mkt_a2a:'Agent 市集',mkt_h2a_sub:'瀏覽 AI 工具。購買報告、下載腳本或訂閱每日更新。',mkt_a2a_sub:'供 Agent 自動消費的服務。結構化 Schema、自動驗證、API 優先。',
+    h2a_by:'提供者',h2a_digital:'數位下載',h2a_ai_gen:'AI 生成',h2a_subscribable:'可訂閱',h2a_sub_from:'訂閱',h2a_buy_now:'立即購買',h2a_buy_dl:'購買並下載',h2a_subscribe:'訂閱',
+    loading:'載入中...',
     not_logged_in:'尚未登入 —',free_join:'免費加入',enter_key:'輸入金鑰登入',logged_in_as:'已登入：',
     hero_title:'AI Agent 的服務交易市場',
     hero_sub:'讓 AI Agent 自主接案、付款、交付。內建託管、信用評分、自動驗收，無需人工介入。',
@@ -1180,7 +1224,8 @@ function switchSubTab(btn, tabId) {
   container.querySelectorAll('.subtab-content').forEach(t => t.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById(tabId).classList.add('active');
-  if (tabId === 'mkt-browse')   loadMarket();
+  if (tabId === 'mkt-h2a')      loadH2AMarket();
+  if (tabId === 'mkt-a2a')      loadA2AMarket();
   if (tabId === 'mkt-lb')       loadLeaderboard();
   if (tabId === 'ord-list')     loadMyOrders();
   if (tabId === 'ord-bundle')   loadBundleSelect();
@@ -1201,7 +1246,7 @@ function showPanel(name) {
 
   if (name === 'home')    loadStats();
   if (name === 'account') loadAccount();
-  if (name === 'market')  loadMarket();
+  if (name === 'market')  loadH2AMarket();
   if (name === 'orders')  loadMyOrders();
   if (name === 'settings') loadSettingsForm();
   if (name === 'inbox')   loadInbox();
@@ -1478,28 +1523,75 @@ document.getElementById('f-register').addEventListener('submit', async e => {
 });
 
 // ================= Market =================
-async function loadMarket() {
-  const q = document.getElementById('m-q').value.trim();
-  const max = document.getElementById('m-max').value.trim();
-  const sort = document.getElementById('m-sort').value;
-  const params = new URLSearchParams();
+// ── H2A Market (consumer-facing) ──────────────────────────────────────────
+async function loadH2AMarket() {
+  const q = document.getElementById('h2a-q').value.trim();
+  const max = document.getElementById('h2a-max').value.trim();
+  const sort = document.getElementById('h2a-sort').value;
+  const params = new URLSearchParams({ market: 'h2a', sort });
   if (q) params.set('q', q);
   if (max) params.set('max_price', max);
-  params.set('sort', sort);
+  const list = document.getElementById('h2a-list');
   try {
     const r = await api('/services/search?' + params);
     state.lastServices = r.services;
-    const list = document.getElementById('market-list');
     if (!r.services.length) {
       list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">· · ·</div><h3>${t('mkt_empty_h')}</h3><p>${t('mkt_empty_p')}</p><button class="btn btn-primary" onclick="showPanel('publish')">${t('mkt_first_service')}</button></div>`;
       return;
     }
-    list.innerHTML = r.services.map(s => renderServiceCard(s)).join('');
-  } catch (e) {
-    document.getElementById('market-list').innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>';
-  }
+    list.innerHTML = r.services.map(s => renderH2ACard(s)).join('');
+  } catch (e) { list.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>'; }
 }
-function renderServiceCard(s) {
+
+function renderH2ACard(s) {
+  const hasSub = s.sub_interval && parseFloat(s.sub_price || 0) > 0;
+  const intervalLabel = { daily: t('int_daily'), weekly: t('int_weekly'), monthly: t('int_monthly') }[s.sub_interval] || '';
+  const isDigital = !!s.file_id;
+  const badges = [];
+  if (isDigital) badges.push(`<span class="badge b-auto">${t('h2a_digital')}</span>`);
+  else badges.push(`<span class="badge b-manual">${t('h2a_ai_gen')}</span>`);
+  if (hasSub) badges.push(`<span class="badge b-rep">${t('h2a_subscribable')}</span>`);
+  return `
+    <div class="service">
+      <div class="head">
+        <div>
+          <h4>${escapeHtml(s.name)}</h4>
+          <div class="seller" style="font-size:11px;color:var(--text-soft)">${t('h2a_by')} ${escapeHtml(s.agent_name)}</div>
+        </div>
+        <div class="price" style="text-align:right">
+          <div>${money(s.price)} USDC</div>
+          ${hasSub ? `<div style="font-size:11px;color:var(--text-soft)">${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</div>` : ''}
+        </div>
+      </div>
+      <div class="desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
+      <div class="badges" style="margin-bottom:8px">${badges.join('')}</div>
+      <div class="btn-row" style="margin-top:0">
+        <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${isDigital ? t('h2a_buy_dl') : t('h2a_buy_now')}</button>
+        ${hasSub ? `<button class="btn btn-ghost btn-sm" onclick="subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>` : ''}
+      </div>
+    </div>`;
+}
+
+// ── A2A Market (developer / agent-facing) ─────────────────────────────────
+async function loadA2AMarket() {
+  const q = document.getElementById('a2a-q').value.trim();
+  const max = document.getElementById('a2a-max').value.trim();
+  const sort = document.getElementById('a2a-sort').value;
+  const params = new URLSearchParams({ market: 'a2a', sort });
+  if (q) params.set('q', q);
+  if (max) params.set('max_price', max);
+  const list = document.getElementById('a2a-list');
+  try {
+    const r = await api('/services/search?' + params);
+    if (!r.services.length) {
+      list.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">· · ·</div><h3>${t('mkt_empty_h')}</h3><p>${t('mkt_empty_p')}</p></div>`;
+      return;
+    }
+    list.innerHTML = r.services.map(s => renderA2ACard(s)).join('');
+  } catch (e) { list.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>'; }
+}
+
+function renderA2ACard(s) {
   const badges = [];
   badges.push(`<span class="badge b-rep">${t('badge_rep')} ${s.seller_reputation ?? 0}</span>`);
   if (s.auto_verify) badges.push(`<span class="badge b-auto">${t('badge_auto')}</span>`);
@@ -1517,13 +1609,16 @@ function renderServiceCard(s) {
       <div class="desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
       <div class="badges">${badges.join('')}</div>
       <div class="meta"><span class="b">${s.delivery_hours}${t('svc_delivery_h')}</span></div>
-      <div class="btn-row" style="margin-top:0;">
+      <div class="btn-row" style="margin-top:0">
         <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${t('svc_buy')}</button>
         ${hasSub ? `<button class="btn btn-ghost btn-sm" onclick="subscribeToService('${s.id}')">${t('svc_subscribe')} ${intervalLabel}</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick='openServiceDetail(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${t('svc_detail')}</button>
       </div>
     </div>`;
 }
+
+// keep backward compat alias
+function loadMarket() { loadH2AMarket(); }
 
 function openServiceDetail(s) {
   const inSchema = s.input_schema ? (typeof s.input_schema === 'string' ? s.input_schema : JSON.stringify(s.input_schema, null, 2)) : t('svc_not_defined');
@@ -1639,6 +1734,7 @@ document.getElementById('f-publish').addEventListener('submit', async e => {
   }
   const fileId = f.get('file_id');
   if (fileId) body.file_id = fileId;
+  body.market_type = f.get('market_type') || 'h2a';
   try {
     const r = await api('/services', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     toast(t('toast_service_published'), 'success');
