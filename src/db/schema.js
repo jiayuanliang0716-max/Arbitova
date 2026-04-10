@@ -57,13 +57,25 @@ if (DATABASE_URL) {
       CREATE TABLE IF NOT EXISTS payments (
         id                    TEXT PRIMARY KEY,
         agent_id              TEXT NOT NULL REFERENCES agents(id),
+        service_id            TEXT REFERENCES services(id),
         amount_cents          INTEGER DEFAULT 0,
-        credits               NUMERIC DEFAULT 0,
         status                TEXT DEFAULT 'pending',
         provider              TEXT DEFAULT 'lemonsqueezy',
         provider_checkout_id  TEXT,
         provider_order_id     TEXT,
         created_at            TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS service_id TEXT REFERENCES services(id);
+
+      CREATE TABLE IF NOT EXISTS reviews (
+        id          TEXT PRIMARY KEY,
+        order_id    TEXT NOT NULL REFERENCES orders(id),
+        service_id  TEXT NOT NULL REFERENCES services(id),
+        reviewer_id TEXT NOT NULL REFERENCES agents(id),
+        seller_id   TEXT NOT NULL REFERENCES agents(id),
+        rating      INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        comment     TEXT,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS withdrawals (
@@ -368,6 +380,17 @@ if (DATABASE_URL) {
       confirmed_at TEXT DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS reviews (
+      id          TEXT PRIMARY KEY,
+      order_id    TEXT NOT NULL REFERENCES orders(id),
+      service_id  TEXT NOT NULL REFERENCES services(id),
+      reviewer_id TEXT NOT NULL REFERENCES agents(id),
+      seller_id   TEXT NOT NULL REFERENCES agents(id),
+      rating      INTEGER NOT NULL,
+      comment     TEXT,
+      created_at  TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS withdrawals (
       id           TEXT PRIMARY KEY,
       agent_id     TEXT NOT NULL REFERENCES agents(id),
@@ -382,8 +405,8 @@ if (DATABASE_URL) {
     CREATE TABLE IF NOT EXISTS payments (
       id                    TEXT PRIMARY KEY,
       agent_id              TEXT NOT NULL REFERENCES agents(id),
+      service_id            TEXT REFERENCES services(id),
       amount_cents          INTEGER DEFAULT 0,
-      credits               REAL DEFAULT 0,
       status                TEXT DEFAULT 'pending',
       provider              TEXT DEFAULT 'lemonsqueezy',
       provider_checkout_id  TEXT,
@@ -417,6 +440,7 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'subscription_id', 'TEXT');
   addColIfMissing('services', 'file_id', 'TEXT');
   addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
+  addColIfMissing('payments', 'service_id', 'TEXT');
 
   console.log('SQLite schema initialized');
 
