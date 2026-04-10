@@ -18,6 +18,7 @@ const withdrawalRoutes = require('./routes/withdrawals');
 const webhookRouter = require('./webhook');
 const messageRoutes = require('./routes/messages');
 const fileRoutes = require('./routes/files');
+const paymentRoutes = require('./routes/payments');
 const { dbAll, dbRun } = require('./db/helpers');
 const { v4: uuidv4 } = require('uuid');
 
@@ -114,7 +115,8 @@ app.get('/api/mode', (req, res) => {
     chain_mode: !!(process.env.ALCHEMY_API_KEY && process.env.WALLET_ENCRYPTION_KEY),
     has_alchemy: !!process.env.ALCHEMY_API_KEY,
     has_enc_key: !!process.env.WALLET_ENCRYPTION_KEY,
-    chain: process.env.CHAIN || 'base-sepolia'
+    chain: process.env.CHAIN || 'base-sepolia',
+    has_lemonsqueezy: !!process.env.LEMONSQUEEZY_API_KEY
   });
 });
 
@@ -131,6 +133,7 @@ app.use('/withdrawals', withdrawalRoutes);
 app.use('/webhook', webhookRouter);
 app.use('/messages', messageRoutes);
 app.use('/files', fileRoutes);
+app.use('/payments', paymentRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {

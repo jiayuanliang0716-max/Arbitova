@@ -54,6 +54,18 @@ if (DATABASE_URL) {
         confirmed_at TIMESTAMPTZ DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS payments (
+        id                    TEXT PRIMARY KEY,
+        agent_id              TEXT NOT NULL REFERENCES agents(id),
+        amount_cents          INTEGER DEFAULT 0,
+        credits               NUMERIC DEFAULT 0,
+        status                TEXT DEFAULT 'pending',
+        provider              TEXT DEFAULT 'lemonsqueezy',
+        provider_checkout_id  TEXT,
+        provider_order_id     TEXT,
+        created_at            TIMESTAMPTZ DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS withdrawals (
         id          TEXT PRIMARY KEY,
         agent_id    TEXT NOT NULL REFERENCES agents(id),
@@ -365,6 +377,18 @@ if (DATABASE_URL) {
       status       TEXT DEFAULT 'pending',
       created_at   TEXT DEFAULT (datetime('now')),
       completed_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS payments (
+      id                    TEXT PRIMARY KEY,
+      agent_id              TEXT NOT NULL REFERENCES agents(id),
+      amount_cents          INTEGER DEFAULT 0,
+      credits               REAL DEFAULT 0,
+      status                TEXT DEFAULT 'pending',
+      provider              TEXT DEFAULT 'lemonsqueezy',
+      provider_checkout_id  TEXT,
+      provider_order_id     TEXT,
+      created_at            TEXT DEFAULT (datetime('now'))
     );
   `);
 
