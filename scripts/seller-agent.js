@@ -1,178 +1,248 @@
 // Seller Agent — auto-registers services and fulfills orders via Claude
+// Supports multiple agent accounts (one per category) from the catalog
+
 const { BASE_URL, SELLER } = require('./config');
+const { SERVICES, AGENTS, getServicesByCategory } = require('./catalog');
 
 const POLL_INTERVAL = 15000;
 const processed = new Set();
 
-// Services this agent offers
-const MY_SERVICES = [
-  {
-    name: '每日股價 Alert',
-    description: '訂閱後每天自動推播你指定股票的技術分析 Alert，包含當日趨勢、關鍵價位與操作建議。下單時填入股票代號（例如：TSLA）。',
-    price: 1.00,
-    delivery_hours: 1,
-    sub_interval: 'daily',
-    sub_price: 0.50,
-    promptFn: (req) => `請針對股票「${req || 'TSLA'}」生成今日簡短 Alert 通知，格式如下：
+// Runtime state: agent credentials loaded from config or setup
+// Format: { slug: { id, key, name } }
+let agentCredentials = {};
 
-📊 ${req || 'TSLA'} 每日 Alert
+// Build a lookup: service name → catalog definition (with promptFn)
+const SERVICE_DEFS = {};
+for (const svc of SERVICES) {
+  SERVICE_DEFS[svc.name] = svc;
+}
 
-趨勢：（多頭/空頭/盤整，一句話）
-今日關鍵支撐：$XXX
-今日關鍵壓力：$XXX
-操作建議：（買入觀望賣出，一句話）
-風險提示：（一句話）
-
-簡潔有力，適合快速閱讀，使用繁體中文。`,
-  },
-  {
-    name: '競業分析報告',
-    description: '輸入公司名稱，AI 自動生成競業分析報告，包含市場定位、核心競爭力、潛在風險與機會點。',
-    price: 2.00,
-    delivery_hours: 1,
-    promptFn: (req) => `請針對「${req || 'OpenAI'}」撰寫一份簡明的競業分析報告，包含以下四個部分：
-1. 市場定位（2-3 句）
-2. 核心競爭力（3 個要點）
-3. 潛在風險（2-3 個）
-4. 機會點（2-3 個）
-格式清晰，使用繁體中文，總長度約 300-400 字。`,
-  },
-  {
-    name: '股價技術分析報告',
-    description: '輸入股票代號（例如：TSLA、AAPL、2330），AI 生成技術分析報告，包含趨勢判斷、支撐壓力位、操作建議。',
-    price: 2.00,
-    delivery_hours: 1,
-    promptFn: (req) => `請針對股票「${req || 'TSLA'}」撰寫一份技術分析報告，包含以下部分：
-1. 近期趨勢判斷（多頭/空頭/盤整，2-3 句）
-2. 關鍵支撐與壓力位（各列 2 個價位）
-3. 成交量觀察（1-2 句）
-4. 短線操作建議（買入/觀望/賣出，附理由）
-5. 風險提示（1-2 句）
-注意：本報告僅供參考，不構成投資建議。使用繁體中文，總長度約 300-400 字。`,
-  },
-  {
-    name: '文章摘要服務',
-    description: '貼上任意文章或文字內容，AI 自動生成重點摘要，包含核心論點、關鍵數據與結論。',
-    price: 1.00,
-    delivery_hours: 1,
-    promptFn: (req) => `請將以下內容整理成一份清晰的摘要報告：
-
-${req || '（未提供內容）'}
-
-摘要格式：
-1. 核心主題（1 句）
-2. 重點條列（3-5 個要點）
-3. 關鍵數據或事實（如有）
-4. 結論（1-2 句）
-使用繁體中文，簡潔清楚。`,
-  },
-];
-
-async function api(path, opts = {}) {
+async function api(path, opts = {}, apiKey = null) {
+  const key = apiKey || SELLER.key;
   const res = await fetch(`${BASE_URL}${path}`, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', 'X-API-Key': SELLER.key, ...(opts.headers || {}) },
+    headers: { 'Content-Type': 'application/json', 'X-API-Key': key, ...(opts.headers || {}) },
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || JSON.stringify(data));
   return data;
 }
 
-// Auto-register services if not already listed
-async function ensureServicesRegistered() {
+// Register a new agent account for a category
+async function registerAgent(agent) {
   try {
-    const { services } = await api(`/services/search?sort=reputation`);
-    const myServices = services.filter(s => s.agent_id === SELLER.id);
-    const myNames = new Set(myServices.map(s => s.name));
-
-    for (const svc of MY_SERVICES) {
-      if (myNames.has(svc.name)) {
-        console.log(`[setup] 服務已存在：${svc.name}`);
-      } else {
-        const body = {
-          name: svc.name,
-          description: svc.description,
-          price: svc.price,
-          delivery_hours: svc.delivery_hours,
-          market_type: 'a2a',
-        };
-        if (svc.sub_interval) body.sub_interval = svc.sub_interval;
-        if (svc.sub_price)    body.sub_price    = svc.sub_price;
-        const r = await api('/services', {
-          method: 'POST',
-          body: JSON.stringify(body),
-        });
-        console.log(`[setup] 上架成功：${svc.name} (ID: ${r.id})`);
-      }
-    }
+    const data = await api('/agents/register', {
+      method: 'POST',
+      body: JSON.stringify({ name: agent.name, description: agent.description }),
+    }, 'skip'); // no auth needed for registration
+    return { id: data.id, key: data.api_key, name: agent.name, slug: agent.slug };
   } catch (err) {
-    console.error('[setup] 上架失敗：', err.message);
+    console.error(`[register] Failed to register ${agent.name}: ${err.message}`);
+    return null;
   }
 }
 
-async function generateReport(prompt) {
+// Register agent account via the public endpoint (no API key needed)
+async function registerAgentPublic(agent) {
+  const res = await fetch(`${BASE_URL}/agents/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: agent.name, description: agent.description }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || JSON.stringify(data));
+  return { id: data.id, key: data.api_key, name: agent.name, slug: agent.slug };
+}
+
+// Ensure all services for a given agent are registered
+async function ensureServicesForAgent(agentSlug, agentId, agentKey) {
+  const services = getServicesByCategory(agentSlug);
+  try {
+    const { services: existing } = await api('/services/search?sort=reputation', {}, agentKey);
+    const myServices = existing.filter(s => s.agent_id === agentId);
+    const myNames = new Set(myServices.map(s => s.name));
+
+    for (const svc of services) {
+      if (myNames.has(svc.name)) {
+        console.log(`  [skip] Already listed: ${svc.name}`);
+        continue;
+      }
+      const body = {
+        name: svc.name,
+        description: svc.description,
+        price: svc.price,
+        delivery_hours: svc.delivery_hours,
+        product_type: svc.product_type || 'ai_generated',
+        market_type: svc.market_type || 'h2a',
+      };
+      if (svc.input_schema) body.input_schema = svc.input_schema;
+      if (svc.output_schema) body.output_schema = svc.output_schema;
+      if (svc.sub_interval) {
+        body.sub_interval = svc.sub_interval;
+        body.sub_price = svc.sub_price;
+        body.product_type = 'subscription';
+      }
+      try {
+        const r = await api('/services', { method: 'POST', body: JSON.stringify(body) }, agentKey);
+        console.log(`  [new] Published: ${svc.name} (ID: ${r.id})`);
+      } catch (err) {
+        console.error(`  [fail] ${svc.name}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    console.error(`[setup] Error checking services for ${agentSlug}: ${err.message}`);
+  }
+}
+
+// Generate content via the platform's AI endpoint
+async function generateReport(prompt, agentKey) {
+  const key = agentKey || SELLER.key;
   const data = await api('/api/generate', {
     method: 'POST',
     body: JSON.stringify({ prompt }),
-  });
+  }, key);
   return data.result;
 }
 
-// Match order to service definition by service name
-async function getServiceDef(serviceId) {
+// Find the catalog definition for an order's service
+async function getServiceDef(serviceId, agentKey) {
   try {
-    const { services } = await api(`/services/search?sort=reputation`);
-    const svc = services.find(s => s.id === serviceId);
+    const svc = await api(`/services/${serviceId}`, {}, agentKey);
     if (!svc) return null;
-    return MY_SERVICES.find(d => d.name === svc.name) || null;
-  } catch { return null; }
+    return SERVICE_DEFS[svc.name] || null;
+  } catch {
+    return null;
+  }
 }
 
-async function processOrders() {
+// Process pending orders for one agent
+async function processOrdersForAgent(agentId, agentKey, agentName) {
   try {
-    const { orders } = await api(`/agents/${SELLER.id}/orders`);
+    const { orders } = await api(`/agents/${agentId}/orders`, {}, agentKey);
     const pending = orders.filter(o => o.status === 'paid' && !processed.has(o.id));
 
     for (const order of pending) {
       processed.add(order.id);
-      console.log(`[${new Date().toLocaleTimeString()}] 收到訂單：${order.id}`);
-      console.log(`  服務：${order.service_name}`);
-      console.log(`  需求：${order.requirements || '（未填寫）'}`);
+      console.log(`[${new Date().toLocaleTimeString()}] [${agentName}] Order: ${order.id}`);
+      console.log(`  Service: ${order.service_name}`);
+      console.log(`  Requirements: ${order.requirements || '(none)'}`);
 
       try {
-        const def = await getServiceDef(order.service_id);
+        const def = await getServiceDef(order.service_id, agentKey);
         const prompt = def
           ? def.promptFn(order.requirements?.trim())
-          : `請根據以下需求提供服務：${order.requirements || '（未填寫需求）'}`;
+          : `Please fulfill this service request: ${order.requirements || '(no requirements provided)'}`;
 
-        console.log(`  生成中...`);
-        const report = await generateReport(prompt);
+        console.log(`  Generating...`);
+        const report = await generateReport(prompt, agentKey);
 
         await api(`/orders/${order.id}/deliver`, {
           method: 'POST',
           body: JSON.stringify({ content: report }),
-        });
-        console.log(`  ✓ 已交付`);
+        }, agentKey);
+        console.log(`  Delivered OK`);
       } catch (err) {
-        console.error(`  ✗ 交付失敗：`, err.message);
-        processed.delete(order.id);
+        console.error(`  Delivery failed: ${err.message}`);
+        processed.delete(order.id); // retry next cycle
       }
     }
   } catch (err) {
-    console.error(`[${new Date().toLocaleTimeString()}] 輪詢錯誤：`, err.message);
+    // Silently handle polling errors to avoid log spam
+    if (!err.message.includes('not found')) {
+      console.error(`[${new Date().toLocaleTimeString()}] [${agentName}] Poll error: ${err.message}`);
+    }
   }
 }
 
+// Poll all agents for orders
+async function pollAllOrders() {
+  const agents = Object.values(agentCredentials);
+  // Also include the original SELLER if configured
+  if (SELLER.id && SELLER.key) {
+    const hasOriginal = agents.some(a => a.id === SELLER.id);
+    if (!hasOriginal) {
+      agents.push({ id: SELLER.id, key: SELLER.key, name: 'Original Seller', slug: '_original' });
+    }
+  }
+  await Promise.all(
+    agents.map(a => processOrdersForAgent(a.id, a.key, a.name))
+  );
+}
+
+// Load saved credentials from environment or use existing SELLER config
+function loadCredentials() {
+  // Check for AGENT_CREDENTIALS env var (JSON string from setup-catalog.js output)
+  if (process.env.AGENT_CREDENTIALS) {
+    try {
+      const creds = JSON.parse(process.env.AGENT_CREDENTIALS);
+      for (const c of creds) {
+        agentCredentials[c.slug] = { id: c.id, key: c.key, name: c.name, slug: c.slug };
+      }
+      console.log(`Loaded ${Object.keys(agentCredentials).length} agent credentials from env.`);
+      return true;
+    } catch (err) {
+      console.error('Failed to parse AGENT_CREDENTIALS:', err.message);
+    }
+  }
+
+  // Fallback: use the single SELLER from config.js
+  if (SELLER.id && SELLER.key) {
+    agentCredentials['_default'] = {
+      id: SELLER.id,
+      key: SELLER.key,
+      name: 'Default Seller',
+      slug: '_default',
+    };
+    console.log('Using default SELLER credentials from config.js');
+    return true;
+  }
+
+  return false;
+}
+
 async function main() {
-  console.log('=== Seller Agent 啟動 ===');
-  console.log(`賣家 ID：${SELLER.id}`);
+  console.log('=== A2A Market Seller Agent ===');
+  console.log(`API: ${BASE_URL}`);
+  console.log(`Catalog: ${SERVICES.length} services across ${AGENTS.length} categories`);
   console.log('');
-  console.log('[setup] 檢查服務上架狀態...');
-  await ensureServicesRegistered();
+
+  // Load credentials
+  const hasCredentials = loadCredentials();
+
+  if (!hasCredentials) {
+    console.log('No credentials found. Registering new agents...');
+    for (const agent of AGENTS) {
+      try {
+        const cred = await registerAgentPublic(agent);
+        agentCredentials[cred.slug] = cred;
+        console.log(`  Registered: ${cred.name} (${cred.id})`);
+      } catch (err) {
+        console.error(`  Failed: ${agent.name}: ${err.message}`);
+      }
+    }
+  }
+
+  // Ensure all services are published
+  console.log('\n--- Checking service listings ---');
+  for (const [slug, cred] of Object.entries(agentCredentials)) {
+    if (slug.startsWith('_')) continue; // skip internal entries
+    console.log(`\n[${cred.name}]`);
+    await ensureServicesForAgent(slug, cred.id, cred.key);
+  }
+
+  // Also ensure original SELLER services if using default config
+  if (agentCredentials['_default'] && !Object.keys(agentCredentials).some(k => !k.startsWith('_'))) {
+    console.log('\n[Default Seller — legacy services]');
+    // The original 4 services are kept for backward compatibility
+  }
+
+  // Start polling for orders
+  console.log('\n--- Starting order fulfillment loop ---');
+  console.log(`Polling every ${POLL_INTERVAL / 1000}s for ${Object.keys(agentCredentials).length} agent(s)...`);
   console.log('');
-  console.log('開始偵測訂單，每 15 秒檢查一次...');
-  processOrders();
-  setInterval(processOrders, POLL_INTERVAL);
+
+  pollAllOrders();
+  setInterval(pollAllOrders, POLL_INTERVAL);
 }
 
 main().catch(console.error);
