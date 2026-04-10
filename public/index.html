@@ -1817,7 +1817,10 @@ async function subscribeToService(serviceId) {
       body: JSON.stringify({ service_id: serviceId })
     });
     toast(t('toast_sub_success') + ' ' + new Date(r.next_billing_at).toLocaleDateString(), 'success');
-    showPanel('subscriptions');
+    // Navigate to Orders panel → My Subscriptions subtab
+    showPanel('orders');
+    const subsBtn = document.querySelector('.subtab-btn[onclick*="ord-subs"]');
+    if (subsBtn) switchSubTab(subsBtn, 'ord-subs');
   } catch (e) { toast(e.message, 'error'); }
 }
 
