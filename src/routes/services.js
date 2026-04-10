@@ -51,6 +51,22 @@ router.post('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /services — list all active services
+router.get('/', async (req, res, next) => {
+  try {
+    const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+    const services = await dbAll(
+      `SELECT s.*, a.name as agent_name, COALESCE(a.reputation_score, 0) as seller_reputation
+       FROM services s JOIN agents a ON s.agent_id = a.id
+       WHERE ${activeCheck}
+       ORDER BY COALESCE(a.reputation_score, 0) DESC, s.created_at DESC
+       LIMIT 50`,
+      []
+    );
+    res.json({ count: services.length, services: services.map(s => ({ ...s, seller_reputation: parseInt(s.seller_reputation || 0) })) });
+  } catch (err) { next(err); }
+});
+
 // POST /services/discover — capability-based matching
 // Body: { input_like: object|schema, output_like: object|schema, max_price?, limit? }
 router.post('/discover', async (req, res, next) => {
@@ -84,10 +100,12 @@ router.post('/discover', async (req, res, next) => {
     }
     const wantOutKeys = keysOf(output_like);
 
+    const hasCriteria = input_like != null || wantOutKeys.length > 0;
+
     const scored = services.map(s => {
       const sIn = parseSchemaField(s.input_schema);
       const sOut = parseSchemaField(s.output_schema);
-      let score = 0;
+      let score = hasCriteria ? 0 : 1; // base score when no criteria = list all
       let reasons = [];
 
       if (input_like != null) {
@@ -126,7 +144,7 @@ router.post('/discover', async (req, res, next) => {
       score += Math.min(parseInt(s.seller_reputation || 0), 100) / 20; // rep bonus up to 5
       return { service: s, score, reasons };
     })
-    .filter(x => x.score > 0)
+    .filter(x => !hasCriteria || x.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.min(parseInt(limit) || 20, 50));
 
