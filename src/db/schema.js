@@ -42,6 +42,28 @@ if (DATABASE_URL) {
         created_at       TIMESTAMPTZ DEFAULT NOW()
       );
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS reputation_score INTEGER DEFAULT 0;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_encrypted_key TEXT;
+
+      CREATE TABLE IF NOT EXISTS deposits (
+        id         TEXT PRIMARY KEY,
+        agent_id   TEXT NOT NULL REFERENCES agents(id),
+        amount     NUMERIC NOT NULL,
+        tx_hash    TEXT UNIQUE NOT NULL,
+        from_address TEXT,
+        confirmed_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id          TEXT PRIMARY KEY,
+        agent_id    TEXT NOT NULL REFERENCES agents(id),
+        amount      NUMERIC NOT NULL,
+        to_address  TEXT NOT NULL,
+        tx_hash     TEXT,
+        status      TEXT DEFAULT 'pending',
+        created_at  TIMESTAMPTZ DEFAULT NOW(),
+        completed_at TIMESTAMPTZ
+      );
 
       CREATE TABLE IF NOT EXISTS reputation_history (
         id         SERIAL PRIMARY KEY,
@@ -276,6 +298,26 @@ if (DATABASE_URL) {
       created_at      TEXT DEFAULT (datetime('now')),
       cancelled_at    TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS deposits (
+      id           TEXT PRIMARY KEY,
+      agent_id     TEXT NOT NULL REFERENCES agents(id),
+      amount       REAL NOT NULL,
+      tx_hash      TEXT UNIQUE NOT NULL,
+      from_address TEXT,
+      confirmed_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS withdrawals (
+      id           TEXT PRIMARY KEY,
+      agent_id     TEXT NOT NULL REFERENCES agents(id),
+      amount       REAL NOT NULL,
+      to_address   TEXT NOT NULL,
+      tx_hash      TEXT,
+      status       TEXT DEFAULT 'pending',
+      created_at   TEXT DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
   `);
 
   // Idempotent migrations for older SQLite DBs
@@ -298,6 +340,8 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'sub_interval', 'TEXT');
   addColIfMissing('orders', 'bundle_id', 'TEXT');
   addColIfMissing('orders', 'parent_order_id', 'TEXT');
+  addColIfMissing('agents', 'wallet_address', 'TEXT');
+  addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
 
   console.log('SQLite schema initialized');
 

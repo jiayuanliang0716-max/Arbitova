@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
+const { generateWallet, isChainMode, getUsdcBalance } = require('../wallet');
 
 const router = express.Router();
 
@@ -18,15 +19,37 @@ router.post('/register', async (req, res, next) => {
     const id = uuidv4();
     const api_key = uuidv4();
 
+    // Generate Base chain wallet (chain mode) or skip (mock mode)
+    let wallet_address = null;
+    let wallet_encrypted_key = null;
+    if (isChainMode()) {
+      try {
+        const w = generateWallet();
+        wallet_address = w.address;
+        wallet_encrypted_key = w.encryptedKey;
+      } catch (e) {
+        console.error('Wallet generation failed:', e.message);
+      }
+    }
+
+    // In chain mode, new agents start with 0 balance (must deposit real USDC)
+    // In mock mode, start with 100 fake USDC for testing
+    const initialBalance = isChainMode() ? 0 : 100.0;
+
     await dbRun(
-      `INSERT INTO agents (id, name, description, api_key, owner_email) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)})`,
-      [id, name, description || null, api_key, owner_email || null]
+      `INSERT INTO agents (id, name, description, api_key, owner_email, balance, wallet_address, wallet_encrypted_key)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)})`,
+      [id, name, description || null, api_key, owner_email || null, initialBalance, wallet_address, wallet_encrypted_key]
     );
 
     res.status(201).json({
       id, name, description, owner_email, api_key,
-      balance: 100.0,
-      message: 'Agent registered. Save your api_key — it will not be shown again.'
+      balance: initialBalance,
+      wallet_address,
+      chain: isChainMode() ? (process.env.CHAIN || 'base-sepolia') : null,
+      message: isChainMode()
+        ? `Agent registered. Deposit USDC to ${wallet_address} on ${process.env.CHAIN || 'Base Sepolia'} to fund your account.`
+        : 'Agent registered. Save your api_key — it will not be shown again.'
     });
   } catch (err) { next(err); }
 });
@@ -95,7 +118,9 @@ router.get('/:id/orders', requireApiKey, async (req, res, next) => {
 router.get('/:id', requireApiKey, async (req, res, next) => {
   try {
     const agent = await dbGet(
-      `SELECT id, name, description, owner_email, balance, escrow, COALESCE(stake, 0) as stake, COALESCE(reputation_score, 0) as reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+      `SELECT id, name, description, owner_email, balance, escrow, COALESCE(stake, 0) as stake,
+              COALESCE(reputation_score, 0) as reputation_score, wallet_address, created_at
+       FROM agents WHERE id = ${p(1)}`,
       [req.params.id]
     );
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
@@ -152,6 +177,28 @@ router.post('/unstake', requireApiKey, async (req, res, next) => {
     );
     const updated = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     res.json({ message: `Unstaked ${n} USDC`, balance: updated.balance, stake: updated.stake });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/wallet — wallet address + on-chain USDC balance
+router.get('/:id/wallet', requireApiKey, async (req, res, next) => {
+  try {
+    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Access denied' });
+    const agent = await dbGet(`SELECT wallet_address, balance FROM agents WHERE id = ${p(1)}`, [req.params.id]);
+    if (!agent?.wallet_address) {
+      return res.json({ wallet_address: null, db_balance: parseFloat(agent?.balance || 0), chain_balance: null, mode: 'mock' });
+    }
+    let chain_balance = null;
+    if (isChainMode()) {
+      try { chain_balance = await getUsdcBalance(agent.wallet_address); } catch (e) {}
+    }
+    res.json({
+      wallet_address: agent.wallet_address,
+      db_balance: parseFloat(agent.balance || 0),
+      chain_balance,
+      chain: process.env.CHAIN || 'base-sepolia',
+      mode: isChainMode() ? 'chain' : 'mock'
+    });
   } catch (err) { next(err); }
 });
 
