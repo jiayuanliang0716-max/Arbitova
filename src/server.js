@@ -11,6 +11,7 @@ const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
 const telegramRoutes = require('./routes/telegram');
+const subscriptionRoutes = require('./routes/subscriptions');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -59,6 +60,7 @@ app.use('/agents', agentRoutes);
 app.use('/services', serviceRoutes);
 app.use('/orders', orderRoutes);
 app.use('/telegram', telegramRoutes);
+app.use('/subscriptions', subscriptionRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {

@@ -13,7 +13,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
             input_schema, output_schema, verification_rules, auto_verify,
-            min_seller_stake } = req.body;
+            min_seller_stake, sub_price, sub_interval } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (price <= 0) return res.status(400).json({ error: 'price must be positive' });
 
@@ -23,18 +23,23 @@ router.post('/', requireApiKey, async (req, res, next) => {
       return res.status(400).json({ error: `Your stake (${req.agent.stake || 0}) is below the min_seller_stake (${minStake}) you set` });
     }
 
+    const validIntervals = ['daily', 'weekly', 'monthly'];
+    const subInterval = sub_interval && validIntervals.includes(sub_interval) ? sub_interval : null;
+    const subPrice = subInterval ? parseFloat(sub_price || 0) : 0;
+
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
-          input_schema, output_schema, verification_rules, auto_verify, min_seller_stake)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)})`,
+          input_schema, output_schema, verification_rules, auto_verify, min_seller_stake,
+          sub_price, sub_interval)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
         auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake
+        minStake, subPrice, subInterval
       ]
     );
 
@@ -46,6 +51,8 @@ router.post('/', requireApiKey, async (req, res, next) => {
       verification_rules: verification_rules || null,
       auto_verify: !!auto_verify,
       min_seller_stake: minStake,
+      sub_price: subPrice,
+      sub_interval: subInterval,
       message: 'Service listed successfully'
     });
   } catch (err) { next(err); }

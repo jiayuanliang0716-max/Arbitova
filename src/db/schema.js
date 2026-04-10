@@ -116,6 +116,22 @@ if (DATABASE_URL) {
         created_at  TIMESTAMPTZ DEFAULT NOW(),
         resolved_at TIMESTAMPTZ
       );
+
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_price NUMERIC DEFAULT 0;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_interval TEXT DEFAULT NULL;
+
+      CREATE TABLE IF NOT EXISTS subscriptions (
+        id             TEXT PRIMARY KEY,
+        buyer_id       TEXT NOT NULL REFERENCES agents(id),
+        seller_id      TEXT NOT NULL REFERENCES agents(id),
+        service_id     TEXT NOT NULL REFERENCES services(id),
+        interval       TEXT NOT NULL,
+        price          NUMERIC NOT NULL,
+        status         TEXT DEFAULT 'active',
+        next_billing_at TIMESTAMPTZ NOT NULL,
+        created_at     TIMESTAMPTZ DEFAULT NOW(),
+        cancelled_at   TIMESTAMPTZ
+      );
     `);
     console.log('PostgreSQL schema initialized');
   }
@@ -247,6 +263,19 @@ if (DATABASE_URL) {
       created_at  TEXT DEFAULT (datetime('now')),
       resolved_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id              TEXT PRIMARY KEY,
+      buyer_id        TEXT NOT NULL REFERENCES agents(id),
+      seller_id       TEXT NOT NULL REFERENCES agents(id),
+      service_id      TEXT NOT NULL REFERENCES services(id),
+      interval        TEXT NOT NULL,
+      price           REAL NOT NULL,
+      status          TEXT DEFAULT 'active',
+      next_billing_at TEXT NOT NULL,
+      created_at      TEXT DEFAULT (datetime('now')),
+      cancelled_at    TEXT
+    );
   `);
 
   // Idempotent migrations for older SQLite DBs
@@ -265,6 +294,8 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'verification_rules', 'TEXT');
   addColIfMissing('services', 'auto_verify', 'INTEGER DEFAULT 0');
   addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
+  addColIfMissing('services', 'sub_price', 'REAL DEFAULT 0');
+  addColIfMissing('services', 'sub_interval', 'TEXT');
   addColIfMissing('orders', 'bundle_id', 'TEXT');
   addColIfMissing('orders', 'parent_order_id', 'TEXT');
 

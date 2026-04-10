@@ -267,6 +267,7 @@
     <button data-panel="publish">📦 發布服務</button>
     <button data-panel="orders">📋 我的訂單</button>
     <button data-panel="bundle">🎁 組合下單</button>
+    <button data-panel="subscriptions">訂閱</button>
     <button data-panel="leaderboard">🏆 排行榜</button>
     <button data-panel="help">❓ 說明</button>
     <button data-panel="settings">⚙️ 設定</button>
@@ -521,6 +522,16 @@
     </div>
   </div>
 
+  <!-- ============ SUBSCRIPTIONS ============ -->
+  <div class="panel" id="p-subscriptions">
+    <div class="sec">
+      <h2>我的訂閱</h2>
+      <p class="sub">你訂閱的服務會按週期自動扣款，直到取消為止</p>
+      <button class="btn btn-ghost btn-sm" onclick="loadSubscriptions()">重新整理</button>
+      <div id="sub-list" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
   <!-- ============ LEADERBOARD ============ -->
   <div class="panel" id="p-leaderboard">
     <div class="sec">
@@ -683,6 +694,7 @@ function showPanel(name) {
   if (name === 'market')      loadMarket();
   if (name === 'orders')      loadMyOrders();
   if (name === 'leaderboard') loadLeaderboard();
+  if (name === 'subscriptions') loadSubscriptions();
   if (name === 'bundle')      loadBundleSelect();
   if (name === 'settings')    loadSettingsForm();
 }
@@ -881,6 +893,9 @@ function renderServiceCard(s) {
   if (s.auto_verify) badges.push('<span class="badge b-auto">自動驗收</span>');
   if (s.input_schema || s.output_schema) badges.push('<span class="badge b-manual">結構化契約</span>');
   if (parseFloat(s.min_seller_stake || 0) > 0) badges.push(`<span class="badge b-stake">需質押 ${s.min_seller_stake}</span>`);
+  const hasSub = s.sub_interval && parseFloat(s.sub_price || 0) > 0;
+  const intervalLabel = { daily: '每日', weekly: '每週', monthly: '每月' }[s.sub_interval] || '';
+  if (hasSub) badges.push(`<span class="badge b-auto">訂閱 ${intervalLabel} ${money(s.sub_price)}</span>`);
   return `
     <div class="service">
       <div class="head">
@@ -892,6 +907,7 @@ function renderServiceCard(s) {
       <div class="meta"><span class="b">⏱ ${s.delivery_hours} 小時交付</span></div>
       <div class="btn-row" style="margin-top:0;">
         <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>下單購買</button>
+        ${hasSub ? `<button class="btn btn-ghost btn-sm" onclick="subscribeToService('${s.id}')">訂閱 ${intervalLabel}</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick='openServiceDetail(${JSON.stringify(s).replace(/'/g, "&apos;")})'>詳細</button>
       </div>
     </div>`;
@@ -1176,6 +1192,54 @@ async function viewOrderDetail(orderId) {
       ${o.parent_order_id ? `<div class="small" style="margin-top:10px;">此為子委託訂單，上層訂單：<code>${o.parent_order_id}</code></div>` : ''}
       <div class="small" style="margin-top:8px;">買家：<code>${o.buyer_name}</code> · 賣家：<code>${o.seller_name}</code></div>
     `);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Subscriptions =================
+async function loadSubscriptions() {
+  const el = document.getElementById('sub-list');
+  if (!el) return;
+  if (!getIdentity()) { el.innerHTML = '<p class="muted">請先登入</p>'; return; }
+  try {
+    const r = await api('/subscriptions', { headers: authHeaders() });
+    if (!r.subscriptions?.length) { el.innerHTML = '<p class="muted">目前沒有訂閱</p>'; return; }
+    el.innerHTML = r.subscriptions.map(s => `
+      <div class="order">
+        <div class="top">
+          <div>
+            <div class="name">${escapeHtml(s.service_name)}</div>
+            <div class="role">${s.buyer_id === getIdentity().id ? '訂閱者' : '服務提供者'} · ${s.interval === 'daily' ? '每日' : s.interval === 'weekly' ? '每週' : '每月'} ${money(s.price)} USDC</div>
+          </div>
+          <span class="st st-${s.status === 'active' ? 'paid' : 'refunded'}">${s.status === 'active' ? '訂閱中' : s.status === 'cancelled' ? '已取消' : s.status}</span>
+        </div>
+        <div class="small" style="margin-top:8px;">下次扣款：${s.next_billing_at ? new Date(s.next_billing_at).toLocaleString() : '—'}</div>
+        <div class="actions">
+          ${s.status === 'active' && s.buyer_id === getIdentity().id
+            ? `<button class="btn btn-danger btn-sm" onclick="cancelSubscription('${s.id}')">取消訂閱</button>`
+            : ''}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) { el.innerHTML = `<p class="muted">${e.message}</p>`; }
+}
+
+async function cancelSubscription(subId) {
+  try {
+    await api('/subscriptions/' + subId + '/cancel', { method: 'POST', headers: authHeaders() });
+    toast('訂閱已取消', 'success');
+    loadSubscriptions();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function subscribeToService(serviceId) {
+  try {
+    const r = await api('/subscriptions', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ service_id: serviceId })
+    });
+    toast(`訂閱成功，下次扣款：${new Date(r.next_billing_at).toLocaleDateString()}`, 'success');
+    showPanel('subscriptions');
   } catch (e) { toast(e.message, 'error'); }
 }
 
