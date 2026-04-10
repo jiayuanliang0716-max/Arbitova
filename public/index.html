@@ -448,6 +448,12 @@
     .detail-badges{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px}
     .detail-desc{font-size:14px;color:var(--text-soft);line-height:1.7;margin-bottom:20px}
     .detail-buy-row{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap}
+    .product-type-card{
+      background:var(--bg-soft);border-radius:14px;padding:20px;cursor:pointer;
+      transition:background .15s,box-shadow .15s;border:2px solid transparent;
+    }
+    .product-type-card:hover{background:var(--panel-raised)}
+    .product-type-card.selected{border-color:var(--primary);background:var(--primary-bg)}
   </style>
 </head>
 <body>
@@ -666,6 +672,13 @@
               <option value="price_asc" data-i18n="mkt_sort_asc">Cheapest First</option>
               <option value="newest" data-i18n="mkt_sort_new">Newest</option>
             </select>
+            <select id="h2a-type" style="width:130px">
+              <option value="">All Types</option>
+              <option value="digital">Digital</option>
+              <option value="ai_generated">AI Service</option>
+              <option value="subscription">Subscription</option>
+              <option value="external">External</option>
+            </select>
             <button class="btn btn-primary btn-sm" onclick="loadH2AMarket()" data-i18n="mkt_search_btn">Search</button>
           </div>
         </div>
@@ -724,86 +737,138 @@
     <div class="sec">
       <h2 data-i18n="pub_title">Publish Service</h2>
       <p class="sub" data-i18n="pub_sub">You must register or enter your key first</p>
-      <form id="f-publish" style="margin-top:4px">
-        <!-- 市場選擇 -->
-        <div style="margin-bottom:18px;padding:14px;background:var(--fill-secondary);border-radius:8px;border:1px solid var(--border)">
-          <div style="font-weight:600;font-size:13px;margin-bottom:10px" data-i18n="pub_market_label">Publish to which market?</div>
-          <div style="display:flex;gap:12px;flex-wrap:wrap">
-            <label style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel)">
-              <input type="radio" name="market_type" value="h2a" checked style="margin-top:2px">
-              <div>
-                <div style="font-weight:600;font-size:13px" data-i18n="pub_mkt_h2a">AI Tools Market</div>
-                <div class="muted" style="font-size:11px" data-i18n="pub_mkt_h2a_sub">For general users — reports, scripts, digital products</div>
+
+      <!-- Step 1: Product Type Selection -->
+      <div id="pub-step1">
+        <h3 style="margin-top:20px">Step 1: Choose Product Type</h3>
+        <div class="grid c2" style="margin-top:12px">
+          <div class="product-type-card" onclick="selectProductType('digital')" data-type="digital">
+            <div style="font-size:24px;margin-bottom:8px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
+            </div>
+            <div style="font-weight:600;font-size:14px" data-i18n="pt_digital">Digital Product</div>
+            <div class="muted" style="font-size:12px" data-i18n="pt_digital_desc">File download — scripts, templates, datasets. Buyer gets instant access after purchase.</div>
+          </div>
+          <div class="product-type-card" onclick="selectProductType('ai_generated')" data-type="ai_generated">
+            <div style="font-size:24px;margin-bottom:8px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div style="font-weight:600;font-size:14px" data-i18n="pt_ai_gen">AI Generated Service</div>
+            <div class="muted" style="font-size:12px" data-i18n="pt_ai_gen_desc">Reports, analysis, translation. Seller processes and delivers within a timeframe.</div>
+          </div>
+          <div class="product-type-card" onclick="selectProductType('subscription')" data-type="subscription">
+            <div style="font-size:24px;margin-bottom:8px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </div>
+            <div style="font-weight:600;font-size:14px" data-i18n="pt_sub">Subscription Service</div>
+            <div class="muted" style="font-size:12px" data-i18n="pt_sub_desc">Recurring delivery — daily/weekly/monthly. Auto-charged from buyer's balance.</div>
+          </div>
+          <div class="product-type-card" onclick="selectProductType('external')" data-type="external">
+            <div style="font-size:24px;margin-bottom:8px">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </div>
+            <div style="font-weight:600;font-size:14px" data-i18n="pt_external">External Service</div>
+            <div class="muted" style="font-size:12px" data-i18n="pt_external_desc">SaaS tools, API access, account credentials. You provide a link or key after purchase.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Service Details (hidden until type selected) -->
+      <div id="pub-step2" style="display:none">
+        <div style="display:flex;align-items:center;gap:10px;margin:20px 0 16px">
+          <button class="btn btn-ghost btn-sm" onclick="backToStep1()" type="button">← Back</button>
+          <h3 style="margin:0">Step 2: Service Details</h3>
+          <span class="badge b-auto" id="pub-type-badge"></span>
+        </div>
+
+        <form id="f-publish">
+          <input type="hidden" name="product_type" id="pub-product-type">
+          <input type="hidden" name="market_type" value="h2a">
+
+          <label><span data-i18n="pub_name_label">Service Name</span><span class="req">*</span></label>
+          <input name="name" required class="plain" data-i18n-placeholder="pub_name_placeholder" placeholder="e.g. PDF Summary (EN/CN)">
+
+          <label data-i18n="pub_desc_label">Service Description</label>
+          <textarea name="description" class="plain" data-i18n-placeholder="pub_desc_placeholder" placeholder="What you will provide, and what buyers can expect"></textarea>
+
+          <div class="grid c2">
+            <div>
+              <label><span data-i18n="pub_price_label">Price (USDC)</span><span class="req">*</span></label>
+              <input name="price" type="number" step="0.01" min="0.01" required class="plain" placeholder="5.00">
+            </div>
+            <div id="pub-delivery-hours-wrap">
+              <label data-i18n="pub_delivery_label">Delivery Time (hours)</label>
+              <input name="delivery_hours" type="number" min="1" value="24" class="plain">
+            </div>
+          </div>
+
+          <!-- Digital: file upload (required) -->
+          <div id="pub-digital-section" style="display:none">
+            <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px">
+              <div style="font-weight:600;font-size:13px;margin-bottom:8px" data-i18n="pub_digital_title">Digital Product File</div>
+              <p class="muted" style="margin-bottom:10px;font-size:12px" data-i18n="pub_digital_sub_req">Upload the file buyers will receive. This is required for digital products.</p>
+              <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(this)">
+              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()" data-i18n="pub_choose_file">Choose File</button>
+              <span id="file-status" class="muted" style="font-size:12px;margin-left:8px" data-i18n="pub_no_file">No file chosen</span>
+            </div>
+            <input type="hidden" name="file_id" id="f-file-id">
+          </div>
+
+          <!-- Subscription: interval + price -->
+          <div id="pub-sub-section" style="display:none">
+            <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px">
+              <div style="font-weight:600;font-size:13px;margin-bottom:8px">Subscription Settings</div>
+              <div class="grid c2">
+                <div>
+                  <label>Billing Interval<span class="req">*</span></label>
+                  <select name="sub_interval" class="plain">
+                    <option value="daily" data-i18n="int_daily">Daily</option>
+                    <option value="weekly" data-i18n="int_weekly">Weekly</option>
+                    <option value="monthly" selected data-i18n="int_monthly">Monthly</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Subscription Price (USDC)<span class="req">*</span></label>
+                  <input name="sub_price" type="number" step="0.01" min="0.01" class="plain" placeholder="1.00">
+                </div>
               </div>
-            </label>
-            <label style="flex:1;min-width:140px;display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;background:var(--panel)">
-              <input type="radio" name="market_type" value="a2a" style="margin-top:2px">
-              <div>
-                <div style="font-weight:600;font-size:13px" data-i18n="pub_mkt_a2a">Agent Market</div>
-                <div class="muted" style="font-size:11px" data-i18n="pub_mkt_a2a_sub">For developers / AI agents — API-first, structured schemas</div>
-              </div>
-            </label>
+              <p class="muted" style="font-size:11px;margin-top:8px">The "Price" above is the one-time setup fee. Subscription price is charged on each billing cycle from buyer's balance.</p>
+            </div>
           </div>
-        </div>
 
-        <label><span data-i18n="pub_name_label">Service Name</span><span class="req">*</span></label>
-        <input name="name" required class="plain" data-i18n-placeholder="pub_name_placeholder" placeholder="e.g. PDF Summary (EN/CN)">
-        <label data-i18n="pub_desc_label">Service Description</label>
-        <textarea name="description" class="plain" data-i18n-placeholder="pub_desc_placeholder" placeholder="What you will provide, and what buyers can expect"></textarea>
-        <div class="grid c2">
-          <div>
-            <label><span data-i18n="pub_price_label">Price (USDC)</span><span class="req">*</span></label>
-            <input name="price" type="number" step="0.01" min="0.01" required class="plain" placeholder="5.00">
+          <!-- External: info box -->
+          <div id="pub-external-section" style="display:none">
+            <div class="info" style="margin-top:16px">
+              <div class="title">External Service Delivery</div>
+              After a buyer purchases, you will need to deliver access credentials (URL, API key, login details) through the order delivery system. The buyer confirms receipt to release payment.
+            </div>
           </div>
-          <div>
-            <label data-i18n="pub_delivery_label">Delivery Time (hours)</label>
-            <input name="delivery_hours" type="number" min="1" value="24" class="plain">
-          </div>
-        </div>
-        <!-- Digital Product File Attach -->
-        <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px;border:1px solid var(--border)">
-          <div style="font-weight:600;font-size:13px;margin-bottom:8px" data-i18n="pub_digital_title">Digital Product (Optional)</div>
-          <p class="muted" style="margin-bottom:10px;font-size:12px" data-i18n="pub_digital_sub">Attach a file (.py, .js, .json, .zip, etc.). Buyer receives a download link in Inbox immediately after purchase — no seller-agent needed.</p>
-          <div id="file-upload-area">
-            <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(this)">
-            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()" data-i18n="pub_choose_file">Choose File</button>
-            <span id="file-status" class="muted" style="font-size:12px;margin-left:8px" data-i18n="pub_no_file">No file chosen</span>
-          </div>
-          <input type="hidden" name="file_id" id="f-file-id">
-        </div>
 
-        <div style="margin-top:16px">
-          <label><span data-i18n="svc_delivery_type">Delivery Type</span></label>
-          <select name="delivery_type" class="plain">
-            <option value="text" data-i18n="dt_text">Text Content</option>
-            <option value="file" data-i18n="dt_file">File Download</option>
-            <option value="link" data-i18n="dt_link">External Link / URL</option>
-            <option value="credentials" data-i18n="dt_credentials">API Credentials</option>
-          </select>
-        </div>
-
-        <div class="adv-toggle">
-          <a class="hint-link" onclick="toggleAdvanced()" data-i18n="pub_advanced">› Advanced: Structured Contract (Optional)</a>
-        </div>
-        <div id="adv" style="display:none;margin-top:14px">
-          <div class="info">
-            <div class="title" data-i18n="pub_contract_title">What is a Structured Contract?</div>
-            <span data-i18n-html="pub_contract_body">Declare with JSON Schema: (1) what inputs buyers must provide; (2) what fields you deliver; (3) what rules the content must pass. With <b>auto-verification enabled</b>, delivery is auto-checked — pass = instant payout + reputation +10, no manual buyer confirmation needed.</span>
+          <!-- Advanced (all types) -->
+          <div class="adv-toggle">
+            <a class="hint-link" onclick="toggleAdvanced()" data-i18n="pub_advanced">› Advanced: Structured Contract (Optional)</a>
           </div>
-          <label><span data-i18n="pub_in_schema_label">Input Schema (JSON Schema)</span><span class="hint" data-i18n="pub_in_schema_hint">Buyer's requirements must conform</span></label>
-          <textarea name="input_schema" placeholder='{"type":"object","required":["article"],"properties":{"article":{"type":"string"}}}'></textarea>
-          <label><span data-i18n="pub_out_schema_label">Output Schema (JSON Schema)</span><span class="hint" data-i18n="pub_out_schema_hint">Your delivery content must conform</span></label>
-          <textarea name="output_schema" placeholder='{"type":"object","required":["summary"],"properties":{"summary":{"type":"string"}}}'></textarea>
-          <label><span data-i18n="pub_rules_label">Verification Rules (JSON Array)</span><span class="hint" data-i18n="pub_rules_hint">Optional</span></label>
-          <textarea name="verification_rules" placeholder='[{"type":"min_length","path":"summary","value":100}]'></textarea>
-          <label class="checkbox-row"><input type="checkbox" name="auto_verify"> <span data-i18n="pub_auto_verify">Enable Auto-Verification</span></label>
-          <label><span data-i18n="pub_stake_label">Min. Seller Stake (USDC)</span><span class="hint" data-i18n="pub_stake_hint">You must stake this much to list this service</span></label>
-          <input name="min_seller_stake" type="number" min="0" value="0" class="plain">
-        </div>
-        <div class="btn-row">
-          <button type="submit" class="btn btn-primary btn-lg" data-i18n="pub_submit">Publish Service</button>
-        </div>
-      </form>
+          <div id="adv" style="display:none;margin-top:14px">
+            <div class="info">
+              <div class="title" data-i18n="pub_contract_title">What is a Structured Contract?</div>
+              <span data-i18n-html="pub_contract_body">Declare with JSON Schema: (1) what inputs buyers must provide; (2) what fields you deliver; (3) what rules the content must pass. With <b>auto-verification enabled</b>, delivery is auto-checked — pass = instant payout + reputation +10, no manual buyer confirmation needed.</span>
+            </div>
+            <label><span data-i18n="pub_in_schema_label">Input Schema (JSON Schema)</span><span class="hint" data-i18n="pub_in_schema_hint">Buyer's requirements must conform</span></label>
+            <textarea name="input_schema" placeholder='{"type":"object","required":["article"],"properties":{"article":{"type":"string"}}}'></textarea>
+            <label><span data-i18n="pub_out_schema_label">Output Schema (JSON Schema)</span><span class="hint" data-i18n="pub_out_schema_hint">Your delivery content must conform</span></label>
+            <textarea name="output_schema" placeholder='{"type":"object","required":["summary"],"properties":{"summary":{"type":"string"}}}'></textarea>
+            <label><span data-i18n="pub_rules_label">Verification Rules (JSON Array)</span><span class="hint" data-i18n="pub_rules_hint">Optional</span></label>
+            <textarea name="verification_rules" placeholder='[{"type":"min_length","path":"summary","value":100}]'></textarea>
+            <label class="checkbox-row"><input type="checkbox" name="auto_verify"> <span data-i18n="pub_auto_verify">Enable Auto-Verification</span></label>
+            <label><span data-i18n="pub_stake_label">Min. Seller Stake (USDC)</span><span class="hint" data-i18n="pub_stake_hint">You must stake this much to list this service</span></label>
+            <input name="min_seller_stake" type="number" min="0" value="0" class="plain">
+          </div>
+
+          <div class="btn-row">
+            <button type="submit" class="btn btn-primary btn-lg" data-i18n="pub_submit">Publish Service</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -1035,6 +1100,11 @@ const LANG = {
     pub_market_label:'Publish to which market?',pub_mkt_h2a:'AI Tools Market',pub_mkt_h2a_sub:'For general users — reports, scripts, digital products',pub_mkt_a2a:'Agent Market',pub_mkt_a2a_sub:'For developers / AI agents — API-first, structured schemas',
     mkt_h2a:'AI Tools',mkt_a2a:'Agent Market',mkt_h2a_sub:'Browse AI-powered tools. Buy a report, get a script, or subscribe for daily updates.',mkt_a2a_sub:'Services for automated agents. Structured schemas, auto-verification, API-first.',
     h2a_by:'by',h2a_digital:'Digital Download',h2a_ai_gen:'AI Generated',h2a_subscribable:'Subscribable',h2a_sub_from:'Subscribe from',h2a_buy_now:'Buy (Balance)',h2a_buy_dl:'Download (Balance)',h2a_subscribe:'Subscribe (Auto-deduct)',
+    pt_digital:'Digital Product',pt_digital_desc:'File download — scripts, templates, datasets. Instant access after purchase.',
+    pt_ai_gen:'AI Generated Service',pt_ai_gen_desc:'Reports, analysis, translation. Delivered within a timeframe.',
+    pt_sub:'Subscription Service',pt_sub_desc:'Recurring delivery — daily/weekly/monthly. Auto-charged from balance.',
+    pt_external:'External Service',pt_external_desc:'SaaS tools, API access. Seller provides link or credentials.',
+    pub_digital_sub_req:'Upload the file buyers will receive. Required for digital products.',
     svc_detail_modal_title:'Service Details',svc_reviews:'Reviews',svc_no_reviews:'No reviews yet',svc_buy_fiat:'Buy (Credit Card)',svc_delivery_type:'Delivery Type',dt_text:'Text Content',dt_file:'File Download',dt_link:'External Link',dt_credentials:'API Credentials',
     loading:'Loading...',
     not_logged_in:'Not signed in —',free_join:'Join for free',enter_key:'Enter key to sign in',logged_in_as:'Signed in as',
@@ -1178,6 +1248,11 @@ const LANG = {
     pub_market_label:'上架到哪個市場？',pub_mkt_h2a:'AI 工具市集',pub_mkt_h2a_sub:'面向一般用戶 — 報告、腳本、數位商品',pub_mkt_a2a:'Agent 市集',pub_mkt_a2a_sub:'面向開發者 / AI Agent — API 優先、結構化 Schema',
     mkt_h2a:'AI 工具',mkt_a2a:'Agent 市集',mkt_h2a_sub:'瀏覽 AI 工具。購買報告、下載腳本或訂閱每日更新。',mkt_a2a_sub:'供 Agent 自動消費的服務。結構化 Schema、自動驗證、API 優先。',
     h2a_by:'提供者',h2a_digital:'數位下載',h2a_ai_gen:'AI 生成',h2a_subscribable:'可訂閱',h2a_sub_from:'訂閱',h2a_buy_now:'購買（餘額扣款）',h2a_buy_dl:'下載（餘額扣款）',h2a_subscribe:'訂閱（餘額自動扣）',
+    pt_digital:'數位商品',pt_digital_desc:'檔案下載 — 腳本、模板、資料集。購買後立即取得。',
+    pt_ai_gen:'AI 生成服務',pt_ai_gen_desc:'報告、分析、翻譯。賣家在期限內交付。',
+    pt_sub:'訂閱服務',pt_sub_desc:'定期交付 — 每日/週/月。從餘額自動扣款。',
+    pt_external:'外部服務',pt_external_desc:'SaaS 工具、API 存取。賣家提供連結或憑證。',
+    pub_digital_sub_req:'上傳買家將收到的檔案。數位商品必填。',
     svc_detail_modal_title:'服務詳情',svc_reviews:'評價',svc_no_reviews:'暫無評價',svc_buy_fiat:'購買（信用卡）',svc_delivery_type:'交付方式',dt_text:'文字內容',dt_file:'檔案下載',dt_link:'外部連結',dt_credentials:'API 憑證',
     loading:'載入中...',
     not_logged_in:'尚未登入 —',free_join:'免費加入',enter_key:'輸入金鑰登入',logged_in_as:'已登入：',
@@ -1780,6 +1855,8 @@ async function loadH2AMarket() {
   const params = new URLSearchParams({ market: 'h2a', sort });
   if (q) params.set('q', q);
   if (max) params.set('max_price', max);
+  const ptype = document.getElementById('h2a-type').value;
+  if (ptype) params.set('product_type', ptype);
   const list = document.getElementById('h2a-list');
   try {
     const r = await api('/services/search?' + params);
@@ -1793,13 +1870,27 @@ async function loadH2AMarket() {
 }
 
 function renderH2ACard(s) {
+  const pt = s.product_type || 'ai_generated';
   const hasSub = s.sub_interval && parseFloat(s.sub_price || 0) > 0;
   const intervalLabel = { daily: t('int_daily'), weekly: t('int_weekly'), monthly: t('int_monthly') }[s.sub_interval] || '';
-  const isDigital = !!s.file_id;
-  const badges = [];
-  if (isDigital) badges.push(`<span class="badge b-auto">${t('h2a_digital')}</span>`);
-  else badges.push(`<span class="badge b-manual">${t('h2a_ai_gen')}</span>`);
-  if (hasSub) badges.push(`<span class="badge b-rep">${t('h2a_subscribable')}</span>`);
+
+  // Product type badge
+  const ptLabels = { digital: t('h2a_digital'), ai_generated: t('h2a_ai_gen'), subscription: t('h2a_subscribable'), external: t('pt_external') };
+  const ptBadge = `<span class="badge b-auto">${ptLabels[pt] || pt}</span>`;
+  const badges = [ptBadge];
+
+  // Determine buttons based on product_type
+  let buyButtons = '';
+  if (pt === 'subscription') {
+    buyButtons = `<button class="btn btn-primary btn-sm" onclick="subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>`;
+  } else {
+    const buyLabel = pt === 'digital' ? t('h2a_buy_dl') : t('h2a_buy_now');
+    buyButtons = `
+      <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${buyLabel}</button>
+      <button class="btn btn-ghost btn-sm" onclick="buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
+    `;
+  }
+
   return `
     <div class="service" style="cursor:pointer" onclick="openH2AServiceDetail('${s.id}')">
       <div class="head">
@@ -1809,15 +1900,13 @@ function renderH2ACard(s) {
         </div>
         <div class="price" style="text-align:right">
           <div>${money(s.price)} USDC</div>
-          ${hasSub ? `<div style="font-size:11px;color:var(--text-soft)">${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</div>` : ''}
+          ${hasSub && pt !== 'subscription' ? `<div style="font-size:11px;color:var(--text-soft)">${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</div>` : ''}
         </div>
       </div>
       <div class="desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
       <div class="badges" style="margin-bottom:8px">${badges.join('')}</div>
       <div class="btn-row" style="margin-top:0" onclick="event.stopPropagation()">
-        <button class="btn btn-primary btn-sm" onclick='openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${isDigital ? t('h2a_buy_dl') : t('h2a_buy_now')}</button>
-        <button class="btn btn-ghost btn-sm" onclick="buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
-        ${hasSub ? `<button class="btn btn-ghost btn-sm" onclick="subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>` : ''}
+        ${buyButtons}
       </div>
     </div>`;
 }
@@ -1905,15 +1994,34 @@ async function openH2AServiceDetail(serviceId) {
   const s = (state.lastServices || []).find(x => x.id === serviceId);
   if (!s) { toast('Service not found', 'error'); return; }
 
-  const isDigital = !!s.file_id;
+  const pt = s.product_type || 'ai_generated';
   const hasSub = s.sub_interval && parseFloat(s.sub_price || 0) > 0;
-  const intervalLabel = { daily: t('int_daily'), weekly: t('int_weekly'), monthly: t('int_monthly') }[s.sub_interval] || '';
+  const intervalLabelMap = { daily: t('int_daily'), weekly: t('int_weekly'), monthly: t('int_monthly') };
+  const intervalLabel = intervalLabelMap[s.sub_interval] || '';
 
-  const badges = [];
-  if (isDigital) badges.push(`<span class="badge b-auto">${t('h2a_digital')}</span>`);
-  else badges.push(`<span class="badge b-manual">${t('h2a_ai_gen')}</span>`);
-  if (hasSub) badges.push(`<span class="badge b-rep">${t('h2a_subscribable')}</span>`);
+  const ptLabels = { digital: t('h2a_digital'), ai_generated: t('h2a_ai_gen'), subscription: t('h2a_subscribable'), external: t('pt_external') };
+  const badges = [`<span class="badge b-auto">${ptLabels[pt] || pt}</span>`];
   if (s.auto_verify) badges.push(`<span class="badge b-auto">${t('badge_auto')}</span>`);
+
+  // Product-type-specific info block
+  const ptInfo = {
+    digital: `<div class="info" style="margin-bottom:16px"><div class="title">${t('h2a_digital')}</div>Instant download after purchase. ${s.file_id ? 'File attached.' : ''}</div>`,
+    ai_generated: `<div class="info" style="margin-bottom:16px"><div class="title">${t('h2a_ai_gen')}</div>Delivered within ${s.delivery_hours || 24} hours after purchase.</div>`,
+    subscription: `<div class="info" style="margin-bottom:16px"><div class="title">${t('h2a_subscribable')}</div>Billed ${money(s.sub_price)} USDC / ${intervalLabelMap[s.sub_interval] || s.sub_interval}. Auto-charged from balance.</div>`,
+    external: `<div class="info" style="margin-bottom:16px"><div class="title">${t('pt_external') || 'External Service'}</div>After purchase, seller provides access link or credentials.</div>`
+  };
+
+  // Buy buttons based on product_type
+  let modalBuyButtons = '';
+  if (pt === 'subscription') {
+    modalBuyButtons = `<button class="btn btn-primary" onclick="closeModal(); subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>`;
+  } else {
+    const buyLabel = pt === 'digital' ? t('h2a_buy_dl') : t('h2a_buy_now');
+    modalBuyButtons = `
+      <button class="btn btn-primary" onclick='closeModal(); openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${buyLabel}</button>
+      <button class="btn btn-ghost" onclick="closeModal(); buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
+    `;
+  }
 
   modal(`
     <button class="close" onclick="closeModal()">×</button>
@@ -1924,13 +2032,12 @@ async function openH2AServiceDetail(serviceId) {
       <span>${t('svc_detail_rep')}: <b style="color:var(--primary)">${s.seller_reputation ?? 0}</b></span>
     </div>
     <div class="detail-badges">${badges.join('')}</div>
-    <div class="detail-price">${money(s.price)} USDC${hasSub ? ` <span style="font-size:14px;font-weight:400;color:var(--text-soft)">· ${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</span>` : ''}</div>
+    <div class="detail-price">${money(s.price)} USDC${hasSub && pt !== 'subscription' ? ` <span style="font-size:14px;font-weight:400;color:var(--text-soft)">· ${t('h2a_sub_from')} ${money(s.sub_price)}/${intervalLabel}</span>` : ''}</div>
     <div style="font-size:13px;color:var(--text-soft);margin-bottom:16px">${t('svc_detail_delivery')}: <b>${s.delivery_hours} ${t('svc_detail_hours')}</b></div>
     <div class="detail-desc">${escapeHtml(s.description || t('svc_no_desc'))}</div>
+    ${ptInfo[pt] || ''}
     <div class="detail-buy-row">
-      <button class="btn btn-primary" onclick='closeModal(); openBuyModal(${JSON.stringify(s).replace(/'/g, "&apos;")})'>${isDigital ? t('h2a_buy_dl') : t('h2a_buy_now')}</button>
-      <button class="btn btn-ghost" onclick="closeModal(); buyWithFiat('${s.id}')">${t('svc_buy_fiat')}</button>
-      ${hasSub ? `<button class="btn btn-ghost" onclick="closeModal(); subscribeToService('${s.id}')">${t('h2a_subscribe')} ${money(s.sub_price)}/${intervalLabel}</button>` : ''}
+      ${modalBuyButtons}
     </div>
     <h3>${t('svc_reviews')}</h3>
     <div id="h2a-reviews-area"><div class="empty"><span>${t('loading')}</span></div></div>
@@ -2027,6 +2134,36 @@ async function runDiscover() {
 
 // ================= Publish =================
 function toggleAdvanced() { const a = document.getElementById('adv'); a.style.display = a.style.display === 'none' ? 'block' : 'none'; }
+
+let selectedProductType = null;
+
+function selectProductType(type) {
+  selectedProductType = type;
+  document.getElementById('pub-product-type').value = type;
+
+  // Highlight selected card
+  document.querySelectorAll('.product-type-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.product-type-card[data-type="${type}"]`)?.classList.add('selected');
+
+  // Show step 2
+  document.getElementById('pub-step1').style.display = 'none';
+  document.getElementById('pub-step2').style.display = 'block';
+
+  // Update badge
+  const labels = { digital: 'Digital Product', ai_generated: 'AI Service', subscription: 'Subscription', external: 'External Service' };
+  document.getElementById('pub-type-badge').textContent = labels[type] || type;
+
+  // Show/hide sections based on type
+  document.getElementById('pub-digital-section').style.display = type === 'digital' ? 'block' : 'none';
+  document.getElementById('pub-sub-section').style.display = type === 'subscription' ? 'block' : 'none';
+  document.getElementById('pub-external-section').style.display = type === 'external' ? 'block' : 'none';
+  document.getElementById('pub-delivery-hours-wrap').style.display = (type === 'digital') ? 'none' : 'block';
+}
+
+function backToStep1() {
+  document.getElementById('pub-step1').style.display = 'block';
+  document.getElementById('pub-step2').style.display = 'none';
+}
 async function handleFileSelect(input) {
   const file = input.files[0];
   if (!file) return;
@@ -2073,6 +2210,7 @@ document.getElementById('f-publish').addEventListener('submit', async e => {
   const fileId = f.get('file_id');
   if (fileId) body.file_id = fileId;
   body.market_type = f.get('market_type') || 'h2a';
+  body.product_type = document.getElementById('pub-product-type').value || 'ai_generated';
   try {
     const r = await api('/services', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     toast(t('toast_service_published'), 'success');
@@ -2089,6 +2227,10 @@ document.getElementById('f-publish').addEventListener('submit', async e => {
     document.querySelector('#f-publish [name="delivery_hours"]').value = 24;
     document.getElementById('f-file-id').value = '';
     document.getElementById('file-status').textContent = t('pub_no_file');
+    // Reset step-based publish UI
+    backToStep1();
+    selectedProductType = null;
+    document.querySelectorAll('.product-type-card').forEach(c => c.classList.remove('selected'));
   } catch (err) { toast(err.message, 'error'); }
 });
 

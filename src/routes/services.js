@@ -9,12 +9,14 @@ const router = express.Router();
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
 
+const validProductTypes = ['digital', 'ai_generated', 'subscription', 'external'];
+
 // POST /services
 router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
             input_schema, output_schema, verification_rules, auto_verify,
-            min_seller_stake, sub_price, sub_interval, file_id, market_type } = req.body;
+            min_seller_stake, sub_price, sub_interval, file_id, market_type, product_type } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
     if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
@@ -41,19 +43,34 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const validMarkets = ['h2a', 'a2a'];
     const mktType = validMarkets.includes(market_type) ? market_type : 'h2a';
 
+    const prodType = validProductTypes.includes(product_type) ? product_type : 'ai_generated';
+
+    // Product type specific validation
+    if (prodType === 'digital' && !file_id) {
+      return res.status(400).json({ error: 'Digital products require a file upload (file_id)' });
+    }
+    if (prodType === 'subscription') {
+      if (!sub_interval || !['daily','weekly','monthly'].includes(sub_interval)) {
+        return res.status(400).json({ error: 'Subscription services require a valid sub_interval (daily/weekly/monthly)' });
+      }
+      if (!sub_price || parseFloat(sub_price) <= 0) {
+        return res.status(400).json({ error: 'Subscription services require sub_price > 0' });
+      }
+    }
+
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
           input_schema, output_schema, verification_rules, auto_verify, min_seller_stake,
-          sub_price, sub_interval, file_id, market_type)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)})`,
+          sub_price, sub_interval, file_id, market_type, product_type)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
         auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake, subPrice, subInterval, resolvedFileId, mktType
+        minStake, subPrice, subInterval, resolvedFileId, mktType, prodType
       ]
     );
 
@@ -70,6 +87,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       file_id: resolvedFileId,
       is_digital_product: !!resolvedFileId,
       market_type: mktType,
+      product_type: prodType,
       message: 'Service listed successfully'
     });
   } catch (err) { next(err); }
@@ -193,6 +211,10 @@ router.get('/search', async (req, res, next) => {
     let where = `WHERE s.is_active = ${isPostgres ? 'TRUE' : '1'}`;
     if (market === 'h2a' || market === 'a2a') {
       where += ` AND s.market_type = ${p(idx++)}`; params.push(market);
+    }
+    if (req.query.product_type && validProductTypes.includes(req.query.product_type)) {
+      where += ` AND s.product_type = ${p(idx++)}`;
+      params.push(req.query.product_type);
     }
 
     if (q) {

@@ -71,8 +71,8 @@ router.post('/', requireApiKey, async (req, res, next) => {
       );
     });
 
-    // Digital product: service has a pre-uploaded file → auto-deliver immediately
-    if (service.file_id) {
+    // Digital product: service is explicitly typed as 'digital' and has a pre-uploaded file → auto-deliver immediately
+    if (service.product_type === 'digital' && service.file_id) {
       try {
         const file = await dbGet(`SELECT id, filename FROM files WHERE id = ${p(1)}`, [service.file_id]);
         if (file) {

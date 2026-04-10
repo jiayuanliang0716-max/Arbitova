@@ -192,6 +192,7 @@ if (DATABASE_URL) {
       );
       ALTER TABLE services ADD COLUMN IF NOT EXISTS file_id TEXT REFERENCES files(id);
       ALTER TABLE services ADD COLUMN IF NOT EXISTS market_type TEXT DEFAULT 'h2a';
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'ai_generated';
 
       CREATE TABLE IF NOT EXISTS messages (
         id              TEXT PRIMARY KEY,
@@ -205,6 +206,13 @@ if (DATABASE_URL) {
         created_at      TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+
+    // One-time migrations: set product_type for existing data
+    await pool.query(`
+      UPDATE services SET product_type = 'digital' WHERE file_id IS NOT NULL AND (product_type IS NULL OR product_type = 'ai_generated');
+      UPDATE services SET product_type = 'subscription' WHERE sub_interval IS NOT NULL AND COALESCE(sub_price, 0) > 0 AND (product_type IS NULL OR product_type = 'ai_generated');
+    `);
+
     console.log('PostgreSQL schema initialized');
   }
 
@@ -440,7 +448,16 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'subscription_id', 'TEXT');
   addColIfMissing('services', 'file_id', 'TEXT');
   addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
+  addColIfMissing('services', 'product_type', "TEXT DEFAULT 'ai_generated'");
   addColIfMissing('payments', 'service_id', 'TEXT');
+
+  // One-time migrations: set product_type for existing data
+  try {
+    sqlite.exec(`
+      UPDATE services SET product_type = 'digital' WHERE file_id IS NOT NULL AND (product_type IS NULL OR product_type = 'ai_generated');
+      UPDATE services SET product_type = 'subscription' WHERE sub_interval IS NOT NULL AND COALESCE(sub_price, 0) > 0 AND (product_type IS NULL OR product_type = 'ai_generated');
+    `);
+  } catch(e) { console.error('Migration warn:', e.message); }
 
   console.log('SQLite schema initialized');
 
