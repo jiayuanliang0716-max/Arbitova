@@ -1,1309 +1,910 @@
-# A2A Market — Complete Platform Blueprint
-## AI Service Marketplace: Full Deployment Specification
+# A2A Pay — Technical Blueprint
 
-> Version: 1.0 | Date: 2026-04-10
-> This document is the single source of truth for building the A2A Market platform.
-> Any developer or AI agent reading this should be able to implement the complete system.
+> **A2A Pay: Trust infrastructure for the Agent economy.**
 
----
-
-# Part 1: Vision & Strategy
-
-## 1.1 What We Are
-
-**A2A Market** is a consumer-facing marketplace for AI-powered services — the "Shopee/Fiverr for AI."
-
-- **Buyers**: General public who want AI capabilities but don't know how to use ChatGPT/Claude effectively
-- **Sellers**: Developers, prompt engineers, and AI agents who package AI capabilities into purchasable services
-- **Core value proposition**: "One-click access to AI expertise you can't DIY"
-
-## 1.2 Why This Exists
-
-1. AI capability is abundant but fragmented — millions of people built useful AI workflows but have no channel to sell them
-2. Billions of people have heard of AI but can't effectively use it — they need packaged, ready-to-use services
-3. Existing platforms (RapidAPI, Replicate, HuggingFace) target developers — the general public is underserved
-4. The future A2A economy (agents buying from agents) needs human capital injection first
-
-## 1.3 Phased Strategy
-
-```
-Phase 1 (NOW):  H2H Marketplace — humans sell to humans, AI agents auto-deliver
-Phase 2 (NEXT): A2H Services — AI agents sell directly to humans via /invoke
-Phase 3 (FUTURE): A2A Economy — agents autonomously trade with each other
-```
-
-**Critical**: Phase 2 and 3 are NOT separate products. The API layer built in Phase 1 IS the A2A protocol. The frontend is just a UI wrapper. When agents are ready, they plug directly into the same API.
-
-## 1.4 Competitive Moat
-
-| Feature | ChatGPT | Fiverr | RapidAPI | **A2A Market** |
-|---------|---------|--------|----------|----------------|
-| Non-technical buyers | Yes | Yes | No | **Yes** |
-| Automated delivery | No | No | Yes | **Yes** |
-| Payment escrow | No | Yes | No | **Yes** |
-| Quality verification | No | Manual | No | **Auto (schema)** |
-| Subscription model | Yes | No | Yes | **Yes** |
-| Dispute resolution | No | Manual | No | **AI arbitration** |
-| Agent-to-Agent ready | No | No | Partial | **Native** |
+Version 2.0 | April 2026
 
 ---
 
-# Part 2: User Personas
+## Part 1: Vision & Positioning
 
-## 2.1 Buyer Personas
+### One-line definition
 
-### Persona A: "AI-Curious Consumer" (Primary)
-- Age 25-55, non-technical
-- Has heard of AI, maybe tried ChatGPT once
-- Needs: stock analysis, content writing, translation, data processing
-- Pain: doesn't know how to write prompts, can't get consistent quality
-- Behavior: browses marketplace, reads reviews, buys with credit card
+A2A Pay is the escrow, verification, and arbitration layer that lets any AI agent pay any other AI agent — with programmable trust guarantees.
 
-### Persona B: "Busy Professional"
-- Age 30-50, business/finance professional
-- Uses AI but wants automated, recurring deliveries
-- Needs: daily market reports, weekly competitor analysis, automated monitoring
-- Pain: doesn't want to manually prompt every day
-- Behavior: subscribes to services, values reliability
+### What A2A Pay IS
 
-### Persona C: "Developer/Agent" (Future)
-- Technical user or AI agent
-- Needs to call other agents' capabilities programmatically
-- Pain: no standardized marketplace for agent services
-- Behavior: uses API directly, never touches the UI
+- An **API and SDK** that agent frameworks (LangChain, CrewAI, AutoGen, custom) embed to handle payments between agents.
+- A **programmable escrow engine** — funds lock on task creation, release on verified delivery, refund on failure. No human in the loop unless needed.
+- An **auto-verification system** — delivery outputs are validated against JSON Schema contracts and rule sets before funds move.
+- An **AI arbitrator** — when buyer and seller agents disagree, Claude adjudicates the dispute using the contract, delivery evidence, and order context.
+- A **reputation/credit scoring layer** — every completed transaction, every dispute outcome, every verification pass/fail feeds a public score that agents can query before transacting.
 
-## 2.2 Seller Personas
+### What A2A Pay is NOT
 
-### Persona X: "Prompt Engineer"
-- Knows how to write effective prompts
-- Has built specialized AI workflows (e.g., "input a stock ticker, output a professional analysis")
-- Wants passive income from their AI expertise
-- Packages their workflow as a service, lets AI agent auto-deliver
+| A2A Pay is NOT...          | Why                                                                                          |
+|----------------------------|----------------------------------------------------------------------------------------------|
+| A marketplace              | We don't match buyers and sellers. Agent frameworks handle discovery. We handle the money.    |
+| A wallet                   | We custody funds in escrow during transactions. Agents fund accounts via USDC or fiat top-up. |
+| PayPal / Venmo for AI      | Those are simple money transfers. We are escrow + verification + arbitration.                 |
+| A blockchain protocol      | We use crypto (Base L2 / USDC) as one funding rail, not as the product itself.               |
+| An agent framework         | We don't orchestrate agent workflows. We settle them financially.                            |
 
-### Persona Y: "Developer with Tools"
-- Built a useful tool (script, bot, API)
-- Wants to monetize it without building their own storefront
-- Lists it as a digital product or external service
+### Why it exists
 
-### Persona Z: "AI Agent" (Future)
-- Autonomous agent that can fulfill orders
-- Registered via API, fulfills orders via API
-- No human intervention needed
+The Agent economy has a **trust gap**. When Agent A hires Agent B to summarize 500 documents:
 
----
+1. **Who holds the money?** Agent A won't pay upfront (Agent B might not deliver). Agent B won't work for free (Agent A might not pay). **Answer: Escrow.**
+2. **How do you know the work is done?** A human can't review 500 summaries. **Answer: Auto-verification against a schema contract.**
+3. **What happens when things go wrong?** Agents can't negotiate. **Answer: AI arbitration with stake slashing.**
+4. **How do you pick a reliable agent?** No track record exists. **Answer: On-chain reputation scores.**
 
-# Part 3: Product Architecture
+No existing payment infrastructure solves all four. Stripe handles money movement but has no concept of delivery verification. PayPal has buyer protection but requires human review. Coinbase Agent Kit handles crypto wallets but has no escrow logic.
 
-## 3.1 System Overview
+### Competitive positioning
 
-```
-┌─────────────────────────────────────────────────────┐
-│                    FRONTEND                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐            │
-│  │ Storefront│ │  Seller  │ │  Account │            │
-│  │ (Browse,  │ │  Center  │ │ (Wallet, │            │
-│  │  Search,  │ │ (Publish,│ │  Orders, │            │
-│  │  Buy)     │ │  Manage) │ │  Settings│            │
-│  └──────────┘ └──────────┘ └──────────┘            │
-├─────────────────────────────────────────────────────┤
-│                   REST API                           │
-│  /services  /orders  /payments  /reviews  /admin    │
-├─────────────────────────────────────────────────────┤
-│              BACKEND SERVICES                        │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌──────────┐     │
-│  │ Auth   │ │ Escrow │ │ Verify │ │ Arbitrate│     │
-│  │(API Key)│ │(Balance)│ │(Schema)│ │ (Claude) │     │
-│  └────────┘ └────────┘ └────────┘ └──────────┘     │
-├─────────────────────────────────────────────────────┤
-│              EXTERNAL SERVICES                       │
-│  ┌────────────┐ ┌────────┐ ┌──────────┐            │
-│  │LemonSqueezy│ │Supabase│ │ Telegram │            │
-│  │ (Payments) │ │(Postgres)│ │  (Notify)│            │
-│  └────────────┘ └────────┘ └──────────┘            │
-└─────────────────────────────────────────────────────┘
-```
-
-## 3.2 Tech Stack
-
-| Layer | Technology | Why |
-|-------|-----------|-----|
-| **Runtime** | Node.js + Express | Simple, fast, widely known |
-| **Database** | PostgreSQL (Supabase) | Production-grade, free tier |
-| **Dev Database** | SQLite (better-sqlite3) | Zero-config local dev |
-| **Hosting** | Render.com | Auto-deploy from git, free tier |
-| **Payments** | LemonSqueezy | No Stripe Atlas needed, supports TW |
-| **AI Engine** | Claude API (Anthropic) | For AI arbitration + seller agent generation |
-| **Monitoring** | UptimeRobot | Free uptime monitoring, prevents cold starts |
-| **Frontend** | Vanilla HTML/CSS/JS (SPA) | No build step, single file, fast |
+| Capability              | Stripe    | PayPal    | Coinbase Agent Kit | **A2A Pay**         |
+|------------------------|-----------|-----------|--------------------|---------------------|
+| Agent-native API/SDK   | No        | No        | Partial            | **Yes**             |
+| Programmatic escrow    | No        | No        | No                 | **Yes**             |
+| Auto-verification      | No        | No        | No                 | **Yes**             |
+| AI arbitration         | No        | Manual    | No                 | **Yes**             |
+| Reputation scoring     | No        | Seller ratings | No            | **Yes (per-agent)** |
+| Fiat funding           | Yes       | Yes       | No                 | **Yes (via LSQ)**   |
+| Crypto funding (USDC)  | Limited   | No        | Yes                | **Yes (Base L2)**   |
+| Sub-delegation         | No        | No        | No                 | **Yes**             |
+| Webhook callbacks      | Yes       | Yes       | No                 | **Yes (new)**       |
 
 ---
 
-# Part 4: Database Schema
+## Part 2: System Architecture
 
-## 4.1 Entity Relationship
+### Architecture diagram
 
 ```
-agents ─────┐
-  │          │
-  │ 1:N      │ 1:N
-  ▼          ▼
-services   orders ──── deliveries
-  │          │
-  │ 1:N      │ 1:1
-  ▼          ▼
-reviews    disputes
-
-agents ──── subscriptions ──── services
-agents ──── payments (LemonSqueezy)
-agents ──── messages (inbox)
-agents ──── files (uploads)
-agents ──── deposits / withdrawals (crypto)
+                          +---------------------------------------------+
+                          |          AGENT FRAMEWORKS                    |
+                          |  LangChain  |  CrewAI  |  AutoGen  |  ...  |
+                          +------+------+----+-----+-----+-----+-------+
+                                 |           |           |
+                          +------v-----------v-----------v-----------+
+                          |           @a2a-pay/sdk (npm)             |
+                          |           a2a-pay (PyPI)                 |
+                          |                                          |
+                          |  pay() escrow() verify() arbitrate()     |
+                          |  getReputation() onStatusChange()        |
+                          +------------------+-----------------------+
+                                             | HTTPS + X-API-Key
+                                             v
++----------------------------------------------------------------------------+
+|                         A2A PAY REST API (Express 5)                       |
+|                                                                            |
+|  +----------+  +--------------+  +-----------+  +----------+              |
+|  | Identity |  | Transactions |  |  Verify   |  | Disputes |              |
+|  |          |  |              |  |           |  |          |              |
+|  | register |  | create order |  | JSON      |  | open     |              |
+|  | api keys |  | deliver      |  |  Schema   |  | AI arb   |              |
+|  | profile  |  | confirm      |  | Rules     |  | resolve  |              |
+|  | stake    |  | bundle       |  | engine    |  | slash    |              |
+|  +----+-----+  | subdelegate  |  +-----+-----+  +----+-----+              |
+|       |        +------+-------+        |              |                    |
+|  +----v--------------v----------------v--------------v---------------+    |
+|  |                    CORE ENGINE                                    |    |
+|  |                                                                   |    |
+|  |  Escrow Manager ---- Balance ledger ---- Fee calculator           |    |
+|  |  Reputation Engine -- Score + History -- Stake/Slash              |    |
+|  |  Verification Engine - AJV schemas ---- Custom rules              |    |
+|  |  Arbitration Engine -- Claude Haiku ---- Evidence assembly        |    |
+|  |  Webhook Dispatcher -- Status callbacks - Retry queue             |    |
+|  +--------+-----------------+-------------------+--------------------+    |
+|           |                 |                   |                         |
+|  +--------v------+  +------v--------+  +-------v--------+               |
+|  |  PostgreSQL   |  |  Base L2 /    |  | LemonSqueezy   |               |
+|  |  (primary)    |  |  USDC on-chain|  | (fiat gateway) |               |
+|  |               |  |               |  |                |               |
+|  |  SQLite       |  |  Alchemy RPC  |  | Checkout +     |               |
+|  |  (dev mode)   |  |  ethers.js    |  | Webhooks       |               |
+|  +---------------+  +---------------+  +----------------+               |
+|                                                                          |
+|                    +--------------------+                                 |
+|                    | Developer Dashboard|                                 |
+|                    | (SPA -- public/)   |                                 |
+|                    +--------------------+                                 |
++--------------------------------------------------------------------------+
 ```
 
-## 4.2 Table Definitions
+### Tech stack (current -- minimal changes)
 
-### agents
-```sql
-CREATE TABLE agents (
-  id                  TEXT PRIMARY KEY,           -- UUID
-  name                TEXT NOT NULL,              -- Display name (max 50 chars)
-  description         TEXT,                       -- Bio (max 500 chars)
-  api_key             TEXT UNIQUE NOT NULL,       -- Authentication key (UUID)
-  owner_email         TEXT,                       -- Optional, for recovery
-  balance             NUMERIC DEFAULT 100.0,      -- Platform balance (USDC)
-  escrow              NUMERIC DEFAULT 0.0,        -- Funds locked in active orders
-  stake               NUMERIC DEFAULT 0.0,        -- Voluntary collateral
-  reputation_score    INTEGER DEFAULT 0,          -- Cumulative reputation
-  wallet_address      TEXT,                       -- Base chain address (optional)
-  wallet_encrypted_key TEXT,                      -- AES-256 encrypted private key
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
+| Layer              | Technology                 | File(s)                              |
+|--------------------|----------------------------|--------------------------------------|
+| Runtime            | Node.js (CommonJS)         | `package.json`                       |
+| HTTP framework     | Express 5.2               | `src/server.js`                      |
+| Database (prod)    | PostgreSQL via `pg`        | `src/db/schema.js`                   |
+| Database (dev)     | SQLite via `better-sqlite3`| `src/db/schema.js`                   |
+| Verification       | AJV 8 (JSON Schema)       | `src/verify.js`                      |
+| AI arbitration     | Anthropic SDK (Haiku)      | `src/arbitrate.js`                   |
+| Crypto             | ethers.js 6 (Base L2)     | `src/wallet.js`                      |
+| Fiat payments      | LemonSqueezy              | `src/routes/payments.js`             |
+| Auth               | API key in X-API-Key header| `src/middleware/auth.js`             |
+| Rate limiting      | express-rate-limit         | `src/server.js`                      |
+| API docs           | Swagger UI + OpenAPI JSON  | `src/openapi.json`                   |
+| Scheduling         | node-cron                  | `src/server.js` (billing + expiry)   |
 
-### services
-```sql
-CREATE TABLE services (
-  id                  TEXT PRIMARY KEY,           -- UUID
-  agent_id            TEXT NOT NULL REFERENCES agents(id),
-  name                TEXT NOT NULL,              -- Max 100 chars
-  description         TEXT,                       -- Max 1000 chars
-  price               NUMERIC NOT NULL,           -- One-time price in USDC (> 0)
-  delivery_hours      INTEGER DEFAULT 24,         -- Deadline for delivery
-  is_active           BOOLEAN DEFAULT TRUE,
-  product_type        TEXT DEFAULT 'ai_generated', -- digital|ai_generated|subscription|external
-  market_type         TEXT DEFAULT 'h2a',         -- h2a|a2a
-  file_id             TEXT REFERENCES files(id),  -- Attached file (for digital products)
-  sub_price           NUMERIC DEFAULT 0,          -- Subscription price per interval
-  sub_interval        TEXT DEFAULT NULL,          -- daily|weekly|monthly
-  input_schema        JSONB,                      -- JSON Schema for buyer requirements
-  output_schema       JSONB,                      -- JSON Schema for delivery content
-  verification_rules  JSONB,                      -- Auto-verification rules
-  auto_verify         BOOLEAN DEFAULT FALSE,
-  min_seller_stake    NUMERIC DEFAULT 0,          -- Required stake to list
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
+### What changes from the current architecture
 
-### orders
-```sql
-CREATE TABLE orders (
-  id                  TEXT PRIMARY KEY,           -- UUID
-  buyer_id            TEXT NOT NULL REFERENCES agents(id),
-  seller_id           TEXT NOT NULL REFERENCES agents(id),
-  service_id          TEXT NOT NULL REFERENCES services(id),
-  status              TEXT DEFAULT 'paid',        -- paid|delivered|completed|disputed|refunded
-  amount              NUMERIC NOT NULL,
-  requirements        TEXT,                       -- Buyer's requirements/input
-  bundle_id           TEXT,                       -- For atomic batch orders
-  parent_order_id     TEXT,                       -- For sub-delegation
-  subscription_id     TEXT,                       -- If from subscription
-  deadline            TIMESTAMPTZ,
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  completed_at        TIMESTAMPTZ
-);
-```
+| Change                            | Effort  | Details                                                                                    |
+|-----------------------------------|---------|--------------------------------------------------------------------------------------------|
+| Add SDK layer (`@a2a-pay/sdk`)    | Medium  | New npm package wrapping REST API. No backend changes.                                     |
+| Add Python SDK (`a2a-pay`)        | Medium  | Thin wrapper using `httpx`. No backend changes.                                            |
+| Add webhook outbound system       | Medium  | New table `webhooks`, new module `src/webhooks.js`. POST to registered URLs on status change. |
+| Add `/api/v1/` prefix            | Small   | Namespace all API endpoints under `/api/v1/`. Keep old routes as aliases during migration.  |
+| Remove marketplace frontend       | Small   | Replace `public/` SPA with developer dashboard (balance, API keys, docs, tx history).       |
+| Remove `services` as public browse| Small   | Services become private contracts between agents, not browseable listings.                   |
+| Add `webhooks` table              | Small   | Schema migration in `src/db/schema.js`.                                                    |
+| Add `api_keys` table              | Small   | Support multiple keys per agent with scopes (read/write/admin).                             |
+| Rename branding                   | Trivial | "A2A Market" references become "A2A Pay" in server logs, health check, docs.               |
 
-### deliveries
-```sql
-CREATE TABLE deliveries (
-  id                  TEXT PRIMARY KEY,
-  order_id            TEXT NOT NULL REFERENCES orders(id),
-  content             TEXT NOT NULL,              -- Delivery text/JSON
-  delivered_at        TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### disputes
-```sql
-CREATE TABLE disputes (
-  id                  TEXT PRIMARY KEY,
-  order_id            TEXT NOT NULL REFERENCES orders(id),
-  raised_by           TEXT NOT NULL REFERENCES agents(id),
-  reason              TEXT NOT NULL,
-  evidence            TEXT,
-  status              TEXT DEFAULT 'open',        -- open|resolved
-  resolution          TEXT,                       -- AI verdict JSON
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  resolved_at         TIMESTAMPTZ
-);
-```
-
-### reviews
-```sql
-CREATE TABLE reviews (
-  id                  TEXT PRIMARY KEY,
-  order_id            TEXT NOT NULL REFERENCES orders(id),
-  service_id          TEXT NOT NULL REFERENCES services(id),
-  reviewer_id         TEXT NOT NULL REFERENCES agents(id),
-  seller_id           TEXT NOT NULL REFERENCES agents(id),
-  rating              INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-  comment             TEXT,
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### subscriptions
-```sql
-CREATE TABLE subscriptions (
-  id                  TEXT PRIMARY KEY,
-  buyer_id            TEXT NOT NULL REFERENCES agents(id),
-  seller_id           TEXT NOT NULL REFERENCES agents(id),
-  service_id          TEXT NOT NULL REFERENCES services(id),
-  interval            TEXT NOT NULL,              -- daily|weekly|monthly
-  price               NUMERIC NOT NULL,
-  status              TEXT DEFAULT 'active',      -- active|cancelled
-  next_billing_at     TIMESTAMPTZ NOT NULL,
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  cancelled_at        TIMESTAMPTZ
-);
-```
-
-### payments
-```sql
-CREATE TABLE payments (
-  id                    TEXT PRIMARY KEY,
-  agent_id              TEXT NOT NULL REFERENCES agents(id),
-  service_id            TEXT REFERENCES services(id),
-  amount_cents          INTEGER DEFAULT 0,        -- LemonSqueezy amount in cents
-  status                TEXT DEFAULT 'pending',    -- pending|completed|refunded
-  provider              TEXT DEFAULT 'lemonsqueezy',
-  provider_checkout_id  TEXT,
-  provider_order_id     TEXT,
-  created_at            TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### messages
-```sql
-CREATE TABLE messages (
-  id                  TEXT PRIMARY KEY,
-  recipient_id        TEXT NOT NULL REFERENCES agents(id),
-  sender_id           TEXT REFERENCES agents(id),
-  subject             TEXT,
-  body                TEXT NOT NULL,
-  order_id            TEXT REFERENCES orders(id),
-  subscription_id     TEXT,
-  is_read             BOOLEAN DEFAULT FALSE,
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### files
-```sql
-CREATE TABLE files (
-  id                  TEXT PRIMARY KEY,
-  uploader_id         TEXT NOT NULL REFERENCES agents(id),
-  filename            TEXT NOT NULL,
-  mimetype            TEXT,
-  size                INTEGER,
-  content             TEXT NOT NULL,              -- Base64 encoded (small files only)
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### deposits / withdrawals
-```sql
-CREATE TABLE deposits (
-  id                  TEXT PRIMARY KEY,
-  agent_id            TEXT NOT NULL REFERENCES agents(id),
-  amount              NUMERIC NOT NULL,
-  tx_hash             TEXT UNIQUE NOT NULL,
-  from_address        TEXT,
-  confirmed_at        TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE withdrawals (
-  id                  TEXT PRIMARY KEY,
-  agent_id            TEXT NOT NULL REFERENCES agents(id),
-  amount              NUMERIC NOT NULL,
-  to_address          TEXT NOT NULL,
-  tx_hash             TEXT,
-  status              TEXT DEFAULT 'pending',     -- pending|completed|failed
-  created_at          TIMESTAMPTZ DEFAULT NOW(),
-  completed_at        TIMESTAMPTZ
-);
-```
-
-### reputation_history
-```sql
-CREATE TABLE reputation_history (
-  id                  SERIAL PRIMARY KEY,
-  agent_id            TEXT NOT NULL REFERENCES agents(id),
-  delta               INTEGER NOT NULL,           -- +10 or -20
-  reason              TEXT NOT NULL,
-  order_id            TEXT,
-  created_at          TIMESTAMPTZ DEFAULT NOW()
-);
-```
+**What stays the same**: The entire escrow flow (`orders.js`), verification engine (`verify.js`), arbitration engine (`arbitrate.js`), reputation system (`agents.js:adjustReputation`), database schema pattern, auth middleware, deployment target (Render). The pivot is a **repositioning**, not a rewrite.
 
 ---
 
-# Part 5: Product Types & Transaction Flows
+## Part 3: API Specification
 
-## 5.1 Product Type Definitions
+All endpoints under `/api/v1/`. Authentication via `X-API-Key` header unless marked `[public]` or `[admin]`.
 
-### Digital Product (`product_type = 'digital'`)
-```
-What:     Downloadable file (script, template, dataset, ebook)
-Delivery: Instant — buyer receives download link immediately after payment
-Escrow:   No — payment goes directly to seller (minus 2.5% fee)
-Refund:   Not available (instant delivery)
-Required: file_id must be set (file uploaded at publish time)
+### 3.1 Identity
 
-Buyer flow:
-  Browse → Click "Buy" → Pay (balance or credit card) → Instant download link in Inbox
+| Method | Endpoint                        | Description                                         | Source file              |
+|--------|---------------------------------|-----------------------------------------------------|--------------------------|
+| POST   | `/agents/register`              | Register a new agent. Returns `id`, `api_key`, `wallet_address`. | `src/routes/agents.js:14`  |
+| GET    | `/agents/:id`                   | Get agent profile (balance, escrow, stake, reputation). | `src/routes/agents.js:136` |
+| POST   | `/agents/:id/rotate-key`        | Rotate API key. Invalidates previous key.           | `src/routes/agents.js:202` |
+| POST   | `/agents/stake`                 | Lock balance as trust bond (stake).                 | `src/routes/agents.js:164` |
+| POST   | `/agents/unstake`               | Release stake back to balance.                      | `src/routes/agents.js:183` |
+| GET    | `/agents/:id/wallet`            | Wallet address + on-chain USDC balance.             | `src/routes/agents.js:246` |
+| POST   | `/agents/:id/sync-balance`      | Detect on-chain USDC deposits, credit to balance.   | `src/routes/agents.js:212` |
+| POST   | `/agents/topup`                 | Add test funds (mock mode only).                    | `src/routes/agents.js:268` |
 
-Seller flow:
-  Upload file → Set price → Publish → Money arrives automatically
-```
+### 3.2 Contracts (formerly "Services")
 
-### AI Generated Service (`product_type = 'ai_generated'`)
-```
-What:     Custom AI-generated content (report, analysis, translation)
-Delivery: Seller (human or AI agent) processes and delivers within deadline
-Escrow:   Yes — payment held until buyer confirms or auto-verify passes
-Refund:   Available via dispute or deadline expiry
-Required: delivery_hours must be set
+Services define the contract terms for a transaction. In A2A Pay, services are **private contracts** -- not public marketplace listings.
 
-Buyer flow:
-  Browse → Click "Buy" → Enter requirements → Pay → Wait → Receive delivery → Confirm or Dispute
+| Method | Endpoint                        | Description                                          | Source file               |
+|--------|---------------------------------|------------------------------------------------------|---------------------------|
+| POST   | `/services`                     | Create a service contract with price, schemas, rules.| `src/routes/services.js`  |
+| GET    | `/services/:id`                 | Get contract details.                                | `src/routes/services.js`  |
+| PUT    | `/services/:id`                 | Update contract terms.                               | `src/routes/services.js`  |
+| GET    | `/agents/:id/services`          | List contracts owned by an agent.                    | `src/routes/agents.js:101`|
 
-Seller flow:
-  Publish service → Receive order notification → Process → Deliver content → Get paid
+**Marketplace browse endpoints** (`GET /services` with filters) become **optional/deprecated**. Agent frameworks handle discovery; A2A Pay handles settlement.
 
-Auto-delivery (AI agent):
-  Seller-agent polls for new orders → Calls Claude API → Delivers automatically
-```
+### 3.3 Transactions
 
-### Subscription Service (`product_type = 'subscription'`)
-```
-What:     Recurring delivery on a schedule (daily report, weekly analysis)
-Delivery: Each billing cycle creates a new order, seller-agent auto-delivers
-Escrow:   Per-cycle — each billing deducts from buyer balance
-Refund:   Cancel anytime, no refund for current period
-Required: sub_interval (daily/weekly/monthly) + sub_price > 0
+| Method | Endpoint                         | Description                                               | Source file               |
+|--------|----------------------------------|-----------------------------------------------------------|---------------------------|
+| POST   | `/orders`                        | Create escrow transaction. Locks buyer funds.             | `src/routes/orders.js:28` |
+| GET    | `/orders/:id`                    | Get transaction details + delivery status.                | `src/routes/orders.js:218`|
+| POST   | `/orders/:id/deliver`            | Seller submits deliverable. Triggers auto-verification.   | `src/routes/orders.js:239`|
+| POST   | `/orders/:id/confirm`            | Buyer confirms. Releases escrow to seller (minus 2.5% fee).| `src/routes/orders.js:329`|
+| POST   | `/orders/bundle`                 | Atomic multi-order creation (up to 20).                   | `src/routes/orders.js:121`|
+| GET    | `/orders/bundle/:id`             | Bundle status + child orders.                             | `src/routes/orders.js:198`|
+| POST   | `/orders/:id/subdelegate`        | Seller sub-contracts work to another agent.               | `src/routes/orders.js:464`|
+| GET    | `/orders/:id/subdelegations`     | List sub-orders for a parent order.                       | `src/routes/orders.js:529`|
+| GET    | `/agents/:id/orders`             | List all orders for an agent (as buyer or seller).        | `src/routes/agents.js:117`|
 
-Buyer flow:
-  Browse → Click "Subscribe" → First charge immediate → Recurring auto-charge → Content in Inbox
+### 3.4 Verification
 
-Seller flow:
-  Publish with subscription settings → Cron auto-charges → Seller-agent auto-delivers each cycle
+Verification is embedded in the transaction flow, not a standalone endpoint. The logic lives in `src/verify.js`.
 
-Billing logic:
-  - Cron runs hourly
-  - Checks subscriptions where next_billing_at <= now
-  - If buyer has sufficient balance: charge, create order, advance next_billing_at
-  - If insufficient balance: cancel subscription
-```
+| Function            | Trigger                                    | Behavior                                                     |
+|---------------------|--------------------------------------------|--------------------------------------------------------------|
+| `verifyInput()`     | `POST /orders` -- when `input_schema` exists on service | Validates buyer's `requirements` against JSON Schema. Rejects order if invalid. |
+| `verifyDelivery()`  | `POST /orders/:id/deliver` -- when `output_schema` or `verification_rules` exist | Validates delivery `content` against schema + rules. If `auto_verify=true` and passes, auto-completes and releases escrow. If fails, auto-refunds buyer and penalizes seller reputation by 20 points. |
 
-### External Service (`product_type = 'external'`)
-```
-What:     Access to external tool/API/SaaS (trading bot, monitoring dashboard)
-Delivery: Seller provides URL, API key, or login credentials
-Escrow:   Yes — payment held until buyer confirms receipt
-Refund:   Available via dispute
-Required: None special at publish time
+**Verification rule types** (defined in `src/verify.js:runRules`):
+- `required` -- field must exist and be non-empty
+- `min_length` / `max_length` -- string length bounds
+- `contains` -- substring match (optional `ignore_case`)
+- `regex` -- regex pattern match
+- `equals` -- exact value match
+- `min_items` -- minimum array length
 
-Buyer flow:
-  Browse → Click "Buy" → Pay → Wait for credentials → Verify access works → Confirm
+### 3.5 Disputes & Arbitration
 
-Seller flow:
-  Publish service → Receive order → Deliver access credentials → Buyer confirms → Get paid
-```
+| Method | Endpoint                          | Description                                              | Source file               |
+|--------|-----------------------------------|----------------------------------------------------------|---------------------------|
+| POST   | `/orders/:id/dispute`             | Open a dispute. Locks funds in escrow. Status changes to `disputed`. | `src/routes/orders.js:360`|
+| POST   | `/orders/:id/auto-arbitrate`      | Trigger AI arbitration (Claude Haiku). Resolves dispute automatically. | `src/routes/orders.js:553`|
+| POST   | `/orders/:id/resolve-dispute`     | `[admin]` Manual resolution. `X-Admin-Key` required.     | `src/routes/orders.js:393`|
 
-## 5.2 Payment Methods
+**AI arbitration flow** (implemented in `src/arbitrate.js:arbitrateDispute`):
+1. Assembles context: order details, service contract (including schemas), dispute reason + evidence, delivery content (truncated to 2000 chars).
+2. Prompts Claude Haiku to return `{ winner, reasoning, confidence }`.
+3. Executes verdict: refund buyer OR pay seller (minus 2.5% fee).
+4. Penalizes loser's reputation by 20 points.
+5. Slashes loser's stake (up to order amount) and credits winner.
 
-| Payment Method | How It Works | Available For |
-|---------------|-------------|---------------|
-| **Platform Balance** | Deduct from agent.balance → escrow | All product types |
-| **Credit Card (LemonSqueezy)** | Checkout → webhook credits balance → auto-place order | digital, ai_generated, external |
-| **Subscription (Auto-deduct)** | Cron deducts from balance each cycle | subscription only |
-| **Crypto (USDC on Base)** | Deposit USDC → sync balance → use platform balance | Funding balance |
+### 3.6 Reputation
 
-### Platform Balance Flow
-```
-Buyer.balance -= price
-Buyer.escrow += price
-Order created (status: 'paid')
-...seller delivers...
-Buyer.escrow -= price
-Seller.balance += price * (1 - 0.025)  // 2.5% platform fee
-Order status → 'completed'
-```
+| Method | Endpoint                          | Description                                              | Source file               |
+|--------|-----------------------------------|----------------------------------------------------------|---------------------------|
+| GET    | `/agents/:id/reputation` `[public]`| Get reputation score + history (last 50 events).        | `src/routes/agents.js:80` |
+| GET    | `/agents/leaderboard` `[public]`  | Top agents by reputation score.                          | `src/routes/agents.js:60` |
 
-### Credit Card Flow (LemonSqueezy)
-```
-1. POST /payments/checkout { service_id }
-   → Creates LemonSqueezy checkout session
-   → Returns checkout_url
+**Reputation scoring** (implemented in `src/routes/orders.js:adjustReputation`):
 
-2. Buyer completes payment on LemonSqueezy
+| Event                        | Delta  | Stored reason                  |
+|------------------------------|--------|--------------------------------|
+| Order completed (confirmed)  | +10    | `order_completed`              |
+| Auto-verified completion     | +10    | `auto_verified_completion`     |
+| Auto-verification failed     | -20    | `auto_verification_failed`     |
+| Dispute lost                 | -20    | `dispute_lost`                 |
 
-3. LemonSqueezy → POST /payments/webhook (order_created, status=paid)
-   → Credits buyer.balance with service price
-   → Auto-places order (balance → escrow → order)
-   → If digital: auto-delivers immediately
+### 3.7 Funding
 
-4. If refund: LemonSqueezy → POST /payments/webhook (order_refunded)
-   → Reverses the transaction
-```
+| Method | Endpoint                          | Description                                              | Source file               |
+|--------|-----------------------------------|----------------------------------------------------------|---------------------------|
+| POST   | `/agents/:id/sync-balance`        | Detect on-chain USDC deposits, credit to balance.        | `src/routes/agents.js:212`|
+| POST   | `/payments`                       | Initiate fiat payment via LemonSqueezy checkout.         | `src/routes/payments.js`  |
+| POST   | `/withdrawals`                    | Withdraw balance to external USDC address.               | `src/routes/withdrawals.js`|
+| POST   | `/webhook/lemonsqueezy`           | `[public]` Inbound webhook from LemonSqueezy.            | `src/webhook.js`          |
 
-### Crypto Deposit Flow
-```
-1. Agent registers → system generates Base chain wallet (if ALCHEMY_API_KEY set)
-2. User sends USDC to agent's wallet_address
-3. POST /agents/:id/sync-balance
-   → Queries on-chain USDC balance
-   → Credits any new deposits to agent.balance
-   → Records in deposits table
+### 3.8 New endpoints (to be built)
 
-Withdrawal:
-1. POST /withdrawals { to_address, amount }
-   → Deducts from agent.balance
-   → Sends USDC on-chain via ethers.js
-   → Records tx_hash
-```
+| Method | Endpoint                          | Description                                              | Priority |
+|--------|-----------------------------------|----------------------------------------------------------|----------|
+| POST   | `/webhooks`                       | Register a webhook URL for status callbacks.             | P0       |
+| GET    | `/webhooks`                       | List registered webhooks.                                | P0       |
+| DELETE | `/webhooks/:id`                   | Remove a webhook.                                        | P0       |
+| POST   | `/api-keys`                       | Create additional API keys with scopes.                  | P1       |
+| GET    | `/api-keys`                       | List active API keys (masked).                           | P1       |
+| DELETE | `/api-keys/:id`                   | Revoke an API key.                                       | P1       |
+| GET    | `/transactions/:id/timeline`      | Full event timeline for a transaction (created, escrowed, delivered, verified, completed). | P1 |
 
-## 5.3 Platform Fee
-
-- **Rate**: 2.5% of every completed transaction
-- **When**: Deducted from seller's payout at completion time
-- **Example**: Service price = 10 USDC → Seller receives 9.75 USDC → Platform retains 0.25 USDC
-- **Digital products**: Fee deducted at instant delivery
-- **Subscriptions**: Fee deducted at each billing cycle
-
-## 5.4 Escrow & Dispute System
-
-### Escrow States
-```
-[Buyer pays] → PAID (funds in escrow)
-  → [Seller delivers] → DELIVERED (awaiting buyer confirmation)
-    → [Buyer confirms] → COMPLETED (funds released to seller)
-    → [Auto-verify passes] → COMPLETED
-    → [Auto-verify fails] → REFUNDED (funds returned to buyer)
-    → [Buyer disputes] → DISPUTED (funds frozen)
-      → [AI arbitration] → COMPLETED or REFUNDED
-  → [Deadline expires] → REFUNDED (auto-refund)
-```
-
-### AI Arbitration
-```
-Input to Claude:
-  - Service name + description
-  - Buyer requirements
-  - Delivery content
-  - Dispute reason + evidence
-
-Output:
-  - Verdict: 'buyer' or 'seller'
-  - Confidence: 0-100
-  - Reasoning: text explanation
-
-If verdict = 'buyer':
-  → Refund buyer (escrow → balance)
-  → Seller reputation -20
-  → Seller stake slashed (up to order amount)
-
-If verdict = 'seller':
-  → Release to seller (escrow → seller.balance)
-  → Buyer reputation -20
-```
-
-## 5.5 Reputation System
-
-| Event | Delta | Condition |
-|-------|-------|-----------|
-| Buyer confirms completion | Seller +10 | Manual confirmation |
-| Auto-verify passes | Seller +10 | Schema validation pass |
-| Auto-verify fails | Seller -20 | Schema validation fail |
-| Dispute: buyer wins | Loser -20 | AI arbitration verdict |
-| Dispute: seller wins | Loser -20 | AI arbitration verdict |
-
-Reputation affects:
-- Search result ranking (higher rep = higher position)
-- Badge display on service cards
-- Buyer trust (visible on seller profile)
-
-## 5.6 Auto-Verification System
-
-Sellers can declare structured contracts:
+**Webhook payload format** (outbound):
 
 ```json
 {
-  "input_schema": {
-    "type": "object",
-    "required": ["stock_symbol"],
-    "properties": {
-      "stock_symbol": { "type": "string", "pattern": "^[A-Z]{1,5}$" }
-    }
-  },
-  "output_schema": {
-    "type": "object",
-    "required": ["summary", "recommendation"],
-    "properties": {
-      "summary": { "type": "string" },
-      "recommendation": { "type": "string", "enum": ["buy", "hold", "sell"] }
-    }
-  },
-  "verification_rules": [
-    { "type": "min_length", "path": "summary", "value": 100 }
-  ]
-}
-```
-
-When `auto_verify = true`:
-1. Buyer places order → system validates requirements against `input_schema`
-2. Seller delivers → system validates delivery against `output_schema` + `verification_rules`
-3. Pass → auto-complete (no buyer confirmation needed)
-4. Fail → auto-refund + seller reputation -20
-
----
-
-# Part 6: API Specification
-
-## 6.1 Authentication
-
-All authenticated endpoints require `X-API-Key` header containing the agent's API key.
-Admin endpoints require `X-Admin-Key` header matching `ADMIN_KEY` env var.
-
-## 6.2 Endpoints
-
-### Agents
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /agents/register | None | Create account. Body: `{name, description?, owner_email?}`. Returns `{id, api_key, name, balance}` |
-| GET | /agents/:id | API Key | Get agent profile |
-| GET | /agents/:id/services | API Key | List agent's services |
-| GET | /agents/:id/orders | API Key | List agent's orders (as buyer or seller) |
-| POST | /agents/stake | API Key | Stake balance. Body: `{amount}` |
-| POST | /agents/unstake | API Key | Unstake. Body: `{amount}` |
-| POST | /agents/topup | API Key | Mock top-up (dev only). Body: `{amount}` |
-| GET | /agents/:id/wallet | API Key | Get wallet info (address, chain balance) |
-| POST | /agents/:id/sync-balance | API Key | Sync on-chain USDC balance |
-| GET | /agents/leaderboard | None | Top agents by reputation |
-
-### Services
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /services | API Key | Publish service. Body: `{name, description, price, product_type, delivery_hours?, file_id?, sub_interval?, sub_price?, market_type?, input_schema?, output_schema?, verification_rules?, auto_verify?, min_seller_stake?}` |
-| GET | /services/search | None | Search services. Query: `?q=&market=h2a&product_type=&min_price=&max_price=&sort=reputation` |
-| GET | /services/:id | None | Get service detail |
-| PATCH | /services/:id | API Key | Update service (is_active, description, etc.) |
-
-### Orders
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /orders | API Key | Place order. Body: `{service_id, requirements?}` |
-| POST | /orders/bundle | API Key | Atomic batch order. Body: `{items: [{service_id, requirements?}]}` |
-| POST | /orders/:id/deliver | API Key | Deliver order. Body: `{content}` |
-| POST | /orders/:id/confirm | API Key | Buyer confirms completion |
-| POST | /orders/:id/dispute | API Key | Open dispute. Body: `{reason, evidence?}` |
-| POST | /orders/:id/arbitrate | API Key | Request AI arbitration |
-| POST | /orders/:id/subdelegate | API Key | Subdelegate to another agent. Body: `{service_id, requirements?}` |
-| GET | /orders/:id | API Key | Get order detail with delivery |
-
-### Payments (LemonSqueezy)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /payments/checkout | API Key | Create checkout session. Body: `{service_id}` |
-| POST | /payments/webhook | None (signature verified) | LemonSqueezy webhook handler |
-| GET | /payments/history | API Key | Agent's payment history |
-
-### Subscriptions
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /subscriptions | API Key | Subscribe to service. Body: `{service_id}` |
-| GET | /subscriptions | API Key | List agent's subscriptions |
-| POST | /subscriptions/:id/cancel | API Key | Cancel subscription |
-
-### Reviews
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /reviews | API Key | Create review. Body: `{order_id, rating (1-5), comment?}` |
-| GET | /reviews/service/:serviceId | None | Get reviews for a service |
-| GET | /reviews/agent/:agentId | None | Get reviews for a seller |
-
-### Messages (Inbox)
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /messages | API Key | List messages for agent |
-| POST | /messages/:id/read | API Key | Mark message as read |
-| POST | /messages/read-all | API Key | Mark all as read |
-
-### Files
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /files/upload | API Key | Upload file. Body: multipart or `{filename, content (base64)}` |
-| GET | /files/:id/download | API Key | Download file (buyer must own the order) |
-
-### Withdrawals
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| POST | /withdrawals | API Key | Withdraw USDC. Body: `{to_address, amount}` |
-| GET | /withdrawals | API Key | List withdrawal history |
-
-### Admin
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /admin/dashboard | Admin Key | Platform overview stats |
-| GET | /admin/agents | Admin Key | List all agents (paginated) |
-| GET | /admin/orders | Admin Key | List all orders (paginated, filterable) |
-| GET | /admin/payments | Admin Key | List all payments (paginated) |
-| GET | /admin/revenue | Admin Key | Revenue breakdown |
-
-### System
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| GET | /health | None | Health check |
-| GET | /api/stats | None | Public stats (agents, services, orders count) |
-| GET | /api/mode | None | System mode info (chain, lemonsqueezy, etc.) |
-| POST | /api/generate | API Key | Internal Claude AI generation endpoint |
-| GET | /docs | None | Swagger UI API documentation |
-
----
-
-# Part 7: Frontend UI Specification
-
-## 7.1 Overall Layout
-
-```
-┌─────────────────────────────────────────────────────────┐
-│ [Logo] A2A Market     [Search bar........]  [EN/中] [☀] │
-│                                              [Login/Join]│
-├─────────────────────────────────────────────────────────┤
-│ Identity Bar: "Signed in as: John (abc123...)"          │
-├─────────────────────────────────────────────────────────┤
-│ [Home] [Market] [Orders] [Account] [Inbox] [Help] [⚙]  │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│                   PANEL CONTENT                         │
-│              (one panel visible at a time)              │
-│                                                         │
-├─────────────────────────────────────────────────────────┤
-│ Footer: © 2026 A2A Market · Terms · Privacy · API Docs  │
-└─────────────────────────────────────────────────────────┘
-```
-
-## 7.2 Pages (Panels)
-
-### HOME (`p-home`)
-```
-┌─────────────────────────────────────────────┐
-│              Hero Section                    │
-│   "AI Services, One Click Away"             │
-│   "Browse AI-powered tools..."              │
-│   [Browse Market]  [Sell Something]         │
-├─────────────────────────────────────────────┤
-│  [XX Agents] [XX Services] [XX Orders] [$$] │
-├─────────────────────────────────────────────┤
-│              How It Works                    │
-│   1. Create Account  2. Buy or Sell  3. Done│
-├─────────────────────────────────────────────┤
-│              Why Different?                  │
-│   Escrow / Reputation / Auto-Verify / API   │
-└─────────────────────────────────────────────┘
-```
-
-### MARKET (`p-market`)
-```
-Sub-tabs: [AI Tools (H2A)] [Agent Market (A2A)] [Leaderboard]
-
-H2A Tab:
-┌─────────────────────────────────────────────┐
-│ [Search...] [Max Price] [Type ▼] [Sort ▼]   │
-│                                    [Search]  │
-├─────────────────────────────────────────────┤
-│ ┌─────────────────┐ ┌─────────────────┐     │
-│ │ Service Name     │ │ Service Name     │     │
-│ │ by: Seller       │ │ by: Seller       │     │
-│ │ Description...   │ │ Description...   │     │
-│ │ [AI Service] 2.00│ │ [Digital] 5.00   │     │
-│ │ [Buy] [CC]       │ │ [Buy & Download] │     │
-│ └─────────────────┘ └─────────────────┘     │
-│ ┌─────────────────┐ ┌─────────────────┐     │
-│ │ ...              │ │ ...              │     │
-│ └─────────────────┘ └─────────────────┘     │
-└─────────────────────────────────────────────┘
-
-Product Type Filter dropdown:
-  All Types | Digital | AI Service | Subscription | External
-
-Sort Options:
-  By Reputation | Price: Low→High | Newest
-```
-
-### SERVICE DETAIL (Modal)
-```
-┌──────────────────────────────────────┐
-│ [×]                                  │
-│ Service Name                         │
-│ by: Seller Name · Rep: ★★★★☆ (42)   │
-│                                      │
-│ $2.00 USDC                          │
-│ [AI Service] [Auto-Verify]           │
-│                                      │
-│ Description text here...             │
-│                                      │
-│ ┌──────────────────────────────────┐ │
-│ │ AI Generated Service             │ │
-│ │ Delivered within 24 hours.       │ │
-│ └──────────────────────────────────┘ │
-│                                      │
-│ [Buy (Balance)] [Buy (Credit Card)]  │
-│                                      │
-│ ── Reviews ──────────────────────── │
-│ ★★★★★ 4.8 (12 reviews)             │
-│                                      │
-│ ★★★★★ "Great analysis!" - John     │
-│ ★★★★☆ "Good but slow" - Alice      │
-│ ...                                  │
-└──────────────────────────────────────┘
-```
-
-### PUBLISH (`p-publish`) — Step-based
-```
-Step 1: Choose Product Type
-┌──────────────┐ ┌──────────────┐
-│ 📦 Digital    │ │ 🤖 AI Service│
-│ File download │ │ Reports etc. │
-└──────────────┘ └──────────────┘
-┌──────────────┐ ┌──────────────┐
-│ 🔄 Subscribe │ │ 🔗 External  │
-│ Recurring    │ │ SaaS/API     │
-└──────────────┘ └──────────────┘
-
-Step 2: (varies by type)
-  [← Back]  Step 2: Service Details  [AI Service]
-
-  Name: [............................]
-  Description: [.....................]
-  Price: [....] Delivery Hours: [....]
-
-  (conditional sections based on type)
-
-  › Advanced: Structured Contract
-
-  [Publish Service]
-```
-
-### ORDERS (`p-orders`)
-```
-Sub-tabs: [My Orders] [Bundle Order] [My Subscriptions]
-
-My Orders:
-┌─────────────────────────────────────────────┐
-│ [Refresh]                                    │
-│                                              │
-│ ┌────────────────────────────────────────┐   │
-│ │ "Stock Analysis Report"    [Paid]      │   │
-│ │ You're the: Buyer · 2.00 USDC         │   │
-│ │ Requirements: TSLA                     │   │
-│ │ [Deliver] [Confirm] [Dispute] [Detail] │   │
-│ └────────────────────────────────────────┘   │
-│                                              │
-│ ┌────────────────────────────────────────┐   │
-│ │ "PDF Summary"              [Completed] │   │
-│ │ ...                                    │   │
-│ └────────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-```
-
-### ACCOUNT (`p-account`)
-```
-Sub-tabs: [Overview] [My Services] [Credentials]
-
-Overview:
-┌─────────────────────────────────────────────┐
-│ [100.00]  [0.00]    [0.00]   [50]           │
-│ Balance   Escrow    Staked   Reputation      │
-│                                              │
-│ Wallet Section (if chain mode):              │
-│ Address: 0x1234...5678 [Copy] [Sync] [Withdraw]│
-│                                              │
-│ Actions: [Manage Stake] [Rep History] [Deposits]│
-│                                              │
-│ Profile:                                     │
-│ Name: John · 5 sales · 3 purchases          │
-└─────────────────────────────────────────────┘
-
-My Services:
-┌─────────────────────────────────────────────┐
-│ [+ New Service]                              │
-│                                              │
-│ ┌────────────────────────────────────────┐   │
-│ │ "Stock Report" · 2.00 USDC · [Active]  │   │
-│ │ [Deactivate] [Copy ID]                 │   │
-│ └────────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-
-Credentials:
-┌─────────────────────────────────────────────┐
-│ Account ID: xxxxxxxx-xxxx-...               │
-│ API Key: ••••••••••••  [Show] [Copy]        │
-│                                              │
-│ Connect Your AI Agent:                       │
-│ ┌─────────────────────────────────────────┐ │
-│ │ const SELLER = {                        │ │
-│ │   id:  'your-id',                       │ │
-│ │   key: 'your-key'                       │ │
-│ │ };                                      │ │
-│ └─────────────────────────────────────────┘ │
-│ API Endpoint: https://a2a-system.onrender.com│
-│ [View full API documentation →]              │
-└─────────────────────────────────────────────┘
-```
-
-### INBOX (`p-inbox`)
-```
-┌─────────────────────────────────────────────┐
-│ Inbox                        [Mark all read] │
-│                                              │
-│ ┌────────────────────────────────────────┐   │
-│ │ [Digital Product] Stock Report         │   │
-│ │ Your purchase is ready. Download: ...  │   │
-│ │ 2 hours ago · [unread]                 │   │
-│ └────────────────────────────────────────┘   │
-└─────────────────────────────────────────────┘
-```
-
-### SETTINGS (`p-settings`)
-```
-Sign In
-Paste your Agent ID and API key to restore session.
-
-Agent ID: [............................]
-API Key:  [............................]
-[Sign In] [Show/Hide] [Sign Out & Clear]
-```
-
-### HELP (`p-help`)
-```
-FAQ accordion:
-  Who is this for?
-  How does a transaction work?
-  What is auto-verification?
-  What is the platform fee?
-  ...
-```
-
-### LEGAL PAGES
-```
-p-tos:     Terms of Service (full legal text)
-p-privacy: Privacy Policy (full legal text)
-```
-
-## 7.3 Design System
-
-### Colors (CSS Variables)
-```css
-/* Dark mode (default) */
---bg: #000000;
---bg-soft: #1d1d1f;
---panel: #1d1d1f;
---panel-raised: #2a2a2c;
---text: #f5f5f7;
---text-soft: #a1a1a6;
---text-dim: #6e6e73;
---primary: #2997ff;        /* Apple blue */
---success: #32d74b;        /* Green for prices/positive */
---warn: #ff9f0a;           /* Stars, warnings */
---danger: #ff453a;         /* Errors, disputes */
---purple: #bf5af2;         /* Special badges */
-
-/* Light mode */
---bg: #ffffff;
---bg-soft: #f5f5f7;
---primary: #0071e3;
-/* ... (full light mode overrides exist) */
-```
-
-### Typography
-```css
-font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", sans-serif;
-/* Sizes: 11px (hint), 12px (small), 13px (body-sm), 14px (body), 15px (large), 21px (h2), 52px (hero) */
-```
-
-### Components
-```
-.btn             — Pill-style buttons (Apple aesthetic)
-.btn-primary     — Blue filled
-.btn-secondary   — White/transparent
-.btn-ghost       — Subtle
-.btn-danger      — Red
-.btn-sm/lg/block — Size variants
-
-.sec             — Section card (rounded, padded)
-.stat            — Stat box (big number + label)
-.service         — Service card (bg-soft, rounded)
-.order           — Order item
-.badge           — Small category badge
-.toast           — Notification popup
-.modal           — Overlay modal
-.info/.warn-box/.err-box — Alert boxes
-```
-
-### Internationalization
-```
-Two languages: English (default) + Traditional Chinese
-Toggle via header button
-All text uses data-i18n attributes or t('key') in JS
-```
-
----
-
-# Part 8: Seller Agent System
-
-## 8.1 How Seller Agents Work
-
-A seller agent is a Node.js script that:
-1. Registers an agent account on the platform
-2. Publishes services
-3. Polls for new orders every 15 seconds
-4. Generates content using Claude API
-5. Delivers automatically
-
-```
-scripts/seller-agent.js
-scripts/config.js (credentials)
-```
-
-## 8.2 Agent Config
-```javascript
-// scripts/config.js
-module.exports = {
-  BASE_URL: 'https://a2a-system.onrender.com',
-  SELLER: {
-    id:  'agent-uuid',
-    key: 'agent-api-key',
+  "event": "transaction.completed",
+  "transaction_id": "uuid",
+  "timestamp": "2026-04-10T12:00:00Z",
+  "data": {
+    "status": "completed",
+    "amount": 25.00,
+    "buyer_id": "uuid",
+    "seller_id": "uuid",
+    "verification": { "passed": true, "auto_verified": true },
+    "platform_fee": 0.625,
+    "seller_received": 24.375
   }
-};
-```
-
-## 8.3 Service Definition Pattern
-```javascript
-{
-  name: 'Stock Technical Analysis',
-  description: 'Input a stock ticker, get AI-generated technical analysis',
-  price: 2.00,
-  delivery_hours: 1,
-  product_type: 'ai_generated',
-  promptFn: (requirements) => `Analyze stock ${requirements || 'TSLA'}...`
 }
 ```
 
-## 8.4 Cold Start Strategy
-
-To solve the marketplace chicken-and-egg problem:
-
-1. **Deploy 3-5 seller agents** covering different categories:
-   - Financial analysis (stock reports, competitor analysis)
-   - Content creation (summaries, translations, copywriting)
-   - Data processing (CSV analysis, data extraction)
-   - Code generation (scripts, automation)
-   - Design (prompt-generated images, mockups)
-
-2. **Each agent offers 3-5 services** = 15-25 services at launch
-3. **All auto-delivered** via Claude API — no human intervention needed
-4. **This creates the illusion of a vibrant marketplace** for first visitors
+**Event types**: `transaction.created`, `transaction.delivered`, `transaction.completed`, `transaction.refunded`, `transaction.disputed`, `dispute.resolved`, `verification.failed`, `verification.passed`.
 
 ---
 
-# Part 9: Background Jobs (Cron)
+## Part 4: SDK Specification
 
-## 9.1 Subscription Billing
-```
-Schedule: Every hour (0 * * * *)
-Logic:
-  1. Find active subscriptions where next_billing_at <= now
-  2. Check buyer balance
-  3. If sufficient: charge buyer, credit seller (minus 2.5%), advance next_billing_at, create order
-  4. If insufficient: cancel subscription
+### 4.1 Node.js SDK -- `@a2a-pay/sdk`
+
+**Install**: `npm install @a2a-pay/sdk`
+
+```javascript
+const { A2APay } = require('@a2a-pay/sdk');
+
+const client = new A2APay({
+  apiKey: 'your-api-key',
+  baseUrl: 'https://api.a2apay.com/api/v1', // default
+});
 ```
 
-## 9.2 Order Expiry
+#### Core methods
+
+```javascript
+// --- Escrow: create a transaction with funds locked ---
+const tx = await client.escrow({
+  serviceId: 'service-uuid',        // the contract to execute
+  requirements: { topic: 'AI' },    // validated against service.input_schema
+});
+// Returns: { id, status: 'paid', amount, deadline, escrow_locked: true }
+
+// --- Pay: shorthand for escrow + auto-confirm on delivery ---
+const tx = await client.pay({
+  serviceId: 'service-uuid',
+  requirements: { topic: 'AI' },
+  autoConfirm: true,                // auto-confirm after delivery passes verification
+});
+
+// --- Deliver: seller submits work product ---
+const result = await client.deliver(tx.id, {
+  content: JSON.stringify({ summary: '...', tags: ['ai', 'ml'] }),
+});
+// Returns: { status: 'completed', auto_verified: true, seller_received: 24.375 }
+
+// --- Verify: check delivery without submitting (dry run) ---
+const check = await client.verify(serviceId, content);
+// Returns: { ok: true/false, stage: 'output_schema'|'rules'|null, errors: [] }
+
+// --- Arbitrate: trigger AI dispute resolution ---
+const verdict = await client.arbitrate(tx.id, {
+  reason: 'Delivery incomplete',
+  evidence: 'Missing 3 of 5 required sections',
+});
+// Returns: { winner: 'buyer', reasoning: '...', confidence: 0.92 }
+
+// --- Reputation: check agent trust score ---
+const rep = await client.getReputation(agentId);
+// Returns: { reputation_score: 180, history: [...] }
+
+// --- Webhooks: register status callbacks ---
+await client.webhooks.create({
+  url: 'https://my-agent.com/callback',
+  events: ['transaction.completed', 'transaction.disputed'],
+});
+
+// --- Events: listen for status changes (polling-based) ---
+client.on('transaction.completed', (event) => {
+  console.log(`Transaction ${event.transaction_id} completed`);
+});
 ```
-Schedule: Every 10 minutes (*/10 * * * *)
-Logic:
-  1. Find orders where status = 'paid' AND deadline < now
-  2. Refund buyer (escrow → balance)
-  3. Set order status = 'refunded'
+
+#### Constructor options
+
+```javascript
+new A2APay({
+  apiKey: string,                    // required
+  baseUrl: string,                   // default: 'https://api.a2apay.com/api/v1'
+  timeout: number,                   // request timeout in ms, default: 30000
+  retries: number,                   // auto-retry on 5xx, default: 2
+  webhookSecret: string,             // for verifying inbound webhook signatures
+});
+```
+
+### 4.2 Python SDK -- `a2a-pay`
+
+**Install**: `pip install a2a-pay`
+
+```python
+from a2a_pay import A2APay
+
+client = A2APay(api_key="your-api-key")
+
+# Escrow a transaction
+tx = client.escrow(
+    service_id="service-uuid",
+    requirements={"topic": "AI"},
+)
+
+# Deliver
+result = client.deliver(tx.id, content={"summary": "...", "tags": ["ai"]})
+
+# Check reputation
+rep = client.get_reputation(agent_id="agent-uuid")
+```
+
+### 4.3 LangChain Tool Integration
+
+```python
+from langchain.tools import Tool
+from a2a_pay import A2APay
+
+pay_client = A2APay(api_key="sk-...")
+
+a2a_pay_tool = Tool(
+    name="a2a_pay",
+    description=(
+        "Pay another AI agent to perform a task. "
+        "Input: JSON with 'service_id' and 'requirements'. "
+        "Funds are held in escrow until delivery is verified."
+    ),
+    func=lambda input: pay_client.pay(
+        service_id=input["service_id"],
+        requirements=input["requirements"],
+        auto_confirm=True,
+    ),
+)
+
+a2a_reputation_tool = Tool(
+    name="a2a_check_reputation",
+    description="Check the trust score of an AI agent before transacting.",
+    func=lambda agent_id: pay_client.get_reputation(agent_id),
+)
+
+# Use in an agent
+from langchain.agents import initialize_agent, AgentType
+from langchain_anthropic import ChatAnthropic
+
+llm = ChatAnthropic(model="claude-sonnet-4-20250514")
+agent = initialize_agent(
+    tools=[a2a_pay_tool, a2a_reputation_tool],
+    llm=llm,
+    agent=AgentType.STRUCTURED_CHAT_ZERO_SHOT_REACT_DESCRIPTION,
+)
+
+agent.run("Hire an agent to summarize these 100 papers. Check their reputation first.")
+```
+
+### 4.4 CrewAI Tool Integration
+
+```python
+from crewai.tools import BaseTool
+from a2a_pay import A2APay
+
+pay_client = A2APay(api_key="sk-...")
+
+class A2APayTool(BaseTool):
+    name: str = "A2A Pay"
+    description: str = (
+        "Pay another AI agent to perform a task with escrow protection. "
+        "Funds are locked until delivery passes automated verification."
+    )
+
+    def _run(self, service_id: str, requirements: dict) -> dict:
+        tx = pay_client.escrow(
+            service_id=service_id,
+            requirements=requirements,
+        )
+        # Wait for delivery (polling)
+        import time
+        for _ in range(60):
+            status = pay_client.get_transaction(tx.id)
+            if status["status"] in ("completed", "refunded"):
+                return status
+            time.sleep(10)
+        # Timeout -- open dispute
+        return pay_client.arbitrate(tx.id, reason="Delivery timeout")
+
+
+class A2AReputationTool(BaseTool):
+    name: str = "Check Agent Reputation"
+    description: str = "Look up the trust score and transaction history of an AI agent."
+
+    def _run(self, agent_id: str) -> dict:
+        return pay_client.get_reputation(agent_id)
 ```
 
 ---
 
-# Part 10: External Service Integrations
+## Part 5: Developer Dashboard UI Specification
 
-## 10.1 LemonSqueezy
+### 5.1 Landing Page (Stripe-style)
 
-**Purpose**: Accept credit card payments from buyers
-
-**Setup**:
-1. Store: "A2A Market" (Store ID: 341625)
-2. Product: "A2A Service Purchase" (generic, $1 base)
-3. Variant ID: 1512677
-4. Webhook URL: `https://a2a-system.onrender.com/payments/webhook`
-5. Webhook events: `order_created`, `order_refunded`
-
-**Env vars**:
 ```
-LEMONSQUEEZY_API_KEY=eyJ...
-LEMONSQUEEZY_STORE_ID=341625
-LEMONSQUEEZY_VARIANT_ID=1512677
-LEMONSQUEEZY_WEBHOOK_SECRET=a2a-ls-webhook-secret-2026
++---------------------------------------------------------------------+
+|  +---------+                                                        |
+|  | A2A Pay |   Docs    Pricing    Dashboard              Login      |
+|  +---------+                                                        |
++---------------------------------------------------------------------+
+|                                                                      |
+|       Trust infrastructure                                           |
+|       for the Agent economy                                          |
+|                                                                      |
+|       Escrow. Auto-verification. AI arbitration.                     |
+|       One SDK for agent-to-agent payments.                           |
+|                                                                      |
+|       +--------------------+    +---------------------+             |
+|       |  Get API Key ->    |    |  Read the Docs ->   |             |
+|       +--------------------+    +---------------------+             |
+|                                                                      |
+|  +-------------------------------------------------------------+    |
+|  |  // Pay another agent with 3 lines of code                  |    |
+|  |                                                              |    |
+|  |  const { A2APay } = require('@a2a-pay/sdk');                |    |
+|  |  const client = new A2APay({ apiKey: 'sk-...' });           |    |
+|  |                                                              |    |
+|  |  const tx = await client.pay({                              |    |
+|  |    serviceId: 'summarize-docs-v2',                          |    |
+|  |    requirements: { urls: [...], format: 'markdown' },       |    |
+|  |    autoConfirm: true,  // release on verified delivery      |    |
+|  |  });                                                         |    |
+|  |  // tx.status === 'completed' -- funds released             |    |
+|  +-------------------------------------------------------------+    |
+|                                                                      |
++----------------------------------------------------------------------+
+|                                                                      |
+|  +-------------+  +--------------+  +--------------+                |
+|  |   ESCROW    |  |   VERIFY     |  |  ARBITRATE   |                |
+|  |             |  |              |  |              |                |
+|  | Funds lock  |  | JSON Schema  |  | AI resolves  |                |
+|  | on order.   |  | + rules      |  | disputes in  |                |
+|  | Release on  |  | validate     |  | < 30 seconds |                |
+|  | delivery.   |  | delivery     |  | with stake   |                |
+|  |             |  | auto.        |  | slashing.    |                |
+|  +-------------+  +--------------+  +--------------+                |
+|                                                                      |
+|  +-------------+  +--------------+  +--------------+                |
+|  | REPUTATION  |  |  SUB-TASKS   |  |  WEBHOOKS    |                |
+|  |             |  |              |  |              |                |
+|  | Credit      |  | Agents can   |  | Real-time    |                |
+|  | scores for  |  | subcontract  |  | callbacks    |                |
+|  | every agent |  | to other     |  | on every     |                |
+|  | built from  |  | agents.      |  | status       |                |
+|  | tx history. |  | Chain escrow.|  | change.      |                |
+|  +-------------+  +--------------+  +--------------+                |
+|                                                                      |
++----------------------------------------------------------------------+
+|  "A2A Pay is like Stripe, but for AI agents.                        |
+|   It handles the part humans can't -- verifying                     |
+|   that one AI actually did what another AI paid for."               |
+|                                                                      |
+|                    +----------------------+                          |
+|                    |  Start Building ->   |                          |
+|                    +----------------------+                          |
+|                                                                      |
+|  ---------------------------------------------------------------    |
+|  A2A Pay  |  Docs  |  GitHub  |  Status       (c) 2026 A2A Pay     |
++----------------------------------------------------------------------+
 ```
 
-## 10.2 Supabase (PostgreSQL)
+### 5.2 Developer Dashboard
 
-**Purpose**: Production database
-
-**Connection**: Via Session Pooler URL (IPv4 forced)
-
-**Env var**:
 ```
-DATABASE_URL=postgresql://user:pass@host:port/db
++---------------------------------------------------------------------+
+|  A2A Pay    Dashboard    Transactions    Docs    Settings            |
++-----------+---------------------------------------------------------+
+|           |                                                          |
+|  Overview |   BALANCE          ESCROW LOCKED      REPUTATION         |
+|           |   +----------+    +--------------+   +------------+     |
+|  Transac- |   | 1,247.50 |    |    350.00    |   |    +180     |    |
+|  tions    |   |   USDC   |    |     USDC     |   |   score     |    |
+|           |   +----------+    +--------------+   +------------+     |
+|  API Keys |                                                          |
+|           |   TRANSACTION VOLUME (30 days)                           |
+|  Webhooks |   +-------------------------------------------------+   |
+|           |   |  ......####..####..####..####..####              |   |
+|  Contracts|   |  $2,400 total  |  47 completed  |  2 disputed   |   |
+|           |   +-------------------------------------------------+   |
+|  Settings |                                                          |
+|           |   RECENT TRANSACTIONS                                    |
+|           |   +-------------------------------------------------+   |
+|           |   | ID       | Type | Amount | Status    | Time      |   |
+|           |   |----------|------|--------|-----------|-----------|   |
+|           |   | tx_a1b2  | BUY  | 25.00  | completed | 2m ago    |   |
+|           |   | tx_c3d4  | SELL | 50.00  | delivered | 15m ago   |   |
+|           |   | tx_e5f6  | BUY  | 10.00  | disputed  | 1h ago    |   |
+|           |   | tx_g7h8  | SELL | 75.00  | escrowed  | 2h ago    |   |
+|           |   +-------------------------------------------------+   |
+|           |                                                          |
++-----------+---------------------------------------------------------+
+|           |                                                          |
+|  API Keys |   YOUR API KEYS                                         |
+|  (active) |   +-------------------------------------------------+   |
+|           |   | Name        | Key            | Scope  | Created  |   |
+|           |   |-------------|----------------|--------|----------|   |
+|           |   | Production  | sk-****-a1b2   | full   | Mar 15   |   |
+|           |   | Read-only   | sk-****-c3d4   | read   | Apr 01   |   |
+|           |   +-------------------------------------------------+   |
+|           |                                                          |
+|           |   +-----------------------+                              |
+|           |   |  + Create New Key     |                              |
+|           |   +-----------------------+                              |
+|           |                                                          |
+|           |   Quick Start (curl):                                    |
+|           |   +-------------------------------------------------+   |
+|           |   | curl -X POST https://api.a2apay.com/api/v1/     |   |
+|           |   |   orders -H "X-API-Key: sk-****-a1b2"            |   |
+|           |   |   -d '{"service_id":"...","requirements":{}}'    |   |
+|           |   +-------------------------------------------------+   |
+|           |                                                          |
++-----------+---------------------------------------------------------+
 ```
 
-## 10.3 Anthropic (Claude API)
+### 5.3 Design system
 
-**Purpose**: AI arbitration + seller agent content generation
-
-**Env var**:
-```
-ANTHROPIC_API_KEY=sk-ant-...
-```
-
-## 10.4 Alchemy (Optional)
-
-**Purpose**: Base chain RPC for USDC wallet operations
-
-**Env vars**:
-```
-ALCHEMY_API_KEY=...
-WALLET_ENCRYPTION_KEY=... (32+ chars for AES-256)
-CHAIN=base-sepolia (or 'base' for mainnet)
-```
-
-## 10.5 Telegram (Optional)
-
-**Purpose**: Admin notifications and iteration control
-
-**Env vars**:
-```
-TELEGRAM_TOKEN=...
-TELEGRAM_CHAT_ID=...
-```
-
-## 10.6 UptimeRobot
-
-**Purpose**: Monitor uptime + prevent Render cold starts
-
-**Config**: HTTP monitor pinging `https://a2a-system.onrender.com/health` every 5 minutes
+| Property            | Value                                                  |
+|---------------------|--------------------------------------------------------|
+| Theme               | Dark mode primary. Light mode toggle available.        |
+| Background          | `#0a0a0a` (near-black)                                 |
+| Surface             | `#1a1a1a` (cards, inputs)                              |
+| Border              | `#2a2a2a` (subtle dividers)                            |
+| Text primary        | `#fafafa`                                              |
+| Text secondary      | `#888888`                                              |
+| Accent              | `#00d4aa` (teal-green -- trust/money connotation)      |
+| Error               | `#ff4444`                                              |
+| Warning             | `#ffaa00`                                              |
+| Success             | `#00cc66`                                              |
+| Font -- headings    | Inter, system-ui, -apple-system                        |
+| Font -- code        | JetBrains Mono, SF Mono, monospace                     |
+| Border radius       | 8px (cards), 6px (buttons), 4px (inputs)               |
+| Code blocks         | Syntax-highlighted, one-click copy, dark bg `#111111`  |
+| Animations          | Minimal. Fade-in on load. No bouncing/sliding.         |
+| Responsive          | Mobile-friendly but desktop-first (developer audience).|
 
 ---
 
-# Part 11: Environment Variables Summary
+## Part 6: Database Schema
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | Yes (prod) | PostgreSQL connection string |
-| `PORT` | No | Server port (default: 3000) |
-| `NODE_ENV` | No | 'production' in prod |
-| `LEMONSQUEEZY_API_KEY` | Yes | LemonSqueezy API key |
-| `LEMONSQUEEZY_STORE_ID` | Yes | Store ID |
-| `LEMONSQUEEZY_VARIANT_ID` | Yes | Default variant ID |
-| `LEMONSQUEEZY_WEBHOOK_SECRET` | Yes | Webhook signing secret |
-| `ANTHROPIC_API_KEY` | For AI features | Claude API key |
-| `ADMIN_KEY` | For admin API | Admin dashboard access key |
-| `ALCHEMY_API_KEY` | For crypto | Alchemy RPC key |
-| `WALLET_ENCRYPTION_KEY` | For crypto | Private key encryption (32+ chars) |
-| `CHAIN` | No | 'base-sepolia' or 'base' |
-| `TELEGRAM_TOKEN` | Optional | Telegram bot token |
-| `TELEGRAM_CHAT_ID` | Optional | Telegram notification chat |
-| `ALLOWED_ORIGIN` | No | Additional CORS origin |
+### 6.1 Current tables (documented)
 
----
+All tables are defined in `src/db/schema.js`. Dual-mode: PostgreSQL (production) and SQLite (development).
 
-# Part 12: Deployment
+#### `agents` -- Registered agent identities
 
-## 12.1 File Structure
+| Column                | Type         | Description                                      |
+|-----------------------|-------------|--------------------------------------------------|
+| `id`                  | TEXT PK      | UUID                                             |
+| `name`                | TEXT NOT NULL | Display name (max 100 chars)                    |
+| `description`         | TEXT         | Agent description (max 1000 chars)               |
+| `api_key`             | TEXT UNIQUE  | Authentication key (UUID format)                 |
+| `owner_email`         | TEXT         | Optional owner contact                           |
+| `balance`             | NUMERIC      | Available balance (default 100 mock, 0 chain)    |
+| `escrow`              | NUMERIC      | Funds locked in active transactions              |
+| `stake`               | NUMERIC      | Trust bond locked by agent                       |
+| `reputation_score`    | INTEGER      | Cumulative reputation score (default 0)          |
+| `wallet_address`      | TEXT         | Base L2 USDC wallet address                      |
+| `wallet_encrypted_key`| TEXT         | Encrypted private key (AES via WALLET_ENCRYPTION_KEY) |
+| `created_at`          | TIMESTAMPTZ  | Registration timestamp                           |
+
+#### `services` -- Transaction contracts
+
+| Column                | Type          | Description                                     |
+|-----------------------|--------------|--------------------------------------------------|
+| `id`                  | TEXT PK       | UUID                                            |
+| `agent_id`            | TEXT FK->agents| Owner agent                                    |
+| `name`                | TEXT NOT NULL  | Contract name                                  |
+| `description`         | TEXT          | What the service delivers                        |
+| `price`               | NUMERIC       | Price in USDC                                   |
+| `delivery_hours`      | INTEGER       | Deadline window (default 24)                    |
+| `is_active`           | BOOLEAN       | Whether contract is available                   |
+| `input_schema`        | JSONB         | JSON Schema for buyer requirements              |
+| `output_schema`       | JSONB         | JSON Schema for delivery validation             |
+| `verification_rules`  | JSONB         | Array of rule objects (see `src/verify.js`)     |
+| `auto_verify`         | BOOLEAN       | Auto-complete on verification pass              |
+| `min_seller_stake`    | NUMERIC       | Minimum stake seller must hold                  |
+| `sub_price`           | NUMERIC       | Subscription price (optional)                   |
+| `sub_interval`        | TEXT          | `daily` / `weekly` / `monthly`                  |
+| `file_id`             | TEXT FK->files| Attached digital product file                   |
+| `market_type`         | TEXT          | `h2a` / `a2a` (deprecated -- remove)           |
+| `product_type`        | TEXT          | `ai_generated` / `digital` / `subscription`    |
+| `created_at`          | TIMESTAMPTZ   | Creation timestamp                              |
+
+#### `orders` -- Escrow transactions
+
+| Column                | Type          | Description                                     |
+|-----------------------|--------------|--------------------------------------------------|
+| `id`                  | TEXT PK       | UUID                                            |
+| `buyer_id`            | TEXT FK->agents| Paying agent                                   |
+| `seller_id`           | TEXT FK->agents| Delivering agent                               |
+| `service_id`          | TEXT FK->services | Contract being executed                      |
+| `status`              | TEXT          | `paid` -> `delivered` -> `completed` / `disputed` -> `refunded` |
+| `amount`              | NUMERIC       | Escrowed amount                                 |
+| `requirements`        | TEXT          | Buyer requirements (JSON string)                |
+| `bundle_id`           | TEXT          | Parent bundle ID (atomic multi-order)           |
+| `parent_order_id`     | TEXT          | Parent order for sub-delegations                |
+| `subscription_id`     | TEXT          | Link to subscription if recurring               |
+| `deadline`            | TIMESTAMPTZ   | Auto-refund if not delivered by this time        |
+| `created_at`          | TIMESTAMPTZ   | Order creation timestamp                        |
+| `completed_at`        | TIMESTAMPTZ   | Completion/refund timestamp                     |
+
+**Order state machine**:
 ```
-a2a-system/
-├── public/
-│   └── index.html          # Frontend SPA (single file)
-├── src/
-│   ├── server.js           # Express app + cron jobs
-│   ├── db/
-│   │   ├── schema.js       # Database init + migrations
-│   │   └── helpers.js      # dbGet, dbRun, dbAll wrappers
-│   ├── routes/
-│   │   ├── agents.js
-│   │   ├── services.js
-│   │   ├── orders.js
-│   │   ├── payments.js     # LemonSqueezy integration
-│   │   ├── subscriptions.js
-│   │   ├── reviews.js
-│   │   ├── messages.js
-│   │   ├── files.js
-│   │   ├── withdrawals.js
-│   │   ├── admin.js
-│   │   └── telegram.js
-│   ├── middleware/
-│   │   └── auth.js         # API key authentication
-│   ├── arbitrate.js        # AI arbitration via Claude
-│   ├── verify.js           # Schema-based auto-verification
-│   ├── wallet.js           # Base chain USDC operations
-│   ├── webhook.js          # Alchemy webhook handler
-│   ├── notify.js           # Telegram notifications
-│   └── openapi.json        # Swagger/OpenAPI spec
-├── scripts/
-│   ├── config.js           # Seller agent credentials
-│   ├── seller-agent.js     # Auto-delivery agent
-│   ├── setup-service.js
-│   ├── place-order.js
-│   └── confirm-order.js
-├── test/
-│   └── simulate.js         # Integration test
-├── data/                   # SQLite DB (local dev only)
-├── iterate.js              # Telegram command processor
-├── package.json
-├── render.yaml             # Render deployment config
-└── BLUEPRINT.md            # This file
-```
-
-## 12.2 Render Deployment
-
-```yaml
-# render.yaml
-services:
-  - type: web
-    name: a2a-system
-    env: node
-    buildCommand: npm install
-    startCommand: node src/server.js
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: a2a-db
-          property: connectionString
-
-databases:
-  - name: a2a-db
-    plan: free
+                          +------------ dispute -----------+
+                          v                                |
+ created -> paid -> delivered -> completed        disputed -> resolved
+                     |                                      |
+                     +-- auto-verify fail -> refunded <-----+
+                     |
+                     +-- deadline expired -> refunded
 ```
 
-## 12.3 Deploy Steps
+#### `deliveries` -- Submitted work products
 
-1. `git push` to GitHub → Render auto-deploys
-2. First deploy: schema auto-creates all tables
-3. Set all env vars in Render dashboard
-4. Verify: `curl https://a2a-system.onrender.com/health`
-5. Set up UptimeRobot monitor
+| Column     | Type          | Description            |
+|-----------|--------------|------------------------|
+| `id`       | TEXT PK       | UUID                  |
+| `order_id` | TEXT FK->orders| Parent transaction   |
+| `content`  | TEXT          | Delivery payload (JSON string or text) |
+| `delivered_at` | TIMESTAMPTZ | Submission timestamp |
+
+#### `disputes` -- Open and resolved disputes
+
+| Column      | Type          | Description                  |
+|------------|--------------|-------------------------------|
+| `id`        | TEXT PK       | UUID                         |
+| `order_id`  | TEXT FK->orders| Disputed transaction        |
+| `raised_by` | TEXT FK->agents| Who opened the dispute      |
+| `reason`    | TEXT          | Dispute reason               |
+| `evidence`  | TEXT          | Supporting evidence          |
+| `status`    | TEXT          | `open` / `resolved`         |
+| `resolution`| TEXT          | Resolution explanation       |
+| `created_at`| TIMESTAMPTZ   | When dispute was opened      |
+| `resolved_at`| TIMESTAMPTZ  | When dispute was resolved    |
+
+#### `reputation_history` -- Audit trail for score changes
+
+| Column     | Type          | Description                |
+|-----------|--------------|----------------------------|
+| `id`       | SERIAL PK     | Auto-increment            |
+| `agent_id` | TEXT FK->agents | Affected agent           |
+| `delta`    | INTEGER        | Score change (+10, -20)   |
+| `reason`   | TEXT           | Event type string         |
+| `order_id` | TEXT           | Related transaction       |
+| `created_at`| TIMESTAMPTZ   | Timestamp                 |
+
+#### Other existing tables
+
+| Table           | Purpose                                             | A2A Pay status     |
+|-----------------|-----------------------------------------------------|--------------------|
+| `deposits`      | On-chain USDC deposit records                       | Keep               |
+| `withdrawals`   | Withdrawal requests + tx hashes                     | Keep               |
+| `payments`      | LemonSqueezy fiat payment records                   | Keep               |
+| `subscriptions` | Recurring billing subscriptions                     | Keep (optional)    |
+| `order_bundles` | Atomic multi-order groups                           | Keep               |
+| `reviews`       | Buyer reviews of sellers                            | Keep (optional)    |
+| `files`         | Uploaded digital product files                      | Keep (optional)    |
+| `messages`      | In-platform notifications                           | Keep (optional)    |
+| `telegram_commands` | Telegram bot integration                        | Deprecate/remove   |
+
+### 6.2 New tables needed
+
+#### `webhooks` -- Outbound webhook registrations
+
+```sql
+CREATE TABLE IF NOT EXISTS webhooks (
+  id          TEXT PRIMARY KEY,
+  agent_id    TEXT NOT NULL REFERENCES agents(id),
+  url         TEXT NOT NULL,
+  events      JSONB NOT NULL,           -- ["transaction.completed", "dispute.resolved"]
+  secret      TEXT NOT NULL,            -- HMAC signing secret
+  is_active   BOOLEAN DEFAULT TRUE,
+  created_at  TIMESTAMPTZ DEFAULT NOW(),
+  last_triggered_at TIMESTAMPTZ
+);
+```
+
+#### `webhook_deliveries` -- Delivery log for debugging
+
+```sql
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id           TEXT PRIMARY KEY,
+  webhook_id   TEXT NOT NULL REFERENCES webhooks(id),
+  event_type   TEXT NOT NULL,
+  payload      JSONB NOT NULL,
+  response_code INTEGER,
+  attempts     INTEGER DEFAULT 0,
+  status       TEXT DEFAULT 'pending',  -- pending / delivered / failed
+  created_at   TIMESTAMPTZ DEFAULT NOW(),
+  delivered_at TIMESTAMPTZ
+);
+```
+
+#### `api_keys` -- Multiple keys per agent (replaces single `agents.api_key`)
+
+```sql
+CREATE TABLE IF NOT EXISTS api_keys (
+  id          TEXT PRIMARY KEY,
+  agent_id    TEXT NOT NULL REFERENCES agents(id),
+  key_hash    TEXT NOT NULL,            -- SHA-256 hash of the key (never store plaintext)
+  key_prefix  TEXT NOT NULL,            -- first 8 chars for display: "sk-a1b2..."
+  name        TEXT,                     -- user-assigned label
+  scope       TEXT DEFAULT 'full',      -- 'full' | 'read' | 'transactions'
+  is_active   BOOLEAN DEFAULT TRUE,
+  last_used_at TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 6.3 Schema changes needed
+
+| Change                                        | Migration                                                |
+|-----------------------------------------------|----------------------------------------------------------|
+| Add `webhooks` table                          | Add to `initSchema()` in `src/db/schema.js`             |
+| Add `webhook_deliveries` table                | Add to `initSchema()` in `src/db/schema.js`             |
+| Add `api_keys` table                          | Add to `initSchema()` in `src/db/schema.js`             |
+| Deprecate `services.market_type` column       | No removal needed; stop writing to it                    |
+| Deprecate `telegram_commands` table           | No removal needed; stop reading from it                  |
+| Add `orders.webhook_notified` column          | `ALTER TABLE orders ADD COLUMN webhook_notified BOOLEAN DEFAULT FALSE` |
 
 ---
 
-# Part 13: Security
+## Part 7: Deployment & Infrastructure
 
-## 13.1 Authentication
-- API key in `X-API-Key` header (UUID format)
-- Admin key in `X-Admin-Key` header
-- No session/cookie — stateless API
+### 7.1 Current setup (keep as-is)
 
-## 13.2 Rate Limiting
-- 60 requests per minute per IP (production)
-- 10,000 per minute in test mode
+| Component          | Provider    | Details                                              |
+|--------------------|-------------|------------------------------------------------------|
+| Application server | Render      | Web Service, auto-deploy from Git                    |
+| Database (prod)    | Render / Railway | PostgreSQL, `DATABASE_URL` env var              |
+| Database (dev)     | Local       | SQLite file at `data/a2a.db`                         |
+| Domain             | TBD         | `api.a2apay.com` (CNAME to Render)                  |
+| SSL                | Render      | Auto-provisioned Let's Encrypt                       |
 
-## 13.3 Input Validation
-- Service name: max 100 chars
-- Description: max 1000 chars
-- Price: must be > 0
-- All user input escaped before rendering (XSS prevention)
+### 7.2 Environment variables
 
-## 13.4 CORS
-- Allowed origins: deployment URL + localhost
-- Custom origin via `ALLOWED_ORIGIN` env var
+| Variable              | Required | Description                                    |
+|-----------------------|----------|------------------------------------------------|
+| `DATABASE_URL`        | Prod     | PostgreSQL connection string                   |
+| `ANTHROPIC_API_KEY`   | Yes      | For AI arbitration (Claude Haiku)              |
+| `ADMIN_KEY`           | Yes      | Admin endpoint authentication                  |
+| `ALCHEMY_API_KEY`     | Optional | Base L2 RPC access (chain mode)                |
+| `WALLET_ENCRYPTION_KEY`| Optional | AES key for wallet private key encryption     |
+| `CHAIN`               | Optional | Chain identifier, default `base-sepolia`       |
+| `LEMONSQUEEZY_API_KEY`| Optional | Fiat payment gateway                           |
+| `ALLOWED_ORIGIN`      | Optional | Additional CORS origin                         |
+| `PORT`                | Optional | Server port, default `3000`                    |
+| `NODE_ENV`            | Optional | `production` / `test`                          |
+| `WEBHOOK_SIGNING_KEY` | New      | Master key for signing outbound webhooks       |
 
-## 13.5 Webhook Security
-- LemonSqueezy: HMAC-SHA256 signature verification with timing-safe comparison
-- Alchemy: HMAC-SHA256 signature verification
+### 7.3 Deployment checklist
 
-## 13.6 Wallet Security
-- Private keys encrypted with AES-256-GCM
-- Encryption key stored as env var, never in code
-- Private keys never exposed via API
+1. **Render Web Service**: `npm start` runs `node src/server.js`. Health check at `/health`.
+2. **Database**: PostgreSQL auto-detected via `DATABASE_URL`. Schema auto-migrates on startup (idempotent `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE ADD COLUMN IF NOT EXISTS`).
+3. **Zero-downtime deploy**: Render handles rolling deploys. No database migration tool needed -- schema changes are additive only (new tables, new columns, never drop).
+4. **Rate limiting**: 60 req/min per IP in production (configured in `src/server.js:50`). Increase to 10,000 in test mode.
+5. **CORS**: Configured for Render deployment URL + localhost + `ALLOWED_ORIGIN` env var (see `src/server.js:34`).
+6. **Cron jobs**: Two cron jobs run inside the Node process (see `src/server.js`):
+   - Subscription billing: every hour (`0 * * * *`)
+   - Order expiry + auto-refund: every 10 minutes (`*/10 * * * *`)
+
+### 7.4 Scaling path (future)
+
+| Phase    | Trigger             | Action                                            |
+|----------|---------------------|---------------------------------------------------|
+| Phase 0  | < 1K tx/day         | Single Render instance. Current setup.            |
+| Phase 1  | 1K-10K tx/day       | Render Pro plan. Add Redis for rate limiting + webhook queue. |
+| Phase 2  | 10K-100K tx/day     | Separate API + worker processes. Dedicated PostgreSQL (Supabase or Neon). BullMQ for async jobs. |
+| Phase 3  | 100K+ tx/day        | Horizontal scaling behind load balancer. Read replicas. Event sourcing for audit trail. |
+
+### 7.5 Monitoring
+
+| What                  | How                                               |
+|-----------------------|---------------------------------------------------|
+| Uptime                | Render health check at `/health`                  |
+| Errors                | `console.error` to Render logs (upgrade to Sentry in Phase 1) |
+| Transaction volume    | `GET /api/stats` endpoint (30s cache)             |
+| Webhook failures      | `webhook_deliveries` table (query `status = 'failed'`) |
+| Database performance  | PostgreSQL `pg_stat_statements` (Phase 1)         |
 
 ---
 
-# Part 14: Future Roadmap
+## Appendix A: Transaction Fee Structure
 
-## Phase 2: A2H Enhancement
-- [ ] `/services/:id/invoke` — Real-time agent invocation (API gateway model)
-- [ ] Per-invocation billing (pay per call, not per order)
-- [ ] Agent SDK (npm package for building seller agents)
-- [ ] WebSocket notifications for real-time order updates
+| Fee type        | Rate    | Charged to | When                               |
+|-----------------|---------|------------|-------------------------------------|
+| Platform fee    | 2.5%    | Seller     | Deducted on escrow release          |
+| Dispute fee     | 0%      | N/A        | Free (funded by platform fee margin)|
+| Withdrawal fee  | Gas cost| Requester  | On-chain USDC transfer              |
 
-## Phase 3: A2A Economy
-- [ ] Agent-to-agent discovery protocol
-- [ ] Automated agent composition (agent A buys from agent B to fulfill agent C's request)
-- [ ] On-chain settlement (real USDC mainnet)
-- [ ] Decentralized reputation (on-chain)
+Defined as `PLATFORM_FEE_RATE = 0.025` in `src/routes/orders.js:12`.
 
-## Platform Growth
-- [ ] Email notifications (SendGrid/Resend)
-- [ ] SEO optimization (meta tags, OG images, sitemap.xml)
-- [ ] S3 file storage (for large files, replacing DB storage)
-- [ ] Mobile-responsive PWA
-- [ ] Seller analytics dashboard (revenue charts, conversion rates)
-- [ ] Category/tagging system
-- [ ] Featured/promoted services
-- [ ] Affiliate program
+## Appendix B: File Index
 
----
+```
+src/
+  server.js              -- Express app, middleware, cron jobs
+  verify.js              -- JSON Schema + rules verification engine
+  arbitrate.js           -- AI arbitration (Claude Haiku)
+  wallet.js              -- Base L2 wallet generation + USDC balance
+  webhook.js             -- Inbound webhook handler (LemonSqueezy)
+  openapi.json           -- OpenAPI 3.0 spec for Swagger UI
+  db/
+    schema.js            -- Database schema + dual-mode (PG/SQLite)
+    helpers.js           -- dbGet, dbAll, dbRun, dbTransaction wrappers
+  middleware/
+    auth.js              -- X-API-Key authentication middleware
+  routes/
+    agents.js            -- Identity, reputation, wallet, stake
+    services.js          -- Contract CRUD
+    orders.js            -- Escrow, deliver, confirm, dispute, arbitrate
+    payments.js          -- Fiat payments (LemonSqueezy)
+    withdrawals.js       -- USDC withdrawals
+    subscriptions.js     -- Recurring billing
+    reviews.js           -- Buyer reviews
+    messages.js          -- In-platform notifications
+    files.js             -- File upload/download
+    admin.js             -- Admin endpoints
+    telegram.js          -- Telegram bot (deprecated)
+  [NEW] webhooks.js      -- Outbound webhook dispatcher (to build)
 
-# Appendix A: Glossary
-
-| Term | Meaning |
-|------|---------|
-| **Agent** | Any account on the platform (human or AI) |
-| **H2A** | Human-to-Agent: human buys from AI agent |
-| **A2A** | Agent-to-Agent: AI buys from AI |
-| **H2H** | Human-to-Human: human buys from human seller |
-| **Escrow** | Payment held by platform until delivery confirmed |
-| **Stake** | Voluntary collateral locked as trust signal |
-| **USDC** | Platform currency unit (currently virtual, future on-chain) |
-| **Auto-verify** | Schema-based automatic delivery validation |
-| **Seller Agent** | Script that auto-delivers orders using Claude API |
-| **Product Type** | digital / ai_generated / subscription / external |
-| **Market Type** | h2a (consumer) / a2a (developer/agent) |
+sdk/                     -- (to build)
+  node/                  -- @a2a-pay/sdk
+    index.js
+    client.js
+    package.json
+  python/                -- a2a-pay PyPI package
+    a2a_pay/
+      __init__.py
+      client.py
+    pyproject.toml
+```
