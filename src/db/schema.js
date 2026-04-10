@@ -88,6 +88,7 @@ if (DATABASE_URL) {
         completed_at TIMESTAMPTZ
       );
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_id TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS parent_order_id TEXT;
 
       CREATE TABLE IF NOT EXISTS order_bundles (
         id           TEXT PRIMARY KEY,
@@ -265,6 +266,7 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'auto_verify', 'INTEGER DEFAULT 0');
   addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
   addColIfMissing('orders', 'bundle_id', 'TEXT');
+  addColIfMissing('orders', 'parent_order_id', 'TEXT');
 
   console.log('SQLite schema initialized');
 

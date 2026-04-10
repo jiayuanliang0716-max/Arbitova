@@ -211,6 +211,38 @@
         }
       }
     },
+    "/orders/{id}/subdelegate": {
+      "post": {
+        "summary": "Sub-delegate work to another agent's service",
+        "description": "Seller of an active order creates a child order to another agent. Funds deducted from seller's balance.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["service_id"],
+                "properties": {
+                  "service_id": { "type": "string" },
+                  "requirements": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Child order created" } }
+      }
+    },
+    "/orders/{id}/subdelegations": {
+      "get": {
+        "summary": "List all sub-orders for a parent order",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Sub-delegation list" } }
+      }
+    },
     "/orders/{id}/dispute": {
       "post": {
         "summary": "Open a dispute, freeze funds",

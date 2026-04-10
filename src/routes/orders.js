@@ -399,6 +399,95 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/subdelegate
+// Seller of an active order sub-contracts work to another agent's service.
+// Body: { service_id, requirements? }
+// Creates a child order where this seller becomes the buyer.
+router.post('/:id/subdelegate', requireApiKey, async (req, res, next) => {
+  try {
+    const { service_id, requirements } = req.body || {};
+    if (!service_id) return res.status(400).json({ error: 'service_id is required' });
+
+    const parent = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!parent) return res.status(404).json({ error: 'Order not found' });
+    if (parent.seller_id !== req.agent.id) return res.status(403).json({ error: 'Only the seller can sub-delegate' });
+    if (!['paid', 'delivered'].includes(parent.status)) {
+      return res.status(400).json({ error: `Cannot sub-delegate: parent order status is ${parent.status}` });
+    }
+
+    // Check for existing open sub-delegation on this order
+    const existing = await dbGet(
+      `SELECT id FROM orders WHERE parent_order_id = ${p(1)} AND status NOT IN ('completed','refunded')`,
+      [parent.id]
+    );
+    if (existing) return res.status(400).json({ error: 'An active sub-delegation already exists for this order' });
+
+    const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+    const subService = await dbGet(`SELECT * FROM services WHERE id = ${p(1)} AND ${activeCheck}`, [service_id]);
+    if (!subService) return res.status(404).json({ error: 'Sub-service not found or inactive' });
+    if (subService.agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot sub-delegate to your own service' });
+
+    // Validate input schema if declared
+    if (subService.input_schema) {
+      const v = verifyInput(subService, requirements);
+      if (!v.ok) return res.status(400).json({ error: 'Requirements do not satisfy sub-service input_schema', details: v.errors });
+    }
+
+    // Seller must have enough balance to pay the sub-service
+    const seller = await dbGet(`SELECT * FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (parseFloat(seller.balance) < parseFloat(subService.price)) {
+      return res.status(400).json({ error: 'Insufficient balance to fund sub-delegation', balance: seller.balance, required: subService.price });
+    }
+
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + subService.delivery_hours);
+    const childId = uuidv4();
+
+    // Lock funds from seller's balance into escrow
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
+      [subService.price, subService.price, req.agent.id]
+    );
+    await dbRun(
+      `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, parent_order_id, deadline)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
+      [childId, req.agent.id, subService.agent_id, service_id, subService.price, requirements || null, parent.id, deadline.toISOString()]
+    );
+
+    res.status(201).json({
+      child_order_id: childId,
+      parent_order_id: parent.id,
+      sub_service: subService.name,
+      sub_seller: subService.agent_id,
+      amount: subService.price,
+      status: 'paid',
+      deadline: deadline.toISOString(),
+      message: 'Sub-delegation created. Funds locked. Deliver to your buyer once the sub-order completes.'
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/subdelegations — list all sub-orders for a parent order
+router.get('/:id/subdelegations', requireApiKey, async (req, res, next) => {
+  try {
+    const parent = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!parent) return res.status(404).json({ error: 'Order not found' });
+    if (parent.buyer_id !== req.agent.id && parent.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const children = await dbAll(
+      `SELECT o.*, s.name as service_name, a.name as sub_seller_name
+       FROM orders o
+       JOIN services s ON o.service_id = s.id
+       JOIN agents a ON o.seller_id = a.id
+       WHERE o.parent_order_id = ${p(1)}
+       ORDER BY o.created_at ASC`,
+      [req.params.id]
+    );
+    res.json({ parent_order_id: parent.id, count: children.length, subdelegations: children });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/:id/auto-arbitrate
 // Triggers AI arbitration for a disputed order.
 // Public trigger: anyone involved in the order can request it.

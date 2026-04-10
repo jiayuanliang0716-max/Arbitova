@@ -1028,6 +1028,7 @@ function renderOrder(o, myId) {
   }
   if (!isBuyer && o.status === 'delivered') actions.push(`<button class="btn btn-danger btn-sm" onclick="openDisputeModal('${o.id}')">⚠ 開爭議</button>`);
   if (o.status === 'disputed') actions.push(`<button class="btn btn-primary btn-sm" onclick="openArbitrateModal('${o.id}')">AI 仲裁</button>`);
+  if (!isBuyer && ['paid','delivered'].includes(o.status)) actions.push(`<button class="btn btn-ghost btn-sm" onclick="openSubdelegateModal('${o.id}')">轉包</button>`);
   actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewOrderDetail('${o.id}')">詳細</button>`);
 
   return `
@@ -1172,8 +1173,63 @@ async function viewOrderDetail(orderId) {
       </ul>
       ${o.requirements ? '<h3>需求內容</h3><div class="keybox" style="white-space:pre-wrap;">' + escapeHtml(o.requirements) + '</div>' : ''}
       ${o.delivery ? '<h3>交付內容</h3><div class="keybox" style="white-space:pre-wrap;">' + escapeHtml(o.delivery.content) + '</div>' : ''}
-      <div class="small" style="margin-top:14px;">買家：<code>${o.buyer_name}</code> · 賣家：<code>${o.seller_name}</code></div>
+      ${o.parent_order_id ? `<div class="small" style="margin-top:10px;">此為子委託訂單，上層訂單：<code>${o.parent_order_id}</code></div>` : ''}
+      <div class="small" style="margin-top:8px;">買家：<code>${o.buyer_name}</code> · 賣家：<code>${o.seller_name}</code></div>
     `);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// ================= Sub-delegation =================
+async function openSubdelegateModal(orderId) {
+  try {
+    const svcs = await api('/services/search?sort=reputation');
+    const myId = getIdentity()?.id;
+    const options = (svcs.services || [])
+      .filter(s => s.agent_id !== myId)
+      .map(s => `<option value="${s.id}">${escapeHtml(s.name)} — ${money(s.price)} USDC (${escapeHtml(s.agent_name)})</option>`)
+      .join('');
+    if (!options) return toast('目前沒有可用的服務可轉包', 'warn');
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>轉包給其他 Agent</h2>
+      <p class="mdesc">選擇要把這筆訂單轉包給哪個 Agent 的服務。轉包費用從你的餘額扣除。</p>
+      <label>選擇服務</label>
+      <select id="sub-svc" class="plain"><option value="">-- 選擇 --</option>${options}</select>
+      <label>轉包需求（選填）</label>
+      <textarea id="sub-req" class="plain" placeholder="給子 Agent 的具體指示"></textarea>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="doSubdelegate('${orderId}')">確認轉包</button>
+        <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+      </div>
+    `);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function doSubdelegate(orderId) {
+  const svcId = document.getElementById('sub-svc').value;
+  const req = document.getElementById('sub-req').value;
+  if (!svcId) return toast('請選擇服務', 'warn');
+  try {
+    const r = await api('/orders/' + orderId + '/subdelegate', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ service_id: svcId, requirements: req || undefined })
+    });
+    toast('轉包成功，子訂單已建立', 'success');
+    closeModal();
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>轉包成功</h2>
+      <div class="keybox">
+        <b>子訂單 ID：</b>${r.child_order_id}<br>
+        <b>服務：</b>${escapeHtml(r.sub_service)}<br>
+        <b>金額：</b>${money(r.amount)} USDC<br>
+        <b>截止時間：</b>${r.deadline}
+      </div>
+      <p class="mdesc">等子 Agent 交付後，再由你確認並交付給原始買家。</p>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="closeModal();loadMyOrders();">確認</button>
+    `);
+    loadMyOrders();
   } catch (e) { toast(e.message, 'error'); }
 }
 
