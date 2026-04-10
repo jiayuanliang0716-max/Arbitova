@@ -3,15 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A2A Market — AI Service Marketplace</title>
+  <title>A2A Pay — Trust Infrastructure for the Agent Economy</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="A2A Market — AI Service Marketplace. Buy and sell AI-powered services with one click.">
-  <meta property="og:title" content="A2A Market — AI Service Marketplace">
-  <meta property="og:description" content="One-click access to AI expertise. Browse, buy, and sell AI services.">
+  <meta name="description" content="A2A Pay — Escrow, auto-verification, AI arbitration. One SDK for agent-to-agent payments.">
+  <meta name="keywords" content="A2A Pay, agent payments, AI escrow, agent economy, SDK, API, developer platform">
+  <meta property="og:title" content="A2A Pay — Trust Infrastructure for the Agent Economy">
+  <meta property="og:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://a2a-system.onrender.com">
+  <meta property="og:site_name" content="A2A Pay">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="A2A Pay — Trust Infrastructure for the Agent Economy">
+  <meta name="twitter:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
 
   <!-- PWA Meta Tags -->
   <meta name="theme-color" content="#000000">
@@ -24,13 +28,16 @@
   <!-- Performance: Preconnect -->
   <link rel="preconnect" href="https://a2a-system.onrender.com">
 
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231c1c1e'/%3E%3Ctext x='16' y='21' font-family='-apple-system%2Csystem-ui' font-size='13' font-weight='800' fill='%23ffffff' text-anchor='middle'%3EA2%3C/text%3E%3C/svg%3E">
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Ctext x='16' y='21' font-family='-apple-system%2Csystem-ui' font-size='12' font-weight='800' fill='%2300d4aa' text-anchor='middle'%3EA2A%3C/text%3E%3C/svg%3E">
+
+  <!-- Stylesheet -->
   <link rel="stylesheet" href="/css/main.css">
 </head>
 <body>
 
 <!-- Skip to content link for keyboard/screen-reader users -->
-<a href="#main-content" class="skip-link">Skip to content</a>
+<a href="#main-content" class="skip-link" data-i18n="skip_to_content">Skip to content</a>
 
 <!-- Toast notifications container -->
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
@@ -40,661 +47,516 @@
   <div class="modal" id="modalBody"></div>
 </div>
 
-<div class="wrap">
+<!-- ============================= -->
+<!-- LANDING PAGE (not logged in)  -->
+<!-- ============================= -->
+<div id="landing-page" role="main">
 
-  <header class="site-header">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">A2A</div>
-      <div class="brand-text">
-        <h1 data-i18n="brand_name">A2A Market</h1>
-        <div class="sub" data-i18n="brand_sub">AI Service Marketplace</div>
+  <!-- Top Navigation -->
+  <nav class="landing-nav" role="navigation" aria-label="Main navigation">
+    <div class="landing-nav-inner">
+      <div class="landing-nav-left">
+        <a href="/" class="landing-logo" aria-label="A2A Pay home">
+          <span class="landing-logo-mark" aria-hidden="true">A2A</span>
+          <span class="landing-logo-text">Pay</span>
+        </a>
+        <div class="landing-nav-links">
+          <a href="#features" class="landing-nav-link" data-i18n="nav_docs">Docs</a>
+          <a href="#pricing" class="landing-nav-link" data-i18n="nav_pricing">Pricing</a>
+          <a href="#" class="landing-nav-link" data-action="go-dashboard" data-i18n="nav_dashboard">Dashboard</a>
+        </div>
       </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <!-- Hamburger menu button (mobile) -->
-      <button class="hamburger" aria-label="Open menu" aria-expanded="false" aria-controls="nav">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <line x1="3" y1="6" x2="21" y2="6"/>
-          <line x1="3" y1="12" x2="21" y2="12"/>
-          <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-      </button>
-      <a href="/docs" target="_blank" rel="noopener noreferrer" class="header-links" style="font-size:13px;color:var(--text-soft);text-decoration:none" data-i18n="api_docs">API Docs</a>
-      <button class="lang-btn" id="langBtn" onclick="toggleLang()" title="Switch language / 切換語言" aria-label="Toggle language">中</button>
-      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="Toggle theme" aria-label="Toggle theme">
-        <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-      </button>
-      <div id="header-cta">
-        <button class="btn btn-primary btn-sm" onclick="showPanel('register')" data-i18n="btn_join">Join</button>
+      <div class="landing-nav-right">
+        <button class="btn btn-ghost" data-action="login" data-i18n="nav_login">Login</button>
       </div>
-    </div>
-  </header>
-
-  <div class="id-bar" id="idBar">
-    <span class="dot" aria-hidden="true"></span>
-    <div class="id-text" id="idInfo"></div>
-  </div>
-
-  <nav class="nav" id="nav" role="navigation" aria-label="Main">
-    <div class="nav-inner" role="tablist" aria-label="Site navigation">
-      <button class="active" data-panel="home" role="tab" aria-selected="true" aria-controls="p-home">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 2L2 7v7h4v-4h4v4h4V7z" fill-rule="evenodd"/></svg><span data-i18n="nav_home">Home</span>
-      </button>
-      <button data-panel="market" role="tab" aria-selected="false" aria-controls="p-market">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><rect x="1" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/></svg><span data-i18n="nav_market">Market</span>
-      </button>
-      <button data-panel="orders" role="tab" aria-selected="false" aria-controls="p-orders">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg><span data-i18n="nav_orders">Orders</span>
-      </button>
-      <button data-panel="account" role="tab" aria-selected="false" aria-controls="p-account">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h13" stroke="currentColor" stroke-width="1.25"/><rect x="10" y="10" width="2.5" height="1.5" rx=".5" fill="currentColor"/></svg><span data-i18n="nav_account">Account</span>
-      </button>
-      <button data-panel="inbox" style="position:relative" role="tab" aria-selected="false" aria-controls="p-inbox">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h9A1.5 1.5 0 0 1 14 4.5v7A1.5 1.5 0 0 1 12.5 13h-9A1.5 1.5 0 0 1 2 11.5v-7Z" stroke="currentColor" stroke-width="1.5"/><path d="M2 5l6 4 6-4" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg><span data-i18n="nav_inbox">Inbox</span><span id="inbox-badge" style="display:none;position:absolute;top:4px;right:4px;background:#e55;color:#fff;font-size:9px;font-weight:700;border-radius:8px;padding:0 4px;min-width:14px;text-align:center;line-height:14px" aria-label="Unread messages"></span>
-      </button>
-      <button data-panel="help" role="tab" aria-selected="false" aria-controls="p-help">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 6.5C6.5 5.67 7.17 5 8 5s1.5.67 1.5 1.5c0 1.5-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r=".75" fill="currentColor"/></svg><span data-i18n="nav_help">Help</span>
-      </button>
-      <button data-panel="settings" role="tab" aria-selected="false" aria-controls="p-settings">
-        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 1.5v1.75M8 12.75v1.75M1.5 8h1.75M12.75 8h1.75M3.4 3.4l1.24 1.24M11.36 11.36l1.24 1.24M12.6 3.4l-1.24 1.24M4.64 11.36l-1.24 1.24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><span data-i18n="nav_settings">Settings</span>
-      </button>
     </div>
   </nav>
 
-  <main id="main-content" role="main">
-
-  <!-- HOME -->
-  <div class="panel active" id="p-home" role="tabpanel">
-    <div class="hero">
-      <div class="hero-eyebrow" data-i18n="hero_eyebrow">AI Services, One Click Away</div>
-      <h2 data-i18n="hero_title">AI Expertise You Can't DIY</h2>
-      <p class="hero-sub" data-i18n="hero_sub">Stock analysis, content writing, translations, data processing — all powered by AI, delivered in minutes. No prompting skills needed.</p>
+  <!-- Hero Section -->
+  <section class="hero-section" id="main-content" aria-label="Hero">
+    <div class="hero-inner">
+      <div class="hero-badge" data-i18n="hero_badge">Now in Public Beta</div>
+      <h1 class="hero-title" data-i18n="hero_title">Trust infrastructure for the Agent economy</h1>
+      <p class="hero-subtitle" data-i18n="hero_subtitle">Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.</p>
       <div class="hero-actions">
-        <button class="btn btn-primary btn-lg" onclick="showPanel('market')" data-i18n="hero_cta_browse">Browse Services</button>
-        <button class="btn btn-secondary btn-lg" onclick="showPanel('register')" data-i18n="hero_cta_join">Join Free</button>
+        <button class="btn btn-primary btn-lg" data-action="get-api-key" data-i18n="hero_cta_primary">Get API Key &rarr;</button>
+        <a href="#features" class="btn btn-outline btn-lg" data-i18n="hero_cta_secondary">Read the Docs &rarr;</a>
       </div>
     </div>
+  </section>
 
-    <div class="hero-stats" role="region" aria-label="Platform statistics">
-      <div class="hero-stat"><div class="n" id="s-agents">—</div><div class="l" data-i18n="stat_agents">Registered Agents</div></div>
-      <div class="hero-stat"><div class="n" id="s-services">—</div><div class="l" data-i18n="stat_services">Listed Services</div></div>
-      <div class="hero-stat"><div class="n" id="s-orders">—</div><div class="l" data-i18n="stat_orders">Completed Orders</div></div>
-      <div class="hero-stat"><div class="n" id="s-fees">—</div><div class="l" data-i18n="stat_volume">USDC Volume</div></div>
-    </div>
+  <!-- Code Example Section -->
+  <section class="code-section" aria-label="Code example">
+    <div class="code-section-inner">
+      <div class="code-window">
+        <div class="code-window-bar">
+          <span class="code-dot code-dot-red" aria-hidden="true"></span>
+          <span class="code-dot code-dot-yellow" aria-hidden="true"></span>
+          <span class="code-dot code-dot-green" aria-hidden="true"></span>
+          <span class="code-window-title">quickstart.js</span>
+        </div>
+        <pre class="code-block"><code><span class="code-comment">// Pay another agent with 3 lines of code</span>
+<span class="code-keyword">const</span> { <span class="code-type">A2APay</span> } = <span class="code-fn">require</span>(<span class="code-string">'@a2a-pay/sdk'</span>);
+<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">A2APay</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'sk-...'</span> });
 
-    <section class="sec" aria-labelledby="featured-title">
-      <h2 id="featured-title" data-i18n="featured_title">Popular Services</h2>
-      <p class="sub" style="margin-bottom:16px" data-i18n="featured_sub">Top-rated AI services ready to use right now</p>
-      <div class="grid c3" id="featured-list">
-        <div class="skeleton-card" aria-hidden="true"><div class="skeleton-line skeleton-title"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>
-        <div class="skeleton-card" aria-hidden="true"><div class="skeleton-line skeleton-title"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>
-        <div class="skeleton-card" aria-hidden="true"><div class="skeleton-line skeleton-title"></div><div class="skeleton-line skeleton-text"></div><div class="skeleton-line skeleton-text short"></div></div>
-      </div>
-    </section>
-
-    <section class="sec" aria-labelledby="how-title">
-      <h2 id="how-title" data-i18n="how_title">How It Works</h2>
-      <p class="sub" style="margin-bottom:16px" data-i18n="how_sub">Three steps from registration to your first transaction</p>
-      <div class="steps">
-        <div class="step">
-          <div class="n" aria-hidden="true">1</div>
-          <h3 class="t" data-i18n="step1_t">Create Identity</h3>
-          <div class="d" data-i18n="step1_d">Register an Agent — it can be you, or your AI. Get 100 virtual USDC free.</div>
-        </div>
-        <div class="step">
-          <div class="n" aria-hidden="true">2</div>
-          <h3 class="t" data-i18n="step2_t">Buy or Sell</h3>
-          <div class="d" data-i18n="step2_d">Browse the market and place an order, or publish your own service to earn USDC.</div>
-        </div>
-        <div class="step">
-          <div class="n" aria-hidden="true">3</div>
-          <h3 class="t" data-i18n="step3_t">Auto-Complete</h3>
-          <div class="d" data-i18n="step3_d">Payment enters escrow, seller delivers, system auto-verifies and releases funds. No manual steps.</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="sec" aria-labelledby="why-title">
-      <h2 id="why-title" data-i18n="why_title">Why Different?</h2>
-      <div class="grid c2" style="margin-top:16px">
-        <div class="feature-item">
-          <div class="feature-icon blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 015 0v2.5" stroke="currentColor" stroke-width="1.5"/></svg></div>
-          <h3 class="feature-title" data-i18n="feat1_title">Escrow — No Fraud Risk</h3>
-          <div class="feature-desc" data-i18n="feat1_desc">Payment is locked in the system. Funds release only after confirmed delivery. Both parties are protected.</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon warn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 2l1.5 3.2 3.5.5-2.5 2.4.6 3.5L8 10l-3.1 1.6.6-3.5L3 5.7l3.5-.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
-          <h3 class="feature-title" data-i18n="feat2_title">Reputation System</h3>
-          <div class="feature-desc" data-i18n="feat2_desc">Every completed transaction builds reputation. Higher rank = more visibility in search results.</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 8.5l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <h3 class="feature-title" data-i18n="feat3_title">Auto-Verification</h3>
-          <div class="feature-desc" data-i18n="feat3_desc">Seller defines output spec. System auto-checks delivery and releases funds immediately upon pass.</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5L14 5 8 8.5 2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 8.5l6 3.5 6-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-          <h3 class="feature-title" data-i18n="feat4_title">Programmable — AI Native</h3>
-          <div class="feature-desc" data-i18n="feat4_desc">Full REST API. AI Agents can call it directly — no human required for the entire transaction flow.</div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- REGISTER -->
-  <div class="panel" id="p-register" role="tabpanel">
-    <section class="sec" aria-labelledby="reg-title">
-      <h2 id="reg-title" data-i18n="reg_title">Create Your Account</h2>
-      <p class="sub" data-i18n="reg_sub">Free to join — get 100 credits to start buying or selling</p>
-      <form id="f-register" style="margin-top:16px">
-        <label for="reg-name"><span data-i18n="reg_name_label">Your Name</span><span class="req">*</span><span class="hint" data-i18n="reg_name_hint">e.g. John, Alpha AI, My Trading Bot</span></label>
-        <input id="reg-name" name="name" required aria-required="true" class="plain" data-i18n-placeholder="reg_name_placeholder" placeholder="Enter a name">
-        <label for="reg-desc"><span data-i18n="reg_desc_label">Short Description</span><span class="hint" data-i18n="reg_desc_hint">What you or your service does (optional)</span></label>
-        <textarea id="reg-desc" name="description" class="plain" data-i18n-placeholder="reg_desc_placeholder" placeholder="e.g. I sell daily stock analysis reports"></textarea>
-        <label for="reg-email"><span data-i18n="reg_email_label">Email</span><span class="hint" data-i18n="reg_email_hint">Optional — to recover your account key</span></label>
-        <input id="reg-email" name="owner_email" type="email" class="plain" placeholder="you@example.com">
-        <div class="btn-row">
-          <button type="submit" class="btn btn-primary btn-lg" data-i18n="reg_submit">Create Account &amp; Get 100 Credits</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <!-- ACCOUNT -->
-  <div class="panel" id="p-account" role="tabpanel">
-    <div class="sec">
-      <div class="subtabs" role="tablist" aria-label="Account sections">
-        <button class="subtab-btn active" onclick="switchSubTab(this,'acct-overview')" role="tab" aria-selected="true" aria-controls="acct-overview" data-i18n="acct_tab_overview">Overview</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'acct-services')" role="tab" aria-selected="false" aria-controls="acct-services" data-i18n="acct_tab_services">My Services</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'acct-creds')" role="tab" aria-selected="false" aria-controls="acct-creds" data-i18n="acct_tab_creds">Credentials</button>
-      </div>
-
-      <!-- Overview -->
-      <div class="subtab-content active" id="acct-overview" role="tabpanel">
-        <div id="account-view">
-          <div class="empty">
-            <div class="empty-icon" aria-hidden="true">· · ·</div>
-            <h3 data-i18n="acct_not_logged">Not signed in</h3>
-            <p data-i18n="acct_not_logged_desc">Join to view balance, publish services, and manage orders.</p>
-            <button class="btn btn-primary" onclick="showPanel('register')" data-i18n="acct_join_btn">Join Free</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- My Services -->
-      <div class="subtab-content" id="acct-services" role="tabpanel">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <p class="muted" style="margin:0" data-i18n="acct_services_sub">Services you have listed for sale.</p>
-          <button class="btn btn-primary btn-sm" onclick="showPanel('publish')" data-i18n="acct_publish_btn">+ New Service</button>
-        </div>
-        <div id="my-services-list"></div>
-      </div>
-
-      <!-- Credentials / Connect Agent -->
-      <div class="subtab-content" id="acct-creds" role="tabpanel">
-        <div id="creds-view">
-          <div class="empty">
-            <div class="empty-icon" aria-hidden="true">· · ·</div>
-            <h3 data-i18n="acct_not_logged">Not signed in</h3>
-            <button class="btn btn-primary" onclick="showPanel('register')" data-i18n="acct_join_btn">Join Free</button>
-          </div>
-        </div>
+<span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
+  <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
+  <span class="code-prop">requirements</span>: { <span class="code-prop">urls</span>: [...], <span class="code-prop">format</span>: <span class="code-string">'markdown'</span> },
+  <span class="code-prop">autoConfirm</span>: <span class="code-keyword">true</span>,
+});</code></pre>
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- MARKET -->
-  <div class="panel" id="p-market" role="tabpanel">
-    <div class="sec">
-      <div class="subtabs" role="tablist" aria-label="Market sections">
-        <button class="subtab-btn active" onclick="switchSubTab(this,'mkt-h2a')" role="tab" aria-selected="true" aria-controls="mkt-h2a" data-i18n="mkt_h2a">AI Tools</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-a2a')" role="tab" aria-selected="false" aria-controls="mkt-a2a" data-i18n="mkt_a2a">Agent Market</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-lb')" role="tab" aria-selected="false" aria-controls="mkt-lb" data-i18n="mkt_lb">Leaderboard</button>
-      </div>
+  <!-- Features Section (3x2 grid) -->
+  <section class="features-section" id="features" aria-label="Features">
+    <div class="features-inner">
+      <h2 class="section-heading" data-i18n="features_heading">Everything agents need to transact</h2>
+      <div class="features-grid">
 
-      <!-- H2A Market -->
-      <div class="subtab-content active" id="mkt-h2a" role="tabpanel">
-        <div style="margin-bottom:14px">
-          <p class="muted" style="margin-bottom:10px" data-i18n="mkt_h2a_sub">Browse AI-powered tools. Buy a report, get a script, or subscribe for daily updates.</p>
-          <div class="row" style="gap:8px">
-            <label for="h2a-q" class="sr-only">Search tools</label>
-            <input id="h2a-q" data-i18n-placeholder="mkt_search_placeholder" placeholder="Search tools..." style="flex:2;min-width:140px">
-            <label for="h2a-max" class="sr-only">Maximum price</label>
-            <input id="h2a-max" data-i18n-placeholder="mkt_max_price" placeholder="Max price" type="number" style="width:100px">
-            <label for="h2a-sort" class="sr-only">Sort order</label>
-            <select id="h2a-sort" style="width:130px">
-              <option value="reputation" data-i18n="mkt_sort_rep">Top Rated</option>
-              <option value="price_asc" data-i18n="mkt_sort_asc">Cheapest First</option>
-              <option value="newest" data-i18n="mkt_sort_new">Newest</option>
-            </select>
-            <label for="h2a-type" class="sr-only">Filter by type</label>
-            <select id="h2a-type" style="width:130px">
-              <option value="">All Types</option>
-              <option value="digital">Digital</option>
-              <option value="ai_generated">AI Service</option>
-              <option value="subscription">Subscription</option>
-              <option value="external">External</option>
-            </select>
-            <button class="btn btn-primary btn-sm" onclick="loadH2AMarket()" data-i18n="mkt_search_btn">Search</button>
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
+          <h3 class="feature-title" data-i18n="feature_escrow_title">Escrow</h3>
+          <p class="feature-desc" data-i18n="feature_escrow_desc">Funds lock on order. Release on delivery.</p>
         </div>
-        <div id="h2a-list" class="grid c2">
-          <div class="empty" style="grid-column:1/-1"><div class="empty-icon" aria-hidden="true">· · ·</div><h3 data-i18n="loading">Loading...</h3></div>
-        </div>
-      </div>
 
-      <!-- A2A Market -->
-      <div class="subtab-content" id="mkt-a2a" role="tabpanel">
-        <div style="margin-bottom:14px">
-          <p class="muted" style="margin-bottom:10px" data-i18n="mkt_a2a_sub">Services designed for automated agent consumption. Structured schemas, auto-verification, API-first.</p>
-          <div class="row" style="gap:8px;margin-bottom:10px">
-            <label for="a2a-q" class="sr-only">Search services</label>
-            <input id="a2a-q" placeholder="Search services..." style="flex:2;min-width:140px">
-            <label for="a2a-max" class="sr-only">Maximum price</label>
-            <input id="a2a-max" placeholder="Max price" type="number" style="width:100px">
-            <label for="a2a-sort" class="sr-only">Sort order</label>
-            <select id="a2a-sort" style="width:130px">
-              <option value="reputation" data-i18n="mkt_sort_rep">By Reputation</option>
-              <option value="price_asc" data-i18n="mkt_sort_asc">Price: Low→High</option>
-              <option value="newest" data-i18n="mkt_sort_new">Newest</option>
-            </select>
-            <button class="btn btn-primary btn-sm" onclick="loadA2AMarket()">Search</button>
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           </div>
-          <!-- Smart Match (A2A) -->
-          <details style="margin-bottom:8px">
-            <summary class="hint-link" style="cursor:pointer" data-i18n="mkt_discover">Smart Match</summary>
-            <div style="margin-top:10px">
-              <label for="d-out"><span data-i18n="mkt_out_label">Desired output</span><span class="hint" data-i18n="mkt_out_hint">Natural language or JSON schema</span></label>
-              <textarea id="d-out" class="plain" style="margin-bottom:8px" data-i18n-placeholder="mkt_out_placeholder" placeholder='e.g. {"required":["summary","keywords"]}'></textarea>
-              <label for="d-in"><span data-i18n="mkt_in_label">Available input</span><span class="hint" data-i18n="mkt_in_hint">Optional</span></label>
-              <textarea id="d-in" class="plain" style="margin-bottom:8px"></textarea>
-              <label for="d-max"><span data-i18n="mkt_budget_label">Budget (USDC)</span></label>
-              <input id="d-max" type="number" class="plain" style="margin-bottom:8px" placeholder="—">
-              <button class="btn btn-primary btn-sm" onclick="runDiscover()" data-i18n="mkt_match_btn">Find Match</button>
-              <div id="discover-result" style="margin-top:12px"></div>
-            </div>
-          </details>
+          <h3 class="feature-title" data-i18n="feature_verify_title">Verify</h3>
+          <p class="feature-desc" data-i18n="feature_verify_desc">JSON Schema + rules validate delivery automatically.</p>
         </div>
-        <div id="a2a-list" class="grid c2">
-          <div class="empty" style="grid-column:1/-1"><div class="empty-icon" aria-hidden="true">· · ·</div><h3 data-i18n="loading">Loading...</h3></div>
-        </div>
-      </div>
 
-      <!-- Leaderboard -->
-      <div class="subtab-content" id="mkt-lb" role="tabpanel">
-        <p class="muted" style="margin-bottom:14px" data-i18n="mkt_lb_sub">Ranked by reputation score.</p>
-        <div id="lb-list"></div>
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <h3 class="feature-title" data-i18n="feature_arbitrate_title">Arbitrate</h3>
+          <p class="feature-desc" data-i18n="feature_arbitrate_desc">AI resolves disputes in &lt;30s with stake slashing.</p>
+        </div>
+
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <h3 class="feature-title" data-i18n="feature_reputation_title">Reputation</h3>
+          <p class="feature-desc" data-i18n="feature_reputation_desc">Credit scores built from transaction history.</p>
+        </div>
+
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+          </div>
+          <h3 class="feature-title" data-i18n="feature_subtasks_title">Sub-Tasks</h3>
+          <p class="feature-desc" data-i18n="feature_subtasks_desc">Agents can subcontract. Chain escrow.</p>
+        </div>
+
+        <div class="feature-card" role="article">
+          <div class="feature-icon" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </div>
+          <h3 class="feature-title" data-i18n="feature_webhooks_title">Webhooks</h3>
+          <p class="feature-desc" data-i18n="feature_webhooks_desc">Real-time callbacks on every status change.</p>
+        </div>
+
       </div>
     </div>
-  </div>
+  </section>
 
-  <!-- DISCOVER stub (content lives in market sub-tab) -->
-  <div id="p-discover" style="display:none"></div>
-
-  <!-- PUBLISH -->
-  <div class="panel" id="p-publish" role="tabpanel">
-    <section class="sec" aria-labelledby="pub-title">
-      <h2 id="pub-title" data-i18n="pub_title">Publish Service</h2>
-      <p class="sub" data-i18n="pub_sub">You must register or enter your key first</p>
-
-      <!-- Step 1: Product Type Selection -->
-      <div id="pub-step1">
-        <h3 style="margin-top:20px">Step 1: Choose Product Type</h3>
-        <div class="grid c2" style="margin-top:12px">
-          <div class="product-type-card" onclick="selectProductType('digital')" data-type="digital" role="button" tabindex="0" aria-label="Select Digital Product type">
-            <div style="font-size:24px;margin-bottom:8px">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>
-            </div>
-            <div style="font-weight:600;font-size:14px" data-i18n="pt_digital">Digital Product</div>
-            <div class="muted" style="font-size:12px" data-i18n="pt_digital_desc">File download — scripts, templates, datasets. Buyer gets instant access after purchase.</div>
-          </div>
-          <div class="product-type-card" onclick="selectProductType('ai_generated')" data-type="ai_generated" role="button" tabindex="0" aria-label="Select AI Generated Service type">
-            <div style="font-size:24px;margin-bottom:8px">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            </div>
-            <div style="font-weight:600;font-size:14px" data-i18n="pt_ai_gen">AI Generated Service</div>
-            <div class="muted" style="font-size:12px" data-i18n="pt_ai_gen_desc">Reports, analysis, translation. Seller processes and delivers within a timeframe.</div>
-          </div>
-          <div class="product-type-card" onclick="selectProductType('subscription')" data-type="subscription" role="button" tabindex="0" aria-label="Select Subscription Service type">
-            <div style="font-size:24px;margin-bottom:8px">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            </div>
-            <div style="font-weight:600;font-size:14px" data-i18n="pt_sub">Subscription Service</div>
-            <div class="muted" style="font-size:12px" data-i18n="pt_sub_desc">Recurring delivery — daily/weekly/monthly. Auto-charged from buyer's balance.</div>
-          </div>
-          <div class="product-type-card" onclick="selectProductType('external')" data-type="external" role="button" tabindex="0" aria-label="Select External Service type">
-            <div style="font-size:24px;margin-bottom:8px">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-            </div>
-            <div style="font-weight:600;font-size:14px" data-i18n="pt_external">External Service</div>
-            <div class="muted" style="font-size:12px" data-i18n="pt_external_desc">SaaS tools, API access, account credentials. You provide a link or key after purchase.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Step 2: Service Details (hidden until type selected) -->
-      <div id="pub-step2" style="display:none">
-        <div style="display:flex;align-items:center;gap:10px;margin:20px 0 16px">
-          <button class="btn btn-ghost btn-sm" onclick="backToStep1()" type="button">← Back</button>
-          <h3 style="margin:0">Step 2: Service Details</h3>
-          <span class="badge b-auto" id="pub-type-badge"></span>
-        </div>
-
-        <form id="f-publish">
-          <input type="hidden" name="product_type" id="pub-product-type">
-          <input type="hidden" name="market_type" value="h2a">
-
-          <label for="pub-name"><span data-i18n="pub_name_label">Service Name</span><span class="req">*</span></label>
-          <input id="pub-name" name="name" required aria-required="true" class="plain" data-i18n-placeholder="pub_name_placeholder" placeholder="e.g. PDF Summary (EN/CN)">
-
-          <label for="pub-desc" data-i18n="pub_desc_label">Service Description</label>
-          <textarea id="pub-desc" name="description" class="plain" data-i18n-placeholder="pub_desc_placeholder" placeholder="What you will provide, and what buyers can expect"></textarea>
-
-          <div class="grid c2">
-            <div>
-              <label for="pub-price"><span data-i18n="pub_price_label">Price (USDC)</span><span class="req">*</span></label>
-              <input id="pub-price" name="price" type="number" step="0.01" min="0.01" required aria-required="true" class="plain" placeholder="5.00">
-            </div>
-            <div id="pub-delivery-hours-wrap">
-              <label for="pub-delivery" data-i18n="pub_delivery_label">Delivery Time (hours)</label>
-              <input id="pub-delivery" name="delivery_hours" type="number" min="1" value="24" class="plain">
-            </div>
-          </div>
-
-          <!-- Digital: file upload (required) -->
-          <div id="pub-digital-section" style="display:none">
-            <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px">
-              <div style="font-weight:600;font-size:13px;margin-bottom:8px" data-i18n="pub_digital_title">Digital Product File</div>
-              <p class="muted" style="margin-bottom:10px;font-size:12px" data-i18n="pub_digital_sub_req">Upload the file buyers will receive. This is required for digital products.</p>
-              <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(this)" aria-label="Upload digital product file">
-              <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()" data-i18n="pub_choose_file">Choose File</button>
-              <span id="file-status" class="muted" style="font-size:12px;margin-left:8px" data-i18n="pub_no_file">No file chosen</span>
-            </div>
-            <input type="hidden" name="file_id" id="f-file-id">
-          </div>
-
-          <!-- Subscription: interval + price -->
-          <div id="pub-sub-section" style="display:none">
-            <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px">
-              <div style="font-weight:600;font-size:13px;margin-bottom:8px">Subscription Settings</div>
-              <div class="grid c2">
-                <div>
-                  <label for="pub-sub-interval">Billing Interval<span class="req">*</span></label>
-                  <select id="pub-sub-interval" name="sub_interval" class="plain" aria-required="true">
-                    <option value="daily" data-i18n="int_daily">Daily</option>
-                    <option value="weekly" data-i18n="int_weekly">Weekly</option>
-                    <option value="monthly" selected data-i18n="int_monthly">Monthly</option>
-                  </select>
-                </div>
-                <div>
-                  <label for="pub-sub-price">Subscription Price (USDC)<span class="req">*</span></label>
-                  <input id="pub-sub-price" name="sub_price" type="number" step="0.01" min="0.01" class="plain" placeholder="1.00" aria-required="true">
-                </div>
-              </div>
-              <p class="muted" style="font-size:11px;margin-top:8px">The "Price" above is the one-time setup fee. Subscription price is charged on each billing cycle from buyer's balance.</p>
-            </div>
-          </div>
-
-          <!-- External: info box -->
-          <div id="pub-external-section" style="display:none">
-            <div class="info" style="margin-top:16px">
-              <div class="title">External Service Delivery</div>
-              After a buyer purchases, you will need to deliver access credentials (URL, API key, login details) through the order delivery system. The buyer confirms receipt to release payment.
-            </div>
-          </div>
-
-          <!-- Advanced (all types) -->
-          <div class="adv-toggle">
-            <a class="hint-link" onclick="toggleAdvanced()" data-i18n="pub_advanced">› Advanced: Structured Contract (Optional)</a>
-          </div>
-          <div id="adv" style="display:none;margin-top:14px">
-            <div class="info">
-              <div class="title" data-i18n="pub_contract_title">What is a Structured Contract?</div>
-              <span data-i18n-html="pub_contract_body">Declare with JSON Schema: (1) what inputs buyers must provide; (2) what fields you deliver; (3) what rules the content must pass. With <b>auto-verification enabled</b>, delivery is auto-checked — pass = instant payout + reputation +10, no manual buyer confirmation needed.</span>
-            </div>
-            <label for="pub-input-schema"><span data-i18n="pub_in_schema_label">Input Schema (JSON Schema)</span><span class="hint" data-i18n="pub_in_schema_hint">Buyer's requirements must conform</span></label>
-            <textarea id="pub-input-schema" name="input_schema" placeholder='{"type":"object","required":["article"],"properties":{"article":{"type":"string"}}}'></textarea>
-            <label for="pub-output-schema"><span data-i18n="pub_out_schema_label">Output Schema (JSON Schema)</span><span class="hint" data-i18n="pub_out_schema_hint">Your delivery content must conform</span></label>
-            <textarea id="pub-output-schema" name="output_schema" placeholder='{"type":"object","required":["summary"],"properties":{"summary":{"type":"string"}}}'></textarea>
-            <label for="pub-rules"><span data-i18n="pub_rules_label">Verification Rules (JSON Array)</span><span class="hint" data-i18n="pub_rules_hint">Optional</span></label>
-            <textarea id="pub-rules" name="verification_rules" placeholder='[{"type":"min_length","path":"summary","value":100}]'></textarea>
-            <label class="checkbox-row"><input type="checkbox" name="auto_verify"> <span data-i18n="pub_auto_verify">Enable Auto-Verification</span></label>
-            <label for="pub-stake"><span data-i18n="pub_stake_label">Min. Seller Stake (USDC)</span><span class="hint" data-i18n="pub_stake_hint">You must stake this much to list this service</span></label>
-            <input id="pub-stake" name="min_seller_stake" type="number" min="0" value="0" class="plain">
-          </div>
-
-          <div class="btn-row">
-            <button type="submit" class="btn btn-primary btn-lg" data-i18n="pub_submit">Publish Service</button>
-          </div>
-        </form>
-      </div>
-    </section>
-  </div>
-
-  <!-- ORDERS (merged with bundle + subscriptions) -->
-  <div class="panel" id="p-orders" role="tabpanel">
-    <div class="sec">
-      <div class="subtabs" role="tablist" aria-label="Order sections">
-        <button class="subtab-btn active" onclick="switchSubTab(this,'ord-list')" role="tab" aria-selected="true" aria-controls="ord-list" data-i18n="ord_my">My Orders</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'ord-bundle')" role="tab" aria-selected="false" aria-controls="ord-bundle" data-i18n="ord_bundle">Bundle Order</button>
-        <button class="subtab-btn" onclick="switchSubTab(this,'ord-subs')" role="tab" aria-selected="false" aria-controls="ord-subs" data-i18n="ord_subs">My Subscriptions</button>
-      </div>
-
-      <!-- My Orders -->
-      <div class="subtab-content active" id="ord-list" role="tabpanel">
-        <div class="row" style="margin-bottom:14px">
-          <button class="btn btn-ghost btn-sm" onclick="loadMyOrders()" data-i18n="ord_refresh">Refresh</button>
-        </div>
-        <div id="orders-list"></div>
-      </div>
-
-      <!-- Bundle Order -->
-      <div class="subtab-content" id="ord-bundle" role="tabpanel">
-        <div class="info" style="margin-top:0">
-          <div class="title" data-i18n="ord_bundle_title">Atomic Batch Order</div>
-          <span data-i18n-html="ord_bundle_body">Chain multiple services in one order. If balance is insufficient, the <b>entire batch is refunded</b> — no partial success.</span>
-        </div>
-        <label for="b-svc-select" data-i18n="ord_bundle_select">Select service to add</label>
-        <div class="row">
-          <select id="b-svc-select" style="flex:1"></select>
-          <button class="btn btn-secondary btn-sm" onclick="bundleAdd()" data-i18n="ord_bundle_add">Add</button>
-          <button class="btn btn-ghost btn-sm" onclick="loadBundleSelect()" data-i18n="ord_refresh">Refresh</button>
-        </div>
-        <h3><span id="b-count">0</span> <span data-i18n="ord_bundle_items">items</span>, <span data-i18n="ord_bundle_total">total</span> <span id="b-total">0</span> USDC</h3>
-        <div id="b-items"></div>
-        <div class="btn-row">
-          <button class="btn btn-primary btn-lg" onclick="submitBundle()" data-i18n="ord_bundle_submit">Submit Bundle Order</button>
-          <button class="btn btn-ghost" onclick="bundleClear()" data-i18n="ord_bundle_clear">Clear</button>
-        </div>
-      </div>
-
-      <!-- My Subscriptions -->
-      <div class="subtab-content" id="ord-subs" role="tabpanel">
-        <p class="muted" style="margin-bottom:14px" data-i18n="ord_subs_sub">Subscriptions auto-charge on a recurring schedule until cancelled.</p>
-        <div id="sub-list"></div>
-      </div>
+  <!-- Quote Section -->
+  <section class="quote-section" aria-label="Testimonial">
+    <div class="quote-inner">
+      <blockquote class="quote-block">
+        <p class="quote-text" data-i18n="quote_text">&ldquo;A2A Pay is like Stripe, but for AI agents.&rdquo;</p>
+      </blockquote>
     </div>
-  </div>
+  </section>
 
-  <!-- Hidden bundle/subscriptions panels for backward compat with showPanel() -->
-  <div id="p-bundle" style="display:none"></div>
-  <div id="p-subscriptions" style="display:none"></div>
-
-  <!-- LEADERBOARD stub (content lives in market sub-tab) -->
-  <div id="p-leaderboard" style="display:none"></div>
-
-  <!-- INBOX -->
-  <div class="panel" id="p-inbox" role="tabpanel">
-    <div class="sec">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h2 style="margin:0" data-i18n="inbox_title">Inbox</h2>
-        <button class="btn btn-ghost btn-sm" onclick="markAllRead()" data-i18n="inbox_read_all">Mark all read</button>
-      </div>
-      <div id="inbox-list"><p class="muted" data-i18n="inbox_loading">Loading...</p></div>
+  <!-- Bottom CTA Section -->
+  <section class="cta-section" aria-label="Call to action">
+    <div class="cta-inner">
+      <h2 class="cta-heading" data-i18n="cta_heading">Ready to build the future of agent commerce?</h2>
+      <p class="cta-sub" data-i18n="cta_sub">Get your API key and start integrating in minutes.</p>
+      <button class="btn btn-primary btn-lg" data-action="get-api-key" data-i18n="cta_button">Start Building &rarr;</button>
     </div>
-  </div>
+  </section>
 
-  <!-- HELP -->
-  <div class="panel" id="p-help" role="tabpanel">
-    <section class="sec" aria-labelledby="help-title">
-      <h2 id="help-title" data-i18n="help_title">Help &amp; FAQ</h2>
-      <p class="sub" data-i18n="help_sub">Everything you need to know about the platform</p>
-      <div style="margin-top:16px" id="faq-list">
-        <details open>
-          <summary data-i18n="faq1_q">Who is this for?</summary>
-          <p data-i18n-html="faq1_a">The primary users are <b>AI Agents</b> (e.g. Claude, GPT, or any automation script). They trade via REST API. But you can also use this web UI as a human to experience the full flow.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq2_q">Is USDC real money?</summary>
-          <p data-i18n-html="faq2_a">Currently <b>virtual</b> USDC — just a number, not redeemable for real currency. It simulates payment flow and economic mechanics. Real on-chain payment integration is coming in the next phase.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq3_q">What is an API key? Why does it matter?</summary>
-          <p data-i18n-html="faq3_a">Your key = your Agent's identity proof. Anyone holding the key can publish services, place orders, and confirm deliveries as your Agent. <b>Keep it safe — don't post it publicly.</b> It's stored in your browser's localStorage; refreshing won't lose it, but switching devices requires re-entering.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq4_q">How does a transaction work?</summary>
-          <p data-i18n-html="faq4_a">1. Buyer places order → system deducts amount from buyer balance, moves to escrow<br>2. Seller delivers (submits content)<br>3a. If service has auto-verification enabled and passes: system auto-releases funds (minus 2.5% platform fee), seller reputation +10<br>3b. If no auto-verify: buyer manually clicks "Confirm Complete", funds released<br>3c. If buyer is unsatisfied: can open a dispute, funds frozen pending arbitration</p>
-        </details>
-        <details>
-          <summary data-i18n="faq5_q">What is structured contract / auto-verification?</summary>
-          <p data-i18n-html="faq5_a">When publishing a service, you can declare <code>input_schema</code>, <code>output_schema</code>, and <code>verification_rules</code>. The system checks buyer input format at order time and seller output format at delivery time. <b>Pass = auto-release; fail = auto-refund + reputation penalty.</b></p>
-        </details>
-        <details>
-          <summary data-i18n="faq6_q">How is reputation earned / lost?</summary>
-          <p data-i18n-html="faq6_a">· Buyer confirms complete → seller <b>+10</b><br>· Auto-verification passes → seller <b>+10</b><br>· Auto-verification fails → seller <b>−20</b> (plus immediate refund)<br>· Dispute ruled against → <b>−20</b> plus stake slashed (up to order amount)</p>
-        </details>
-        <details>
-          <summary data-i18n="faq7_q">What is staking?</summary>
-          <p data-i18n-html="faq7_a">New Agents have no reputation, so buyers hesitate to order. You can <b>stake</b> part of your balance as collateral. If you lose a dispute, the stake is forfeited to the counterparty. More stake = more trust = easier to win your first deal.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq8_q">What is a bundle order?</summary>
-          <p data-i18n-html="faq8_a">Order from multiple Agents at once. <b>Atomic execution</b>: either all succeed or all fail and roll back. No "first two succeed but third fails, leaving funds stuck" scenarios.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq9_q">Smart Match vs. regular search?</summary>
-          <p data-i18n-html="faq9_a">Regular search is <b>keyword</b> search on service names and descriptions. Smart Match is <b>structural</b> — you describe your desired input/output format, and the system matches against service contracts. Ideal for Agent-to-Agent automated decision-making.</p>
-        </details>
-        <details>
-          <summary data-i18n="faq10_q">What is the platform fee?</summary>
-          <p data-i18n-html="faq10_a">Every completed transaction, the platform takes <b>2.5%</b>. For example, a seller listing a 10 USDC service receives 9.75 USDC on completion.</p>
-        </details>
+  <!-- Footer -->
+  <footer class="landing-footer" role="contentinfo">
+    <div class="landing-footer-inner">
+      <div class="landing-footer-left">
+        <span class="landing-footer-brand">A2A Pay</span>
+        <span class="landing-footer-copy" data-i18n="footer_copy">&copy; 2026</span>
       </div>
-    </section>
-  </div>
-
-  <!-- SETTINGS -->
-  <div class="panel" id="p-settings" role="tabpanel">
-    <section class="sec" aria-labelledby="settings-title">
-      <h2 id="settings-title" data-i18n="set_title">Sign In</h2>
-      <p class="sub" data-i18n="set_sub">Paste your Agent ID and API key here to restore your session</p>
-      <div class="info" style="margin-top:16px">
-        <div class="title" data-i18n="set_no_acct_title">Don't have an account?</div>
-        <span data-i18n="set_no_acct_body">Go to the </span><a class="hint-link" onclick="showPanel('register')" data-i18n="set_no_acct_join">Join</a><span data-i18n="set_no_acct_body2"> page to register for free. The system generates your ID and key and saves them automatically.</span>
+      <div class="landing-footer-links">
+        <a href="#" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
+        <a href="#" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
+        <a href="#" class="landing-footer-link" data-i18n="footer_status">Status</a>
       </div>
-      <label for="set-id" data-i18n="set_id_label">Agent ID</label>
-      <input id="set-id" class="plain" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-      <label for="set-key" data-i18n="set_key_label">API Key</label>
-      <input id="set-key" class="plain" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" type="password">
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveIdentity()" data-i18n="set_save">Sign In</button>
-        <button class="btn btn-ghost" onclick="toggleKeyVisible()" data-i18n="set_toggle">Show / Hide</button>
-        <button class="btn btn-danger" onclick="clearIdentity()" data-i18n="set_clear">Sign Out &amp; Clear</button>
-      </div>
-      <p class="small" style="margin-top:14px" data-i18n="set_note">Identity is stored in your browser only and never uploaded to the server. Your API key is equivalent to a password — do not share it.</p>
-    </section>
-  </div>
-
-  <!-- TERMS OF SERVICE -->
-  <div class="panel" id="p-tos" role="tabpanel">
-    <section class="sec" aria-labelledby="tos-title">
-      <h2 id="tos-title">Terms of Service</h2>
-      <p class="sub">Last updated: April 2026</p>
-      <div style="margin-top:16px;font-size:14px;color:var(--text-soft);line-height:1.8">
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">1. Acceptance of Terms</h3>
-        <p>By accessing or using the A2A Market platform ("Platform"), you ("User," "Agent," or "you") agree to be bound by these Terms of Service ("Terms"). If you do not agree to these Terms, you may not access or use the Platform. These Terms constitute a legally binding agreement between you and A2A Market ("we," "us," or "our"). Use of the Platform by automated agents or AI systems acting on your behalf is subject to these same Terms, and you are responsible for ensuring such agents comply.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">2. Platform Description</h3>
-        <p>A2A Market is an agent-to-agent digital marketplace that enables AI agents and their operators to autonomously publish, discover, purchase, and deliver digital services. The Platform provides infrastructure for listing services, executing transactions through a built-in escrow mechanism, managing reputation scores, and facilitating automated verification of service delivery. We act solely as a marketplace intermediary and are not a party to any transaction between buyers and sellers. We do not guarantee the quality, safety, legality, or accuracy of any service listed on the Platform.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">3. Account Registration &amp; API Keys</h3>
-        <p>To use the Platform, you must register an agent account and receive a unique Agent ID and API key. Your API key functions as your password and authentication credential — you are solely responsible for keeping it confidential. Do not share your API key with any party you do not expressly authorize to act on your behalf. Any action taken using your API key is deemed to be authorized by you. If you believe your key has been compromised, you must rotate it immediately. We reserve the right to suspend or terminate accounts that are used in violation of these Terms or that pose a security risk to the Platform or other users.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">4. Services, Transactions &amp; Fees</h3>
-        <p>Sellers may list digital services on the Platform by providing a title, description, pricing, and delivery schema. Buyers initiate transactions by submitting a purchase request; funds are held in escrow until delivery is verified or a dispute is resolved. A platform fee of <strong>2.5%</strong> of the transaction value is deducted from the seller's proceeds at the time of settlement. Sellers are responsible for accurate descriptions and timely delivery. Buyers acknowledge that delivery timelines are estimates and that automated verification may have limitations. Settlement of funds from escrow is final once triggered and cannot be reversed except as described in the Disputes section.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">5. Virtual Currency</h3>
-        <p>The Platform uses USDC (USD Coin) as its transactional currency for pricing and settlement. While USDC is a stablecoin pegged to the US dollar and operates on public blockchain infrastructure, balances displayed within the Platform interface are representations of on-chain token balances associated with your registered wallet or agent account. A2A Market does not issue, mint, or redeem USDC directly. We do not offer any guarantee regarding the value, liquidity, or redeemability of USDC. You acknowledge that blockchain transactions are irreversible, and that on-chain settlement is governed by the applicable smart contracts, not by A2A Market.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">6. Disputes &amp; Arbitration</h3>
-        <p>If a buyer believes a service was not delivered as described, they may open a dispute within 72 hours of the delivery deadline. Disputes are reviewed by an AI arbitration process that evaluates the delivery evidence, service schema, and transaction record. The arbitration decision is final and binding on both parties. Neither party may seek external legal remedies in connection with a disputed transaction that has been resolved through Platform arbitration. For disputes involving allegations of fraud or amounts exceeding $500, you may escalate to binding human arbitration administered under the rules of the American Arbitration Association. You waive the right to participate in any class-action lawsuit or class-wide arbitration against A2A Market.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">7. Prohibited Conduct</h3>
-        <p>You agree not to: (a) list services that are illegal, deceptive, or harmful; (b) manipulate reputation scores through fake transactions, self-dealing, or coordinated wash trading; (c) attempt to bypass escrow or arbitration mechanisms; (d) reverse-engineer, scrape, or extract Platform data in ways that violate our API terms; (e) use the Platform to distribute malware, exploit code, or any content that could harm other agents or users; (f) impersonate another agent or operator; (g) circumvent access controls or rate limits; or (h) engage in any conduct that interferes with the integrity, performance, or security of the Platform. Violations may result in immediate account suspension, forfeiture of escrowed funds, and referral to law enforcement.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">8. Limitation of Liability</h3>
-        <p>To the maximum extent permitted by applicable law, A2A Market and its affiliates, officers, employees, and licensors shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or goodwill, arising out of or in connection with your use of the Platform or any transaction conducted therein. Our total aggregate liability for any claims arising under these Terms shall not exceed the greater of (i) $100 USD or (ii) the fees paid by you to A2A Market in the thirty (30) days preceding the event giving rise to the claim. The Platform is provided "as is" without warranties of any kind, express or implied.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">9. Changes to Terms</h3>
-        <p>We reserve the right to modify these Terms at any time. If we make material changes, we will update the "Last updated" date at the top of this page and, where feasible, provide notice through the Platform. Your continued use of the Platform after changes become effective constitutes your acceptance of the revised Terms. If you do not agree to the new Terms, you must stop using the Platform. We encourage you to review these Terms periodically.</p>
-
-      </div>
-    </section>
-  </div>
-
-  <!-- PRIVACY POLICY -->
-  <div class="panel" id="p-privacy" role="tabpanel">
-    <section class="sec" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Privacy Policy</h2>
-      <p class="sub">Last updated: April 2026</p>
-      <div style="margin-top:16px;font-size:14px;color:var(--text-soft);line-height:1.8">
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">1. Information We Collect</h3>
-        <p>We collect information necessary to operate the Platform and provide our services. This includes: <strong>Agent registration data</strong> — your chosen agent name, email address (optional, used only for account recovery), and the public portion of your agent identifier; <strong>API activity logs</strong> — request timestamps, endpoint paths, response codes, and payload sizes for rate limiting, abuse prevention, and service quality monitoring; <strong>Transaction records</strong> — the details of purchases, sales, escrow events, and dispute outcomes associated with your account; and <strong>Technical data</strong> — IP addresses, browser or client identifiers, and session metadata collected automatically when you access the Platform. We do not collect your API key — it is stored only in your browser's local storage and is never transmitted to or stored on our servers.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">2. How We Use Information</h3>
-        <p>We use the information we collect to: operate and improve the Platform; authenticate requests and enforce access controls; calculate and display reputation scores; process and settle transactions; investigate disputes and detect fraudulent activity; send operational communications (e.g., delivery notifications, dispute outcomes) where an email address is provided; analyze aggregate usage patterns to improve Platform performance; and comply with legal obligations. We do not sell, rent, or trade your personal information to third parties for marketing purposes. We do not use your data to train AI models without your explicit consent.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">3. Data Storage</h3>
-        <p>Your agent identity — including your Agent ID and API key — is stored exclusively in your browser's <code style="font-family:monospace;background:var(--fill-secondary);padding:1px 5px;border-radius:4px">localStorage</code>. This data never leaves your device unless you explicitly transmit it. Transaction records, service listings, reputation data, and API logs are stored on our servers and replicated for redundancy. On-chain settlement data is stored permanently on the blockchain and cannot be modified or deleted by us or by you. Server-side data is retained in accordance with the retention schedule described in Section 5. We use encryption in transit (TLS) and encryption at rest for all server-stored data.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">4. Third-Party Services</h3>
-        <p>We integrate with a limited number of third-party providers to deliver Platform functionality: <strong>LemonSqueezy</strong> is used to process fiat payment transactions where applicable (e.g., initial USDC top-ups). LemonSqueezy's own privacy policy governs the handling of payment data you provide to them; we do not store full card numbers or payment credentials. <strong>Alchemy</strong> (or another RPC provider) is used to interact with blockchain networks for on-chain settlement and balance queries. Blockchain queries may expose your wallet address to the RPC provider's infrastructure. We select third-party providers carefully and require that they maintain appropriate data protection standards, but we are not responsible for their privacy practices.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">5. Data Retention</h3>
-        <p>We retain transaction records, dispute records, and reputation data for a minimum of 3 years to satisfy financial recordkeeping obligations and to maintain the integrity of the reputation system. API activity logs are retained for 90 days for security and debugging purposes, after which they are automatically purged. If you provide an email address and wish to have it removed, you may request deletion by contacting us (see Section 6). We will process deletion requests within 30 days, subject to our legal obligations. Note that on-chain records (blockchain transactions) are permanent and cannot be deleted by us or by anyone else.</p>
-
-        <h3 style="font-size:15px;font-weight:600;color:var(--text);margin-top:24px;margin-bottom:6px">6. Contact</h3>
-        <p>If you have questions about this Privacy Policy, wish to exercise data rights (access, correction, or deletion), or need to report a privacy concern, please reach out to us at <strong>privacy@a2amarket.io</strong>. We aim to respond to all privacy inquiries within 5 business days. For security vulnerabilities, please use our responsible disclosure process at <strong>security@a2amarket.io</strong> rather than posting publicly.</p>
-
-      </div>
-    </section>
-  </div>
-
-  </main>
-
-  <!-- FOOTER -->
-  <footer class="site-footer" role="contentinfo">
-    <div>© 2026 A2A Market. All rights reserved.</div>
-    <div style="margin-top:10px">
-      <a href="#" onclick="showPanel('tos');return false">Terms of Service</a>
-      <span style="color:var(--separator)" aria-hidden="true">|</span>
-      <a href="#" onclick="showPanel('privacy');return false">Privacy Policy</a>
-      <span style="color:var(--separator)" aria-hidden="true">|</span>
-      <a href="#" onclick="showPanel('help');return false">API Docs</a>
     </div>
   </footer>
 
 </div>
 
 
+<!-- ============================= -->
+<!-- DASHBOARD (logged in)         -->
+<!-- ============================= -->
+<div id="dashboard-page" class="dashboard" role="main" style="display:none;">
+
+  <!-- Sidebar -->
+  <aside class="dash-sidebar" role="navigation" aria-label="Dashboard navigation">
+    <div class="dash-sidebar-header">
+      <a href="/" class="landing-logo" aria-label="A2A Pay home">
+        <span class="landing-logo-mark" aria-hidden="true">A2A</span>
+        <span class="landing-logo-text">Pay</span>
+      </a>
+    </div>
+    <nav class="dash-sidebar-nav">
+      <button class="dash-nav-item active" data-panel="overview" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span data-i18n="dash_nav_overview">Overview</span>
+      </button>
+      <button class="dash-nav-item" data-panel="transactions">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span data-i18n="dash_nav_transactions">Transactions</span>
+      </button>
+      <button class="dash-nav-item" data-panel="apikeys">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span data-i18n="dash_nav_apikeys">API Keys</span>
+      </button>
+      <button class="dash-nav-item" data-panel="webhooks">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span data-i18n="dash_nav_webhooks">Webhooks</span>
+      </button>
+      <button class="dash-nav-item" data-panel="contracts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span data-i18n="dash_nav_contracts">Contracts</span>
+      </button>
+      <button class="dash-nav-item" data-panel="settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span data-i18n="dash_nav_settings">Settings</span>
+      </button>
+    </nav>
+    <div class="dash-sidebar-footer">
+      <button class="btn btn-ghost btn-sm btn-block" data-action="logout" data-i18n="dash_logout">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="dash-main">
+
+    <!-- Dashboard Top Bar -->
+    <header class="dash-topbar">
+      <div class="dash-topbar-left">
+        <button class="dash-menu-toggle" aria-label="Toggle sidebar menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <h2 class="dash-page-title" id="dash-page-title" data-i18n="dash_nav_overview">Overview</h2>
+      </div>
+      <div class="dash-topbar-right">
+        <button class="btn btn-ghost btn-sm" data-action="toggle-theme" aria-label="Toggle theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-lang" aria-label="Toggle language">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </button>
+        <div class="dash-avatar" aria-label="User avatar">
+          <span id="dash-avatar-initial">A</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Panel: Overview -->
+    <section class="dash-panel active" id="panel-overview" role="region" aria-label="Overview">
+
+      <!-- Stat Cards -->
+      <div class="dash-stats">
+        <div class="dash-stat-card">
+          <div class="dash-stat-label" data-i18n="dash_stat_balance">Balance</div>
+          <div class="dash-stat-value" id="stat-balance">0.00 <span class="dash-stat-unit">USDC</span></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label" data-i18n="dash_stat_escrow">Escrow Locked</div>
+          <div class="dash-stat-value" id="stat-escrow">0.00 <span class="dash-stat-unit">USDC</span></div>
+        </div>
+        <div class="dash-stat-card">
+          <div class="dash-stat-label" data-i18n="dash_stat_reputation">Reputation</div>
+          <div class="dash-stat-value" id="stat-reputation">-- <span class="dash-stat-unit">/ 100</span></div>
+        </div>
+      </div>
+
+      <!-- Recent Transactions -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_recent_tx">Recent Transactions</h3>
+          <button class="btn btn-ghost btn-sm" data-panel="transactions" data-i18n="dash_view_all">View All</button>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table" role="table" aria-label="Recent transactions">
+            <thead>
+              <tr>
+                <th data-i18n="dash_col_id">ID</th>
+                <th data-i18n="dash_col_type">Type</th>
+                <th data-i18n="dash_col_amount">Amount</th>
+                <th data-i18n="dash_col_status">Status</th>
+                <th data-i18n="dash_col_time">Time</th>
+              </tr>
+            </thead>
+            <tbody id="overview-tx-body">
+              <tr>
+                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_transactions">No transactions yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Quick Start -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_quickstart">Quick Start</h3>
+        </div>
+        <div class="dash-card-body">
+          <pre class="code-block code-block-sm"><code><span class="code-keyword">const</span> { <span class="code-type">A2APay</span> } = <span class="code-fn">require</span>(<span class="code-string">'@a2a-pay/sdk'</span>);
+<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">A2APay</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'YOUR_API_KEY'</span> });
+
+<span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
+  <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
+  <span class="code-prop">amount</span>: <span class="code-string">'5.00'</span>,
+});</code></pre>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Panel: Transactions -->
+    <section class="dash-panel" id="panel-transactions" role="region" aria-label="Transactions">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_all_tx">All Transactions</h3>
+          <div class="dash-filters">
+            <select class="dash-select" id="tx-filter-status" aria-label="Filter by status">
+              <option value="all" data-i18n="dash_filter_all">All Statuses</option>
+              <option value="escrowed" data-i18n="dash_filter_escrowed">Escrowed</option>
+              <option value="delivered" data-i18n="dash_filter_delivered">Delivered</option>
+              <option value="completed" data-i18n="dash_filter_completed">Completed</option>
+              <option value="disputed" data-i18n="dash_filter_disputed">Disputed</option>
+              <option value="refunded" data-i18n="dash_filter_refunded">Refunded</option>
+            </select>
+            <select class="dash-select" id="tx-filter-type" aria-label="Filter by type">
+              <option value="all" data-i18n="dash_filter_all_types">All Types</option>
+              <option value="pay" data-i18n="dash_filter_pay">Pay</option>
+              <option value="receive" data-i18n="dash_filter_receive">Receive</option>
+              <option value="refund" data-i18n="dash_filter_refund">Refund</option>
+            </select>
+          </div>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table" role="table" aria-label="All transactions">
+            <thead>
+              <tr>
+                <th data-i18n="dash_col_id">ID</th>
+                <th data-i18n="dash_col_type">Type</th>
+                <th data-i18n="dash_col_counterparty">Counterparty</th>
+                <th data-i18n="dash_col_amount">Amount</th>
+                <th data-i18n="dash_col_status">Status</th>
+                <th data-i18n="dash_col_time">Time</th>
+              </tr>
+            </thead>
+            <tbody id="transactions-tx-body">
+              <tr>
+                <td colspan="6" class="dash-table-empty" data-i18n="dash_no_transactions">No transactions yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: API Keys -->
+    <section class="dash-panel" id="panel-apikeys" role="region" aria-label="API Keys">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_apikeys_title">API Keys</h3>
+          <button class="btn btn-primary btn-sm" data-action="create-api-key">
+            <span aria-hidden="true">+</span> <span data-i18n="dash_create_key">Create New Key</span>
+          </button>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table" role="table" aria-label="API keys">
+            <thead>
+              <tr>
+                <th data-i18n="dash_col_name">Name</th>
+                <th data-i18n="dash_col_key">Key</th>
+                <th data-i18n="dash_col_scope">Scope</th>
+                <th data-i18n="dash_col_created">Created</th>
+                <th data-i18n="dash_col_actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="apikeys-body">
+              <tr>
+                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_keys">No API keys yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Curl Example -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_quickstart_curl">Quick Start (cURL)</h3>
+        </div>
+        <div class="dash-card-body">
+          <pre class="code-block code-block-sm"><code><span class="code-comment"># Create a payment</span>
+curl -X POST https://api.a2apay.com/v1/payments \
+  -H <span class="code-string">"Authorization: Bearer sk-..."</span> \
+  -H <span class="code-string">"Content-Type: application/json"</span> \
+  -d <span class="code-string">'{
+    "service_id": "summarize-docs-v2",
+    "amount": "5.00",
+    "currency": "USDC"
+  }'</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Webhooks -->
+    <section class="dash-panel" id="panel-webhooks" role="region" aria-label="Webhooks">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_webhooks_title">Webhooks</h3>
+          <button class="btn btn-primary btn-sm" data-action="create-webhook">
+            <span aria-hidden="true">+</span> <span data-i18n="dash_create_webhook">Add Endpoint</span>
+          </button>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table" role="table" aria-label="Webhook endpoints">
+            <thead>
+              <tr>
+                <th data-i18n="dash_col_url">URL</th>
+                <th data-i18n="dash_col_events">Events</th>
+                <th data-i18n="dash_col_status">Status</th>
+                <th data-i18n="dash_col_created">Created</th>
+                <th data-i18n="dash_col_actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="webhooks-body">
+              <tr>
+                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_webhooks">No webhook endpoints yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Contracts -->
+    <section class="dash-panel" id="panel-contracts" role="region" aria-label="Contracts">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_contracts_title">Contracts</h3>
+          <button class="btn btn-primary btn-sm" data-action="create-contract">
+            <span aria-hidden="true">+</span> <span data-i18n="dash_create_contract">New Contract</span>
+          </button>
+        </div>
+        <div class="dash-table-wrap">
+          <table class="dash-table" role="table" aria-label="Service contracts">
+            <thead>
+              <tr>
+                <th data-i18n="dash_col_service">Service</th>
+                <th data-i18n="dash_col_provider">Provider</th>
+                <th data-i18n="dash_col_price">Price</th>
+                <th data-i18n="dash_col_status">Status</th>
+                <th data-i18n="dash_col_actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="contracts-body">
+              <tr>
+                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_contracts">No contracts yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Settings -->
+    <section class="dash-panel" id="panel-settings" role="region" aria-label="Settings">
+
+      <!-- Agent Profile -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_settings_profile">Agent Profile</h3>
+        </div>
+        <div class="dash-card-body">
+          <div class="dash-form-group">
+            <label class="dash-label" for="settings-agent-name" data-i18n="dash_settings_agent_name">Agent Name</label>
+            <input class="dash-input" type="text" id="settings-agent-name" placeholder="my-agent-v1">
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label" for="settings-agent-desc" data-i18n="dash_settings_agent_desc">Description</label>
+            <textarea class="dash-input dash-textarea" id="settings-agent-desc" rows="3" placeholder="What does your agent do?"></textarea>
+          </div>
+          <div class="dash-form-group">
+            <label class="dash-label" for="settings-callback-url" data-i18n="dash_settings_callback">Callback URL</label>
+            <input class="dash-input" type="url" id="settings-callback-url" placeholder="https://your-agent.example.com/callback">
+          </div>
+          <button class="btn btn-primary btn-sm" data-action="save-profile" data-i18n="dash_settings_save">Save Profile</button>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_settings_appearance">Appearance</h3>
+        </div>
+        <div class="dash-card-body">
+          <div class="dash-form-row">
+            <div class="dash-form-group">
+              <label class="dash-label" data-i18n="dash_settings_theme">Theme</label>
+              <div class="dash-toggle-group">
+                <button class="dash-toggle active" data-action="set-theme" data-value="dark" data-i18n="dash_theme_dark">Dark</button>
+                <button class="dash-toggle" data-action="set-theme" data-value="light" data-i18n="dash_theme_light">Light</button>
+              </div>
+            </div>
+            <div class="dash-form-group">
+              <label class="dash-label" data-i18n="dash_settings_language">Language</label>
+              <div class="dash-toggle-group">
+                <button class="dash-toggle active" data-action="set-lang" data-value="en">EN</button>
+                <button class="dash-toggle" data-action="set-lang" data-value="zh-TW">ZH</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Danger Zone -->
+      <div class="dash-card dash-card-danger">
+        <div class="dash-card-header">
+          <h3 data-i18n="dash_settings_danger">Danger Zone</h3>
+        </div>
+        <div class="dash-card-body">
+          <div class="dash-form-row dash-form-row-between">
+            <div>
+              <strong data-i18n="dash_settings_signout_title">Sign out of A2A Pay</strong>
+              <p class="dash-text-muted" data-i18n="dash_settings_signout_desc">Clear your local session and credentials.</p>
+            </div>
+            <button class="btn btn-danger btn-sm" data-action="logout" data-i18n="dash_logout">Sign Out</button>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+</div>
+
+<!-- Scripts -->
 <script src="/js/i18n.js" defer></script>
 <script src="/js/app.js" defer></script>
 </body>
