@@ -17,6 +17,7 @@ const subscriptionRoutes = require('./routes/subscriptions');
 const withdrawalRoutes = require('./routes/withdrawals');
 const webhookRouter = require('./webhook');
 const messageRoutes = require('./routes/messages');
+const fileRoutes = require('./routes/files');
 const { dbAll, dbRun } = require('./db/helpers');
 const { v4: uuidv4 } = require('uuid');
 
@@ -129,6 +130,7 @@ app.use('/subscriptions', subscriptionRoutes);
 app.use('/withdrawals', withdrawalRoutes);
 app.use('/webhook', webhookRouter);
 app.use('/messages', messageRoutes);
+app.use('/files', fileRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {

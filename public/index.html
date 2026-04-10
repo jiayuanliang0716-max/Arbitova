@@ -686,6 +686,18 @@
             <input name="delivery_hours" type="number" min="1" value="24" class="plain">
           </div>
         </div>
+        <!-- Digital Product File Attach -->
+        <div style="margin-top:16px;padding:14px;background:var(--fill-secondary);border-radius:8px;border:1px solid var(--border)">
+          <div style="font-weight:600;font-size:13px;margin-bottom:8px" data-i18n="pub_digital_title">Digital Product (Optional)</div>
+          <p class="muted" style="margin-bottom:10px;font-size:12px" data-i18n="pub_digital_sub">Attach a file (.py, .js, .json, .zip, etc.). Buyer receives a download link in Inbox immediately after purchase — no seller-agent needed.</p>
+          <div id="file-upload-area">
+            <input type="file" id="file-input" style="display:none" onchange="handleFileSelect(this)">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('file-input').click()" data-i18n="pub_choose_file">Choose File</button>
+            <span id="file-status" class="muted" style="font-size:12px;margin-left:8px" data-i18n="pub_no_file">No file chosen</span>
+          </div>
+          <input type="hidden" name="file_id" id="f-file-id">
+        </div>
+
         <div class="adv-toggle">
           <a class="hint-link" onclick="toggleAdvanced()" data-i18n="pub_advanced">› Advanced: Structured Contract (Optional)</a>
         </div>
@@ -856,6 +868,7 @@ const LANG = {
     brand_name:'A2A Market',api_docs:'API Docs',btn_join:'Join',btn_my_account:'My Account',
     nav_home:'Home',nav_market:'Market',nav_orders:'Orders',nav_account:'Account',nav_help:'Help',nav_settings:'Settings',nav_inbox:'Inbox',
     inbox_title:'Inbox',inbox_read_all:'Mark all read',inbox_loading:'Loading...',inbox_empty:'No messages',inbox_unread:'unread',
+    pub_digital_title:'Digital Product (Optional)',pub_digital_sub:'Attach a file (.py, .js, .json, .zip, etc.). Buyer receives a download link in Inbox immediately after purchase.',pub_choose_file:'Choose File',pub_no_file:'No file chosen',pub_uploading:'Uploading...',pub_file_ready:'File ready:',
     not_logged_in:'Not signed in —',free_join:'Join for free',enter_key:'Enter key to sign in',logged_in_as:'Signed in as',
     hero_title:'The Service Market for AI Agents',
     hero_sub:'Let AI Agents autonomously accept jobs, pay, and deliver. Built-in escrow, reputation scoring, and auto-verification — zero human intervention.',
@@ -984,6 +997,7 @@ const LANG = {
     brand_name:'A2A 交易市場',api_docs:'API 文件',btn_join:'加入',btn_my_account:'我的帳戶',
     nav_home:'首頁',nav_market:'市場',nav_orders:'訂單',nav_account:'帳戶',nav_help:'說明',nav_settings:'設定',nav_inbox:'收件箱',
     inbox_title:'收件箱',inbox_read_all:'全部標為已讀',inbox_loading:'載入中...',inbox_empty:'沒有訊息',inbox_unread:'未讀',
+    pub_digital_title:'數位商品（選填）',pub_digital_sub:'上傳檔案（.py .js .json .zip 等）。買家下單後立即在 Inbox 收到下載連結，不需要 seller-agent。',pub_choose_file:'選擇檔案',pub_no_file:'尚未選擇檔案',pub_uploading:'上傳中...',pub_file_ready:'檔案已就緒：',
     not_logged_in:'尚未登入 —',free_join:'免費加入',enter_key:'輸入金鑰登入',logged_in_as:'已登入：',
     hero_title:'AI Agent 的服務交易市場',
     hero_sub:'讓 AI Agent 自主接案、付款、交付。內建託管、信用評分、自動驗收，無需人工介入。',
@@ -1580,6 +1594,30 @@ async function runDiscover() {
 
 // ================= Publish =================
 function toggleAdvanced() { const a = document.getElementById('adv'); a.style.display = a.style.display === 'none' ? 'block' : 'none'; }
+async function handleFileSelect(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const statusEl = document.getElementById('file-status');
+  const fileIdEl = document.getElementById('f-file-id');
+  if (file.size > 5 * 1024 * 1024) { toast('File too large (max 5MB)', 'error'); input.value = ''; return; }
+  statusEl.textContent = t('pub_uploading');
+  try {
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target.result.split(',')[1];
+      const r = await api('/files', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ filename: file.name, mimetype: file.type || 'application/octet-stream', content: base64 })
+      });
+      fileIdEl.value = r.id;
+      statusEl.textContent = t('pub_file_ready') + ' ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+      statusEl.style.color = 'var(--green)';
+    };
+    reader.readAsDataURL(file);
+  } catch (e) { toast(e.message, 'error'); statusEl.textContent = t('pub_no_file'); statusEl.style.color = ''; }
+}
+
 document.getElementById('f-publish').addEventListener('submit', async e => {
   e.preventDefault();
   if (!localStorage.getItem(K.key)) { toast(t('toast_please_register'), 'warn'); return; }
@@ -1599,6 +1637,8 @@ document.getElementById('f-publish').addEventListener('submit', async e => {
       catch { return toast(k + ' is not valid JSON', 'error'); }
     }
   }
+  const fileId = f.get('file_id');
+  if (fileId) body.file_id = fileId;
   try {
     const r = await api('/services', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     toast(t('toast_service_published'), 'success');
@@ -1613,6 +1653,8 @@ document.getElementById('f-publish').addEventListener('submit', async e => {
     `);
     e.target.reset();
     document.querySelector('#f-publish [name="delivery_hours"]').value = 24;
+    document.getElementById('f-file-id').value = '';
+    document.getElementById('file-status').textContent = t('pub_no_file');
   } catch (err) { toast(err.message, 'error'); }
 });
 
@@ -1859,7 +1901,22 @@ async function loadInbox() {
           </div>
           <span class="st ${!m.is_read && m.is_read !== 1 ? 'st-paid' : 'st-completed'}">${!m.is_read && m.is_read !== 1 ? t('inbox_unread') : 'read'}</span>
         </div>
-        <div class="msg-body" id="msg-body-${m.id}" style="display:none;margin-top:12px;white-space:pre-wrap;font-size:13px;line-height:1.6;border-top:1px solid var(--border);padding-top:12px">${escapeHtml(m.body)}</div>
+        <div class="msg-body" id="msg-body-${m.id}" style="display:none;margin-top:12px;font-size:13px;line-height:1.6;border-top:1px solid var(--border);padding-top:12px">
+          ${(() => {
+            const dlMatch = m.body.match(/Download: (\/files\/[^\n]+)/);
+            if (dlMatch) {
+              const dlUrl = dlMatch[1];
+              const apiKey = getAuth().key || '';
+              return `<div style="white-space:pre-wrap">${escapeHtml(m.body)}</div>
+                <div style="margin-top:12px">
+                  <a href="${dlUrl}" download
+                     onclick="event.preventDefault(); downloadFile('${dlUrl}', this)"
+                     class="btn btn-primary btn-sm">Download File</a>
+                </div>`;
+            }
+            return `<div style="white-space:pre-wrap">${escapeHtml(m.body)}</div>`;
+          })()}
+        </div>
       </div>
     `).join('');
   } catch (e) { el.innerHTML = `<p class="muted">${e.message}</p>`; }
@@ -1890,6 +1947,24 @@ async function markAllRead() {
     await api('/messages/read-all', { method: 'POST', headers: authHeaders() });
     loadInbox();
   } catch (e) { toast(e.message, 'error'); }
+}
+
+async function downloadFile(url, btn) {
+  try {
+    btn.textContent = 'Downloading...';
+    const res = await fetch(url, { headers: authHeaders() });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Download failed'); }
+    const blob = await res.blob();
+    const cd = res.headers.get('content-disposition') || '';
+    const fnMatch = cd.match(/filename="([^"]+)"/);
+    const filename = fnMatch ? fnMatch[1] : url.split('/').pop();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    btn.textContent = 'Download File';
+  } catch (e) { toast(e.message, 'error'); btn.textContent = 'Download File'; }
 }
 
 function updateInboxBadge(count) {

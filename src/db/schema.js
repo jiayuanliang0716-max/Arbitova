@@ -157,6 +157,17 @@ if (DATABASE_URL) {
 
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS subscription_id TEXT;
 
+      CREATE TABLE IF NOT EXISTS files (
+        id          TEXT PRIMARY KEY,
+        uploader_id TEXT NOT NULL REFERENCES agents(id),
+        filename    TEXT NOT NULL,
+        mimetype    TEXT,
+        size        INTEGER,
+        content     TEXT NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS file_id TEXT REFERENCES files(id);
+
       CREATE TABLE IF NOT EXISTS messages (
         id              TEXT PRIMARY KEY,
         recipient_id    TEXT NOT NULL REFERENCES agents(id),
@@ -313,6 +324,16 @@ if (DATABASE_URL) {
       cancelled_at    TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS files (
+      id          TEXT PRIMARY KEY,
+      uploader_id TEXT NOT NULL REFERENCES agents(id),
+      filename    TEXT NOT NULL,
+      mimetype    TEXT,
+      size        INTEGER,
+      content     TEXT NOT NULL,
+      created_at  TEXT DEFAULT (datetime('now'))
+    );
+
     CREATE TABLE IF NOT EXISTS messages (
       id              TEXT PRIMARY KEY,
       recipient_id    TEXT NOT NULL REFERENCES agents(id),
@@ -369,6 +390,7 @@ if (DATABASE_URL) {
   addColIfMissing('agents', 'wallet_address', 'TEXT');
   addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
   addColIfMissing('orders', 'subscription_id', 'TEXT');
+  addColIfMissing('services', 'file_id', 'TEXT');
 
   console.log('SQLite schema initialized');
 

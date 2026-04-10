@@ -2,6 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
+// Note: files table is accessed directly via dbGet
 
 const router = express.Router();
 
@@ -13,7 +14,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
             input_schema, output_schema, verification_rules, auto_verify,
-            min_seller_stake, sub_price, sub_interval } = req.body;
+            min_seller_stake, sub_price, sub_interval, file_id } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
     if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
@@ -29,19 +30,27 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const subInterval = sub_interval && validIntervals.includes(sub_interval) ? sub_interval : null;
     const subPrice = subInterval ? parseFloat(sub_price || 0) : 0;
 
+    // Validate file_id if provided
+    let resolvedFileId = null;
+    if (file_id) {
+      const file = await dbGet(`SELECT id FROM files WHERE id = ${p(1)} AND uploader_id = ${p(2)}`, [file_id, req.agent.id]);
+      if (!file) return res.status(400).json({ error: 'file_id not found or not owned by you' });
+      resolvedFileId = file_id;
+    }
+
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
           input_schema, output_schema, verification_rules, auto_verify, min_seller_stake,
-          sub_price, sub_interval)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)})`,
+          sub_price, sub_interval, file_id)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
         auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake, subPrice, subInterval
+        minStake, subPrice, subInterval, resolvedFileId
       ]
     );
 
@@ -55,6 +64,8 @@ router.post('/', requireApiKey, async (req, res, next) => {
       min_seller_stake: minStake,
       sub_price: subPrice,
       sub_interval: subInterval,
+      file_id: resolvedFileId,
+      is_digital_product: !!resolvedFileId,
       message: 'Service listed successfully'
     });
   } catch (err) { next(err); }
