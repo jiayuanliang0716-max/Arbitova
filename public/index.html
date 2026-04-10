@@ -376,6 +376,57 @@
     .checkbox-row{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:14px;color:var(--text)}
     .checkbox-row input[type=checkbox]{width:auto}
     .adv-toggle{margin-top:16px}
+
+    /* Theme toggle */
+    .theme-btn{
+      background:var(--fill-secondary);border:none;color:var(--text-soft);
+      width:32px;height:32px;border-radius:50%;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:background .15s,color .15s;flex-shrink:0;
+    }
+    .theme-btn:hover{background:var(--fill);color:var(--text)}
+
+    /* Light mode overrides */
+    [data-theme="light"]{
+      --bg:#ffffff;
+      --bg-soft:#f5f5f7;
+      --panel:#f5f5f7;
+      --panel-raised:#e8e8ed;
+      --panel-hover:#e8e8ed;
+      --separator:rgba(0,0,0,0.1);
+      --text:#1d1d1f;
+      --text-soft:#6e6e73;
+      --text-dim:#a1a1a6;
+      --fill:rgba(0,0,0,0.07);
+      --fill-secondary:rgba(0,0,0,0.04);
+      --primary:#0071e3;
+      --primary-hover:#0077ed;
+      --primary-bg:rgba(0,113,227,0.1);
+      --primary-border:rgba(0,113,227,0.22);
+      --success:#1a8c3c;
+      --success-bg:rgba(26,140,60,0.1);
+      --success-border:rgba(26,140,60,0.2);
+      --warn:#c85800;
+      --warn-bg:rgba(200,88,0,0.08);
+      --warn-border:rgba(200,88,0,0.18);
+      --danger:#d0001a;
+      --danger-bg:rgba(208,0,26,0.08);
+      --danger-border:rgba(208,0,26,0.18);
+      --purple:#7936b0;
+      --purple-bg:rgba(121,54,176,0.1);
+      --purple-border:rgba(121,54,176,0.2);
+    }
+    [data-theme="light"] .toast{background:rgba(255,255,255,.96);border:1px solid rgba(0,0,0,.12);color:#1d1d1f}
+    [data-theme="light"] .modal{background:#ffffff;box-shadow:0 20px 60px rgba(0,0,0,.18)}
+    [data-theme="light"] .overlay{background:rgba(0,0,0,.35)}
+    [data-theme="light"] .hero{background:radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,113,227,.08) 0%, transparent 70%)}
+    [data-theme="light"] input,[data-theme="light"] textarea,[data-theme="light"] select{background:rgba(0,0,0,.04)}
+    [data-theme="light"] input:focus,[data-theme="light"] textarea:focus,[data-theme="light"] select:focus{background:rgba(0,0,0,.07);box-shadow:0 0 0 3px rgba(0,113,227,.2)}
+    [data-theme="light"] .nav{background:#e8e8ed}
+    [data-theme="light"] .nav button.active{background:#ffffff;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+    [data-theme="light"] .subtabs{background:#e8e8ed}
+    [data-theme="light"] .subtab-btn.active{background:#ffffff}
+    [data-theme="light"] .brand-mark{background:var(--primary)}
   </style>
 </head>
 <body>
@@ -397,8 +448,16 @@
         <div class="sub">Agent-to-Agent Infrastructure</div>
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px">
       <a href="/docs" target="_blank" class="header-links" style="font-size:13px;color:var(--text-soft);text-decoration:none">API 文件</a>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" title="切換亮/暗模式">
+        <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+      </button>
       <div id="header-cta">
         <button class="btn btn-primary btn-sm" onclick="showPanel('register')">加入</button>
       </div>
@@ -1659,6 +1718,22 @@ function toggleKeyVisible() {
   const el = document.getElementById('set-key');
   el.type = el.type === 'password' ? 'text' : 'password';
 }
+
+// ================= Theme =================
+const MOON_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z"/></svg>`;
+const SUN_SVG  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>`;
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.innerHTML = t === 'light' ? MOON_SVG : SUN_SVG;
+  localStorage.setItem('theme', t);
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+}
+// Init theme from localStorage, default dark
+applyTheme(localStorage.getItem('theme') || 'dark');
 
 // ================= Init =================
 updateIdBar();
