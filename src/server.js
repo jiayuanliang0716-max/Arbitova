@@ -62,7 +62,7 @@ app.get('/api/stats', async (req, res) => {
     const [agents, services, orders] = await Promise.all([
       dbAll('SELECT COUNT(*) as count FROM agents', []),
       dbAll('SELECT COUNT(*) as count FROM services', []),
-      dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount * 0.025), 0) as fees FROM orders WHERE status = ${p(1)}`, ['completed'])
+      dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as fees FROM orders WHERE status = ${p(1)}`, ['completed'])
     ]);
     statsCache = {
       agents: parseInt(agents[0].count),

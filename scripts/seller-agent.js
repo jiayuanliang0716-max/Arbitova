@@ -47,7 +47,7 @@ async function processOrders() {
 
         await api(`/orders/${order.id}/deliver`, {
           method: 'POST',
-          body: JSON.stringify({ result: report }),
+          body: JSON.stringify({ content: report }),
         });
         console.log(`  ✓ 已交付`);
       } catch (err) {
