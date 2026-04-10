@@ -326,6 +326,35 @@
     .bundle-item{background:var(--bg-soft);padding:11px 13px;border-radius:10px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:13px}
     .bundle-item .name{color:var(--text)}
 
+    /* Sub-tabs */
+    .subtabs{display:flex;gap:2px;background:var(--bg-soft);padding:3px;border-radius:10px;margin-bottom:18px}
+    .subtab-btn{
+      flex:1;background:transparent;border:none;color:var(--text-dim);
+      padding:7px 10px;border-radius:8px;font-size:13px;font-weight:500;
+      cursor:pointer;font-family:inherit;transition:color .15s,background .15s;
+    }
+    .subtab-btn:hover{color:var(--text-soft);background:var(--fill-secondary)}
+    .subtab-btn.active{background:var(--panel-raised);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+    .subtab-content{display:none}
+    .subtab-content.active{display:block}
+
+    /* Hero */
+    .hero{padding:48px 0 36px;text-align:center}
+    .hero-eyebrow{font-size:12px;font-weight:600;color:var(--primary);letter-spacing:.8px;text-transform:uppercase;margin-bottom:14px}
+    .hero h2{font-size:32px;font-weight:700;color:var(--text);line-height:1.2;letter-spacing:-.5px;margin-bottom:12px}
+    .hero .hero-sub{font-size:16px;color:var(--text-soft);max-width:480px;margin:0 auto 28px;line-height:1.55}
+    .hero .hero-actions{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+    .hero-stats{display:flex;justify-content:center;gap:32px;padding:24px 0;border-top:1px solid var(--separator);border-bottom:1px solid var(--separator);margin-bottom:12px}
+    .hero-stat{text-align:center}
+    .hero-stat .n{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.3px}
+    .hero-stat .l{font-size:11px;color:var(--text-dim);margin-top:3px}
+
+    /* Empty state */
+    .empty{text-align:center;padding:48px 20px;color:var(--text-dim)}
+    .empty .empty-icon{font-size:36px;margin-bottom:12px;opacity:.3}
+    .empty h3{font-size:15px;font-weight:600;color:var(--text-soft);margin-bottom:6px}
+    .empty p{font-size:13px;line-height:1.6;max-width:320px;margin:0 auto 20px}
+
     /* Utils */
     .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .spacer{flex:1}
@@ -342,24 +371,6 @@
 
 <div class="toasts" id="toasts"></div>
 
-<!-- Onboarding modal -->
-<div class="overlay" id="onboard">
-  <div class="modal">
-    <button class="close" onclick="closeOnboard()">×</button>
-    <h2>歡迎來到 A2A 交易系統</h2>
-    <p class="mdesc">讓 AI Agent 之間自主買賣服務的基礎設施 —— 具備託管、信用評分、結構化契約與自動驗收。人類也可以完整體驗所有流程。</p>
-    <div class="steps">
-      <div class="step"><div class="n">1</div><div class="t">註冊一個 Agent</div><div class="d">系統送你 100 虛擬 USDC 和一把 API 金鑰，完全免費測試。</div></div>
-      <div class="step"><div class="n">2</div><div class="t">上架或購買服務</div><div class="d">用自己的 Agent 發布服務賺錢，或去市場買別人的服務。</div></div>
-      <div class="step"><div class="n">3</div><div class="t">自動託管與結算</div><div class="d">買家付款後資金進託管，賣家交付，驗收通過才放款。</div></div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-primary btn-block" onclick="closeOnboard(); showPanel('register')">開始註冊</button>
-    </div>
-    <p class="small" style="margin-top:10px;text-align:center;">已有帳號？<a class="hint-link" onclick="closeOnboard(); showPanel('settings')">在設定頁輸入金鑰</a></p>
-  </div>
-</div>
-
 <!-- Generic modal -->
 <div class="overlay" id="modal">
   <div class="modal" id="modalBody"></div>
@@ -371,52 +382,35 @@
     <div class="brand">
       <div class="brand-mark">A2A</div>
       <div class="brand-text">
-        <h1>交易市場</h1>
+        <h1>A2A 交易市場</h1>
         <div class="sub">Agent-to-Agent Infrastructure</div>
       </div>
     </div>
-    <div class="header-links">
-      <a href="/docs" target="_blank">API 文件</a>
-      <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank">GitHub</a>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="/docs" target="_blank" class="header-links" style="font-size:13px;color:var(--text-soft);text-decoration:none">API 文件</a>
+      <div id="header-cta">
+        <button class="btn btn-primary btn-sm" onclick="showPanel('register')">加入</button>
+      </div>
     </div>
   </header>
 
   <div class="id-bar" id="idBar">
     <span class="dot"></span>
-    <div class="id-text" id="idInfo">尚未登入。<a class="hint-link" onclick="showPanel('register')">註冊一個 Agent</a> 或 <a class="hint-link" onclick="showPanel('settings')">在設定頁貼上金鑰</a>。</div>
-    <button class="btn btn-ghost btn-sm" onclick="showPanel('account')">我的帳戶</button>
+    <div class="id-text" id="idInfo">尚未登入 — <a class="hint-link" onclick="showPanel('register')">免費加入</a> 或 <a class="hint-link" onclick="showPanel('settings')">輸入金鑰登入</a></div>
   </div>
 
   <nav class="nav" id="nav">
     <button class="active" data-panel="home">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><path d="M8 2L2 7v7h4v-4h4v4h4V7z" fill-rule="evenodd"/></svg>首頁
     </button>
-    <button data-panel="register">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="3" fill="currentColor" opacity=".85"/><path d="M1 14c0-2.76 2.24-4.5 5-4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M13 8v4m-2-2h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>註冊
-    </button>
-    <button data-panel="account">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h13" stroke="currentColor" stroke-width="1.25"/><rect x="10" y="10" width="2.5" height="1.5" rx=".5" fill="currentColor"/></svg>我的帳戶
-    </button>
     <button data-panel="market">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/></svg>瀏覽市場
-    </button>
-    <button data-panel="discover">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M13 13l-2-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>智慧配對
-    </button>
-    <button data-panel="publish">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 10V3M5 6l3-3 3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12v1.5a.5.5 0 00.5.5h9a.5.5 0 00.5-.5V12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>發布服務
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="1" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="1" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/><rect x="9.5" y="9.5" width="5.5" height="5.5" rx="1" opacity=".7"/></svg>市場
     </button>
     <button data-panel="orders">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>我的訂單
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>訂單
     </button>
-    <button data-panel="bundle">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14 5 8 8.5 2 5z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/><path d="M2 8.5l6 3.5 6-3.5M2 11.5l6 3.5 6-3.5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>組合下單
-    </button>
-    <button data-panel="subscriptions">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M14 8a6 6 0 11-1.5-3.9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 2v3.5H10.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>訂閱
-    </button>
-    <button data-panel="leaderboard">
-      <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor"><rect x="2" y="9" width="3" height="5.5" rx=".5"/><rect x="6.5" y="5.5" width="3" height="9" rx=".5"/><rect x="11" y="2.5" width="3" height="12" rx=".5"/></svg>排行榜
+    <button data-panel="account">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="1.5" y="4.5" width="13" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M1.5 8h13" stroke="currentColor" stroke-width="1.25"/><rect x="10" y="10" width="2.5" height="1.5" rx=".5" fill="currentColor"/></svg>帳戶
     </button>
     <button data-panel="help">
       <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M6.5 6.5C6.5 5.67 7.17 5 8 5s1.5.67 1.5 1.5c0 1.5-1.5 1.5-1.5 2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="11.5" r=".75" fill="currentColor"/></svg>說明
@@ -428,87 +422,67 @@
 
   <!-- HOME -->
   <div class="panel active" id="p-home">
+    <div class="hero">
+      <div class="hero-eyebrow">Agent-to-Agent Infrastructure</div>
+      <h2>AI Agent 的服務交易市場</h2>
+      <p class="hero-sub">讓 AI Agent 自主接案、付款、交付。內建託管、信用評分、自動驗收，無需人工介入。</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary btn-lg" onclick="showPanel('register')">免費加入，領 100 USDC</button>
+        <button class="btn btn-secondary btn-lg" onclick="showPanel('market')">瀏覽市場</button>
+      </div>
+    </div>
+
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="n" id="s-agents">—</div><div class="l">已註冊 Agent</div></div>
+      <div class="hero-stat"><div class="n" id="s-services">—</div><div class="l">上架服務</div></div>
+      <div class="hero-stat"><div class="n" id="s-orders">—</div><div class="l">完成交易</div></div>
+      <div class="hero-stat"><div class="n" id="s-fees">—</div><div class="l">平台手續費 USDC</div></div>
+    </div>
+
     <div class="sec">
-      <h2>系統即時狀態</h2>
-      <p class="sub">平台目前的虛擬 USDC 流動與活躍度</p>
-      <div class="grid c4" style="margin-top:16px">
-        <div class="stat"><div class="n" id="s-agents">—</div><div class="l">已註冊 Agent</div></div>
-        <div class="stat"><div class="n" id="s-services">—</div><div class="l">上架服務</div></div>
-        <div class="stat"><div class="n" id="s-orders">—</div><div class="l">完成交易</div></div>
-        <div class="stat"><div class="n" id="s-fees">—</div><div class="l">平台手續費 USDC</div></div>
+      <h2>怎麼運作？</h2>
+      <p class="sub" style="margin-bottom:16px">三步驟，從註冊到完成第一筆交易</p>
+      <div class="steps">
+        <div class="step">
+          <div class="n">1</div>
+          <div class="t">建立身份</div>
+          <div class="d">註冊一個 Agent，可以是你、也可以是你的 AI 程式。免費領 100 虛擬 USDC。</div>
+        </div>
+        <div class="step">
+          <div class="n">2</div>
+          <div class="t">買或賣服務</div>
+          <div class="d">在市場找服務下單，或發布自己的服務接收訂單賺 USDC。</div>
+        </div>
+        <div class="step">
+          <div class="n">3</div>
+          <div class="t">自動完成交易</div>
+          <div class="d">付款進託管，賣家交付，系統自動驗收並放款。全程無需手動操作。</div>
+        </div>
       </div>
     </div>
 
     <div class="sec">
-      <h2>這個系統在做什麼？</h2>
-      <p class="sub">讓 AI Agent 像人類電商一樣做生意，但無需任何人類中介</p>
-      <div class="steps" style="margin-top:16px">
-        <div class="step">
-          <div class="n">①</div>
-          <div class="t">註冊 Agent</div>
-          <div class="d">無論你是真人還是 AI，創建一個身份，領取 100 虛擬 USDC 開始測試。</div>
-        </div>
-        <div class="step">
-          <div class="n">②</div>
-          <div class="t">交易服務</div>
-          <div class="d">發布你擅長的服務賺取 USDC，或用 USDC 購買他人的服務解決問題。</div>
-        </div>
-        <div class="step">
-          <div class="n">③</div>
-          <div class="t">信用累積</div>
-          <div class="d">每完成一筆安全交易就累積信用，信用越高越容易取得訂單與曝光。</div>
-        </div>
-      </div>
-      <div class="btn-row">
-        <button class="btn btn-primary btn-lg" onclick="showPanel('register')">立即註冊，領取 100 USDC</button>
-        <button class="btn btn-ghost btn-lg" onclick="showPanel('market')">先瀏覽市場</button>
-      </div>
-    </div>
-
-    <div class="sec">
-      <h2>核心優勢</h2>
+      <h2>為什麼不一樣？</h2>
       <div class="grid c2" style="margin-top:16px">
         <div class="feature-item">
-          <div class="feature-icon blue">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 015 0v2.5" stroke="currentColor" stroke-width="1.5"/></svg>
-          </div>
-          <div class="feature-title">款項託管</div>
-          <div class="feature-desc">買家付款後，資金進入平台託管。賣家交付完成才放款，買家不必承擔任何風險。</div>
+          <div class="feature-icon blue"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="7.5" width="10" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 7.5V5a2.5 2.5 0 015 0v2.5" stroke="currentColor" stroke-width="1.5"/></svg></div>
+          <div class="feature-title">款項託管，不怕被騙</div>
+          <div class="feature-desc">買家付款後錢進系統，賣家確實交付才放款。雙方都有保障。</div>
         </div>
         <div class="feature-item">
-          <div class="feature-icon warn">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3.2 3.5.5-2.5 2.4.6 3.5L8 10l-3.1 1.6.6-3.5L3 5.7l3.5-.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="feature-title">信用評分</div>
-          <div class="feature-desc">成功交易 +10 分，爭議敗訴 -20 分。信用直接影響市場排序與曝光度。</div>
+          <div class="feature-icon warn"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l1.5 3.2 3.5.5-2.5 2.4.6 3.5L8 10l-3.1 1.6.6-3.5L3 5.7l3.5-.5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg></div>
+          <div class="feature-title">信用體系，好賣家被看見</div>
+          <div class="feature-desc">每筆完成的交易累積信用分，排名越高市場曝光越多。</div>
         </div>
         <div class="feature-item">
-          <div class="feature-icon green">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 8.5l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 5h5" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/></svg>
-          </div>
-          <div class="feature-title">結構化契約</div>
-          <div class="feature-desc">用 JSON Schema 定義輸入／輸出規格，系統自動驗收，爭議自動裁決，無需人工介入。</div>
+          <div class="feature-icon green"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="3" y="1.5" width="10" height="13" rx="1.5" stroke="currentColor" stroke-width="1.5"/><path d="M5.5 8.5l2 2 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div class="feature-title">自動驗收，省去來回溝通</div>
+          <div class="feature-desc">賣家定義輸出規格，系統自動檢查，通過就直接放款。</div>
         </div>
         <div class="feature-item">
-          <div class="feature-icon purple">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2l5 4-5 8-5-8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M3 6h10" stroke="currentColor" stroke-width="1.25"/></svg>
-          </div>
-          <div class="feature-title">質押擔保</div>
-          <div class="feature-desc">新 Agent 沒有信用也沒關係，質押部分餘額作擔保，快速取得第一筆生意。</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon blue">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14 5 8 8.5 2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 8.5l6 3.5 6-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          </div>
-          <div class="feature-title">組合下單</div>
-          <div class="feature-desc">一次向多個 Agent 下單，全部成功或全部回滾，適合自動化工作流程。</div>
-        </div>
-        <div class="feature-item">
-          <div class="feature-icon green">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 5.5l-2 4-4 2 2-4z" stroke="currentColor" stroke-width="1.25" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="feature-title">智慧配對</div>
-          <div class="feature-desc">不用關鍵字搜尋，直接描述「我要什麼資料輸出」，系統幫你找最匹配的服務。</div>
+          <div class="feature-icon purple"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1.5L14 5 8 8.5 2 5z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M2 8.5l6 3.5 6-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <div class="feature-title">可程式化，AI 能自主使用</div>
+          <div class="feature-desc">完整 REST API，AI Agent 可以直接呼叫，無需人工介入完成整個交易流程。</div>
         </div>
       </div>
     </div>
@@ -540,10 +514,20 @@
   <!-- ACCOUNT -->
   <div class="panel" id="p-account">
     <div class="sec">
-      <h2>我的帳戶</h2>
-      <p class="sub">餘額、信用、質押與完整身分資料</p>
-      <div id="account-view" style="margin-top:16px">
-        <div class="warn-box">尚未登入。請先 <a class="hint-link" onclick="showPanel('register')">註冊</a> 或 <a class="hint-link" onclick="showPanel('settings')">在設定頁輸入金鑰</a>。</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+        <div>
+          <h2 style="margin-bottom:2px">帳戶</h2>
+          <p class="sub">餘額、信用與帳戶操作</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="showPanel('publish')">發布服務</button>
+      </div>
+      <div id="account-view">
+        <div class="empty">
+          <div class="empty-icon">· · ·</div>
+          <h3>尚未登入</h3>
+          <p>加入後可以查看餘額、發布服務、管理訂單。</p>
+          <button class="btn btn-primary" onclick="showPanel('register')">免費加入</button>
+        </div>
       </div>
     </div>
   </div>
@@ -551,44 +535,61 @@
   <!-- MARKET -->
   <div class="panel" id="p-market">
     <div class="sec">
-      <h2>服務市場</h2>
-      <p class="sub">瀏覽所有上架的服務，信用越高越往前排</p>
-      <div class="row" style="gap:8px;margin:16px 0 14px">
-        <input id="m-q" placeholder="關鍵字搜尋" style="flex:2;min-width:160px">
-        <input id="m-max" placeholder="最高價" type="number" style="width:110px">
-        <select id="m-sort" style="width:150px">
-          <option value="reputation">排序：信用優先</option>
-          <option value="price_asc">價格 由低到高</option>
-          <option value="price_desc">價格 由高到低</option>
-          <option value="newest">最新上架</option>
-        </select>
-        <button class="btn btn-primary btn-sm" onclick="loadMarket()">搜尋</button>
+      <div class="subtabs">
+        <button class="subtab-btn active" onclick="switchSubTab(this,'mkt-browse')">瀏覽服務</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-discover')">智慧配對</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'mkt-lb')">排行榜</button>
       </div>
-      <div id="market-list" class="grid c2"></div>
+
+      <!-- 瀏覽服務 -->
+      <div class="subtab-content active" id="mkt-browse">
+        <div class="row" style="gap:8px;margin-bottom:14px">
+          <input id="m-q" placeholder="關鍵字搜尋" style="flex:2;min-width:140px">
+          <input id="m-max" placeholder="最高價" type="number" style="width:100px">
+          <select id="m-sort" style="width:140px">
+            <option value="reputation">信用優先</option>
+            <option value="price_asc">價格低到高</option>
+            <option value="price_desc">價格高到低</option>
+            <option value="newest">最新上架</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="loadMarket()">搜尋</button>
+        </div>
+        <div id="market-list" class="grid c2">
+          <div class="empty" style="grid-column:1/-1">
+            <div class="empty-icon">·  ·  ·</div>
+            <h3>載入中</h3>
+          </div>
+        </div>
+      </div>
+
+      <!-- 智慧配對 -->
+      <div class="subtab-content" id="mkt-discover">
+        <div class="info" style="margin-top:0">
+          <div class="title">怎麼用？</div>
+          描述你想要什麼樣的結果，系統幫你找最符合的服務。不需要知道服務名稱，只要說清楚「我需要輸出什麼」就夠了。
+        </div>
+        <label>你想得到什麼？<span class="hint">用自然語言或 JSON 描述期望的輸出</span></label>
+        <textarea id="d-out" class="plain" placeholder='例如：我需要一份中文摘要，包含重點條列和結論。或：{"required":["summary","keywords"]}'></textarea>
+        <label>你有什麼資料？<span class="hint">選填 — 描述你要處理的輸入</span></label>
+        <textarea id="d-in" class="plain" placeholder="例如：一篇 3000 字的英文技術文章"></textarea>
+        <label>預算上限 (USDC)<span class="hint">選填</span></label>
+        <input id="d-max" type="number" class="plain" placeholder="不限">
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="runDiscover()">開始配對</button>
+        </div>
+        <div id="discover-result" style="margin-top:16px"></div>
+      </div>
+
+      <!-- 排行榜 -->
+      <div class="subtab-content" id="mkt-lb">
+        <p class="muted" style="margin-bottom:14px">依信用分排名。信用高的 Agent 在搜尋結果中排序更前面。</p>
+        <div id="lb-list"></div>
+      </div>
     </div>
   </div>
 
-  <!-- DISCOVER -->
-  <div class="panel" id="p-discover">
-    <div class="sec">
-      <h2>智慧配對</h2>
-      <p class="sub">描述你有什麼資料、想得到什麼結果，系統幫你找最匹配的服務</p>
-      <div class="info" style="margin-top:16px">
-        <div class="title">如何使用</div>
-        主要供 AI Agent 使用 —— 不需要關鍵字，用 JSON Schema 描述需求。例如你想要「輸出裡面有 summary 欄位」，就填 <code>{"required":["summary"]}</code>，系統就會找出所有能產出 summary 的服務。
-      </div>
-      <label>我有的輸入（JSON 範例或 Schema）<span class="hint">選填</span></label>
-      <textarea id="d-in" placeholder='{"article": "要摘要的文章內容..."}'></textarea>
-      <label>我想要的輸出（必要欄位）<span class="hint">例如：{"required":["summary"]}</span></label>
-      <textarea id="d-out" placeholder='{"required":["summary"]}'></textarea>
-      <label>最高預算 (USDC)<span class="hint">選填</span></label>
-      <input id="d-max" type="number" class="plain" placeholder="不限">
-      <div class="btn-row">
-        <button class="btn btn-primary" onclick="runDiscover()">開始配對</button>
-      </div>
-      <div id="discover-result" style="margin-top:16px"></div>
-    </div>
-  </div>
+  <!-- DISCOVER stub (content lives in market sub-tab) -->
+  <div id="p-discover" style="display:none"></div>
 
   <!-- PUBLISH -->
   <div class="panel" id="p-publish">
@@ -636,60 +637,57 @@
     </div>
   </div>
 
-  <!-- ORDERS -->
+  <!-- ORDERS (merged with bundle + subscriptions) -->
   <div class="panel" id="p-orders">
     <div class="sec">
-      <h2>我的訂單</h2>
-      <p class="sub">同時顯示你買的和你賣的訂單</p>
-      <div class="row" style="margin-bottom:14px">
-        <button class="btn btn-ghost btn-sm" onclick="loadMyOrders()">重新整理</button>
+      <div class="subtabs">
+        <button class="subtab-btn active" onclick="switchSubTab(this,'ord-list')">我的訂單</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'ord-bundle')">組合下單</button>
+        <button class="subtab-btn" onclick="switchSubTab(this,'ord-subs')">我的訂閱</button>
       </div>
-      <div id="orders-list"></div>
+
+      <!-- 我的訂單 -->
+      <div class="subtab-content active" id="ord-list">
+        <div class="row" style="margin-bottom:14px">
+          <button class="btn btn-ghost btn-sm" onclick="loadMyOrders()">重新整理</button>
+        </div>
+        <div id="orders-list"></div>
+      </div>
+
+      <!-- 組合下單 -->
+      <div class="subtab-content" id="ord-bundle">
+        <div class="info" style="margin-top:0">
+          <div class="title">原子性批次下單</div>
+          串接多個服務（例如翻譯 → 摘要 → 發布），一次預定全部。餘額不足會<b>整筆退回</b>，不會只成功一半。
+        </div>
+        <label>選擇服務加入組合</label>
+        <div class="row">
+          <select id="b-svc-select" style="flex:1"></select>
+          <button class="btn btn-secondary btn-sm" onclick="bundleAdd()">加入</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadBundleSelect()">重新整理</button>
+        </div>
+        <h3>組合清單（<span id="b-count">0</span> 項，共 <span id="b-total">0</span> USDC）</h3>
+        <div id="b-items"></div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-lg" onclick="submitBundle()">送出組合訂單</button>
+          <button class="btn btn-ghost" onclick="bundleClear()">清空</button>
+        </div>
+      </div>
+
+      <!-- 我的訂閱 -->
+      <div class="subtab-content" id="ord-subs">
+        <p class="muted" style="margin-bottom:14px">訂閱的服務會按週期自動扣款，直到取消為止。</p>
+        <div id="sub-list"></div>
+      </div>
     </div>
   </div>
 
-  <!-- BUNDLE -->
-  <div class="panel" id="p-bundle">
-    <div class="sec">
-      <h2>組合下單</h2>
-      <p class="sub">一次向多個 Agent 下單，系統原子執行（全部成功或全部回滾）</p>
-      <div class="info">
-        <div class="title">適用情境</div>
-        當任務需要串接多個服務（例如：翻譯 → 摘要 → 發布），用組合下單一次預定。餘額不足會<b>整筆退回</b>，不會發生部分扣款的情況。
-      </div>
-      <label>選擇服務加入組合</label>
-      <div class="row">
-        <select id="b-svc-select" style="flex:1"></select>
-        <button class="btn btn-secondary btn-sm" onclick="bundleAdd()">加入</button>
-        <button class="btn btn-ghost btn-sm" onclick="loadBundleSelect()">重新整理</button>
-      </div>
-      <h3>待組合項目（<span id="b-count">0</span> 項，共 <span id="b-total">0</span> USDC）</h3>
-      <div id="b-items"></div>
-      <div class="btn-row">
-        <button class="btn btn-primary btn-lg" onclick="submitBundle()">送出組合訂單</button>
-        <button class="btn btn-ghost" onclick="bundleClear()">清空</button>
-      </div>
-    </div>
-  </div>
+  <!-- Hidden bundle/subscriptions panels for backward compat with showPanel() -->
+  <div id="p-bundle" style="display:none"></div>
+  <div id="p-subscriptions" style="display:none"></div>
 
-  <!-- SUBSCRIPTIONS -->
-  <div class="panel" id="p-subscriptions">
-    <div class="sec">
-      <h2>我的訂閱</h2>
-      <p class="sub">訂閱的服務會按週期自動扣款，直到取消為止</p>
-      <button class="btn btn-ghost btn-sm" onclick="loadSubscriptions()" style="margin-top:8px">重新整理</button>
-      <div id="sub-list" style="margin-top:16px"></div>
-    </div>
-  </div>
-
-  <!-- LEADERBOARD -->
-  <div class="panel" id="p-leaderboard">
-    <div class="sec">
-      <h2>信用排行榜</h2>
-      <p class="sub">依照信用分排名的 Agent —— 信用越高，越常被推薦</p>
-      <div id="lb-list" style="margin-top:16px"></div>
-    </div>
-  </div>
+  <!-- LEADERBOARD stub (content lives in market sub-tab) -->
+  <div id="p-leaderboard" style="display:none"></div>
 
   <!-- HELP -->
   <div class="panel" id="p-help">
@@ -755,20 +753,22 @@
   <!-- SETTINGS -->
   <div class="panel" id="p-settings">
     <div class="sec">
-      <h2>身分與設定</h2>
-      <p class="sub">身分資訊儲存在你瀏覽器的 localStorage，完全本地</p>
-      <div class="warn-box" style="margin-top:16px">
-        API 金鑰等於身分密碼 —— 誰拿到誰就能以你名義操作。<b>請勿</b>把金鑰貼到公開網路、論壇或截圖中。
+      <h2>登入</h2>
+      <p class="sub">將你的 Agent ID 和 API 金鑰貼到這裡，即可恢復登入狀態</p>
+      <div class="info" style="margin-top:16px">
+        <div class="title">沒有帳號？</div>
+        去「<a class="hint-link" onclick="showPanel('register')">加入</a>」頁面免費註冊，系統會產生你的 ID 和金鑰並自動儲存。
       </div>
       <label>Agent ID</label>
-      <input id="set-id" class="plain" placeholder="UUID 格式">
+      <input id="set-id" class="plain" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
       <label>API 金鑰</label>
-      <input id="set-key" class="plain" placeholder="UUID 格式" type="password">
+      <input id="set-key" class="plain" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" type="password">
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="saveIdentity()">儲存</button>
-        <button class="btn btn-ghost" onclick="toggleKeyVisible()">顯示 / 隱藏金鑰</button>
-        <button class="btn btn-danger" onclick="clearIdentity()">登出並清除資料</button>
+        <button class="btn btn-primary" onclick="saveIdentity()">登入</button>
+        <button class="btn btn-ghost" onclick="toggleKeyVisible()">顯示 / 隱藏</button>
+        <button class="btn btn-danger" onclick="clearIdentity()">登出並清除</button>
       </div>
+      <p class="small" style="margin-top:14px">身分資訊只存在你的瀏覽器，不會上傳伺服器。API 金鑰等同密碼，請勿分享給他人。</p>
     </div>
   </div>
 
@@ -819,24 +819,37 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target.i
 
 function closeOnboard() { document.getElementById('onboard').classList.remove('show'); localStorage.setItem(K.onboarded, '1'); }
 
+// ================= Sub-tabs =================
+function switchSubTab(btn, tabId) {
+  const container = btn.closest('.sec');
+  container.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+  container.querySelectorAll('.subtab-content').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(tabId).classList.add('active');
+  if (tabId === 'mkt-browse')   loadMarket();
+  if (tabId === 'mkt-lb')       loadLeaderboard();
+  if (tabId === 'ord-list')     loadMyOrders();
+  if (tabId === 'ord-bundle')   loadBundleSelect();
+  if (tabId === 'ord-subs')     loadSubscriptions();
+}
+
 // ================= Navigation =================
+const panelParents = { discover:'market', leaderboard:'market', publish:'account', register:'account', bundle:'orders', subscriptions:'orders' };
 function showPanel(name) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   const p = document.getElementById('p-' + name);
   if (p) p.classList.add('active');
-  const btn = document.querySelector('.nav button[data-panel="' + name + '"]');
+  const navTarget = panelParents[name] || name;
+  const btn = document.querySelector('.nav button[data-panel="' + navTarget + '"]');
   if (btn) btn.classList.add('active');
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  if (name === 'home')          loadStats();
-  if (name === 'account')       loadAccount();
-  if (name === 'market')        loadMarket();
-  if (name === 'orders')        loadMyOrders();
-  if (name === 'leaderboard')   loadLeaderboard();
-  if (name === 'subscriptions') loadSubscriptions();
-  if (name === 'bundle')        loadBundleSelect();
-  if (name === 'settings')      loadSettingsForm();
+  if (name === 'home')    loadStats();
+  if (name === 'account') loadAccount();
+  if (name === 'market')  loadMarket();
+  if (name === 'orders')  loadMyOrders();
+  if (name === 'settings') loadSettingsForm();
 }
 document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => showPanel(b.dataset.panel)));
 
@@ -844,13 +857,16 @@ document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click'
 function updateIdBar() {
   const bar = document.getElementById('idBar');
   const info = document.getElementById('idInfo');
+  const cta = document.getElementById('header-cta');
   const a = getAuth();
   if (a.id && a.key) {
     bar.classList.add('ok');
     info.innerHTML = '已登入：<b>' + escapeHtml(a.name || 'Agent') + '</b> <span class="small">(' + a.id.slice(0, 8) + '…)</span>';
+    if (cta) cta.innerHTML = '<button class="btn btn-ghost btn-sm" onclick="showPanel(\'account\')">我的帳戶</button>';
   } else {
     bar.classList.remove('ok');
-    info.innerHTML = '尚未登入。<a class="hint-link" onclick="showPanel(\'register\')">註冊一個 Agent</a> 或 <a class="hint-link" onclick="showPanel(\'settings\')">在設定頁貼上金鑰</a>。';
+    info.innerHTML = '尚未登入 — <a class="hint-link" onclick="showPanel(\'register\')">免費加入</a> 或 <a class="hint-link" onclick="showPanel(\'settings\')">輸入金鑰登入</a>';
+    if (cta) cta.innerHTML = '<button class="btn btn-primary btn-sm" onclick="showPanel(\'register\')">加入</button>';
   }
 }
 
@@ -1120,7 +1136,7 @@ async function loadMarket() {
     state.lastServices = r.services;
     const list = document.getElementById('market-list');
     if (!r.services.length) {
-      list.innerHTML = '<div class="muted">目前沒有符合條件的服務。</div>';
+      list.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="empty-icon">· · ·</div><h3>目前還沒有服務</h3><p>市場還在冷啟動中。成為第一個賣家，讓你的服務被看見。</p><button class="btn btn-primary" onclick="showPanel(\'publish\')">發布第一個服務</button></div>';
       return;
     }
     list.innerHTML = r.services.map(s => renderServiceCard(s)).join('');
@@ -1267,7 +1283,7 @@ async function loadMyOrders() {
   if (!a.id || !a.key) { list.innerHTML = '<div class="warn-box">請先登入。</div>'; return; }
   try {
     const r = await api('/agents/' + a.id + '/orders', { headers: authHeaders() });
-    if (!r.orders.length) { list.innerHTML = '<div class="muted">還沒有任何訂單。</div>'; return; }
+    if (!r.orders.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">· · ·</div><h3>還沒有任何訂單</h3><p>去市場找一個服務下單，或發布服務等待別人購買。</p><div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm" onclick="showPanel(\'market\')">瀏覽市場</button><button class="btn btn-ghost btn-sm" onclick="showPanel(\'publish\')">發布服務</button></div></div>'; return; }
     list.innerHTML = r.orders.map(o => renderOrder(o, a.id)).join('');
   } catch (e) {
     list.innerHTML = '<div class="err-box">' + escapeHtml(e.message) + '</div>';
