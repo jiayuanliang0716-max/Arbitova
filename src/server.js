@@ -54,6 +54,16 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// Mode check (no sensitive data exposed)
+app.get('/api/mode', (req, res) => {
+  res.json({
+    chain_mode: !!(process.env.ALCHEMY_API_KEY && process.env.WALLET_ENCRYPTION_KEY),
+    has_alchemy: !!process.env.ALCHEMY_API_KEY,
+    has_enc_key: !!process.env.WALLET_ENCRYPTION_KEY,
+    chain: process.env.CHAIN || 'base-sepolia'
+  });
+});
+
 // API Docs
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
