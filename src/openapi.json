@@ -234,7 +234,38 @@
           }
         },
         "responses": {
-          "201": { "description": "Dispute opened, arbitration within 24h" }
+          "201": { "description": "Dispute opened" }
+        }
+      }
+    },
+    "/orders/{id}/auto-arbitrate": {
+      "post": {
+        "summary": "Trigger AI arbitration (Claude) to resolve a disputed order",
+        "description": "Calls Claude to analyze the dispute and automatically execute the verdict (refund buyer or pay seller). Only available when ANTHROPIC_API_KEY is configured.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verdict executed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "winner": { "type": "string", "enum": ["buyer", "seller"] },
+                    "ai_reasoning": { "type": "string" },
+                    "confidence": { "type": "number" },
+                    "new_order_status": { "type": "string" },
+                    "reputation_penalty": { "type": "number" },
+                    "stake_slashed": { "type": "number" },
+                    "arbitrated_by": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

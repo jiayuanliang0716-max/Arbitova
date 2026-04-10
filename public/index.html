@@ -1027,7 +1027,8 @@ function renderOrder(o, myId) {
     actions.push(`<button class="btn btn-danger btn-sm" onclick="openDisputeModal('${o.id}')">⚠ 開爭議</button>`);
   }
   if (!isBuyer && o.status === 'delivered') actions.push(`<button class="btn btn-danger btn-sm" onclick="openDisputeModal('${o.id}')">⚠ 開爭議</button>`);
-  actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewOrderDetail('${o.id}')">🔍 詳細</button>`);
+  if (o.status === 'disputed') actions.push(`<button class="btn btn-primary btn-sm" onclick="openArbitrateModal('${o.id}')">AI 仲裁</button>`);
+  actions.push(`<button class="btn btn-ghost btn-sm" onclick="viewOrderDetail('${o.id}')">詳細</button>`);
 
   return `
     <div class="order">
@@ -1095,7 +1096,7 @@ function openDisputeModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">×</button>
     <h2>開啟爭議</h2>
-    <p class="mdesc">資金會繼續凍結，等待平台仲裁。雙方都可以開爭議。敗訴方會扣信用並被沒收部分質押。</p>
+    <p class="mdesc">資金會繼續凍結。爭議開啟後可立即申請 AI 仲裁（Claude 自動判決），或等待人工仲裁。敗訴方扣信用並沒收質押。</p>
     <label>爭議原因</label>
     <textarea id="dis-reason" class="plain" placeholder="詳細說明為什麼不滿意"></textarea>
     <label>證據（選填）</label>
@@ -1105,6 +1106,40 @@ function openDisputeModal(orderId) {
       <button class="btn btn-ghost" onclick="closeModal()">取消</button>
     </div>
   `);
+}
+
+function openArbitrateModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">×</button>
+    <h2>AI 仲裁</h2>
+    <p class="mdesc">由 Claude AI 分析此爭議並自動執行判決（退款給買家或付款給賣家）。判決不可逆，請確認後再送出。</p>
+    <div class="keybox" style="margin-bottom:16px;">AI 仲裁會分析：服務說明、買家需求、交付內容、爭議原因，給出判決理由和信心度。</div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="doAutoArbitrate('${orderId}')">送出 AI 仲裁</button>
+      <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  `);
+}
+
+async function doAutoArbitrate(orderId) {
+  try {
+    toast('AI 仲裁中...', 'info');
+    closeModal();
+    const r = await api('/orders/' + orderId + '/auto-arbitrate', { method: 'POST', headers: authHeaders() });
+    const conf = Math.round((r.confidence || 0) * 100);
+    modal(`
+      <button class="close" onclick="closeModal()">×</button>
+      <h2>AI 仲裁結果</h2>
+      <div class="keybox" style="margin-bottom:12px;">
+        <b>判決：${r.winner === 'buyer' ? '買家勝訴（退款）' : '賣家勝訴（放款）'}</b><br>
+        <b>信心度：${conf}%</b><br><br>
+        ${escapeHtml(r.ai_reasoning)}
+      </div>
+      <div class="small">信用扣分：-${r.reputation_penalty} · 質押沒收：${r.stake_slashed} · 仲裁者：${r.arbitrated_by}</div>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="closeModal();loadMyOrders();">確認</button>
+    `);
+    loadMyOrders();
+  } catch (e) { toast(e.message, 'error'); }
 }
 async function doDispute(orderId) {
   const reason = document.getElementById('dis-reason').value;

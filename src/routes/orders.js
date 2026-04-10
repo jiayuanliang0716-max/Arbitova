@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
 const { verifyInput, verifyDelivery } = require('../verify');
+const { arbitrateDispute } = require('../arbitrate');
 
 const router = express.Router();
 
@@ -394,6 +395,94 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
       new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/auto-arbitrate
+// Triggers AI arbitration for a disputed order.
+// Public trigger: anyone involved in the order can request it.
+// If ANTHROPIC_API_KEY is not set, returns 503.
+router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'AI arbitration not available: ANTHROPIC_API_KEY not configured' });
+    }
+
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    if (order.status !== 'disputed') {
+      return res.status(400).json({ error: `Order is not disputed (status: ${order.status})` });
+    }
+
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)} AND status = 'open'`, [order.id]);
+    if (!dispute) return res.status(404).json({ error: 'No open dispute found' });
+
+    const [service, delivery] = await Promise.all([
+      dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [order.service_id]),
+      dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [order.id])
+    ]);
+
+    // Run AI arbitration
+    let verdict;
+    try {
+      verdict = await arbitrateDispute({ order, service, dispute, delivery });
+    } catch (e) {
+      return res.status(500).json({ error: 'AI arbitration failed', details: e.message });
+    }
+
+    const { winner, reasoning, confidence } = verdict;
+    const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Execute the verdict
+    if (winner === 'buyer') {
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
+      await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    } else {
+      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const sellerReceives = parseFloat(order.amount) - fee;
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+
+    const resolution = `[AI Arbitration | confidence: ${(confidence * 100).toFixed(0)}%] ${reasoning}`;
+    await dbRun(
+      `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
+      [resolution, dispute.id]
+    );
+
+    // Reputation penalty on loser
+    try { await adjustReputation(loserId, -REP_DISPUTE_PENALTY, 'dispute_lost_ai_arbitration', order.id); } catch (e) {}
+
+    // Slash loser's stake
+    let slashed = 0;
+    try {
+      const loser = await dbGet(`SELECT COALESCE(stake, 0) as stake FROM agents WHERE id = ${p(1)}`, [loserId]);
+      const available = parseFloat(loser?.stake || 0);
+      slashed = Math.min(available, parseFloat(order.amount));
+      if (slashed > 0) {
+        const winnerId = winner === 'buyer' ? order.buyer_id : order.seller_id;
+        await dbRun(`UPDATE agents SET stake = stake - ${p(1)} WHERE id = ${p(2)}`, [slashed, loserId]);
+        await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [slashed, winnerId]);
+      }
+    } catch (e) {}
+
+    res.json({
+      order_id: order.id,
+      dispute_id: dispute.id,
+      winner,
+      loser_id: loserId,
+      new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
+      ai_reasoning: reasoning,
+      confidence,
+      reputation_penalty: REP_DISPUTE_PENALTY,
+      stake_slashed: slashed,
+      arbitrated_by: 'claude-haiku'
     });
   } catch (err) { next(err); }
 });
