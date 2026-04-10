@@ -77,6 +77,34 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
+// Internal AI generation endpoint — requires valid agent API key
+app.post('/api/generate', async (req, res) => {
+  try {
+    const apiKey = req.headers['x-api-key'];
+    if (!apiKey) return res.status(401).json({ error: 'Missing X-API-Key' });
+    const { dbGet } = require('./db/helpers');
+    const isPostgres = !!process.env.DATABASE_URL;
+    const agent = await dbGet(
+      isPostgres ? 'SELECT id FROM agents WHERE api_key = $1' : 'SELECT id FROM agents WHERE api_key = ?',
+      [apiKey]
+    );
+    if (!agent) return res.status(401).json({ error: 'Invalid API key' });
+
+    const { prompt } = req.body;
+    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI not configured on server' });
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const msg = await anthropic.messages.create({
+      model: 'claude-opus-4-6',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    res.json({ result: msg.content[0].text });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Mode check (no sensitive data exposed)
 app.get('/api/mode', (req, res) => {
   res.json({
