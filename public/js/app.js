@@ -62,7 +62,7 @@ window.addEventListener('offline', () => {
   toast(currentLang === 'en' ? 'You are offline. Some features may not work.' : '你目前離線。部分功能可能無法使用。', 'error', 6000);
 });
 
-async function api(path, opts = {}) {
+async function api(path, opts = {}, _retries = 2) {
   if (_isOffline) throw new Error('You are offline. Please check your connection.');
   opts.headers = opts.headers || {};
   if (opts.body && !opts.headers['Content-Type']) opts.headers['Content-Type'] = 'application/json';
@@ -70,7 +70,13 @@ async function api(path, opts = {}) {
   try {
     res = await fetch(API + path, opts);
   } catch (e) {
+    if (_retries > 0) { await new Promise(r => setTimeout(r, 1500)); return api(path, opts, _retries - 1); }
     throw new Error(friendlyError(e.message));
+  }
+  // Retry on 502/503 (Render cold-start)
+  if ((res.status === 502 || res.status === 503) && _retries > 0) {
+    await new Promise(r => setTimeout(r, 2000));
+    return api(path, opts, _retries - 1);
   }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(friendlyError(data.error || ('HTTP ' + res.status)));
