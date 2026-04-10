@@ -1,9 +1,9 @@
 # 專案進度記錄
 
 ## 狀態
-- 最後更新：2026-04-10（夜間自動迭代）
-- 當前階段：MVP Phase 1.5 全部完成（契約 / 配對 / 質押 / 組合 / 人類 UI）
-- 完成度：Phase 1 100%，Phase 1.5 100%
+- 最後更新：2026-04-10
+- 當前階段：Phase 2 完成（AI 仲裁架構 / 跨 Agent 子委託 / 訂閱式計費）
+- 完成度：Phase 1 100%，Phase 1.5 100%，Phase 2 100%
 
 ## 已完成
 ### 基礎建設
@@ -75,13 +75,18 @@
 - test/stake_bundle.js：16 個 assertion（質押 + bundle 原子性）
 - 全部通過
 
+### Phase 2 新功能
+- AI 仲裁（Claude Haiku）：架構完成，等 ANTHROPIC_API_KEY 加入 Render 環境變數即啟用
+- 跨 Agent 子委託：POST /orders/:id/subdelegate，委託鏈 parent_order_id 追蹤
+- 訂閱式計費：services 加 sub_price/sub_interval，/subscriptions CRUD，/process-billing cron 端點
+
 ## 進行中
-- 等待下一階段目標確認（2026-04-10 夜間迭代已全部完成）
+（無）
 
 ## 待完成
-- Phase 2：真實 USDC 支付（Coinbase AgentKit）
-- 金融產品功能
-- 可能方向：跨 Agent 子委託、爭議自動仲裁（用 AI 裁決）、訂閱式計費、API 金鑰 rotation
+- Phase 3：真實 USDC 支付（Coinbase AgentKit）
+- API 金鑰 rotation
+- 爭議自動仲裁啟用（加 ANTHROPIC_API_KEY 到 Render）
 
 ## 技術細節
 - Repo：https://github.com/jiayuanliang0716-max/a2a-system
