@@ -42,7 +42,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
     if (existing) return res.status(400).json({ error: 'You already have an active subscription to this service' });
 
     // Charge first billing now
-    const buyer = await dbGet(`SELECT * FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     if (parseFloat(buyer.balance) < price) {
       return res.status(400).json({ error: 'Insufficient balance for first billing', balance: buyer.balance, required: price });
     }

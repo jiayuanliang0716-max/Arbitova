@@ -15,6 +15,8 @@ router.post('/register', async (req, res, next) => {
   try {
     const { name, description, owner_email } = req.body;
     if (!name) return res.status(400).json({ error: 'name is required' });
+    if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
+    if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
 
     const id = uuidv4();
     const api_key = uuidv4();
@@ -177,6 +179,16 @@ router.post('/unstake', requireApiKey, async (req, res, next) => {
     );
     const updated = await dbGet(`SELECT balance, stake FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     res.json({ message: `Unstaked ${n} USDC`, balance: updated.balance, stake: updated.stake });
+  } catch (err) { next(err); }
+});
+
+// POST /agents/:id/rotate-key — generate a new API key (invalidates old one)
+router.post('/:id/rotate-key', requireApiKey, async (req, res, next) => {
+  try {
+    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Access denied' });
+    const newKey = uuidv4();
+    await dbRun(`UPDATE agents SET api_key = ${p(1)} WHERE id = ${p(2)}`, [newKey, req.agent.id]);
+    res.json({ api_key: newKey, message: 'API key rotated. Update your stored key — old key is now invalid.' });
   } catch (err) { next(err); }
 });
 

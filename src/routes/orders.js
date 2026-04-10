@@ -51,7 +51,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       }
     }
 
-    const buyer = await dbGet(`SELECT * FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     if (parseFloat(buyer.balance) < parseFloat(service.price)) {
       return res.status(400).json({ error: 'Insufficient balance', balance: buyer.balance, required: service.price });
     }
@@ -434,7 +434,7 @@ router.post('/:id/subdelegate', requireApiKey, async (req, res, next) => {
     }
 
     // Seller must have enough balance to pay the sub-service
-    const seller = await dbGet(`SELECT * FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const seller = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     if (parseFloat(seller.balance) < parseFloat(subService.price)) {
       return res.status(400).json({ error: 'Insufficient balance to fund sub-delegation', balance: seller.balance, required: subService.price });
     }
