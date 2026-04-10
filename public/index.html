@@ -754,6 +754,7 @@ async function loadAccount() {
         <div style="font-family:monospace;font-size:12px;word-break:break-all;color:var(--text-soft);margin-bottom:8px;">${walletInfo.wallet_address}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="copyText('${walletInfo.wallet_address}')">複製地址</button>
+          ${isChain ? `<button class="btn btn-primary btn-sm" onclick="syncBalance()">同步餘額</button>` : ''}
           ${isChain ? `<button class="btn btn-ghost btn-sm" onclick="openWithdrawModal()">提款</button>` : `<button class="btn btn-secondary btn-sm" onclick="openTopupModal()">模擬入金</button>`}
         </div>
         ${isChain && walletInfo.chain_balance !== null ? `<div class="small" style="margin-top:8px;color:var(--text-soft)">鏈上 USDC 餘額：${money(walletInfo.chain_balance)}</div>` : ''}
@@ -834,6 +835,20 @@ async function doTopup() {
     const r = await api('/agents/topup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ amount }) });
     toast(r.message, 'success');
     closeModal();
+    loadAccount();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function syncBalance() {
+  const a = getAuth();
+  try {
+    toast('查詢鏈上餘額中...', 'info');
+    const r = await api('/agents/' + a.id + '/sync-balance', { method: 'POST', headers: authHeaders() });
+    if (r.synced) {
+      toast(`入帳 +${r.credited} USDC，新餘額：${r.new_balance}`, 'success');
+    } else {
+      toast('沒有新入金', 'info');
+    }
     loadAccount();
   } catch (e) { toast(e.message, 'error'); }
 }

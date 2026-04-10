@@ -180,6 +180,40 @@ router.post('/unstake', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /agents/:id/sync-balance — pull on-chain USDC balance and credit any new deposits
+router.post('/:id/sync-balance', requireApiKey, async (req, res, next) => {
+  try {
+    if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Access denied' });
+    if (!isChainMode()) return res.status(400).json({ error: 'Not in chain mode' });
+
+    const agent = await dbGet(
+      `SELECT balance, wallet_address, wallet_encrypted_key FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent?.wallet_address) return res.status(400).json({ error: 'No wallet on this agent' });
+
+    const onChain = await getUsdcBalance(agent.wallet_address);
+    const dbBalance = parseFloat(agent.balance || 0);
+
+    if (onChain <= dbBalance) {
+      return res.json({ synced: false, on_chain: onChain, db_balance: dbBalance, message: 'No new deposits detected' });
+    }
+
+    const diff = parseFloat((onChain - dbBalance).toFixed(6));
+    const { v4: uuidv4 } = require('uuid');
+    const depositId = uuidv4();
+    const txRef = 'sync_' + Date.now();
+
+    await dbRun(`UPDATE agents SET balance = ${p(1)} WHERE id = ${p(2)}`, [onChain, req.agent.id]);
+    await dbRun(
+      `INSERT INTO deposits (id, agent_id, amount, tx_hash) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
+      [depositId, req.agent.id, diff, txRef]
+    );
+
+    res.json({ synced: true, credited: diff, new_balance: onChain, message: `Detected +${diff} USDC on-chain, balance updated.` });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id/wallet — wallet address + on-chain USDC balance
 router.get('/:id/wallet', requireApiKey, async (req, res, next) => {
   try {
