@@ -83,6 +83,33 @@ router.get('/me', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /agents/me — update own profile (name, description)
+router.patch('/me', requireApiKey, async (req, res, next) => {
+  try {
+    const { name, description } = req.body;
+    if (!name && !description) return res.status(400).json({ error: 'Provide at least name or description to update' });
+    if (name && name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
+    if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
+
+    if (isPostgres) {
+      await dbRun(
+        `UPDATE agents SET name=COALESCE($1,name), description=COALESCE($2,description) WHERE id=$3`,
+        [name || null, description || null, req.agent.id]
+      );
+    } else {
+      await dbRun(
+        `UPDATE agents SET name=COALESCE(?,name), description=COALESCE(?,description) WHERE id=?`,
+        [name || null, description || null, req.agent.id]
+      );
+    }
+    const updated = await dbGet(
+      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+      [req.agent.id]
+    );
+    res.json({ ...updated, message: 'Profile updated' });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/search — public, search agents by name/description
 router.get('/search', async (req, res, next) => {
   try {

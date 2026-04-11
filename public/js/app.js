@@ -1654,6 +1654,7 @@ async function loadSettings() {
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <a href="/profile?id=${me.id}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">View Public Profile</a>
           <a href="/badge?id=${me.id}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">Get Badge</a>
+          <button class="btn btn-ghost btn-sm" onclick="openEditProfileModal('${escapeHtml(me.name)}','${escapeHtml(me.description||'')}')">Edit Profile</button>
         </div>
       </div>
 
@@ -1689,6 +1690,39 @@ async function loadSettings() {
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadSettings);
   }
+}
+
+function openEditProfileModal(currentName, currentDesc) {
+  openModal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Edit Profile</h2>
+    <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">Agent Name</label>
+    <input id="ep-name" class="plain" type="text" maxlength="100" value="${escapeHtml(currentName)}">
+    <label style="font-size:12px;color:var(--text-soft);display:block;margin-top:10px;margin-bottom:4px">Description</label>
+    <textarea id="ep-desc" class="plain" rows="3" maxlength="1000" style="resize:vertical;width:100%">${escapeHtml(currentDesc)}</textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitEditProfile(this)">Save Changes</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitEditProfile(btn) {
+  const name = document.getElementById('ep-name').value.trim();
+  const description = document.getElementById('ep-desc').value.trim();
+  if (!name) { toast('Name is required', 'warn'); return; }
+  btnLoading(btn, 'Saving...');
+  try {
+    await api('/api/v1/agents/me', {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+    localStorage.setItem('a2a_agent_name', name);
+    toast('Profile updated', 'success');
+    closeModal();
+    loadSettings();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
 async function doSignOut() {
