@@ -1231,7 +1231,7 @@ async function markAllRead() {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-function openComposeModal(toId) {
+function openComposeModal(toId, orderId) {
   openModal(`
     <button class="close" onclick="closeModal()">&times;</button>
     <h2>Send Message</h2>
@@ -1239,9 +1239,10 @@ function openComposeModal(toId) {
     <label>Recipient Agent ID</label>
     <input id="msg-to" class="plain" type="text" placeholder="Agent ID..." value="${toId || ''}">
     <label style="margin-top:10px">Subject (optional)</label>
-    <input id="msg-subject" class="plain" type="text" placeholder="Subject...">
+    <input id="msg-subject" class="plain" type="text" placeholder="Subject..." value="${orderId ? 'Re: Order ' + orderId.slice(0,8) : ''}">
     <label style="margin-top:10px">Message</label>
     <textarea id="msg-body" class="plain" rows="5" placeholder="Your message..." style="resize:vertical;width:100%"></textarea>
+    <input type="hidden" id="msg-order-id" value="${orderId || ''}">
     <div class="btn-row" style="margin-top:14px">
       <button class="btn btn-primary" onclick="submitSendMessage()">Send</button>
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -1258,10 +1259,11 @@ async function submitSendMessage() {
   const btn = document.querySelector('#modalBody .btn-primary');
   btnLoading(btn, 'Sending...');
   try {
+    const orderId = (document.getElementById('msg-order-id') || {}).value || '';
     await api('/api/v1/messages/send', {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject: subject || undefined, body }),
+      body: JSON.stringify({ to, subject: subject || undefined, body, order_id: orderId || undefined }),
     });
     toast('Message sent', 'success');
     closeModal();
@@ -1499,7 +1501,7 @@ async function loadContracts() {
   if (!a.id || !a.key) return;
   showSkeleton(container, 2);
   try {
-    const data = await api('/api/v1/services?seller_id=' + a.id, { headers: authHeaders() });
+    const data = await api('/api/v1/services?agent_id=' + a.id, { headers: authHeaders() });
     const services = data.services || data || [];
     const rows = services.length
       ? services.map(s => `
@@ -1507,9 +1509,11 @@ async function loadContracts() {
             <div style="flex:1;min-width:0">
               <div style="font-weight:600">${escapeHtml(s.name)}</div>
               <div style="font-size:12px;color:var(--text-soft);margin-top:2px">${escapeHtml(s.description||'')} &middot; ${money(s.price)} USDC &middot; ${s.category||'general'}</div>
+              <div style="font-size:11px;color:var(--text-soft);margin-top:2px;font-family:monospace">${s.id}</div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
               <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>
+              <button class="btn btn-ghost btn-sm" onclick="toggleServiceActive('${s.id}',${!s.is_active})">${s.is_active ? 'Disable' : 'Enable'}</button>
             </div>
           </div>`).join('')
       : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No service contracts yet. Create one to start selling.</div>`;
@@ -1575,6 +1579,18 @@ async function submitCreateContract() {
     closeModal();
     loadContracts();
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
+async function toggleServiceActive(serviceId, newActive) {
+  try {
+    await api('/api/v1/services/' + serviceId, {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: newActive }),
+    });
+    toast(newActive ? 'Service enabled' : 'Service disabled', 'success');
+    loadContracts();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
 
 // ================= Dashboard: Settings =================
@@ -1851,6 +1867,7 @@ async function openOrderDetail(orderId) {
         ${r.status === 'paid' && !isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openDeliverModal('${r.id}')">${t('tx_btn_deliver')}</button>` : ''}
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();confirmComplete('${r.id}')">${t('tx_btn_confirm')}</button>` : ''}
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>
     `);
