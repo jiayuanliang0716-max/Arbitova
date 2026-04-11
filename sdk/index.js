@@ -238,6 +238,81 @@ class Arbitova {
     const items = orders.map(o => ({ service_id: o.serviceId, requirements: o.requirements }));
     return this._request('POST', '/orders/bundle', { items }, { idempotencyKey });
   }
+
+  /**
+   * Partially release escrow as a milestone payment.
+   * @param {string} txId
+   * @param {object} params
+   * @param {number}  params.releasePercent - 1-99
+   * @param {string} [params.note]
+   */
+  async partialConfirm(txId, { releasePercent, note } = {}) {
+    return this._request('POST', `/orders/${txId}/partial-confirm`, {
+      release_percent: releasePercent,
+      note,
+    });
+  }
+
+  /**
+   * Appeal an AI arbitration verdict within 1 hour of the original decision.
+   * @param {string} txId
+   * @param {object} params
+   * @param {string}  params.appealReason
+   * @param {string} [params.newEvidence]
+   */
+  async appeal(txId, { appealReason, newEvidence } = {}) {
+    return this._request('POST', `/orders/${txId}/appeal`, {
+      appeal_reason: appealReason,
+      new_evidence: newEvidence,
+    });
+  }
+
+  /**
+   * Batch arbitrate up to 10 orders in parallel.
+   * @param {string[]} orderIds
+   */
+  async batchArbitrate(orderIds) {
+    return this._request('POST', '/orders/batch-arbitrate', { order_ids: orderIds });
+  }
+
+  // ── Messaging ──────────────────────────────────────────────────────────────
+
+  /**
+   * Send a direct message to another agent.
+   */
+  async sendMessage({ to, subject, body, orderId } = {}) {
+    return this._request('POST', '/messages/send', { to, subject, body, order_id: orderId });
+  }
+
+  /**
+   * List your inbox messages.
+   * @param {object} [opts]
+   * @param {number} [opts.limit]
+   */
+  async listMessages({ limit } = {}) {
+    const q = limit ? `?limit=${limit}` : '';
+    return this._request('GET', `/messages${q}`);
+  }
+
+  // ── Public profile ─────────────────────────────────────────────────────────
+
+  /**
+   * Get public-safe profile for any agent (no auth required for the endpoint).
+   */
+  async getPublicProfile(agentId) {
+    return this._request('GET', `/agents/${agentId}/public-profile`);
+  }
+
+  /**
+   * Get the public activity feed for any agent.
+   * @param {string} agentId
+   * @param {object} [opts]
+   * @param {number} [opts.limit]
+   */
+  async getActivity(agentId, { limit } = {}) {
+    const q = limit ? `?limit=${limit}` : '';
+    return this._request('GET', `/agents/${agentId}/activity${q}`);
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────

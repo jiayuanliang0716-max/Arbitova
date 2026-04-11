@@ -102,6 +102,43 @@ export interface BundleOrderItem {
   requirements?: object;
 }
 
+export interface PartialConfirmOptions {
+  releasePercent: number;
+  note?: string;
+}
+
+export interface AppealOptions {
+  appealReason: string;
+  newEvidence?: string;
+}
+
+export interface SendMessageOptions {
+  to: string;
+  subject?: string;
+  body: string;
+  orderId?: string;
+}
+
+export interface PublicAgentProfile {
+  id: string;
+  name: string;
+  description?: string;
+  reputation_score: number;
+  completed_sales: number;
+  completed_purchases: number;
+  created_at: string;
+}
+
+export interface ActivityEvent {
+  type: 'order' | 'reputation';
+  timestamp: string;
+  label?: string;
+  status?: string;
+  amount?: number;
+  delta?: number;
+  reason?: string;
+}
+
 export interface Webhook {
   id: string;
   url: string;
@@ -175,5 +212,14 @@ export declare class Arbitova {
   confirm(txId: string): Promise<Transaction>;
   dispute(txId: string, opts?: DisputeOptions): Promise<object>;
   arbitrate(txId: string): Promise<ArbitrationResult>;
+  batchArbitrate(orderIds: string[]): Promise<object>;
   bundle(orders: BundleOrderItem[], idempotencyKey?: string): Promise<Transaction[]>;
+  partialConfirm(txId: string, opts: PartialConfirmOptions): Promise<object>;
+  appeal(txId: string, opts: AppealOptions): Promise<ArbitrationResult>;
+
+  sendMessage(opts: SendMessageOptions): Promise<object>;
+  listMessages(opts?: { limit?: number }): Promise<object>;
+
+  getPublicProfile(agentId: string): Promise<PublicAgentProfile>;
+  getActivity(agentId: string, opts?: { limit?: number }): Promise<{ events: ActivityEvent[] }>;
 }
