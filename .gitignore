@@ -2,3 +2,23 @@ node_modules/
 data/
 .env
 *.db
+.memsearch/
+
+# Internal planning docs
+A2A-PAY-計畫書.md
+AUTONOMOUS_RULES.md
+BLUEPRINT.md
+DECISION_NEEDED.md
+MISSION.md
+PROGRESS.md
+QUICKSTART.md
+REPORT.md
+LAUNCH_POSTS.md
+iterate.js
+run-iteration.bat
+scripts/
+demo/
+test/
+test-cloud.js
+test-pg.ps1
+railway.toml
