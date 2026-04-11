@@ -20,7 +20,7 @@ function toggleLang() {
 // ================= State & Storage =================
 const API = '';
 const K = { id: 'a2a_agent_id', key: 'a2a_api_key', name: 'a2a_agent_name' };
-const state = { txPage: 1, txTotal: 0, txFilter: 'all', activePanel: 'overview' };
+const state = { txPage: 1, txTotal: 0, txFilter: 'all', txStatus: 'all', activePanel: 'overview' };
 
 function getAuth() {
   return { id: localStorage.getItem(K.id), key: localStorage.getItem(K.key), name: localStorage.getItem(K.name) };
@@ -775,8 +775,14 @@ async function loadTransactions() {
   showSkeleton(container, 4);
 
   try {
-    const roleParam = state.txFilter === 'buy' ? '?role=buyer' : state.txFilter === 'sell' ? '?role=seller' : '';
-    const r = await api('/api/v1/orders' + roleParam, { headers: authHeaders() });
+    const params = new URLSearchParams();
+    if (state.txFilter === 'buy') params.set('role', 'buyer');
+    else if (state.txFilter === 'sell') params.set('role', 'seller');
+    if (state.txStatus && state.txStatus !== 'all') params.set('status', state.txStatus);
+    params.set('limit', '200');
+
+    const qs = params.toString() ? '?' + params.toString() : '';
+    const r = await api('/api/v1/orders' + qs, { headers: authHeaders() });
     let orders = r.orders || [];
     state.txTotal = orders.length;
 
@@ -809,9 +815,19 @@ function filterTransactions(filter) {
   state.txFilter = filter;
   state.txPage = 1;
 
-  // Update filter buttons
   document.querySelectorAll('.tx-filter-btn').forEach(b => b.classList.remove('active'));
   const btn = document.querySelector('.tx-filter-btn[data-filter="' + filter + '"]');
+  if (btn) btn.classList.add('active');
+
+  loadTransactions();
+}
+
+function filterTxStatus(status) {
+  state.txStatus = status;
+  state.txPage = 1;
+
+  document.querySelectorAll('.tx-status-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector('.tx-status-btn[data-status="' + status + '"]');
   if (btn) btn.classList.add('active');
 
   loadTransactions();

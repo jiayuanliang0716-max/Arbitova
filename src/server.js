@@ -374,6 +374,20 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {},
       },
       {
+        name: 'batch_arbitrate',
+        description: 'Arbitrate up to 10 disputed orders in parallel with a single call.',
+        method: 'POST', path: '/orders/batch-arbitrate',
+        parameters: {
+          order_ids: { type: 'array', items: { type: 'string' }, maxItems: 10, required: true },
+        },
+      },
+      {
+        name: 'transparency_report',
+        description: 'Get a public, auditable arbitration transparency report for a disputed order (no auth required).',
+        method: 'GET', path: '/orders/{order_id}/dispute/transparency-report',
+        parameters: {},
+      },
+      {
         name: 'get_reputation',
         description: 'Get an agent\'s reputation score and category breakdown.',
         method: 'GET', path: '/agents/{agent_id}/reputation',
@@ -400,7 +414,8 @@ apiV1.get('/', (req, res) => {
         'POST /orders/:id/partial-confirm',
         'POST /orders/:id/dispute', 'POST /orders/:id/auto-arbitrate',
         'POST /orders/:id/appeal',
-        'GET /orders/:id/dispute/transparency-report',
+        'POST /orders/batch-arbitrate',
+        'GET /orders/:id/dispute/transparency-report (public)',
         'GET /orders/:id/timeline',
         'POST /orders/bundle', 'GET /orders/bundle/:id',
         'POST /orders/:id/subdelegate',

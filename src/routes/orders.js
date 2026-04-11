@@ -1060,9 +1060,106 @@ router.post('/:id/appeal', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/batch-arbitrate
+// NOTE: must be registered BEFORE /:id routes so Express doesn't treat 'batch-arbitrate' as an id
+// Arbitrate multiple disputed orders at once (up to 10 per call).
+// Caller must be buyer or seller on each order. Processes in parallel.
+router.post('/batch-arbitrate', requireApiKey, async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'AI arbitration not available: ANTHROPIC_API_KEY not configured' });
+    }
+
+    const { order_ids } = req.body;
+    if (!Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({ error: 'order_ids must be a non-empty array' });
+    }
+    if (order_ids.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 orders per batch' });
+    }
+
+    const results = await Promise.allSettled(order_ids.map(async (orderId) => {
+      const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [orderId]);
+      if (!order) return { order_id: orderId, error: 'Order not found' };
+      if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+        return { order_id: orderId, error: 'Access denied' };
+      }
+      if (order.status !== 'disputed') {
+        return { order_id: orderId, error: `Not disputed (status: ${order.status})` };
+      }
+
+      const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)} AND status = 'open'`, [order.id]);
+      if (!dispute) return { order_id: orderId, error: 'No open dispute found' };
+
+      const [service, delivery] = await Promise.all([
+        dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [order.service_id]),
+        dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [order.id])
+      ]);
+
+      let verdict;
+      try {
+        verdict = await arbitrateDispute({ order, service, dispute, delivery });
+      } catch (e) {
+        return { order_id: orderId, error: 'AI arbitration failed: ' + e.message };
+      }
+
+      const { winner, reasoning, confidence, votes, escalate_to_human } = verdict;
+      const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+      if (escalate_to_human) {
+        await dbRun(`UPDATE orders SET status = 'under_review' WHERE id = ${p(1)}`, [order.id]);
+        return { order_id: orderId, result: 'escalated_to_human', confidence };
+      }
+
+      const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+      if (winner === 'buyer') {
+        await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
+        await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      } else {
+        const fee = parseFloat(order.amount) * DISPUTE_FEE_RATE;
+        const sellerReceives = parseFloat(order.amount) - fee;
+        await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+        await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+        await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      }
+
+      const votesSummary = votes.map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%)`).join(', ');
+      const resolution = `[AI Arbitration N=3 | votes: ${votesSummary} | avg confidence: ${(confidence * 100).toFixed(0)}%] ${reasoning}`;
+      await dbRun(
+        `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
+        [resolution, dispute.id]
+      );
+
+      try { await adjustReputation(loserId, -REP_DISPUTE_PENALTY, 'dispute_lost_ai_arbitration', order.id); } catch (e) {}
+
+      return {
+        order_id: orderId,
+        result: 'arbitrated',
+        winner,
+        new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
+        confidence,
+        votes,
+      };
+    }));
+
+    const summary = results.map((r, i) => {
+      if (r.status === 'fulfilled') return r.value;
+      return { order_id: order_ids[i], error: r.reason?.message || 'Unknown error' };
+    });
+
+    const succeeded = summary.filter(r => !r.error).length;
+    res.json({
+      batch_size: order_ids.length,
+      succeeded,
+      failed: order_ids.length - succeeded,
+      results: summary,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/:id/dispute/transparency-report
 // Returns a public, auditable record of AI arbitration for a resolved dispute.
-router.get('/:id/dispute/transparency-report', requireApiKey, async (req, res, next) => {
+router.get('/:id/dispute/transparency-report', async (req, res, next) => {
   try {
     const order = await dbGet(`SELECT id, buyer_id, seller_id, amount, status FROM orders WHERE id = ${p(1)}`, [req.params.id]);
     if (!order) return res.status(404).json({ error: 'Order not found' });

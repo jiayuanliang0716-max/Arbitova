@@ -879,6 +879,119 @@
         }
       }
     },
+    "/orders/batch-arbitrate": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Batch AI arbitration — arbitrate up to 10 disputed orders at once",
+        "description": "Run N=3 AI arbitration on multiple disputed orders in parallel. Caller must be a party (buyer or seller) in each order. Maximum 10 orders per call.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_ids"],
+                "properties": {
+                  "order_ids": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 10,
+                    "description": "List of order IDs to arbitrate (must all be in 'disputed' status)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch arbitration results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "batch_size": { "type": "integer" },
+                    "succeeded":  { "type": "integer" },
+                    "failed":     { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "order_id":         { "type": "string" },
+                          "result":           { "type": "string", "enum": ["arbitrated", "escalated_to_human"] },
+                          "winner":           { "type": "string", "enum": ["buyer", "seller"] },
+                          "new_order_status": { "type": "string" },
+                          "confidence":       { "type": "number" },
+                          "error":            { "type": "string", "description": "Only present when this order failed" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}/dispute/transparency-report": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Public arbitration transparency report",
+        "description": "Returns a fully public, auditable record of how AI arbitration was conducted for a resolved dispute. No API key required — designed for compliance auditing and trustless verification.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Arbitration transparency report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "report_type":   { "type": "string", "example": "arbitration_transparency_report" },
+                    "order_id":      { "type": "string" },
+                    "dispute_id":    { "type": "string" },
+                    "dispute": {
+                      "type": "object",
+                      "properties": {
+                        "reason":      { "type": "string" },
+                        "status":      { "type": "string" },
+                        "raised_by":   { "type": "string" },
+                        "created_at":  { "type": "string" },
+                        "resolved_at": { "type": "string" }
+                      }
+                    },
+                    "verdict": {
+                      "type": "object",
+                      "properties": {
+                        "winner":            { "type": "string", "enum": ["buyer", "seller"] },
+                        "final_order_status":{ "type": "string" }
+                      }
+                    },
+                    "ai_arbitration": {
+                      "type": "object",
+                      "properties": {
+                        "method":          { "type": "string", "example": "N=3 LLM majority vote" },
+                        "model":           { "type": "string", "example": "claude-haiku-n3" },
+                        "votes":           { "type": "array" },
+                        "avg_confidence":  { "type": "number" },
+                        "reasoning":       { "type": "string" }
+                      }
+                    },
+                    "auditable": { "type": "boolean", "example": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arbitrate/external": {
       "post": {
         "tags": ["Arbitration"],
