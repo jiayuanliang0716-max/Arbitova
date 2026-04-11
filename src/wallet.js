@@ -89,6 +89,28 @@ async function transferUsdc(encryptedPrivateKey, toAddress, amount) {
   return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
 }
 
+// ── Platform wallet ──────────────────────────────────────────────────────────
+
+function getPlatformPrivateKey() {
+  const seed = process.env.WALLET_ENCRYPTION_KEY || 'default-seed';
+  const hash = crypto.createHash('sha256').update('arbitova-platform-' + seed).digest('hex');
+  return '0x' + hash;
+}
+
+function getPlatformWalletAddress() {
+  return new ethers.Wallet(getPlatformPrivateKey()).address;
+}
+
+async function transferFromPlatform(toAddress, amount) {
+  const provider = getProvider();
+  const signer = new ethers.Wallet(getPlatformPrivateKey(), provider);
+  const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+  const raw = ethers.parseUnits(amount.toFixed(6), USDC_DECIMALS);
+  const tx = await usdc.transfer(toAddress, raw);
+  const receipt = await tx.wait(1);
+  return { txHash: receipt.hash, blockNumber: receipt.blockNumber };
+}
+
 // ── Mode check ───────────────────────────────────────────────────────────────
 
 const isChainMode = () =>
@@ -100,6 +122,8 @@ module.exports = {
   decryptPrivateKey,
   getUsdcBalance,
   transferUsdc,
+  getPlatformWalletAddress,
+  transferFromPlatform,
   isChainMode,
   USDC_ADDRESS,
   CHAIN

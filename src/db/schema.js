@@ -278,6 +278,16 @@ if (DATABASE_URL) {
         created_at   TIMESTAMPTZ DEFAULT NOW(),
         resolved_at  TIMESTAMPTZ
       );
+
+      CREATE TABLE IF NOT EXISTS platform_revenue (
+        id               TEXT PRIMARY KEY DEFAULT 'singleton',
+        balance          NUMERIC(18,6) NOT NULL DEFAULT 0,
+        total_earned     NUMERIC(18,6) NOT NULL DEFAULT 0,
+        total_withdrawn  NUMERIC(18,6) NOT NULL DEFAULT 0,
+        updated_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+      INSERT INTO platform_revenue (id, balance, total_earned, total_withdrawn)
+      VALUES ('singleton', 0, 0, 0) ON CONFLICT (id) DO NOTHING;
     `);
 
     // One-time migrations: set product_type for existing data
@@ -512,6 +522,16 @@ if (DATABASE_URL) {
       created_at        TEXT DEFAULT (datetime('now')),
       resolved_at       TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS platform_revenue (
+      id               TEXT PRIMARY KEY DEFAULT 'singleton',
+      balance          REAL NOT NULL DEFAULT 0,
+      total_earned     REAL NOT NULL DEFAULT 0,
+      total_withdrawn  REAL NOT NULL DEFAULT 0,
+      updated_at       TEXT DEFAULT (datetime('now'))
+    );
+    INSERT OR IGNORE INTO platform_revenue (id, balance, total_earned, total_withdrawn)
+    VALUES ('singleton', 0, 0, 0);
 
     CREATE TABLE IF NOT EXISTS deposits (
       id           TEXT PRIMARY KEY,

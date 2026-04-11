@@ -12,7 +12,8 @@
  */
 
 const express = require('express');
-const { dbGet, dbAll } = require('../db/helpers');
+const { dbGet, dbAll, dbRun } = require('../db/helpers');
+const { getPlatformWalletAddress, transferFromPlatform, isChainMode } = require('../wallet');
 
 const router = express.Router();
 
@@ -497,6 +498,91 @@ router.post('/review-queue/:id/resolve', async (req, res) => {
     );
 
     res.json({ ok: true, winner, order_id: order.id, new_status: winner === 'buyer' ? 'refunded' : 'completed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── GET /admin/payout-status — show accumulated platform revenue ──────────────
+router.get('/payout-status', async (req, res) => {
+  try {
+    const row = await dbGet(`SELECT * FROM platform_revenue WHERE id = 'singleton'`, []);
+    const platformAddress = getPlatformWalletAddress();
+    res.json({
+      platform_wallet: platformAddress,
+      balance: parseFloat(row?.balance || 0),
+      total_earned: parseFloat(row?.total_earned || 0),
+      total_withdrawn: parseFloat(row?.total_withdrawn || 0),
+      chain_mode: isChainMode(),
+      note: isChainMode()
+        ? 'Use POST /admin/payout to withdraw USDC to your wallet.'
+        : 'Mock mode: no real USDC. Enable ALCHEMY_API_KEY + CHAIN=base for real payouts.',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /admin/payout — withdraw platform revenue to owner wallet ────────────
+router.post('/payout', async (req, res) => {
+  try {
+    const { to_address, amount } = req.body || {};
+    if (!to_address || !/^0x[0-9a-fA-F]{40}$/.test(to_address)) {
+      return res.status(400).json({ error: 'Valid to_address (0x...) is required' });
+    }
+
+    const row = await dbGet(`SELECT * FROM platform_revenue WHERE id = 'singleton'`, []);
+    const available = parseFloat(row?.balance || 0);
+    const requested = amount ? parseFloat(amount) : available;
+
+    if (requested <= 0) return res.status(400).json({ error: 'Amount must be greater than 0' });
+    if (requested > available) {
+      return res.status(400).json({ error: 'Insufficient platform balance', available, requested });
+    }
+
+    if (!isChainMode()) {
+      // Mock mode: just deduct from DB, no real transfer
+      const now = isPostgres ? 'NOW()' : "datetime('now')";
+      await dbRun(
+        `UPDATE platform_revenue SET balance = balance - ${p(1)}, total_withdrawn = total_withdrawn + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+        [requested, requested]
+      );
+      return res.json({
+        success: true,
+        mode: 'mock',
+        withdrawn: requested,
+        to_address,
+        remaining_balance: available - requested,
+        note: 'Mock mode: no real USDC transferred. Enable chain mode for real payouts.',
+      });
+    }
+
+    // Chain mode: real USDC transfer from platform wallet
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbRun(
+      `UPDATE platform_revenue SET balance = balance - ${p(1)}, total_withdrawn = total_withdrawn + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+      [requested, requested]
+    );
+
+    try {
+      const result = await transferFromPlatform(to_address, requested);
+      res.json({
+        success: true,
+        mode: 'chain',
+        withdrawn: requested,
+        to_address,
+        tx_hash: result.txHash,
+        block: result.blockNumber,
+        remaining_balance: available - requested,
+      });
+    } catch (chainErr) {
+      // Rollback DB on chain failure
+      await dbRun(
+        `UPDATE platform_revenue SET balance = balance + ${p(1)}, total_withdrawn = total_withdrawn - ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+        [requested, requested]
+      );
+      res.status(500).json({ error: 'On-chain transfer failed', details: chainErr.message });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

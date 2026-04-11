@@ -499,6 +499,10 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
     await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
     await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    await dbRun(
+      `UPDATE platform_revenue SET balance = balance + ${p(1)}, total_earned = total_earned + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+      [fee, fee]
+    );
 
     // Reputation: successful delivery confirmed by buyer
     try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'order_completed', order.id); } catch (e) { console.error('rep err:', e.message); }
