@@ -519,6 +519,13 @@ async function pollUnreadCount() {
     const totalDisputes = ((dispR.orders || []).length + (dispR2.orders || []).length);
     const dispBadge = document.getElementById('nav-dispute-badge');
     if (dispBadge) { dispBadge.textContent = totalDisputes; dispBadge.style.display = totalDisputes > 0 ? '' : 'none'; }
+    // Update notification bell badge
+    const notifBadge = document.getElementById('notif-badge');
+    if (notifBadge) {
+      const total = unread + totalDisputes;
+      if (total > 0) { notifBadge.textContent = total > 9 ? '9+' : total; notifBadge.style.display = ''; }
+      else { notifBadge.style.display = 'none'; }
+    }
     // Update page title with unread count
     const totalAlerts = unread + totalDisputes;
     document.title = totalAlerts > 0
@@ -2207,6 +2214,44 @@ async function openOrderDetail(orderId) {
       </div>
     `);
   } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+// ================= Notifications =================
+
+async function openNotificationsModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Notifications</h2>
+    <div id="notif-modal-body" style="min-height:80px;display:flex;align-items:center;justify-content:center">
+      <span style="color:var(--text-soft);font-size:13px">Loading...</span>
+    </div>
+  `);
+  try {
+    const r = await api('/api/v1/notifications?limit=20', { headers: authHeaders() });
+    const notifs = r.notifications || [];
+    const body = document.getElementById('notif-modal-body');
+    if (!body) return;
+    if (!notifs.length) {
+      body.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--text-soft)">No new notifications.</div>`;
+      return;
+    }
+    const typeIcon = { new_order: '&#9998;', delivery_received: '&#128230;', new_message: '&#9993;', dispute_active: '&#9888;' };
+    const typeColor = { new_order: 'var(--accent)', delivery_received: '#f59e0b', new_message: 'var(--accent)', dispute_active: '#ef4444' };
+    body.innerHTML = `<div style="width:100%">` + notifs.map(n => `
+      <div style="display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer"
+           onclick="${n.order_id ? `closeModal();openOrderDetail('${n.order_id}')` : n.message_id ? `closeModal();switchPanel('messages')` : `closeModal()`}">
+        <div style="width:32px;height:32px;border-radius:8px;background:rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;color:${typeColor[n.type]||'var(--text)'}">${typeIcon[n.type]||'&#9679;'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:${typeColor[n.type]||'var(--text)'}">${escapeHtml(n.title)}</div>
+          <div style="font-size:11px;color:var(--text-soft);margin-top:2px;line-height:1.5">${escapeHtml(n.body)}</div>
+          <div style="font-size:10px;color:var(--text-soft);margin-top:3px">${relativeTime(n.created_at)}</div>
+        </div>
+        ${n.amount ? `<div style="font-size:12px;font-weight:700;color:var(--text);flex-shrink:0">${money(n.amount)}</div>` : ''}
+      </div>`).join('') + `</div>`;
+  } catch (e) {
+    const body = document.getElementById('notif-modal-body');
+    if (body) body.innerHTML = `<div style="color:var(--danger,#ef4444);padding:20px">${escapeHtml(friendlyError(e.message))}</div>`;
+  }
 }
 
 // ================= Financial Modals =================
