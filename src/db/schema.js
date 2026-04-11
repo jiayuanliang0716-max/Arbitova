@@ -240,6 +240,32 @@ if (DATABASE_URL) {
         created_at    TIMESTAMPTZ DEFAULT NOW(),
         delivered_at  TIMESTAMPTZ
       );
+
+      CREATE TABLE IF NOT EXISTS idempotency_keys (
+        id              SERIAL PRIMARY KEY,
+        key_value       TEXT NOT NULL UNIQUE,
+        status          TEXT DEFAULT 'processing',
+        response_status INTEGER,
+        response_body   TEXT,
+        expires_at      TIMESTAMPTZ NOT NULL,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys (expires_at);
+
+      CREATE TABLE IF NOT EXISTS human_review_queue (
+        id           TEXT PRIMARY KEY,
+        order_id     TEXT NOT NULL REFERENCES orders(id),
+        dispute_id   TEXT NOT NULL,
+        ai_votes     JSONB NOT NULL,
+        ai_reasoning TEXT,
+        ai_confidence NUMERIC,
+        escalation_reason TEXT,
+        status       TEXT DEFAULT 'pending',
+        reviewed_by  TEXT,
+        resolution   TEXT,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        resolved_at  TIMESTAMPTZ
+      );
     `);
 
     // One-time migrations: set product_type for existing data
@@ -447,6 +473,32 @@ if (DATABASE_URL) {
       status        TEXT DEFAULT 'pending',
       created_at    TEXT DEFAULT (datetime('now')),
       delivered_at  TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS idempotency_keys (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      key_value       TEXT NOT NULL UNIQUE,
+      status          TEXT DEFAULT 'processing',
+      response_status INTEGER,
+      response_body   TEXT,
+      expires_at      TEXT NOT NULL,
+      created_at      TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_idempotency_expires ON idempotency_keys (expires_at);
+
+    CREATE TABLE IF NOT EXISTS human_review_queue (
+      id                TEXT PRIMARY KEY,
+      order_id          TEXT NOT NULL REFERENCES orders(id),
+      dispute_id        TEXT NOT NULL,
+      ai_votes          TEXT NOT NULL,
+      ai_reasoning      TEXT,
+      ai_confidence     REAL,
+      escalation_reason TEXT,
+      status            TEXT DEFAULT 'pending',
+      reviewed_by       TEXT,
+      resolution        TEXT,
+      created_at        TEXT DEFAULT (datetime('now')),
+      resolved_at       TEXT
     );
 
     CREATE TABLE IF NOT EXISTS deposits (

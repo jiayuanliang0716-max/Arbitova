@@ -430,4 +430,76 @@ router.get('/revenue', async (req, res) => {
   }
 });
 
+// ── GET /admin/review-queue ────────────────────────────────────────────────
+// List disputes escalated to human review (confidence too low after N=3 AI vote).
+router.get('/review-queue', async (req, res) => {
+  try {
+    const { status = 'pending' } = req.query;
+    const rows = await dbAll(
+      `SELECT q.*, o.amount, o.buyer_id, o.seller_id
+       FROM human_review_queue q
+       JOIN orders o ON o.id = q.order_id
+       WHERE q.status = ${p(1)}
+       ORDER BY q.created_at ASC`,
+      [status]
+    );
+    res.json({ items: rows, count: rows.length, status });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /admin/review-queue/:id/resolve ──────────────────────────────────
+// Human reviewer submits their verdict.
+// Body: { winner: 'buyer'|'seller', resolution: '...' }
+router.post('/review-queue/:id/resolve', async (req, res) => {
+  try {
+    const { winner, resolution } = req.body;
+    if (!['buyer', 'seller'].includes(winner)) {
+      return res.status(400).json({ error: 'winner must be buyer or seller' });
+    }
+    if (!resolution) {
+      return res.status(400).json({ error: 'resolution text is required' });
+    }
+
+    const item = await dbGet(
+      `SELECT * FROM human_review_queue WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!item) return res.status(404).json({ error: 'Review item not found' });
+    if (item.status !== 'pending') return res.status(400).json({ error: 'Already resolved' });
+
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [item.order_id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const { dbRun } = require('../db/helpers');
+    const PLATFORM_FEE_RATE = 0.025;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    if (winner === 'buyer') {
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
+      await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    } else {
+      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const sellerReceives = parseFloat(order.amount) - fee;
+      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+
+    await dbRun(
+      `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
+      [`[Human Review] ${resolution}`, item.dispute_id]
+    );
+    await dbRun(
+      `UPDATE human_review_queue SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
+      [resolution, item.id]
+    );
+
+    res.json({ ok: true, winner, order_id: order.id, new_status: winner === 'buyer' ? 'refunded' : 'completed' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

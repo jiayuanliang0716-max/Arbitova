@@ -5,6 +5,8 @@ const { requireApiKey } = require('../middleware/auth');
 const { verifyInput, verifyDelivery } = require('../verify');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
+const { checkVelocity } = require('../middleware/velocity');
+const { idempotency } = require('../middleware/idempotency');
 
 const router = express.Router();
 
@@ -26,7 +28,7 @@ async function adjustReputation(agentId, delta, reason, orderId) {
 }
 
 // POST /orders
-router.post('/', requireApiKey, async (req, res, next) => {
+router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
     const { service_id, requirements } = req.body;
     if (!service_id) return res.status(400).json({ error: 'service_id is required' });
@@ -55,6 +57,12 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     if (parseFloat(buyer.balance) < parseFloat(service.price)) {
       return res.status(400).json({ error: 'Insufficient balance', balance: buyer.balance, required: service.price });
+    }
+
+    // Velocity limits — prevent runaway / compromised agent spending
+    const vel = await checkVelocity(req.agent.id, parseFloat(service.price));
+    if (!vel.ok) {
+      return res.status(429).json({ error: vel.reason, code: vel.code });
     }
 
     const deadline = new Date();
@@ -125,7 +133,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
 
 // POST /orders/bundle — atomically create multiple orders in one transaction
 // Body: { items: [{ service_id, requirements? }, ...] }
-router.post('/bundle', requireApiKey, async (req, res, next) => {
+router.post('/bundle', idempotency(), requireApiKey, async (req, res, next) => {
   try {
     const { items } = req.body || {};
     if (!Array.isArray(items) || items.length === 0) {
@@ -689,7 +697,7 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [order.id])
     ]);
 
-    // Run AI arbitration
+    // Run AI arbitration (N=3 majority vote)
     let verdict;
     try {
       verdict = await arbitrateDispute({ order, service, dispute, delivery });
@@ -697,11 +705,60 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       return res.status(500).json({ error: 'AI arbitration failed', details: e.message });
     }
 
-    const { winner, reasoning, confidence } = verdict;
-    const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+    const { winner, reasoning, confidence, votes, escalate_to_human } = verdict;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
-    // Execute the verdict
+    // ── Human escalation path ────────────────────────────────────────────────
+    if (escalate_to_human) {
+      const reviewId = uuidv4();
+      const escalationReason = confidence < 0.60
+        ? `AI confidence too low (${(confidence * 100).toFixed(0)}%)`
+        : 'Minority judges highly confident in opposite direction';
+
+      await dbRun(
+        `UPDATE orders SET status = 'under_review' WHERE id = ${p(1)}`,
+        [order.id]
+      );
+      await dbRun(
+        `INSERT INTO human_review_queue
+           (id, order_id, dispute_id, ai_votes, ai_reasoning, ai_confidence, escalation_reason)
+         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)})`,
+        [
+          reviewId, order.id, dispute.id,
+          JSON.stringify(votes), reasoning, confidence,
+          escalationReason,
+        ]
+      );
+
+      // Notify both parties
+      for (const recipientId of [order.buyer_id, order.seller_id]) {
+        const msgId = uuidv4();
+        await dbRun(
+          `INSERT INTO messages (id, recipient_id, subject, body, order_id)
+           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)})`,
+          [msgId, recipientId,
+           '[Arbitova] Dispute escalated to human review',
+           `Your dispute on order ${order.id} has been escalated to a human reviewer because the AI arbitration result was inconclusive (confidence: ${(confidence * 100).toFixed(0)}%). You will be notified when the review is complete. Review ID: ${reviewId}`,
+           order.id]
+        ).catch(() => {});
+      }
+
+      return res.status(202).json({
+        escalated: true,
+        review_id: reviewId,
+        order_id: order.id,
+        dispute_id: dispute.id,
+        order_status: 'under_review',
+        ai_confidence: confidence,
+        escalation_reason: escalationReason,
+        ai_votes: votes,
+        message: 'AI confidence insufficient. Dispute queued for human review.',
+      });
+    }
+
+    // ── Execute AI verdict ───────────────────────────────────────────────────
+    const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+
     if (winner === 'buyer') {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
@@ -713,7 +770,8 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     }
 
-    const resolution = `[AI Arbitration | confidence: ${(confidence * 100).toFixed(0)}%] ${reasoning}`;
+    const votesSummary = votes.map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%)`).join(', ');
+    const resolution = `[AI Arbitration N=3 | votes: ${votesSummary} | avg confidence: ${(confidence * 100).toFixed(0)}%] ${reasoning}`;
     await dbRun(
       `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
       [resolution, dispute.id]
@@ -743,9 +801,10 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
       ai_reasoning: reasoning,
       confidence,
+      ai_votes: votes,
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed,
-      arbitrated_by: 'claude-haiku'
+      arbitrated_by: 'claude-haiku-n3',
     });
   } catch (err) { next(err); }
 });

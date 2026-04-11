@@ -295,6 +295,71 @@ cron.schedule('*/10 * * * *', async () => {
   }
 });
 
+// ── Cron: auto-confirm delivered orders after 48h (P2) ──────────────────────
+// If buyer never disputes or confirms within 48h of delivery, auto-confirm for seller.
+cron.schedule('*/30 * * * *', async () => {
+  try {
+    const isPostgres = !!process.env.DATABASE_URL;
+    const p = (n) => isPostgres ? `$${n}` : '?';
+    const PLATFORM_FEE_RATE = 0.025;
+    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Orders in 'delivered' status with delivery older than 48h
+    const stale = await dbAll(
+      `SELECT o.* FROM orders o
+       JOIN deliveries d ON d.order_id = o.id
+       WHERE o.status = 'delivered' AND d.delivered_at < ${p(1)}`,
+      [cutoff]
+    );
+
+    for (const order of stale) {
+      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const sellerReceives = parseFloat(order.amount) - fee;
+      await dbAll(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+      await dbAll(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await dbAll(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+    if (stale.length > 0) console.log(`[cron] auto-confirmed ${stale.length} stale delivered orders`);
+  } catch (err) {
+    console.error('[cron] auto-confirm error:', err.message);
+  }
+});
+
+// ── Cron: daily reconciliation at 02:00 UTC (P1) ────────────────────────────
+// Verifies that SUM(agents.escrow) == SUM(orders.amount WHERE status='paid' OR 'delivered').
+// Logs discrepancies — flag for manual investigation.
+cron.schedule('0 2 * * *', async () => {
+  try {
+    const isPostgres = !!process.env.DATABASE_URL;
+    const p = (n) => isPostgres ? `$${n}` : '?';
+
+    const [escrowSum, ordersSum] = await Promise.all([
+      dbAll('SELECT COALESCE(SUM(escrow), 0) as total FROM agents', []),
+      dbAll(`SELECT COALESCE(SUM(amount), 0) as total FROM orders WHERE status IN ('paid', 'delivered', 'disputed', 'under_review')`, []),
+    ]);
+
+    const escrowTotal  = parseFloat(escrowSum[0]?.total  || 0);
+    const ordersTotal  = parseFloat(ordersSum[0]?.total  || 0);
+    const delta        = Math.abs(escrowTotal - ordersTotal);
+    const threshold    = 0.01; // allow $0.01 floating point tolerance
+
+    if (delta > threshold) {
+      console.error(`[reconciliation] MISMATCH: escrow_sum=${escrowTotal} orders_sum=${ordersTotal} delta=${delta.toFixed(6)}`);
+      // TODO: fire an alert webhook / Slack notification when wired up
+    } else {
+      console.log(`[reconciliation] OK: escrow=${escrowTotal} orders_in_flight=${ordersTotal}`);
+    }
+
+    // Purge expired idempotency keys
+    const expiredNow = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbAll(`DELETE FROM idempotency_keys WHERE expires_at < ${expiredNow}`, [])
+      .catch(() => {});
+  } catch (err) {
+    console.error('[cron] reconciliation error:', err.message);
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Arbitova running on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
