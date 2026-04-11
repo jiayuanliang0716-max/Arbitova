@@ -110,6 +110,25 @@ router.get('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// PATCH /orders/:id/requirements — buyer can update requirements before delivery
+router.patch('/:id/requirements', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can update requirements' });
+    if (order.status !== 'paid') {
+      return res.status(400).json({ error: 'Requirements can only be updated while order status is paid' });
+    }
+    const { requirements } = req.body;
+    if (requirements === undefined || requirements === null) {
+      return res.status(400).json({ error: 'requirements field is required' });
+    }
+    const reqVal = typeof requirements === 'object' ? JSON.stringify(requirements) : String(requirements);
+    await dbRun(`UPDATE orders SET requirements = ${p(1)} WHERE id = ${p(2)}`, [reqVal, order.id]);
+    res.json({ id: order.id, status: order.status, requirements, message: 'Requirements updated.' });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/escrow-check — pre-flight: verify buyer balance + service availability before placing order
 router.post('/escrow-check', requireApiKey, async (req, res, next) => {
   try {

@@ -2123,6 +2123,37 @@ async function submitReview(orderId, btn) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+function openUpdateRequirementsModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Update Requirements</h2>
+    <p class="mdesc">Modify the delivery instructions before the seller starts work.</p>
+    <label>New requirements (JSON or plain text)</label>
+    <textarea id="update-req-body" class="plain" rows="5" placeholder='{"task": "...", "format": "json"}' style="width:100%;resize:vertical;font-family:monospace;font-size:12px"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitUpdateRequirements('${orderId}',this)">Update</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitUpdateRequirements(orderId, btn) {
+  const raw = document.getElementById('update-req-body').value.trim();
+  if (!raw) return toast('Requirements cannot be empty', 'warn');
+  let requirements;
+  try { requirements = JSON.parse(raw); } catch (e) { requirements = raw; }
+  btnLoading(btn, 'Updating...');
+  try {
+    await api('/api/v1/orders/' + orderId + '/requirements', {
+      method: 'PATCH',
+      headers: authHeaders(),
+      body: JSON.stringify({ requirements }),
+    });
+    toast('Requirements updated.', 'success');
+    closeModal();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 function openExtendDeadlineModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -2272,6 +2303,7 @@ async function openOrderDetail(orderId) {
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();confirmComplete('${r.id}')">${t('tx_btn_confirm')}</button>` : ''}
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-secondary btn-sm" onclick="closeModal();openPartialConfirmModal('${r.id}')">Partial Release</button>` : ''}
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
+        ${r.status === 'paid' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openUpdateRequirementsModal('${r.id}')">Update Requirements</button>` : ''}
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
