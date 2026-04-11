@@ -110,6 +110,27 @@ router.patch('/me', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/services — authenticated agent's own services (all, including inactive)
+router.get('/me/services', requireApiKey, async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const services = await dbAll(
+      `SELECT id, name, description, price, category, delivery_hours, is_active, auto_verify, created_at,
+              (SELECT COUNT(*) FROM orders WHERE service_id = services.id AND status NOT IN ('cancelled','refunded')) as total_orders,
+              (SELECT COUNT(*) FROM orders WHERE service_id = services.id AND status = 'completed') as completed_orders
+       FROM services WHERE agent_id = ${p(1)}
+       ORDER BY is_active DESC, created_at DESC LIMIT ${p(2)}`,
+      [req.agent.id, limit]
+    );
+    res.json({ count: services.length, services: services.map(s => ({
+      ...s,
+      is_active: !!s.is_active,
+      total_orders: parseInt(s.total_orders || 0),
+      completed_orders: parseInt(s.completed_orders || 0),
+    })) });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/search — public, search agents by name/description
 router.get('/search', async (req, res, next) => {
   try {

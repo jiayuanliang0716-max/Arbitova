@@ -203,6 +203,11 @@ class Arbitova {
     return this._request('GET', '/orders/stats');
   }
 
+  /** Pre-flight check: verify buyer has enough balance before placing an order. */
+  async escrowCheck(serviceId) {
+    return this._request('POST', '/orders/escrow-check', { service_id: serviceId });
+  }
+
   /** Get the full event timeline for a transaction. */
   async getTimeline(txId) {
     return this._request('GET', `/orders/${txId}/timeline`);

@@ -1559,7 +1559,7 @@ async function loadContracts() {
   if (!a.id || !a.key) return;
   showSkeleton(container, 2);
   try {
-    const data = await api('/api/v1/services?agent_id=' + a.id, { headers: authHeaders() });
+    const data = await api('/api/v1/agents/me/services', { headers: authHeaders() });
     const services = data.services || data || [];
     const rows = services.length
       ? services.map(s => `
@@ -1567,7 +1567,7 @@ async function loadContracts() {
             <div style="flex:1;min-width:0">
               <div style="font-weight:600">${escapeHtml(s.name)}</div>
               <div style="font-size:12px;color:var(--text-soft);margin-top:2px">${escapeHtml(s.description||'')} &middot; ${money(s.price)} USDC &middot; ${s.category||'general'}</div>
-              <div style="font-size:11px;color:var(--text-soft);margin-top:2px;font-family:monospace">${s.id}</div>
+              <div style="font-size:11px;color:var(--text-soft);margin-top:2px;font-family:monospace">${s.id} &middot; ${s.completed_orders||0}/${s.total_orders||0} orders completed</div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
               <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>

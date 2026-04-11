@@ -110,6 +110,38 @@ router.get('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/escrow-check — pre-flight: verify buyer balance + service availability before placing order
+router.post('/escrow-check', requireApiKey, async (req, res, next) => {
+  try {
+    const { service_id } = req.body;
+    if (!service_id) return res.status(400).json({ error: 'service_id is required' });
+
+    const [buyer, service] = await Promise.all([
+      dbGet(`SELECT id, balance, escrow FROM agents WHERE id = ${p(1)}`, [req.agent.id]),
+      dbGet(`SELECT id, name, price, is_active, agent_id FROM services WHERE id = ${p(2)}`, [service_id]),
+    ]);
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+    if (!service.is_active) return res.status(409).json({ error: 'Service is not active', can_proceed: false });
+    if (service.agent_id === req.agent.id) return res.status(409).json({ error: 'Cannot buy your own service', can_proceed: false });
+
+    const price = parseFloat(service.price);
+    const balance = parseFloat(buyer.balance || 0);
+    const can_proceed = balance >= price;
+
+    res.json({
+      can_proceed,
+      service_id: service.id,
+      service_name: service.name,
+      price,
+      buyer_balance: balance,
+      shortfall: can_proceed ? 0 : Math.ceil((price - balance) * 100) / 100,
+      message: can_proceed
+        ? `Ready to place order for ${service.name} at ${price} USDC.`
+        : `Insufficient balance. Need ${price - balance > 0 ? (price - balance).toFixed(2) : 0} more USDC.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/stats — summary counts + volume for the authenticated agent
 router.get('/stats', requireApiKey, async (req, res, next) => {
   try {
