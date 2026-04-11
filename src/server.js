@@ -125,6 +125,116 @@ app.get('/api/mode', (req, res) => {
 // API Docs
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
+// ── Google A2A Protocol v0.2 — Agent Card ─────────────────────────────────────
+const BASE = process.env.API_BASE_URL || 'https://a2a-system.onrender.com';
+app.get('/.well-known/agent.json', (req, res) => {
+  res.json({
+    name: 'Arbitova',
+    description: 'Trust infrastructure for AI agent transactions. Escrow payments, auto-verification, AI arbitration, and reputation scoring for agent-to-agent commerce.',
+    url: BASE,
+    version: '1.0.0',
+    documentationUrl: `${BASE}/docs`,
+    capabilities: {
+      streaming: false,
+      pushNotifications: true,
+      stateTransitionHistory: true,
+    },
+    authentication: {
+      schemes: ['ApiKey'],
+      credentials: {
+        header: 'X-API-Key',
+        description: 'Register at /api/v1/agents/register to get an API key.',
+      },
+    },
+    defaultInputModes: ['application/json'],
+    defaultOutputModes: ['application/json'],
+    skills: [
+      {
+        id: 'register_agent',
+        name: 'Register Agent',
+        description: 'Create a new agent identity. Returns agent ID and API key.',
+        tags: ['identity', 'onboarding'],
+        examples: ['Register me as an agent called TradingBot'],
+      },
+      {
+        id: 'escrow_payment',
+        name: 'Escrow Payment',
+        description: 'Place an order for a service. Funds are locked in escrow until delivery is confirmed.',
+        tags: ['payment', 'escrow', 'a2a', 'commerce'],
+        examples: ['Pay 1.0 USDC to service summarize-docs-v2 for article summarization'],
+      },
+      {
+        id: 'deliver_order',
+        name: 'Deliver Order',
+        description: 'Submit delivery content for an order. Triggers auto-verification if schema is defined.',
+        tags: ['delivery', 'fulfillment'],
+        examples: ['Deliver content for order ord_abc123'],
+      },
+      {
+        id: 'confirm_order',
+        name: 'Confirm Order',
+        description: 'Confirm delivery and release escrow funds to seller.',
+        tags: ['settlement', 'payment'],
+        examples: ['Confirm order ord_abc123 is complete'],
+      },
+      {
+        id: 'dispute_order',
+        name: 'Dispute Order',
+        description: 'Open a dispute on an order. Funds remain frozen pending resolution.',
+        tags: ['dispute', 'arbitration'],
+        examples: ['Dispute order ord_abc123 — delivery did not match requirements'],
+      },
+      {
+        id: 'arbitrate_order',
+        name: 'AI Arbitration',
+        description: 'Trigger N=3 AI arbitration for a disputed order. Majority vote decides winner.',
+        tags: ['arbitration', 'dispute-resolution'],
+        examples: ['Arbitrate order ord_abc123'],
+      },
+      {
+        id: 'publish_service',
+        name: 'Publish Service',
+        description: 'List a service that other agents can purchase.',
+        tags: ['marketplace', 'seller', 'commerce'],
+        examples: ['Publish a code review service at 0.25 USDC per review'],
+      },
+      {
+        id: 'search_services',
+        name: 'Search Services',
+        description: 'Find available services by keyword or category.',
+        tags: ['discovery', 'marketplace'],
+        examples: ['Find writing services under 2 USDC', 'Search for data analysis agents'],
+      },
+      {
+        id: 'get_reputation',
+        name: 'Get Reputation',
+        description: 'Get an agent reputation score and per-category breakdown.',
+        tags: ['reputation', 'trust'],
+        examples: ['Get reputation score for agent agnt_abc123'],
+      },
+    ],
+  });
+});
+
+// ── A2A Task endpoint — POST /tasks/send ─────────────────────────────────────
+app.post('/tasks/send', async (req, res) => {
+  try {
+    const { id, message } = req.body || {};
+    if (!id || !message) return res.status(400).json({ error: 'id and message required' });
+    const text = (message.parts || []).map(p => p.text || '').join(' ').trim();
+    res.json({
+      id,
+      status: { state: 'completed', timestamp: new Date().toISOString() },
+      artifacts: [{
+        parts: [{
+          type: 'text',
+          text: `Arbitova A2A — I received: "${text}"\n\nAvailable actions: register_agent, escrow_payment, deliver_order, confirm_order, dispute_order, arbitrate_order, publish_service, search_services, get_reputation.\n\nFull API: ${BASE}/docs\nRegister: POST ${BASE}/api/v1/agents/register`,
+        }],
+      }],
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Routes — v1 (canonical, SDK points here)
 const apiV1 = express.Router();
 apiV1.use('/agents', agentRoutes);
