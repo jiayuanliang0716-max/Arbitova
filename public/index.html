@@ -301,6 +301,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span data-i18n="dash_nav_transactions">Transactions</span>
       </button>
+      <button class="dash-nav-item" data-panel="marketplace">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>Marketplace</span>
+      </button>
       <button class="dash-nav-item" data-panel="apikeys">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         <span data-i18n="dash_nav_apikeys">API Keys</span>
@@ -385,9 +389,32 @@
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="disputed" onclick="filterTxStatus('disputed')">Disputed</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="completed" onclick="filterTxStatus('completed')">Completed</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="refunded" onclick="filterTxStatus('refunded')">Refunded</button>
-          <input type="text" id="tx-search" placeholder="Search orders..." style="margin-left:auto;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:160px" oninput="debouncedTxSearch(this.value)">
+          <input type="text" id="tx-search" placeholder="Search orders..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedTxSearch(this.value)">
+          <button class="btn btn-ghost btn-sm" onclick="exportTransactions('csv')" title="Export as CSV" style="margin-left:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+          </button>
         </div>
         <div id="tx-list" class="dash-card-body" style="padding:0"></div>
+      </div>
+    </section>
+
+    <!-- Panel: Marketplace -->
+    <section class="dash-panel" id="panel-marketplace" role="region" aria-label="Marketplace">
+      <div class="dash-card">
+        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
+          <h3>Service Marketplace</h3>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="mkt-search" placeholder="Search services..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:160px" oninput="debouncedMktSearch(this.value)">
+            <select id="mkt-sort" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
+              <option value="reputation">Top Rated</option>
+              <option value="price_asc">Price: Low</option>
+              <option value="price_desc">Price: High</option>
+              <option value="newest">Newest</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="loadMarketplace()">Refresh</button>
+          </div>
+        </div>
+        <div id="marketplace-list" class="dash-card-body"></div>
       </div>
     </section>
 

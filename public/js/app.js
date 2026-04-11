@@ -653,6 +653,7 @@ function switchPanel(name) {
   // Load appropriate data
   if (name === 'overview') loadOverview();
   if (name === 'transactions') loadTransactions();
+  if (name === 'marketplace') loadMarketplace();
   if (name === 'disputes') loadDisputes();
   if (name === 'messages') loadMessages();
   if (name === 'leaderboard') loadLeaderboard();
@@ -729,6 +730,7 @@ async function loadOverview() {
           <button class="btn btn-ghost btn-sm" onclick="openRepHistory('${me.id}')">${t('rep_title')}</button>
           <button class="btn btn-ghost btn-sm" onclick="openDepositHistory()">${t('deposit_title')}</button>
           <button class="btn btn-secondary btn-sm" onclick="showQuickStart()">${t('dash_action_quickstart')}</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchPanel('marketplace')">Browse Marketplace</button>
         </div>
       `;
     }
@@ -884,6 +886,147 @@ function debouncedTxSearch(val) {
     state.txPage = 1;
     loadTransactions();
   }, 400);
+}
+
+async function exportTransactions(format = 'csv') {
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  try {
+    const params = new URLSearchParams();
+    if (state.txFilter === 'buy') params.set('role', 'buyer');
+    else if (state.txFilter === 'sell') params.set('role', 'seller');
+    if (state.txStatus && state.txStatus !== 'all') params.set('status', state.txStatus);
+    if (state.txQuery && state.txQuery.trim()) params.set('q', state.txQuery.trim());
+    params.set('limit', '1000');
+    const qs = params.toString() ? '?' + params.toString() : '';
+    const r = await api('/api/v1/orders' + qs, { headers: authHeaders() });
+    const orders = r.orders || [];
+    if (!orders.length) { toast('No orders to export', 'info'); return; }
+
+    if (format === 'json') {
+      const blob = new Blob([JSON.stringify(orders, null, 2)], { type: 'application/json' });
+      downloadBlob(blob, 'arbitova-orders.json');
+    } else {
+      const cols = ['id', 'status', 'amount', 'platform_fee', 'role', 'service_name', 'created_at', 'completed_at'];
+      const rows = orders.map(o => {
+        const role = o.buyer_id === a.id ? 'buyer' : 'seller';
+        return cols.map(c => {
+          const v = c === 'role' ? role : (o[c] ?? '');
+          return '"' + String(v).replace(/"/g, '""') + '"';
+        }).join(',');
+      });
+      const csv = [cols.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      downloadBlob(blob, 'arbitova-orders.csv');
+    }
+    toast('Export downloaded', 'success');
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ================= Dashboard: Marketplace =================
+
+let mktSearchTimer;
+function debouncedMktSearch(val) {
+  clearTimeout(mktSearchTimer);
+  mktSearchTimer = setTimeout(() => loadMarketplace(val), 400);
+}
+
+async function loadMarketplace(searchQuery) {
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  const container = document.getElementById('marketplace-list');
+  if (!container) return;
+  showSkeleton(container, 4);
+
+  try {
+    const q = searchQuery !== undefined ? searchQuery : (document.getElementById('mkt-search') || {}).value || '';
+    const sort = (document.getElementById('mkt-sort') || {}).value || 'reputation';
+    const params = new URLSearchParams();
+    if (q && q.trim()) params.set('q', q.trim());
+    params.set('sort', sort);
+    params.set('limit', '30');
+    const qs = params.toString() ? '?' + params.toString() : '';
+    const endpoint = q.trim() ? '/api/v1/services/search' : '/api/v1/services';
+    const r = await api(endpoint + qs, { headers: authHeaders() });
+    const svcs = r.services || r.matches || [];
+
+    if (!svcs.length) {
+      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No services found</h3><p class="muted">Try a different search or check back later.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px">` +
+      svcs.map(s => {
+        const rep = parseInt(s.seller_reputation || 0);
+        const repBadge = rep >= 80 ? `<span style="background:rgba(0,212,170,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Top Rated</span>` : '';
+        return `<div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px">
+          <div style="font-weight:700;font-size:14px">${escapeHtml(s.name)}${repBadge}</div>
+          ${s.description ? `<div style="font-size:12px;color:var(--text-soft);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${escapeHtml(s.description)}</div>` : ''}
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
+            <div>
+              <div style="font-size:16px;font-weight:800;color:var(--accent)">${money(s.price)}</div>
+              <div style="font-size:11px;color:var(--text-soft)">${s.delivery_hours || 24}h delivery</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;color:var(--text-soft)">${escapeHtml(s.agent_name || 'unknown')}</div>
+              <div style="font-size:11px;color:var(--text-soft)">Rep: ${rep}</div>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openPlaceOrderModal('${s.id}','${escapeHtml(s.agent_id)}','${escapeHtml(s.name)}',${s.price})">Place Order</button>
+        </div>`;
+      }).join('') + `</div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadMarketplace);
+  }
+}
+
+function openPlaceOrderModal(serviceId, sellerId, serviceName, price) {
+  const a = getAuth();
+  if (!a.id || !a.key) { toast('Please log in first', 'error'); return; }
+  if (sellerId === a.id) { toast('You cannot order your own service', 'info'); return; }
+  openModal(`
+    <h2 style="margin:0 0 16px">Place Order</h2>
+    <div style="margin-bottom:12px">
+      <div style="font-weight:600">${escapeHtml(serviceName)}</div>
+      <div style="font-size:13px;color:var(--text-soft)">Cost: <strong>${money(price)}</strong></div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">Requirements / Instructions</label>
+      <textarea id="po-requirements" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box" placeholder="Describe what you need from the seller..."></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitPlaceOrder('${serviceId}','${sellerId}',${price},this)">Confirm Order (${money(price)})</button>
+    </div>
+  `);
+}
+
+async function submitPlaceOrder(serviceId, sellerId, price, btn) {
+  const requirements = (document.getElementById('po-requirements') || {}).value || '';
+  if (!requirements.trim()) { toast('Requirements are required', 'error'); return; }
+  const a = getAuth();
+  btnRestore._saved = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Placing...';
+  try {
+    await api('/api/v1/orders', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ service_id: serviceId, seller_id: sellerId, requirements }),
+    });
+    toast('Order placed successfully', 'success');
+    closeModal();
+    switchPanel('transactions');
+  } catch (e) {
+    toast(friendlyError(e.message), 'error');
+    btn.disabled = false; btn.textContent = btnRestore._saved || 'Confirm Order';
+  }
 }
 
 // ================= Dashboard: Disputes =================
