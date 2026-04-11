@@ -1,10 +1,10 @@
 {
   "name": "@arbitova/mcp-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Official MCP server for Arbitova — escrow, AI arbitration, and trust scoring for agent-to-agent payments",
   "main": "index.js",
   "bin": {
-    "arbitova-mcp": "./index.js"
+    "arbitova-mcp-server": "./index.js"
   },
   "keywords": ["mcp", "a2a", "agent", "escrow", "arbitration", "arbitova", "x402", "ai"],
   "license": "MIT",
