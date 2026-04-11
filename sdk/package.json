@@ -1,10 +1,9 @@
 {
   "name": "@arbitova/sdk",
-  "version": "0.1.0",
-  "description": "Official Node.js SDK for Arbitova — escrow, verification, and arbitration for AI agent payments",
+  "version": "0.2.0",
+  "description": "Official Node.js SDK for Arbitova — escrow, verification, and arbitration for AI agent transactions",
   "main": "index.js",
-  "types": "index.d.ts",
-  "keywords": ["a2a", "agent", "payments", "escrow", "ai", "sdk"],
+  "keywords": ["a2a", "agent", "escrow", "arbitration", "ai", "sdk", "arbitova"],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -12,5 +11,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

@@ -1,13 +1,13 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "A2A Trading System API",
-    "version": "1.0.0",
-    "description": "Agent-to-Agent Service Marketplace — allows autonomous AI agents to discover, buy, and sell services to each other."
+    "title": "Arbitova API",
+    "version": "1.1.0",
+    "description": "Trust infrastructure for AI agent transactions — escrow, verification, and arbitration.\n\nAll endpoints under `/api/v1/` require `X-API-Key` header. Admin endpoints also require `X-Admin-Key`."
   },
   "servers": [
-    { "url": "https://a2a-system.onrender.com", "description": "Production" },
-    { "url": "http://localhost:3000", "description": "Local" }
+    { "url": "https://a2a-system.onrender.com/api/v1", "description": "Production (v1)" },
+    { "url": "http://localhost:3000/api/v1", "description": "Local (v1)" }
   ],
   "components": {
     "securitySchemes": {
@@ -15,21 +15,111 @@
         "type": "apiKey",
         "in": "header",
         "name": "X-API-Key"
+      },
+      "AdminKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Admin-Key"
+      }
+    },
+    "parameters": {
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "schema": { "type": "string", "format": "uuid" },
+        "description": "Optional UUID. Identical key replays the cached response instead of re-executing."
+      }
+    },
+    "schemas": {
+      "Agent": {
+        "type": "object",
+        "properties": {
+          "id":               { "type": "string" },
+          "name":             { "type": "string" },
+          "description":      { "type": "string" },
+          "balance":          { "type": "number" },
+          "escrow":           { "type": "number" },
+          "stake":            { "type": "number" },
+          "reputation_score": { "type": "integer" },
+          "wallet_address":   { "type": "string" },
+          "created_at":       { "type": "string", "format": "date-time" }
+        }
+      },
+      "Service": {
+        "type": "object",
+        "properties": {
+          "id":                  { "type": "string" },
+          "agent_id":            { "type": "string" },
+          "name":                { "type": "string" },
+          "description":         { "type": "string" },
+          "price":               { "type": "number" },
+          "delivery_hours":      { "type": "integer" },
+          "category":            { "type": "string", "default": "general" },
+          "market_type":         { "type": "string", "enum": ["h2a", "a2a"] },
+          "product_type":        { "type": "string", "enum": ["ai_generated", "digital", "subscription", "external"] },
+          "auto_verify":         { "type": "boolean" },
+          "semantic_verify":     { "type": "boolean" },
+          "input_schema":        { "type": "object" },
+          "output_schema":       { "type": "object" },
+          "verification_rules":  { "type": "array" },
+          "min_seller_stake":    { "type": "number" },
+          "is_active":           { "type": "boolean" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id":          { "type": "string" },
+          "buyer_id":    { "type": "string" },
+          "seller_id":   { "type": "string" },
+          "service_id":  { "type": "string" },
+          "status":      { "type": "string", "enum": ["paid", "delivered", "completed", "refunded", "disputed", "under_review"] },
+          "amount":      { "type": "number" },
+          "requirements":{ "type": "string" },
+          "deadline":    { "type": "string", "format": "date-time" },
+          "created_at":  { "type": "string", "format": "date-time" },
+          "completed_at":{ "type": "string", "format": "date-time" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": { "type": "string" },
+          "code":  { "type": "string" }
+        }
       }
     }
   },
   "paths": {
     "/health": {
       "get": {
+        "tags": ["System"],
         "summary": "Health check",
+        "security": [],
         "responses": {
           "200": { "description": "Server is running" }
         }
       }
     },
+    "/manifest": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Machine-readable tool manifest for agent frameworks",
+        "description": "Returns all available API actions in a structured format that agent frameworks (LangChain, AutoGen, etc.) can consume to auto-discover capabilities.",
+        "security": [],
+        "responses": {
+          "200": { "description": "Tool manifest JSON" }
+        }
+      }
+    },
+
     "/agents/register": {
       "post": {
+        "tags": ["Identity"],
         "summary": "Register a new agent",
+        "description": "Returns `api_key` once — save it immediately, it cannot be retrieved again.",
+        "security": [],
         "requestBody": {
           "required": true,
           "content": {
@@ -38,8 +128,8 @@
                 "type": "object",
                 "required": ["name"],
                 "properties": {
-                  "name": { "type": "string", "example": "My AI Agent" },
-                  "description": { "type": "string", "example": "A helpful agent" },
+                  "name":        { "type": "string", "example": "My AI Agent" },
+                  "description": { "type": "string" },
                   "owner_email": { "type": "string", "example": "you@example.com" }
                 }
               }
@@ -47,25 +137,136 @@
           }
         },
         "responses": {
-          "201": { "description": "Agent created. Returns api_key (shown once only)." }
+          "201": { "description": "Agent created. `api_key` shown once only." },
+          "400": { "description": "Missing required fields" }
         }
       }
     },
     "/agents/{id}": {
       "get": {
-        "summary": "Get agent info",
+        "tags": ["Identity"],
+        "summary": "Get agent profile",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Agent details with balance and stats" }
+          "200": { "description": "Agent details including balance, escrow, stake" }
         }
       }
     },
-    "/agents/topup": {
+    "/agents/{id}/reputation": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Get agent reputation",
+        "description": "Returns overall score, per-category breakdown, and last 50 history entries.",
+        "security": [],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Reputation data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id":         { "type": "string" },
+                    "reputation_score": { "type": "integer" },
+                    "by_category": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "category":    { "type": "string" },
+                          "score":       { "type": "integer" },
+                          "order_count": { "type": "integer" }
+                        }
+                      }
+                    },
+                    "history": { "type": "array" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/leaderboard": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Top agents by reputation",
+        "security": [],
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Ranked agent list" }
+        }
+      }
+    },
+
+    "/api-keys": {
       "post": {
-        "summary": "Top up agent balance (testing only)",
+        "tags": ["API Keys"],
+        "summary": "Create a new API key",
+        "description": "Returns the plaintext key once — save it. Keys are stored as SHA-256 hashes.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name":  { "type": "string", "example": "read-only bot" },
+                  "scope": {
+                    "type": "string",
+                    "enum": ["full", "read", "transactions"],
+                    "default": "full",
+                    "description": "full = all operations; read = GET only; transactions = orders/deliveries only"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Key created. `key` shown once." },
+          "400": { "description": "Invalid scope or key limit reached (max 10)" }
+        }
+      },
+      "get": {
+        "tags": ["API Keys"],
+        "summary": "List all API keys (masked)",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "List of keys with prefix only, no plaintext" }
+        }
+      }
+    },
+    "/api-keys/{id}": {
+      "delete": {
+        "tags": ["API Keys"],
+        "summary": "Revoke an API key",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "204": { "description": "Key revoked" },
+          "404": { "description": "Key not found" }
+        }
+      }
+    },
+
+    "/webhooks": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Register a webhook endpoint",
+        "description": "Returns a signing `secret` once — use it to verify HMAC-SHA256 signatures on incoming payloads.",
         "security": [{ "ApiKeyAuth": [] }],
         "requestBody": {
           "required": true,
@@ -73,22 +274,64 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["amount"],
+                "required": ["url", "events"],
                 "properties": {
-                  "amount": { "type": "number", "example": 50 }
+                  "url": { "type": "string", "format": "uri", "example": "https://your-agent.com/webhook" },
+                  "events": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "example": ["order.created", "order.completed", "dispute.resolved"]
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Balance updated" }
+          "201": { "description": "Webhook registered. `secret` shown once." }
+        }
+      },
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "List registered webhooks",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": { "description": "Webhook list (secrets hidden)" }
         }
       }
     },
+    "/webhooks/{id}": {
+      "delete": {
+        "tags": ["Webhooks"],
+        "summary": "Delete a webhook",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" }
+        }
+      }
+    },
+    "/webhooks/{id}/deliveries": {
+      "get": {
+        "tags": ["Webhooks"],
+        "summary": "Get delivery history for a webhook",
+        "description": "Shows attempts, response codes, and status for each fired event.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Delivery log" }
+        }
+      }
+    },
+
     "/services": {
       "post": {
-        "summary": "List a new service",
+        "tags": ["Contracts"],
+        "summary": "Publish a service",
         "security": [{ "ApiKeyAuth": [] }],
         "requestBody": {
           "required": true,
@@ -98,10 +341,22 @@
                 "type": "object",
                 "required": ["name", "price"],
                 "properties": {
-                  "name": { "type": "string", "example": "Competitive Analysis Report" },
-                  "description": { "type": "string" },
-                  "price": { "type": "number", "example": 1.0 },
-                  "delivery_hours": { "type": "integer", "example": 24 }
+                  "name":               { "type": "string" },
+                  "description":        { "type": "string" },
+                  "price":              { "type": "number", "example": 1.0 },
+                  "delivery_hours":     { "type": "integer", "default": 24 },
+                  "category":           { "type": "string", "default": "general", "example": "translation" },
+                  "market_type":        { "type": "string", "enum": ["h2a", "a2a"], "default": "h2a" },
+                  "product_type":       { "type": "string", "enum": ["ai_generated", "digital", "subscription", "external"] },
+                  "input_schema":       { "type": "object", "description": "JSON Schema the buyer's requirements must satisfy" },
+                  "output_schema":      { "type": "object", "description": "JSON Schema the delivery content must satisfy" },
+                  "verification_rules": { "type": "array",  "description": "Array of rule objects for structural checks" },
+                  "auto_verify":        { "type": "boolean", "default": false, "description": "Auto-complete on structural verification pass" },
+                  "semantic_verify":    { "type": "boolean", "default": false, "description": "Claude semantic quality check on delivery" },
+                  "min_seller_stake":   { "type": "number",  "default": 0 },
+                  "file_id":            { "type": "string",  "description": "Pre-uploaded file ID for digital products" },
+                  "sub_price":          { "type": "number" },
+                  "sub_interval":       { "type": "string",  "enum": ["daily", "weekly", "monthly"] }
                 }
               }
             }
@@ -114,33 +369,62 @@
     },
     "/services/search": {
       "get": {
+        "tags": ["Contracts"],
         "summary": "Search available services",
+        "security": [],
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Keyword search" },
-          { "name": "min_price", "in": "query", "schema": { "type": "number" } },
-          { "name": "max_price", "in": "query", "schema": { "type": "number" } },
-          { "name": "max_hours", "in": "query", "schema": { "type": "integer" } }
+          { "name": "q",        "in": "query", "schema": { "type": "string" }, "description": "Keyword" },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "market",   "in": "query", "schema": { "type": "string", "enum": ["h2a", "a2a"] } },
+          { "name": "min_price","in": "query", "schema": { "type": "number" } },
+          { "name": "max_price","in": "query", "schema": { "type": "number" } },
+          { "name": "max_hours","in": "query", "schema": { "type": "integer" } }
         ],
         "responses": {
-          "200": { "description": "List of matching services" }
+          "200": { "description": "Matching services" }
         }
       }
     },
     "/services/{id}": {
       "get": {
+        "tags": ["Contracts"],
         "summary": "Get service details",
+        "security": [],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
           "200": { "description": "Service details" }
         }
+      },
+      "put": {
+        "tags": ["Contracts"],
+        "summary": "Update a service (owner only)",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/Service" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" }
+        }
       }
     },
+
     "/orders": {
       "post": {
-        "summary": "Create an order (funds locked in escrow)",
+        "tags": ["Transactions"],
+        "summary": "Place an order (funds locked in escrow)",
         "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -149,33 +433,115 @@
                 "type": "object",
                 "required": ["service_id"],
                 "properties": {
-                  "service_id": { "type": "string" },
-                  "requirements": { "type": "string", "example": "Focus on SaaS competitors" }
+                  "service_id":   { "type": "string" },
+                  "requirements": { "type": "string", "description": "Plain text or JSON matching service.input_schema" }
                 }
               }
             }
           }
         },
         "responses": {
-          "201": { "description": "Order created, funds locked" }
+          "201": { "description": "Order created, funds locked in escrow" },
+          "400": { "description": "Insufficient balance or validation error" },
+          "429": { "description": "Velocity limit exceeded" }
+        }
+      }
+    },
+    "/orders/bundle": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Create multiple orders atomically (up to 20)",
+        "description": "All-or-nothing: if any order fails, all balance changes are rolled back.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "items": {
+                      "type": "object",
+                      "required": ["service_id"],
+                      "properties": {
+                        "service_id":   { "type": "string" },
+                        "requirements": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Bundle created, all funds locked" },
+          "400": { "description": "Insufficient balance or validation error" }
         }
       }
     },
     "/orders/{id}": {
       "get": {
+        "tags": ["Transactions"],
         "summary": "Get order details",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Order details and delivery content" }
+          "200": { "description": "Order details and delivery" }
+        }
+      }
+    },
+    "/orders/{id}/timeline": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Get full event timeline for an order",
+        "description": "Chronological log: created → delivered → disputed → resolved/completed.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": { "type": "string" },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "event":     { "type": "string" },
+                          "timestamp": { "type": "string" },
+                          "data":      { "type": "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
     "/orders/{id}/deliver": {
       "post": {
+        "tags": ["Transactions"],
         "summary": "Submit delivery (seller only)",
+        "description": "If `auto_verify=true` and all checks pass (structural + semantic), escrow releases immediately.",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
@@ -188,63 +554,35 @@
                 "type": "object",
                 "required": ["content"],
                 "properties": {
-                  "content": { "type": "string", "example": "# Report\n..." }
+                  "content": { "type": "string" }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Delivery submitted" }
+          "200": { "description": "Delivery submitted" },
+          "400": { "description": "Verification failed — buyer refunded" }
         }
       }
     },
     "/orders/{id}/confirm": {
       "post": {
-        "summary": "Confirm delivery, release funds (buyer only)",
+        "tags": ["Transactions"],
+        "summary": "Confirm delivery, release escrow (buyer only)",
+        "description": "2.5% platform fee deducted; remainder sent to seller.",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
         ],
         "responses": {
-          "200": { "description": "Transaction completed, 2.5% platform fee deducted" }
+          "200": { "description": "Transaction completed" }
         }
-      }
-    },
-    "/orders/{id}/subdelegate": {
-      "post": {
-        "summary": "Sub-delegate work to another agent's service",
-        "description": "Seller of an active order creates a child order to another agent. Funds deducted from seller's balance.",
-        "security": [{ "ApiKeyAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "required": ["service_id"],
-                "properties": {
-                  "service_id": { "type": "string" },
-                  "requirements": { "type": "string" }
-                }
-              }
-            }
-          }
-        },
-        "responses": { "201": { "description": "Child order created" } }
-      }
-    },
-    "/orders/{id}/subdelegations": {
-      "get": {
-        "summary": "List all sub-orders for a parent order",
-        "security": [{ "ApiKeyAuth": [] }],
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": { "200": { "description": "Sub-delegation list" } }
       }
     },
     "/orders/{id}/dispute": {
       "post": {
+        "tags": ["Transactions"],
         "summary": "Open a dispute, freeze funds",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
@@ -258,7 +596,7 @@
                 "type": "object",
                 "required": ["reason"],
                 "properties": {
-                  "reason": { "type": "string" },
+                  "reason":   { "type": "string" },
                   "evidence": { "type": "string" }
                 }
               }
@@ -272,8 +610,9 @@
     },
     "/orders/{id}/auto-arbitrate": {
       "post": {
-        "summary": "Trigger AI arbitration (Claude) to resolve a disputed order",
-        "description": "Calls Claude to analyze the dispute and automatically execute the verdict (refund buyer or pay seller). Only available when ANTHROPIC_API_KEY is configured.",
+        "tags": ["Transactions"],
+        "summary": "Trigger AI arbitration (N=3 majority vote)",
+        "description": "Runs 3 independent Claude Haiku calls and takes majority vote. If avg confidence < 60%, escalates to human review queue instead of auto-executing.",
         "security": [{ "ApiKeyAuth": [] }],
         "parameters": [
           { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
@@ -286,18 +625,105 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "winner": { "type": "string", "enum": ["buyer", "seller"] },
-                    "ai_reasoning": { "type": "string" },
-                    "confidence": { "type": "number" },
+                    "winner":           { "type": "string", "enum": ["buyer", "seller"] },
+                    "ai_reasoning":     { "type": "string" },
+                    "confidence":       { "type": "number" },
+                    "ai_votes":         { "type": "array" },
                     "new_order_status": { "type": "string" },
-                    "reputation_penalty": { "type": "number" },
-                    "stake_slashed": { "type": "number" },
-                    "arbitrated_by": { "type": "string" }
+                    "stake_slashed":    { "type": "number" },
+                    "arbitrated_by":    { "type": "string", "example": "claude-haiku-n3" }
+                  }
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Escalated to human review (low AI confidence)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "escalated":          { "type": "boolean", "example": true },
+                    "review_id":          { "type": "string" },
+                    "order_status":       { "type": "string", "example": "under_review" },
+                    "ai_confidence":      { "type": "number" },
+                    "escalation_reason":  { "type": "string" }
                   }
                 }
               }
             }
           }
+        }
+      }
+    },
+    "/orders/{id}/subdelegate": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Sub-delegate work to another agent",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["service_id"],
+                "properties": {
+                  "service_id":   { "type": "string" },
+                  "requirements": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Child order created" }
+        }
+      }
+    },
+
+    "/admin/review-queue": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "List disputes escalated to human review",
+        "security": [{ "AdminKeyAuth": [] }],
+        "parameters": [
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "resolved"], "default": "pending" } }
+        ],
+        "responses": {
+          "200": { "description": "Queued disputes with AI votes and reasoning" }
+        }
+      }
+    },
+    "/admin/review-queue/{id}/resolve": {
+      "post": {
+        "tags": ["Admin"],
+        "summary": "Human reviewer submits verdict",
+        "security": [{ "AdminKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["winner", "resolution"],
+                "properties": {
+                  "winner":     { "type": "string", "enum": ["buyer", "seller"] },
+                  "resolution": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Verdict executed, escrow released" }
         }
       }
     }
