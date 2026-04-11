@@ -22,3 +22,4 @@ test/
 test-cloud.js
 test-pg.ps1
 railway.toml
+render.yaml
