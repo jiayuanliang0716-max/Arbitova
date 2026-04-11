@@ -703,9 +703,10 @@ async function loadOverview() {
   if (statsEl) showSkeleton(statsEl, 1);
 
   try {
-    const [me, walletInfo] = await Promise.all([
+    const [me, walletInfo, pendingSellerOrders] = await Promise.all([
       api('/api/v1/agents/me', { headers: authHeaders() }),
-      api('/api/v1/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null)
+      api('/api/v1/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null),
+      api('/api/v1/orders?role=seller&status=paid&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
     ]);
 
     if (me.name) localStorage.setItem(K.name, me.name);
@@ -736,9 +737,17 @@ async function loadOverview() {
           <div class="stat"><div class="n">${me.reputation_score}</div><div class="l">${t('dash_reputation')}</div></div>
           <div class="stat"><div class="n">${me.completed_sales || 0}</div><div class="l">Completed Sales</div></div>
         </div>
+        ${(pendingSellerOrders.orders || []).length > 0 ? `
+        <div style="margin-top:10px;padding:10px 14px;background:rgba(0,212,170,0.07);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;font-size:13px;color:var(--accent)">${(pendingSellerOrders.orders || []).length} new order${(pendingSellerOrders.orders || []).length > 1 ? 's' : ''} awaiting your delivery</div>
+            <div style="font-size:11px;color:var(--text-soft);margin-top:2px">Buyers are waiting. Deliver to earn your payment.</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="switchPanel('transactions')">View Orders</button>
+        </div>` : ''}
         <div class="grid c3" style="margin-top:8px">
           <div class="stat-sm"><span class="label">Active Orders</span><span class="val">${me.active_orders || 0}</span></div>
-          <div class="stat-sm"><span class="label">Completed Purchases</span><span class="val">${me.completed_purchases || 0}</span></div>
+          <div class="stat-sm"><span class="label">Awaiting Delivery</span><span class="val ${(pendingSellerOrders.orders || []).length > 0 ? 'val-accent' : ''}" style="${(pendingSellerOrders.orders || []).length > 0 ? 'color:var(--accent);font-weight:700' : ''}">${(pendingSellerOrders.orders || []).length}</span></div>
           <div class="stat-sm"><span class="label">Stake Locked</span><span class="val">${money(me.stake || 0)}</span></div>
         </div>
         ${walletSection}
