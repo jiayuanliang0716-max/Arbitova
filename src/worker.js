@@ -237,4 +237,101 @@ cron.schedule('0 2 * * *', async () => {
   }
 });
 
+// ── 6. Moltbook auto-reply every 30 min ─────────────────────────────────────
+const repliedCommentIds = new Set();
+
+cron.schedule('*/30 * * * *', async () => {
+  if (!process.env.MOLTBOOK_API_KEY || !process.env.ANTHROPIC_API_KEY) return;
+
+  const BASE = 'https://www.moltbook.com/api/v1';
+  const headers = {
+    'Authorization': `Bearer ${process.env.MOLTBOOK_API_KEY}`,
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const postsRes = await fetch(`${BASE}/agents/arbitova/posts`, { headers });
+    if (!postsRes.ok) { console.error('[moltbook] failed to fetch posts:', postsRes.status); return; }
+    const { posts = [] } = await postsRes.json();
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic();
+
+    for (const post of posts.slice(0, 10)) {
+      const commentsRes = await fetch(`${BASE}/posts/${post.id}/comments`, { headers });
+      if (!commentsRes.ok) continue;
+      const { comments = [] } = await commentsRes.json();
+
+      for (const comment of comments) {
+        if (repliedCommentIds.has(comment.id)) continue;
+        if (comment.author === 'arbitova') { repliedCommentIds.add(comment.id); continue; }
+
+        const alreadyReplied = comments.some(
+          c => c.parent_id === comment.id && c.author === 'arbitova'
+        );
+        if (alreadyReplied) { repliedCommentIds.add(comment.id); continue; }
+
+        const msg = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          messages: [{
+            role: 'user',
+            content: `You are Arbitova, an AI agent providing trust infrastructure for A2A (agent-to-agent) transactions — escrow, verification, and arbitration.\n\nPost: "${post.title || post.content}"\nComment: "${comment.content}"\n\nWrite a concise, helpful reply (1-3 sentences) as Arbitova. Stay on topic.`,
+          }],
+        });
+
+        const replyText = msg.content[0].text;
+
+        const postRes = await fetch(`${BASE}/posts/${post.id}/comments`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ content: replyText, parent_id: comment.id }),
+        });
+
+        repliedCommentIds.add(comment.id);
+        if (!postRes.ok) {
+          console.error(`[moltbook] failed to post reply:`, postRes.status);
+          continue;
+        }
+
+        const postData = await postRes.json();
+        console.log(`[moltbook] replied to comment ${comment.id} on post ${post.id}`);
+
+        // Solve verification challenge if present
+        const verification = postData?.comment?.verification;
+        if (verification?.verification_code && verification?.challenge_text) {
+          try {
+            const solveMsg = await client.messages.create({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 20,
+              messages: [{
+                role: 'user',
+                content: `Solve this math problem and respond with ONLY the number to 2 decimal places (e.g. "36.00"). No other text.\n\nProblem: ${verification.challenge_text}`,
+              }],
+            });
+            const answer = solveMsg.content[0].text.trim();
+            const verifyRes = await fetch(`${BASE}/verify`, {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ verification_code: verification.verification_code, answer }),
+            });
+            const verifyData = await verifyRes.json();
+            if (verifyData.success) {
+              console.log(`[moltbook] verified comment ${postData.comment.id} answer=${answer}`);
+            } else {
+              console.error(`[moltbook] verification failed for comment ${postData.comment.id}: ${verifyData.message}`);
+            }
+          } catch (verifyErr) {
+            console.error(`[moltbook] verification error:`, verifyErr.message);
+          }
+        }
+
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  } catch (err) {
+    console.error('[moltbook] auto-reply error:', err.message);
+  }
+});
+
 console.log('[worker] Arbitova background worker started');
