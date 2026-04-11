@@ -714,6 +714,38 @@
         }
       }
     },
+    "/orders/{id}/cancel": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Cancel a paid order (buyer only, full refund)",
+        "description": "Buyer can cancel an order in 'paid' status before the seller delivers. Full refund is returned immediately to buyer's balance.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled and refunded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id":               { "type": "string" },
+                    "status":           { "type": "string", "example": "cancelled" },
+                    "refunded_amount":  { "type": "number" },
+                    "message":          { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Order not in cancellable state" },
+          "403": { "description": "Not the buyer" },
+          "404": { "description": "Order not found" }
+        }
+      }
+    },
     "/orders/{id}/dispute": {
       "post": {
         "tags": ["Transactions"],

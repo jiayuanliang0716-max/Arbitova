@@ -1732,6 +1732,24 @@ async function submitDelivery(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+async function cancelOrder(orderId, btn) {
+  const confirmed = await confirmAction({
+    title: 'Cancel Order',
+    message: 'Cancel this order and get a full refund? This cannot be undone.',
+    confirmText: 'Yes, Cancel & Refund',
+    danger: true,
+  });
+  if (!confirmed) return;
+  if (btn) btnLoading(btn, 'Cancelling...');
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/cancel', { method: 'POST', headers: authHeaders() });
+    toast('Order cancelled. ' + money(r.refunded_amount) + ' refunded to your balance.', 'success');
+    closeModal();
+    if (state.activePanel === 'overview') loadOverview();
+    else loadTransactions();
+  } catch (e) { toast(friendlyError(e.message), 'error'); if (btn) btnRestore(btn); }
+}
+
 async function confirmComplete(orderId) {
   const confirmed = await confirmAction({
     title: t('tx_btn_confirm'),
@@ -1892,6 +1910,7 @@ async function openOrderDetail(orderId) {
         ${r.status === 'paid' && !isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openDeliverModal('${r.id}')">${t('tx_btn_deliver')}</button>` : ''}
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();confirmComplete('${r.id}')">${t('tx_btn_confirm')}</button>` : ''}
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
+        ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>

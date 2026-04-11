@@ -1218,4 +1218,41 @@ router.get('/:id/dispute/transparency-report', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/cancel — buyer can cancel a 'paid' order before delivery (full refund)
+router.post('/:id/cancel', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found', code: 'not_found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can cancel this order' });
+    if (order.status !== 'paid') return res.status(400).json({ error: `Cannot cancel order in status '${order.status}'. Only 'paid' orders can be cancelled.` });
+
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbRun(`UPDATE orders SET status = 'cancelled', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+
+    // Refund escrow to buyer
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(2)} WHERE id = ${p(3)}`,
+      [parseFloat(order.amount), parseFloat(order.amount), order.buyer_id]
+    );
+
+    // Release any seller escrow hold
+    await dbRun(
+      `UPDATE agents SET escrow = GREATEST(COALESCE(escrow, 0) - ${p(1)}, 0) WHERE id = ${p(2)}`,
+      [parseFloat(order.amount), order.seller_id]
+    ).catch(() => {});
+
+    // Fire webhook
+    const { fireWebhookEvent } = require('../webhooks');
+    await fireWebhookEvent(order.buyer_id, 'order.cancelled', { order_id: order.id, amount: order.amount, refunded_to: order.buyer_id }).catch(() => {});
+    await fireWebhookEvent(order.seller_id, 'order.cancelled', { order_id: order.id, amount: order.amount }).catch(() => {});
+
+    res.json({
+      id: order.id,
+      status: 'cancelled',
+      refunded_amount: parseFloat(order.amount),
+      message: 'Order cancelled. Full refund returned to your balance.',
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
