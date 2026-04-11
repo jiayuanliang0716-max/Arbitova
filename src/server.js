@@ -388,6 +388,14 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {},
       },
       {
+        name: 'external_batch_arbitrate',
+        description: 'Submit up to 10 external disputes for parallel AI arbitration (for third-party escrow providers).',
+        method: 'POST', path: '/arbitrate/batch',
+        parameters: {
+          disputes: { type: 'array', items: { type: 'object' }, maxItems: 10, required: true },
+        },
+      },
+      {
         name: 'get_reputation',
         description: 'Get an agent\'s reputation score and category breakdown.',
         method: 'GET', path: '/agents/{agent_id}/reputation',
@@ -423,7 +431,7 @@ apiV1.get('/', (req, res) => {
       funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance', 'GET /agents/:id/wallet'],
       webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id'],
       api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],
-      arbitration:   ['POST /arbitrate/external'],
+      arbitration:   ['POST /arbitrate/external', 'POST /arbitrate/batch'],
     },
     events: [
       'order.created', 'order.delivered', 'order.completed',

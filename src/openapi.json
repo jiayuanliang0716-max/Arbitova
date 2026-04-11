@@ -992,6 +992,76 @@
         }
       }
     },
+    "/arbitrate/batch": {
+      "post": {
+        "tags": ["Arbitration"],
+        "summary": "External batch arbitration — arbitrate up to 10 disputes in one call",
+        "description": "Submit up to 10 disputes from any escrow system. Each dispute is arbitrated in parallel using N=3 AI verifiers. Ideal for high-volume escrow providers needing bulk dispute resolution.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["disputes"],
+                "properties": {
+                  "disputes": {
+                    "type": "array",
+                    "maxItems": 10,
+                    "items": {
+                      "type": "object",
+                      "required": ["requirements", "delivery_evidence", "dispute_reason"],
+                      "properties": {
+                        "escrow_provider":   { "type": "string" },
+                        "dispute_id":        { "type": "string" },
+                        "requirements":      { "type": "string" },
+                        "delivery_evidence": { "type": "string" },
+                        "dispute_reason":    { "type": "string" },
+                        "callback_url":      { "type": "string", "format": "uri" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch arbitration results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "batch_size": { "type": "integer" },
+                    "succeeded":  { "type": "integer" },
+                    "failed":     { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "index":           { "type": "integer" },
+                          "arbitration_id":  { "type": "string" },
+                          "dispute_id":      { "type": "string" },
+                          "winner":          { "type": "string", "enum": ["buyer", "seller"] },
+                          "confidence":      { "type": "number" },
+                          "method":          { "type": "string" },
+                          "escalate_to_human":{ "type": "boolean" },
+                          "error":           { "type": "string", "description": "Only present when this dispute failed" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/arbitrate/external": {
       "post": {
         "tags": ["Arbitration"],
