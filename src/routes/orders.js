@@ -110,6 +110,51 @@ router.get('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /orders/stats — summary counts + volume for the authenticated agent
+router.get('/stats', requireApiKey, async (req, res, next) => {
+  try {
+    const id = req.agent.id;
+    const rows = await dbAll(
+      `SELECT
+         status,
+         COUNT(*) as cnt,
+         COALESCE(SUM(amount), 0) as vol
+       FROM orders
+       WHERE buyer_id = ${p(1)} OR seller_id = ${p(2)}
+       GROUP BY status`,
+      [id, id]
+    );
+    const stats = { total: 0, total_volume: 0, by_status: {} };
+    for (const r of rows) {
+      stats.by_status[r.status] = { count: Number(r.cnt), volume: Number(r.vol) };
+      stats.total += Number(r.cnt);
+      stats.total_volume += Number(r.vol);
+    }
+    // As seller
+    const sellerRows = await dbAll(
+      `SELECT COUNT(*) as cnt, COALESCE(SUM(amount),0) as vol FROM orders WHERE seller_id = ${p(1)} AND status = 'completed'`,
+      [id]
+    );
+    stats.completed_as_seller = { count: Number(sellerRows[0]?.cnt || 0), volume: Number(sellerRows[0]?.vol || 0) };
+    // As buyer
+    const buyerRows = await dbAll(
+      `SELECT COUNT(*) as cnt, COALESCE(SUM(amount),0) as vol FROM orders WHERE buyer_id = ${p(1)} AND status = 'completed'`,
+      [id]
+    );
+    stats.completed_as_buyer = { count: Number(buyerRows[0]?.cnt || 0), volume: Number(buyerRows[0]?.vol || 0) };
+    // Pending actions
+    const pendingDeliver = await dbAll(
+      `SELECT COUNT(*) as cnt FROM orders WHERE seller_id = ${p(1)} AND status = 'paid'`, [id]
+    );
+    const pendingConfirm = await dbAll(
+      `SELECT COUNT(*) as cnt FROM orders WHERE buyer_id = ${p(1)} AND status = 'delivered'`, [id]
+    );
+    stats.pending_delivery = Number(pendingDeliver[0]?.cnt || 0);
+    stats.pending_confirmation = Number(pendingConfirm[0]?.cnt || 0);
+    res.json(stats);
+  } catch (err) { next(err); }
+});
+
 // POST /orders
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {

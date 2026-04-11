@@ -703,10 +703,11 @@ async function loadOverview() {
   if (statsEl) showSkeleton(statsEl, 1);
 
   try {
-    const [me, walletInfo, pendingSellerOrders] = await Promise.all([
+    const [me, walletInfo, pendingSellerOrders, orderStats] = await Promise.all([
       api('/api/v1/agents/me', { headers: authHeaders() }),
       api('/api/v1/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null),
       api('/api/v1/orders?role=seller&status=paid&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
+      api('/api/v1/orders/stats', { headers: authHeaders() }).catch(() => null),
     ]);
 
     if (me.name) localStorage.setItem(K.name, me.name);
@@ -740,13 +741,21 @@ async function loadOverview() {
         ${(pendingSellerOrders.orders || []).length > 0 ? `
         <div style="margin-top:10px;padding:10px 14px;background:rgba(0,212,170,0.07);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
           <div>
-            <div style="font-weight:700;font-size:13px;color:var(--accent)">${(pendingSellerOrders.orders || []).length} new order${(pendingSellerOrders.orders || []).length > 1 ? 's' : ''} awaiting your delivery</div>
+            <div style="font-weight:700;font-size:13px;color:var(--accent)">${(pendingSellerOrders.orders || []).length} order${(pendingSellerOrders.orders || []).length > 1 ? 's' : ''} awaiting your delivery</div>
             <div style="font-size:11px;color:var(--text-soft);margin-top:2px">Buyers are waiting. Deliver to earn your payment.</div>
           </div>
           <button class="btn btn-primary btn-sm" onclick="switchPanel('transactions')">View Orders</button>
         </div>` : ''}
+        ${orderStats && orderStats.pending_confirmation > 0 ? `
+        <div style="margin-top:8px;padding:10px 14px;background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.4);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div>
+            <div style="font-weight:700;font-size:13px;color:#ca8a04">${orderStats.pending_confirmation} delivery${orderStats.pending_confirmation > 1 ? 'ies' : ''} awaiting your confirmation</div>
+            <div style="font-size:11px;color:var(--text-soft);margin-top:2px">Review and confirm to release payment to sellers.</div>
+          </div>
+          <button class="btn btn-sm" style="background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.4);color:#ca8a04" onclick="switchPanel('transactions')">Review</button>
+        </div>` : ''}
         <div class="grid c3" style="margin-top:8px">
-          <div class="stat-sm"><span class="label">Active Orders</span><span class="val">${me.active_orders || 0}</span></div>
+          <div class="stat-sm"><span class="label">Total Orders</span><span class="val">${orderStats?.total || me.active_orders || 0}</span></div>
           <div class="stat-sm"><span class="label">Awaiting Delivery</span><span class="val ${(pendingSellerOrders.orders || []).length > 0 ? 'val-accent' : ''}" style="${(pendingSellerOrders.orders || []).length > 0 ? 'color:var(--accent);font-weight:700' : ''}">${(pendingSellerOrders.orders || []).length}</span></div>
           <div class="stat-sm"><span class="label">Stake Locked</span><span class="val">${money(me.stake || 0)}</span></div>
         </div>
@@ -1822,6 +1831,44 @@ async function confirmComplete(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
 
+function openPartialConfirmModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Partial Release</h2>
+    <p class="mdesc">Release a percentage of the escrow to the seller as a milestone payment. The order remains open for the remainder.</p>
+    <label>Release percentage (1–99%)</label>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <input id="partial-pct" type="range" min="1" max="99" value="50" style="flex:1"
+        oninput="document.getElementById('partial-pct-val').textContent=this.value+'%'">
+      <span id="partial-pct-val" style="min-width:40px;text-align:right;font-weight:700;font-size:16px">50%</span>
+    </div>
+    <label>Note to seller (optional)</label>
+    <textarea id="partial-note" class="plain" rows="2" placeholder="e.g. Releasing 50% for completion of phase 1" style="width:100%;resize:vertical"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitPartialConfirm('${orderId}',this)">Release Funds</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitPartialConfirm(orderId, btn) {
+  const pct = parseInt(document.getElementById('partial-pct').value);
+  const note = document.getElementById('partial-note').value.trim();
+  if (!(pct >= 1 && pct <= 99)) return toast('Enter a percentage between 1 and 99.', 'warn');
+  btnLoading(btn, 'Releasing...');
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/partial-confirm', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ release_percent: pct, note: note || undefined }),
+    });
+    toast('Released ' + pct + '% of escrow to seller.', 'success');
+    closeModal();
+    if (state.activePanel === 'overview') loadOverview();
+    else loadTransactions();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 function openDisputeModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -1966,6 +2013,7 @@ async function openOrderDetail(orderId) {
       <div class="btn-row" style="margin-top:16px">
         ${r.status === 'paid' && !isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openDeliverModal('${r.id}')">${t('tx_btn_deliver')}</button>` : ''}
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();confirmComplete('${r.id}')">${t('tx_btn_confirm')}</button>` : ''}
+        ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-secondary btn-sm" onclick="closeModal();openPartialConfirmModal('${r.id}')">Partial Release</button>` : ''}
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>

@@ -198,6 +198,11 @@ class Arbitova {
     return this._request('GET', `/orders/${txId}`);
   }
 
+  /** Get order statistics summary (total counts, volumes, pending actions). */
+  async getStats() {
+    return this._request('GET', '/orders/stats');
+  }
+
   /** Get the full event timeline for a transaction. */
   async getTimeline(txId) {
     return this._request('GET', `/orders/${txId}/timeline`);

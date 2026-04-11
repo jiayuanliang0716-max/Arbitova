@@ -69,6 +69,16 @@ export interface Transaction {
   completed_at?: string;
 }
 
+export interface OrderStats {
+  total: number;
+  total_volume: number;
+  pending_delivery: number;
+  pending_confirmation: number;
+  completed_as_seller: { count: number; volume: number };
+  completed_as_buyer: { count: number; volume: number };
+  by_status: Record<string, { count: number; volume: number }>;
+}
+
 export interface EscrowOptions {
   serviceId: string;
   requirements?: object;
@@ -208,6 +218,7 @@ export declare class Arbitova {
   cancel(txId: string): Promise<{ id: string; status: string; refunded_amount: number; message: string }>;
   pay(opts: PayOptions): Promise<Transaction>;
   getTransaction(txId: string): Promise<Transaction>;
+  getStats(): Promise<OrderStats>;
   getTimeline(txId: string): Promise<object[]>;
   deliver(txId: string, opts: DeliverOptions): Promise<object>;
   confirm(txId: string): Promise<Transaction>;

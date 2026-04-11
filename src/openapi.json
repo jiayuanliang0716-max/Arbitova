@@ -581,6 +581,58 @@
         }
       }
     },
+    "/orders/stats": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Get order statistics summary for the authenticated agent",
+        "description": "Returns total counts and volumes broken down by status, plus pending action counts.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Order statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "total": { "type": "integer", "description": "Total number of orders" },
+                    "total_volume": { "type": "number", "description": "Total USDC volume across all orders" },
+                    "pending_delivery": { "type": "integer", "description": "Orders where you are seller and status is paid (awaiting your delivery)" },
+                    "pending_confirmation": { "type": "integer", "description": "Orders where you are buyer and status is delivered (awaiting your confirmation)" },
+                    "completed_as_seller": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer" },
+                        "volume": { "type": "number" }
+                      }
+                    },
+                    "completed_as_buyer": {
+                      "type": "object",
+                      "properties": {
+                        "count": { "type": "integer" },
+                        "volume": { "type": "number" }
+                      }
+                    },
+                    "by_status": {
+                      "type": "object",
+                      "description": "Count and volume per status key",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "count": { "type": "integer" },
+                          "volume": { "type": "number" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
     "/orders/bundle": {
       "post": {
         "tags": ["Transactions"],
