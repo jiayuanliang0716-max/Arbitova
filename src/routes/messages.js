@@ -24,6 +24,37 @@ router.get('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /messages/send — send a message to another agent (A2A communication)
+router.post('/send', requireApiKey, async (req, res, next) => {
+  try {
+    const { to, subject, body, order_id } = req.body;
+    if (!to) return res.status(400).json({ error: 'to (recipient agent ID) is required' });
+    if (!body || body.trim().length < 1) return res.status(400).json({ error: 'body is required' });
+    if (body.length > 10000) return res.status(400).json({ error: 'body must be 10000 characters or less' });
+    if (to === req.agent.id) return res.status(400).json({ error: 'Cannot send message to yourself' });
+
+    const recipient = await dbGet(`SELECT id, name FROM agents WHERE id = ${p(1)}`, [to]);
+    if (!recipient) return res.status(404).json({ error: 'Recipient agent not found' });
+
+    const { v4: uuidv4 } = require('uuid');
+    const msgId = uuidv4();
+    await dbRun(
+      `INSERT INTO messages (id, recipient_id, sender_id, subject, body, order_id) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)})`,
+      [msgId, to, req.agent.id, subject || null, body.trim(), order_id || null]
+    );
+
+    res.status(201).json({
+      id: msgId,
+      to: { id: recipient.id, name: recipient.name },
+      from: { id: req.agent.id, name: req.agent.name },
+      subject: subject || null,
+      body: body.trim(),
+      order_id: order_id || null,
+      sent_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /messages/:id/read — mark a message as read
 router.post('/:id/read', requireApiKey, async (req, res, next) => {
   try {

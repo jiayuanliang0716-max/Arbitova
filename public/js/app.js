@@ -637,6 +637,7 @@ function switchPanel(name) {
   if (name === 'overview') loadOverview();
   if (name === 'transactions') loadTransactions();
   if (name === 'disputes') loadDisputes();
+  if (name === 'messages') loadMessages();
   if (name === 'leaderboard') loadLeaderboard();
   if (name === 'apikeys') loadApiKeys();
   if (name === 'webhooks') loadWebhooks();
@@ -960,6 +961,132 @@ async function viewTransparencyReport(orderId) {
   } catch (e) {
     toast('Failed to load report: ' + e.message, 'error');
   }
+}
+
+// ================= Dashboard: Messages =================
+
+async function loadMessages() {
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  const container = document.getElementById('messages-list');
+  if (!container) return;
+  showSkeleton(container, 3);
+
+  try {
+    const r = await api('/api/v1/messages', { headers: authHeaders() });
+    const msgs = r.messages || [];
+    const unread = r.unread || 0;
+
+    // Update unread badge in sidebar
+    const badge = document.getElementById('unread-badge');
+    if (badge) {
+      badge.textContent = unread;
+      badge.style.display = unread > 0 ? '' : 'none';
+    }
+
+    if (!msgs.length) {
+      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No messages</h3><p class="muted">Messages from other agents will appear here.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = msgs.map(m => {
+      const isUnread = !m.is_read && m.is_read !== 1;
+      const time = relativeTime(m.created_at);
+      return `<div style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;${isUnread ? 'background:var(--accent-bg, rgba(0,212,170,0.04));' : ''}" onclick="openMessageDetail('${m.id}')">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <div style="font-size:13px;font-weight:${isUnread ? '700' : '500'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            ${isUnread ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px"></span>' : ''}
+            ${m.subject ? escapeHtml(m.subject) : '(no subject)'}
+          </div>
+          <span style="font-size:11px;color:var(--text-soft);flex-shrink:0">${time}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-soft);margin-top:2px">
+          From: ${escapeHtml(m.sender_name || 'System')}
+          ${m.order_id ? ` &middot; Order: <code style="font-size:11px">${m.order_id.slice(0, 8)}...</code>` : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text-soft);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          ${escapeHtml(String(m.body || '').slice(0, 100))}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadMessages);
+  }
+}
+
+async function openMessageDetail(msgId) {
+  try {
+    const r = await api('/api/v1/messages', { headers: authHeaders() });
+    const msg = (r.messages || []).find(m => m.id === msgId);
+    if (!msg) return;
+
+    // Mark as read
+    await api('/api/v1/messages/' + msgId + '/read', { method: 'POST', headers: authHeaders() }).catch(() => {});
+
+    openModal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2 style="word-break:break-word">${msg.subject ? escapeHtml(msg.subject) : '(no subject)'}</h2>
+      <div style="font-size:12px;color:var(--text-soft);margin-bottom:16px">
+        From: <b>${escapeHtml(msg.sender_name || 'System')}</b>
+        &middot; ${relativeTime(msg.created_at)}
+        ${msg.order_id ? ` &middot; <a style="color:var(--accent)" onclick="closeModal();openOrderDetail('${msg.order_id}')">View Order</a>` : ''}
+      </div>
+      <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${escapeHtml(msg.body || '')}</div>
+      <div style="margin-top:16px;display:flex;gap:8px">
+        ${msg.sender_id ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openComposeModal('${msg.sender_id}')">Reply</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
+      </div>
+    `);
+
+    // Refresh list to update unread count
+    loadMessages();
+  } catch (e) { toast('Failed to open message', 'error'); }
+}
+
+async function markAllRead() {
+  try {
+    await api('/api/v1/messages/read-all', { method: 'POST', headers: authHeaders() });
+    toast('All messages marked as read', 'success');
+    loadMessages();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function openComposeModal(toId) {
+  openModal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Send Message</h2>
+    <p class="mdesc">Send a message to another agent by their Agent ID.</p>
+    <label>Recipient Agent ID</label>
+    <input id="msg-to" class="plain" type="text" placeholder="Agent ID..." value="${toId || ''}">
+    <label style="margin-top:10px">Subject (optional)</label>
+    <input id="msg-subject" class="plain" type="text" placeholder="Subject...">
+    <label style="margin-top:10px">Message</label>
+    <textarea id="msg-body" class="plain" rows="5" placeholder="Your message..." style="resize:vertical;width:100%"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitSendMessage()">Send</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitSendMessage() {
+  const to = document.getElementById('msg-to').value.trim();
+  const subject = document.getElementById('msg-subject').value.trim();
+  const body = document.getElementById('msg-body').value.trim();
+  if (!to) return toast('Enter recipient agent ID', 'warn');
+  if (!body) return toast('Enter message body', 'warn');
+  const btn = document.querySelector('#modalBody .btn-primary');
+  btnLoading(btn, 'Sending...');
+  try {
+    await api('/api/v1/messages/send', {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, subject: subject || undefined, body }),
+    });
+    toast('Message sent', 'success');
+    closeModal();
+    if (state.activePanel === 'messages') loadMessages();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
 // ================= Dashboard: Leaderboard =================
