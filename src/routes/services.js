@@ -15,8 +15,9 @@ const validProductTypes = ['digital', 'ai_generated', 'subscription', 'external'
 router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
-            input_schema, output_schema, verification_rules, auto_verify,
-            min_seller_stake, sub_price, sub_interval, file_id, market_type, product_type } = req.body;
+            input_schema, output_schema, verification_rules, auto_verify, semantic_verify,
+            min_seller_stake, sub_price, sub_interval, file_id, market_type, product_type,
+            category } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
     if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
@@ -60,17 +61,19 @@ router.post('/', requireApiKey, async (req, res, next) => {
 
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
+    const svcCategory = category || 'general';
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
-          input_schema, output_schema, verification_rules, auto_verify, min_seller_stake,
-          sub_price, sub_interval, file_id, market_type, product_type)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)})`,
+          input_schema, output_schema, verification_rules, auto_verify, semantic_verify, min_seller_stake,
+          sub_price, sub_interval, file_id, market_type, product_type, category)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)},${p(17)},${p(18)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
-        auto_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake, subPrice, subInterval, resolvedFileId, mktType, prodType
+        auto_verify     ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
+        semantic_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
+        minStake, subPrice, subInterval, resolvedFileId, mktType, prodType, svcCategory
       ]
     );
 
@@ -81,6 +84,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       output_schema: output_schema || null,
       verification_rules: verification_rules || null,
       auto_verify: !!auto_verify,
+      semantic_verify: !!semantic_verify,
       min_seller_stake: minStake,
       sub_price: subPrice,
       sub_interval: subInterval,
@@ -88,6 +92,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       is_digital_product: !!resolvedFileId,
       market_type: mktType,
       product_type: prodType,
+      category: svcCategory,
       message: 'Service listed successfully'
     });
   } catch (err) { next(err); }
