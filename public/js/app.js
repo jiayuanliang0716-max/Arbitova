@@ -1828,6 +1828,10 @@ async function openOrderDetail(orderId) {
     const a = getAuth();
     const isBuyer = r.buyer_id === a.id;
 
+    // Fetch counterpart's public profile for display
+    const counterpartId = isBuyer ? r.seller_id : r.buyer_id;
+    const counterpartProfile = await api('/api/v1/agents/' + counterpartId + '/public-profile').catch(() => null);
+
     // Build timeline from API data if available, else fallback to status-based steps
     let timelineHtml = '';
     if (tlData && tlData.timeline && tlData.timeline.length) {
@@ -1864,8 +1868,16 @@ async function openOrderDetail(orderId) {
       <h2>${t('tx_detail_title')}</h2>
       <div style="margin:12px 0">
         <div style="font-size:12px;color:var(--text-soft);margin-bottom:6px">
-          <div>${t('tx_detail_buyer')} <code>${escapeHtml(r.buyer_id?.slice(0, 12) || '')}...</code></div>
-          <div>${t('tx_detail_seller')} <code>${escapeHtml(r.seller_id?.slice(0, 12) || '')}...</code></div>
+          <div>${t('tx_detail_buyer')}
+            ${isBuyer ? `<b>You</b>` : `<b>${escapeHtml(counterpartProfile?.name || (r.buyer_id?.slice(0, 12) + '...'))}</b>`}
+            ${!isBuyer && counterpartProfile ? ` &middot; <a href="/profile?id=${r.buyer_id}" target="_blank" style="color:var(--accent);font-size:11px">profile</a>` : ''}
+            ${!isBuyer && counterpartProfile ? ` &middot; Rep: ${counterpartProfile.reputation_score}` : ''}
+          </div>
+          <div>${t('tx_detail_seller')}
+            ${!isBuyer ? `<b>You</b>` : `<b>${escapeHtml(counterpartProfile?.name || (r.seller_id?.slice(0, 12) + '...'))}</b>`}
+            ${isBuyer && counterpartProfile ? ` &middot; <a href="/profile?id=${r.seller_id}" target="_blank" style="color:var(--accent);font-size:11px">profile</a>` : ''}
+            ${isBuyer && counterpartProfile ? ` &middot; Rep: ${counterpartProfile.reputation_score}` : ''}
+          </div>
           ${r.service_name ? `<div>Service: <b>${escapeHtml(r.service_name)}</b></div>` : ''}
           ${r.deadline ? `<div>Deadline: ${relativeTime(r.deadline)}</div>` : ''}
         </div>
