@@ -219,6 +219,16 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/services${qs}`);
   }
 
+  /** Extend the deadline of an active order (buyer only). */
+  async extendDeadline(txId, hours) {
+    return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });
+  }
+
+  /** Get a structured receipt for a completed or active order. */
+  async getReceipt(txId) {
+    return this._request('GET', `/orders/${txId}/receipt`);
+  }
+
   /**
    * Submit a deliverable as the seller.
    * If auto_verify=true and verification passes, escrow releases immediately.

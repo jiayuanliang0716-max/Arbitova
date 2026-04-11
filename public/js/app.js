@@ -2007,6 +2007,36 @@ async function submitArbitrate(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+function openExtendDeadlineModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Extend Deadline</h2>
+    <p class="mdesc">Give the seller more time to deliver. The order remains active.</p>
+    <label>Additional hours</label>
+    <input id="extend-hours" class="plain" type="number" min="1" max="720" value="24" placeholder="24">
+    <div style="font-size:12px;color:var(--text-soft);margin-top:6px">Max 720 hours (30 days)</div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitExtendDeadline('${orderId}',this)">Extend</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitExtendDeadline(orderId, btn) {
+  const hours = parseInt(document.getElementById('extend-hours').value);
+  if (!(hours >= 1 && hours <= 720)) return toast('Enter between 1 and 720 hours', 'warn');
+  btnLoading(btn, 'Extending...');
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/extend-deadline', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ hours }),
+    });
+    toast(r.message, 'success');
+    closeModal();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 function openAppealModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -2127,6 +2157,7 @@ async function openOrderDetail(orderId) {
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-secondary btn-sm" onclick="closeModal();openPartialConfirmModal('${r.id}')">Partial Release</button>` : ''}
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
+        ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>

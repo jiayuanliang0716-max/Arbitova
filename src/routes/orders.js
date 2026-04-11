@@ -1300,4 +1300,93 @@ router.post('/:id/cancel', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/extend-deadline — buyer can request deadline extension (adds hours)
+router.post('/:id/extend-deadline', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can extend the deadline' });
+    if (!['paid', 'delivered'].includes(order.status)) {
+      return res.status(400).json({ error: `Cannot extend deadline for order with status: ${order.status}` });
+    }
+
+    const addHours = parseInt(req.body.hours);
+    if (!(addHours >= 1 && addHours <= 720)) {
+      return res.status(400).json({ error: 'hours must be between 1 and 720' });
+    }
+
+    const newDeadline = isPostgres
+      ? `(COALESCE(deadline::timestamp, NOW()) + interval '${addHours} hours')`
+      : `datetime(COALESCE(deadline, datetime('now')), '+${addHours} hours')`;
+
+    await dbRun(`UPDATE orders SET deadline = ${newDeadline} WHERE id = ${p(1)}`, [order.id]);
+
+    const updated = await dbGet(`SELECT id, deadline, status FROM orders WHERE id = ${p(1)}`, [order.id]);
+    res.json({
+      id: updated.id,
+      status: updated.status,
+      new_deadline: updated.deadline,
+      hours_added: addHours,
+      message: `Deadline extended by ${addHours} hour${addHours > 1 ? 's' : ''}.`,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/receipt — structured receipt JSON (auth required, buyer or seller)
+router.get('/:id/receipt', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(
+      `SELECT o.*, s.name as service_name, s.category as service_category,
+              buyer.name as buyer_name, seller.name as seller_name
+       FROM orders o
+       LEFT JOIN services s ON o.service_id = s.id
+       LEFT JOIN agents buyer ON o.buyer_id = buyer.id
+       LEFT JOIN agents seller ON o.seller_id = seller.id
+       WHERE o.id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const RELEASE_FEE_RATE = 0.005;
+    const DISPUTE_FEE_RATE = 0.02;
+    const isDisputed = order.status === 'disputed' || order.status === 'refunded';
+    const feeRate = isDisputed ? DISPUTE_FEE_RATE : RELEASE_FEE_RATE;
+    const fee = parseFloat(order.amount) * feeRate;
+
+    res.json({
+      receipt_id: `rcpt_${order.id}`,
+      platform: 'Arbitova',
+      generated_at: new Date().toISOString(),
+      order: {
+        id: order.id,
+        status: order.status,
+        created_at: order.created_at,
+        completed_at: order.completed_at || null,
+        deadline: order.deadline,
+      },
+      service: {
+        id: order.service_id,
+        name: order.service_name || null,
+        category: order.service_category || null,
+      },
+      parties: {
+        buyer: { id: order.buyer_id, name: order.buyer_name },
+        seller: { id: order.seller_id, name: order.seller_name },
+      },
+      financials: {
+        order_amount: parseFloat(order.amount),
+        platform_fee: order.status === 'completed' ? fee : 0,
+        fee_rate: order.status === 'completed' ? feeRate : 0,
+        seller_received: order.status === 'completed' ? parseFloat(order.amount) - fee : null,
+        currency: 'USDC',
+      },
+      requirements: order.requirements || null,
+      auditable: true,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
