@@ -2007,6 +2007,49 @@ async function submitArbitrate(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+function openReviewModal(orderId, sellerId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Leave a Review</h2>
+    <p class="mdesc">Rate your experience with this seller. One review per order.</p>
+    <label>Rating</label>
+    <div style="display:flex;gap:6px;margin:8px 0 14px">
+      ${[1,2,3,4,5].map(n => `<button id="star-${n}" onclick="selectStar(${n})" style="font-size:24px;background:none;border:none;cursor:pointer;padding:0;line-height:1;filter:grayscale(1);transition:filter 0.15s" title="${n} star${n>1?'s':''}">&#9733;</button>`).join('')}
+    </div>
+    <input type="hidden" id="review-rating" value="0">
+    <label>Comment (optional)</label>
+    <textarea id="review-comment" class="plain" rows="3" placeholder="Share your experience..." style="width:100%;resize:vertical"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitReview('${orderId}',this)">Submit Review</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+function selectStar(n) {
+  document.getElementById('review-rating').value = n;
+  for (let i = 1; i <= 5; i++) {
+    const el = document.getElementById('star-' + i);
+    if (el) el.style.filter = i <= n ? 'none' : 'grayscale(1)';
+  }
+}
+
+async function submitReview(orderId, btn) {
+  const rating = parseInt(document.getElementById('review-rating').value);
+  const comment = document.getElementById('review-comment').value.trim();
+  if (!(rating >= 1 && rating <= 5)) return toast('Please select a star rating', 'warn');
+  btnLoading(btn, 'Submitting...');
+  try {
+    await api('/api/v1/reviews', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ order_id: orderId, rating, comment: comment || undefined }),
+    });
+    toast('Review submitted. Thank you!', 'success');
+    closeModal();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 function openExtendDeadlineModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -2158,6 +2201,7 @@ async function openOrderDetail(orderId) {
         ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
+        ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>
