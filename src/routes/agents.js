@@ -291,4 +291,57 @@ router.post('/topup', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/reputation-badge
+// Returns JSON + SVG badge for cross-platform reputation display.
+router.get('/:id/reputation-badge', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const score = parseInt(agent.score) || 0;
+    const level = score >= 200 ? 'Elite' : score >= 100 ? 'Trusted' : score >= 50 ? 'Active' : 'New';
+    const color = score >= 200 ? '#2563eb' : score >= 100 ? '#16a34a' : score >= 50 ? '#d97706' : '#6b7280';
+
+    const format = req.query.format || 'json';
+
+    if (format === 'svg') {
+      const label = 'Arbitova';
+      const value = `${level} · ${score}`;
+      const labelWidth = 70;
+      const valueWidth = Math.max(value.length * 7 + 16, 80);
+      const totalWidth = labelWidth + valueWidth;
+
+      res.setHeader('Content-Type', 'image/svg+xml');
+      res.setHeader('Cache-Control', 'public, max-age=300');
+      return res.send(`<svg xmlns="http://www.w3.org/2000/svg" width="${totalWidth}" height="20">
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <rect rx="3" width="${totalWidth}" height="20" fill="#555"/>
+  <rect rx="3" x="${labelWidth}" width="${valueWidth}" height="20" fill="${color}"/>
+  <rect rx="3" width="${totalWidth}" height="20" fill="url(#s)"/>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,sans-serif" font-size="11">
+    <text x="${labelWidth / 2}" y="15" fill="#010101" fill-opacity=".3">${label}</text>
+    <text x="${labelWidth / 2}" y="14">${label}</text>
+    <text x="${labelWidth + valueWidth / 2}" y="15" fill="#010101" fill-opacity=".3">${value}</text>
+    <text x="${labelWidth + valueWidth / 2}" y="14">${value}</text>
+  </g>
+</svg>`);
+    }
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      reputation_score: score,
+      level,
+      badge_url: `${process.env.API_BASE_URL || 'https://a2a-system.onrender.com'}/api/v1/agents/${agent.id}/reputation-badge?format=svg`,
+      verified_by: 'arbitova',
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -12,7 +12,8 @@ const router = express.Router();
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-const PLATFORM_FEE_RATE = 0.025;
+const RELEASE_FEE_RATE = 0.005;   // 0.5% — successful delivery confirmed
+const DISPUTE_FEE_RATE = 0.02;    // 2.0% — dispute resolved via AI arbitration
 const REP_CONFIRM_BONUS = 10;
 const REP_DISPUTE_PENALTY = 20;
 
@@ -118,7 +119,7 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       try {
         const file = await dbGet(`SELECT id, filename FROM files WHERE id = ${p(1)}`, [service.file_id]);
         if (file) {
-          const fee = parseFloat(service.price) * PLATFORM_FEE_RATE;
+          const fee = parseFloat(service.price) * RELEASE_FEE_RATE;
           const sellerReceives = parseFloat(service.price) - fee;
           const now = isPostgres ? 'NOW()' : "datetime('now')";
           const deliveryId = uuidv4();
@@ -418,7 +419,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     // If service has auto_verify and output verification passed, auto-complete immediately
     const autoVerify = service && (service.auto_verify === true || service.auto_verify === 1);
     if (hasContract && autoVerify && verification.ok) {
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
       const sellerReceives = parseFloat(order.amount) - fee;
       const now = isPostgres ? 'NOW()' : "datetime('now')";
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
@@ -492,7 +493,7 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
       return res.status(400).json({ error: `Cannot confirm: status is ${order.status}` });
     }
 
-    const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+    const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
     const sellerReceives = parseFloat(order.amount) - fee;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
@@ -588,8 +589,8 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     } else {
-      // Pay seller (net of platform fee)
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      // Pay seller (net of dispute fee)
+      const fee = parseFloat(order.amount) * DISPUTE_FEE_RATE;
       const sellerReceives = parseFloat(order.amount) - fee;
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
@@ -818,7 +819,7 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     } else {
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const fee = parseFloat(order.amount) * DISPUTE_FEE_RATE;
       const sellerReceives = parseFloat(order.amount) - fee;
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
@@ -860,6 +861,60 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed,
       arbitrated_by: 'claude-haiku-n3',
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/dispute/transparency-report
+// Returns a public, auditable record of AI arbitration for a resolved dispute.
+router.get('/:id/dispute/transparency-report', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT id, buyer_id, seller_id, amount, status FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)}`, [req.params.id]);
+    if (!dispute) return res.status(404).json({ error: 'No dispute found for this order' });
+
+    // Parse AI arbitration data from resolution string
+    // Format: "[AI Arbitration N=3 | votes: seller(94%),buyer(12%),seller(88%) | avg confidence: XX%] reasoning"
+    let ai_arbitration = null;
+    if (dispute.resolution && dispute.resolution.startsWith('[AI Arbitration')) {
+      const match = dispute.resolution.match(/\[AI Arbitration N=3 \| votes: ([^\|]+)\| avg confidence: (\d+)%\] (.*)/s);
+      if (match) {
+        const voteStrings = match[1].trim().split(',');
+        const votes = voteStrings.map(v => {
+          const m = v.match(/(\w+)\((\d+)%\)/);
+          return m ? { winner: m[1], confidence: parseInt(m[2]) / 100 } : null;
+        }).filter(Boolean);
+        ai_arbitration = {
+          method: 'N=3 LLM majority vote',
+          model: 'claude-haiku-n3',
+          votes,
+          avg_confidence: parseInt(match[2]) / 100,
+          reasoning: match[3].trim(),
+        };
+      }
+    }
+
+    res.json({
+      report_type: 'arbitration_transparency_report',
+      order_id: order.id,
+      dispute_id: dispute.id,
+      dispute: {
+        reason: dispute.reason,
+        evidence: dispute.evidence || null,
+        status: dispute.status,
+        raised_by: dispute.raised_by,
+        created_at: dispute.created_at,
+        resolved_at: dispute.resolved_at || null,
+      },
+      verdict: dispute.status === 'resolved' ? {
+        winner: dispute.resolution?.includes('winner: buyer') || (ai_arbitration?.votes?.filter(v => v.winner === 'buyer').length > 1) ? 'buyer' : 'seller',
+        final_order_status: order.status,
+      } : null,
+      ai_arbitration,
+      auditable: true,
+      note: 'This report is generated from immutable arbitration logs and can be used for compliance auditing.',
     });
   } catch (err) { next(err); }
 });

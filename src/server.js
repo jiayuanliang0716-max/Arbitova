@@ -31,9 +31,31 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json());
 
+// Auto-inject error `code` field — standardizes all error responses
+app.use((req, res, next) => {
+  const _json = res.json.bind(res);
+  res.json = (body) => {
+    if (body && body.error && !body.code) {
+      const status = res.statusCode || 200;
+      if (status === 400) body.code = 'bad_request';
+      else if (status === 401) body.code = 'unauthorized';
+      else if (status === 403) body.code = 'forbidden';
+      else if (status === 404) body.code = 'not_found';
+      else if (status === 409) body.code = 'conflict';
+      else if (status === 429) body.code = 'rate_limited';
+      else if (status >= 500) body.code = 'internal_error';
+    }
+    return _json(body);
+  };
+  next();
+});
+
 // CORS — allow same-origin and the Render deployment URL
 const allowedOrigins = [
   'https://a2a-system.onrender.com',
+  'https://arbitova.com',
+  'https://www.arbitova.com',
+  'https://api.arbitova.com',
   'http://localhost:3000',
   ...(process.env.ALLOWED_ORIGIN ? [process.env.ALLOWED_ORIGIN] : [])
 ];
@@ -52,7 +74,9 @@ const rateMax = process.env.NODE_ENV === 'test' || process.env.DISABLE_RATE_LIMI
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: rateMax,
-  message: { error: 'Too many requests, please slow down.' }
+  standardHeaders: true,   // Returns RateLimit-* headers
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please slow down.', code: 'rate_limited' }
 }));
 
 // Static frontend (SPA — public/index.html is served at /)
