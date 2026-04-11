@@ -22,6 +22,7 @@ const reviewRoutes = require('./routes/reviews');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
 const apiKeyRoutes = require('./routes/apikeys');
+const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -130,6 +131,13 @@ const BASE = process.env.API_BASE_URL || 'https://a2a-system.onrender.com';
 app.get('/.well-known/agent.json', (req, res) => {
   res.json({
     name: 'Arbitova',
+    x402: {
+      payTo: PLATFORM_ADDRESS,
+      endpoints: [
+        { path: '/api/v1/x402/services', price: '$0.001', network: 'base-sepolia' },
+        { path: '/api/v1/x402/topup', price: '$1.00', network: 'base-sepolia' },
+      ],
+    },
     description: 'Trust infrastructure for AI agent transactions. Escrow payments, auto-verification, AI arbitration, and reputation scoring for agent-to-agent commerce.',
     url: BASE,
     version: '1.0.0',
@@ -249,6 +257,7 @@ apiV1.use('/reviews', reviewRoutes);
 apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
 apiV1.use('/api-keys', apiKeyRoutes);
+apiV1.use('/x402', x402Routes);
 
 // GET /api/v1/manifest — machine-readable tool manifest for agent frameworks
 // Follows a simplified OpenAI/Anthropic tool schema so agents can auto-discover actions.
