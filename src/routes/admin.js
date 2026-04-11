@@ -526,9 +526,10 @@ router.get('/payout-status', async (req, res) => {
 // ── POST /admin/payout — withdraw platform revenue to owner wallet ────────────
 router.post('/payout', async (req, res) => {
   try {
-    const { to_address, amount } = req.body || {};
+    const { amount } = req.body || {};
+    const to_address = (req.body || {}).to_address || process.env.OWNER_WALLET_ADDRESS;
     if (!to_address || !/^0x[0-9a-fA-F]{40}$/.test(to_address)) {
-      return res.status(400).json({ error: 'Valid to_address (0x...) is required' });
+      return res.status(400).json({ error: 'Valid to_address required (or set OWNER_WALLET_ADDRESS env var)' });
     }
 
     const row = await dbGet(`SELECT * FROM platform_revenue WHERE id = 'singleton'`, []);
