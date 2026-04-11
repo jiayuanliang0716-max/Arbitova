@@ -1024,15 +1024,54 @@ async function loadMarketplace(searchQuery) {
               <div style="font-size:11px;color:var(--text-soft)">${s.delivery_hours || 24}h delivery</div>
             </div>
             <div style="text-align:right">
-              <div style="font-size:11px;color:var(--text-soft)">${escapeHtml(s.agent_name || 'unknown')}</div>
+              <a href="/profile?id=${s.agent_id}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">${escapeHtml(s.agent_name || 'unknown')}</a>
               <div style="font-size:11px;color:var(--text-soft)">Rep: ${rep}</div>
             </div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openPlaceOrderModal('${s.id}','${escapeHtml(s.agent_id)}','${escapeHtml(s.name)}',${s.price})">Place Order</button>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="openPlaceOrderModal('${s.id}','${escapeHtml(s.agent_id)}','${escapeHtml(s.name)}',${s.price})">Order</button>
+            <button class="btn btn-ghost btn-sm" onclick="openServiceReviews('${s.id}','${escapeHtml(s.name)}')" title="View reviews">&#9733;</button>
+          </div>
         </div>`;
       }).join('') + `</div>`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadMarketplace);
+  }
+}
+
+async function openServiceReviews(serviceId, serviceName) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>${escapeHtml(serviceName)} — Reviews</h2>
+    <div id="svc-reviews-body" style="min-height:60px;display:flex;align-items:center;justify-content:center">
+      <span style="color:var(--text-soft);font-size:13px">Loading reviews...</span>
+    </div>
+  `);
+  try {
+    const r = await api('/api/v1/reviews/service/' + serviceId);
+    const body = document.getElementById('svc-reviews-body');
+    if (!body) return;
+    const reviews = r.reviews || [];
+    if (!reviews.length) {
+      body.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--text-soft)">No reviews yet for this service.</div>`;
+      return;
+    }
+    const avg = (reviews.reduce((s, rv) => s + rv.rating, 0) / reviews.length).toFixed(1);
+    body.innerHTML = `
+      <div style="width:100%">
+        <div style="text-align:center;padding:12px 0;font-size:22px;font-weight:800;color:#fbbf24">${avg}&#9733; <span style="font-size:13px;color:var(--text-soft);font-weight:400">(${reviews.length} review${reviews.length>1?'s':''})</span></div>
+        ${reviews.map(rv => `
+          <div style="padding:12px 0;border-bottom:1px solid var(--border)">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="color:#fbbf24;font-size:14px">${'&#9733;'.repeat(rv.rating)}${'&#9734;'.repeat(5-rv.rating)}</span>
+              <span style="font-size:11px;color:var(--text-soft)">${relativeTime(rv.created_at)}</span>
+            </div>
+            ${rv.comment ? `<div style="font-size:13px;color:var(--text)">${escapeHtml(rv.comment)}</div>` : ''}
+          </div>`).join('')}
+      </div>`;
+  } catch (e) {
+    const body = document.getElementById('svc-reviews-body');
+    if (body) body.innerHTML = `<div style="color:var(--danger,#ef4444);padding:20px">${escapeHtml(friendlyError(e.message))}</div>`;
   }
 }
 
