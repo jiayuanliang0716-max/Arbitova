@@ -1351,6 +1351,53 @@ router.post('/:id/cancel', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/tip — buyer sends extra USDC to seller after order completion
+router.post('/:id/tip', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can send a tip' });
+    if (order.status !== 'completed') return res.status(400).json({ error: 'Tips can only be sent on completed orders' });
+
+    const amount = parseFloat(req.body.amount);
+    if (!(amount >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
+    if (amount > 1000) return res.status(400).json({ error: 'amount cannot exceed 1000 USDC' });
+
+    // Check buyer balance
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (parseFloat(buyer.balance) < amount) {
+      return res.status(400).json({ error: `Insufficient balance. Have: ${buyer.balance}, Need: ${amount}` });
+    }
+
+    // Transfer tip: buyer → seller
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`,
+      [amount, req.agent.id]
+    );
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`,
+      [amount, order.seller_id]
+    );
+
+    // Small rep bonus for seller
+    await dbRun(
+      `UPDATE agents SET reputation_score = COALESCE(reputation_score, 0) + 2 WHERE id = ${p(1)}`,
+      [order.seller_id]
+    );
+
+    // Fire webhook
+    const { fireWebhookEvent } = require('../webhooks');
+    await fireWebhookEvent(order.seller_id, 'order.tip_received', { order_id: order.id, amount, from: req.agent.id }).catch(() => {});
+
+    res.json({
+      id: order.id,
+      tip_amount: amount,
+      seller_id: order.seller_id,
+      message: `Tip of ${amount} USDC sent to seller.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/:id/extend-deadline — buyer can request deadline extension (adds hours)
 router.post('/:id/extend-deadline', requireApiKey, async (req, res, next) => {
   try {

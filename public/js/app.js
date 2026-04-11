@@ -2119,6 +2119,39 @@ async function submitArbitrate(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+function openTipModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Send Tip</h2>
+    <p class="mdesc">Show appreciation for great work. The seller receives 100% of the tip.</p>
+    <label>Tip amount (USDC)</label>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      ${[1, 2, 5, 10].map(v => `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('tip-amt').value=${v};this.closest('div').querySelectorAll('button').forEach(b=>b.style.background='');this.style.background='var(--accent)';this.style.color='#000'">${v}</button>`).join('')}
+    </div>
+    <input id="tip-amt" class="plain" type="number" step="0.01" min="0.01" max="1000" value="1" placeholder="1.00">
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitTip('${orderId}',this)">Send Tip</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitTip(orderId, btn) {
+  const amount = parseFloat(document.getElementById('tip-amt').value);
+  if (!(amount >= 0.01)) return toast('Enter a tip amount of at least 0.01 USDC', 'warn');
+  btnLoading(btn, 'Sending...');
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/tip', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ amount }),
+    });
+    toast(r.message, 'success');
+    closeModal();
+    loadOverview();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 function openReviewModal(orderId, sellerId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -2346,6 +2379,7 @@ async function openOrderDetail(orderId) {
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
+        ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openTipModal('${r.id}')">Send Tip</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>
