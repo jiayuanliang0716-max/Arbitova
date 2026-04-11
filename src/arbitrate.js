@@ -55,7 +55,9 @@ winner must be exactly "buyer" or "seller".`;
     messages: [{ role: 'user', content: prompt }],
   });
 
-  const text = message.content[0].text.trim();
+  let text = message.content[0].text.trim();
+  // Strip markdown code block if Claude wraps the JSON
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
   const result = JSON.parse(text);
 
   if (!['buyer', 'seller'].includes(result.winner)) {
