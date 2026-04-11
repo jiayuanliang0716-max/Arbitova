@@ -516,8 +516,9 @@ async function loadLandingStats() {
     const el = (id) => document.getElementById(id);
     if (el('ls-agents')) el('ls-agents').textContent = s.agents || 0;
     if (el('ls-orders')) el('ls-orders').textContent = s.completed_orders || 0;
-    if (el('ls-volume')) el('ls-volume').textContent = money(s.platform_fees || 0);
+    if (el('ls-volume')) el('ls-volume').textContent = money(s.total_volume || s.platform_fees || 0);
     if (el('ls-uptime')) el('ls-uptime').textContent = '99.9%';
+    if (el('ls-disputes')) el('ls-disputes').textContent = s.active_disputes || 0;
   } catch (e) { console.error('Stats load error:', e); }
   loadLandingLeaderboard();
 }

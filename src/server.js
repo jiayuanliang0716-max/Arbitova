@@ -91,16 +91,20 @@ app.get('/api/stats', async (req, res) => {
     if (statsCache && Date.now() - statsCacheAt < 30000) return res.json(statsCache);
     const isPostgres = !!process.env.DATABASE_URL;
     const p = (n) => isPostgres ? `$${n}` : '?';
-    const [agents, services, orders] = await Promise.all([
+    const [agents, services, completed, disputed, total_vol] = await Promise.all([
       dbAll('SELECT COUNT(*) as count FROM agents', []),
-      dbAll('SELECT COUNT(*) as count FROM services', []),
-      dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as fees FROM orders WHERE status = ${p(1)}`, ['completed'])
+      dbAll('SELECT COUNT(*) as count FROM services WHERE is_active = true OR is_active = 1', []),
+      dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as vol FROM orders WHERE status = ${p(1)}`, ['completed']),
+      dbAll(`SELECT COUNT(*) as count FROM orders WHERE status = ${p(1)}`, ['disputed']),
+      dbAll(`SELECT COALESCE(SUM(amount), 0) as vol FROM orders WHERE status NOT IN (${p(2)},${p(3)})`, ['cancelled', 'refunded']),
     ]);
     statsCache = {
       agents: parseInt(agents[0].count),
       services: parseInt(services[0].count),
-      completed_orders: parseInt(orders[0].count),
-      platform_fees: parseFloat(orders[0].fees || 0)
+      completed_orders: parseInt(completed[0].count),
+      active_disputes: parseInt(disputed[0].count),
+      total_volume: parseFloat(total_vol[0].vol || 0),
+      platform_fees: parseFloat(completed[0].vol || 0) * 0.005,
     };
     statsCacheAt = Date.now();
     res.json(statsCache);
@@ -456,12 +460,49 @@ app.use('/payments', paymentRoutes);
 app.use('/reviews', reviewRoutes);
 app.use('/admin', adminRoutes);
 
-// 健康檢查
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', version: 'v1', timestamp: new Date().toISOString() });
+// Health check — detailed system status
+const { dbGet: healthDbGet } = require('./db/helpers');
+async function buildHealthResponse() {
+  const start = Date.now();
+  let db_ok = false;
+  let agent_count = 0;
+  try {
+    const row = await healthDbGet('SELECT COUNT(*) as c FROM agents', []);
+    agent_count = parseInt(row?.c || 0);
+    db_ok = true;
+  } catch (e) { /* db offline */ }
+
+  return {
+    status: db_ok ? 'ok' : 'degraded',
+    version: 'v1.1.0',
+    timestamp: new Date().toISOString(),
+    latency_ms: Date.now() - start,
+    services: {
+      database: db_ok ? 'ok' : 'error',
+      ai_arbitration: process.env.ANTHROPIC_API_KEY ? 'ok' : 'unconfigured',
+      chain: process.env.CHAIN || 'mock',
+    },
+    agents_registered: agent_count,
+    uptime_seconds: Math.floor(process.uptime()),
+    openapi: '/docs',
+  };
+}
+
+app.get('/health', async (req, res) => {
+  try {
+    const h = await buildHealthResponse();
+    res.status(h.status === 'ok' ? 200 : 503).json(h);
+  } catch (e) {
+    res.status(503).json({ status: 'error', error: e.message });
+  }
 });
-app.get('/api/v1/health', (req, res) => {
-  res.json({ status: 'ok', version: 'v1', timestamp: new Date().toISOString() });
+app.get('/api/v1/health', async (req, res) => {
+  try {
+    const h = await buildHealthResponse();
+    res.status(h.status === 'ok' ? 200 : 503).json(h);
+  } catch (e) {
+    res.status(503).json({ status: 'error', error: e.message });
+  }
 });
 
 // 404 處理
