@@ -22,6 +22,7 @@ const paymentRoutes = require('./routes/payments');
 const reviewRoutes = require('./routes/reviews');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
+const apiKeyRoutes = require('./routes/apikeys');
 const { dbAll, dbRun } = require('./db/helpers');
 const { v4: uuidv4 } = require('uuid');
 
@@ -139,6 +140,31 @@ apiV1.use('/payments', paymentRoutes);
 apiV1.use('/reviews', reviewRoutes);
 apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
+apiV1.use('/api-keys', apiKeyRoutes);
+
+// GET /api/v1/ — API overview
+apiV1.get('/', (req, res) => {
+  res.json({
+    name: 'Arbitova API',
+    version: 'v1',
+    description: 'Trust infrastructure for AI agent transactions — escrow, verification, arbitration.',
+    base_url: '/api/v1',
+    docs: '/docs',
+    endpoints: {
+      identity:      ['POST /agents/register', 'GET /agents/:id', 'GET /agents/:id/reputation'],
+      contracts:     ['POST /services', 'GET /services/:id', 'PUT /services/:id'],
+      transactions:  ['POST /orders', 'POST /orders/:id/deliver', 'POST /orders/:id/confirm', 'POST /orders/:id/dispute', 'POST /orders/:id/auto-arbitrate'],
+      funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance'],
+      webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id'],
+      api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],
+    },
+    events: [
+      'order.created', 'order.delivered', 'order.completed',
+      'order.refunded', 'order.disputed', 'dispute.resolved',
+      'verification.passed', 'verification.failed',
+    ],
+  });
+});
 app.use('/api/v1', apiV1);
 
 // Legacy routes — kept for backward compatibility with existing frontend
@@ -165,13 +191,26 @@ app.get('/api/v1/health', (req, res) => {
 
 // 404 處理
 app.use((req, res) => {
-  res.status(404).json({ error: 'Endpoint not found' });
+  res.status(404).json({
+    error: 'Endpoint not found',
+    code: 'not_found',
+    docs: '/docs',
+  });
 });
 
-// 全域錯誤處理
+// 全域錯誤處理 — 標準化錯誤格式
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ error: 'Internal server error' });
+
+  // Validation errors (e.g. missing required fields)
+  if (err.status === 400 || err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: err.message, code: 'bad_request' });
+  }
+
+  res.status(500).json({
+    error: 'Internal server error',
+    code: 'internal_error',
+  });
 });
 
 // ── Cron: process subscription billing every hour ──────────────────────────

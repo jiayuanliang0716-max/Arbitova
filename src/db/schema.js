@@ -206,6 +206,18 @@ if (DATABASE_URL) {
         created_at      TIMESTAMPTZ DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS api_keys (
+        id           TEXT PRIMARY KEY,
+        agent_id     TEXT NOT NULL REFERENCES agents(id),
+        key_hash     TEXT NOT NULL,
+        key_prefix   TEXT NOT NULL,
+        name         TEXT,
+        scope        TEXT DEFAULT 'full',
+        is_active    BOOLEAN DEFAULT TRUE,
+        last_used_at TIMESTAMPTZ,
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS webhooks (
         id                TEXT PRIMARY KEY,
         agent_id          TEXT NOT NULL REFERENCES agents(id),
@@ -400,6 +412,18 @@ if (DATABASE_URL) {
       subscription_id TEXT,
       is_read         INTEGER DEFAULT 0,
       created_at      TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id           TEXT PRIMARY KEY,
+      agent_id     TEXT NOT NULL REFERENCES agents(id),
+      key_hash     TEXT NOT NULL,
+      key_prefix   TEXT NOT NULL,
+      name         TEXT,
+      scope        TEXT DEFAULT 'full',
+      is_active    INTEGER DEFAULT 1,
+      last_used_at TEXT,
+      created_at   TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS webhooks (
