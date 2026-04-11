@@ -1566,6 +1566,7 @@ async function loadContracts() {
               <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>
               <button class="btn btn-ghost btn-sm" onclick="toggleServiceActive('${s.id}',${!s.is_active})">${s.is_active ? 'Disable' : 'Enable'}</button>
               <button class="btn btn-ghost btn-sm" onclick="openEditServiceModal('${s.id}','${escapeHtml(s.name)}','${escapeHtml(s.description||'')}',${s.price},'${s.category||'general'}')">Edit</button>
+              <button class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444)" onclick="deleteService('${s.id}','${escapeHtml(s.name)}')">Delete</button>
             </div>
           </div>`).join('')
       : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No service contracts yet. Create one to start selling.</div>`;
@@ -1641,6 +1642,21 @@ async function toggleServiceActive(serviceId, newActive) {
       body: JSON.stringify({ is_active: newActive }),
     });
     toast(newActive ? 'Service enabled' : 'Service disabled', 'success');
+    loadContracts();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function deleteService(serviceId, serviceName) {
+  const confirmed = await confirmAction({
+    title: 'Delete Service',
+    message: `Delete "${serviceName}"? This cannot be undone. Services with active orders cannot be deleted.`,
+    confirmText: 'Delete',
+    danger: true,
+  });
+  if (!confirmed) return;
+  try {
+    await api('/api/v1/services/' + serviceId, { method: 'DELETE', headers: authHeaders() });
+    toast('Service deleted', 'success');
     loadContracts();
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
@@ -1991,6 +2007,50 @@ async function submitArbitrate(orderId) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
+function openAppealModal(orderId) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Appeal Verdict</h2>
+    <p class="mdesc">Re-arbitrate with new evidence. Appeals must be submitted within 1 hour of the original verdict.</p>
+    <label>Reason for appeal</label>
+    <textarea id="appeal-reason" class="plain" rows="3" placeholder="Explain why the verdict was incorrect..." style="width:100%;resize:vertical"></textarea>
+    <label style="margin-top:10px">New evidence (optional)</label>
+    <textarea id="appeal-evidence" class="plain" rows="2" placeholder="Paste URLs, hashes, or additional context..." style="width:100%;resize:vertical"></textarea>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitAppeal('${orderId}',this)">Submit Appeal</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitAppeal(orderId, btn) {
+  const reason = document.getElementById('appeal-reason').value.trim();
+  const evidence = document.getElementById('appeal-evidence').value.trim();
+  if (!reason) return toast('Appeal reason is required', 'warn');
+  btnLoading(btn, 'Submitting...');
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/appeal', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ appeal_reason: reason, new_evidence: evidence || undefined }),
+    });
+    closeModal();
+    const verdictText = r.winner === 'buyer' ? 'Buyer wins (refund)' : 'Seller wins (payment released)';
+    modal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2>Appeal Result</h2>
+      <div style="background:var(--fill-secondary);border:1px solid var(--border);border-radius:8px;padding:16px;margin:12px 0">
+        <div style="font-weight:600;font-size:14px;margin-bottom:8px">${verdictText}</div>
+        ${r.ai_reasoning ? `<div style="font-size:12px;color:var(--text-soft);line-height:1.6">${escapeHtml(r.ai_reasoning)}</div>` : ''}
+        ${r.confidence ? `<div style="margin-top:8px;font-size:11px;color:var(--text-soft)">Confidence: ${(r.confidence * 100).toFixed(0)}%</div>` : ''}
+      </div>
+      <button class="btn btn-primary" onclick="closeModal()">OK</button>
+    `);
+    if (state.activePanel === 'overview') loadOverview();
+    else loadTransactions();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 async function openOrderDetail(orderId) {
   try {
     const [r, tlData] = await Promise.all([
@@ -2031,6 +2091,7 @@ async function openOrderDetail(orderId) {
         <b>Dispute active</b>
         <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
           ${r.status === 'disputed' ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openArbitrateModal('${r.id}')">${t('tx_btn_arbitrate')}</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="closeModal();openAppealModal('${r.id}')">Appeal Verdict</button>
           <button class="btn btn-ghost btn-sm" onclick="closeModal();viewTransparencyReport('${r.id}')">Transparency Report</button>
         </div>
       </div>` : '';

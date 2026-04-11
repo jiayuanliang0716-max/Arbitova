@@ -300,4 +300,25 @@ router.patch('/:id', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// DELETE /services/:id — owner only, only if no active orders
+router.delete('/:id', requireApiKey, async (req, res, next) => {
+  try {
+    const service = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [req.params.id]);
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+    if (service.agent_id !== req.agent.id) return res.status(403).json({ error: 'You do not own this service' });
+
+    // Block delete if there are open orders
+    const activeOrders = await dbAll(
+      `SELECT id FROM orders WHERE service_id = ${p(1)} AND status IN ('paid','delivered','disputed')`,
+      [req.params.id]
+    );
+    if (activeOrders.length > 0) {
+      return res.status(409).json({ error: `Cannot delete service with ${activeOrders.length} active order(s). Disable it instead.` });
+    }
+
+    await dbRun(`DELETE FROM services WHERE id = ${p(1)}`, [req.params.id]);
+    res.json({ id: req.params.id, deleted: true });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
