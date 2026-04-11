@@ -131,6 +131,148 @@ router.get('/me/services', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/analytics — seller analytics: revenue 30d, category breakdown, top buyers, service perf
+router.get('/me/analytics', requireApiKey, async (req, res, next) => {
+  try {
+    const agentId = req.agent.id;
+    const days = Math.min(parseInt(req.query.days) || 30, 90);
+
+    const [
+      dailyRevenue,
+      categoryBreakdown,
+      topBuyers,
+      servicePerf,
+      totals,
+    ] = await Promise.all([
+      // Daily revenue as seller (last N days)
+      dbAll(
+        `SELECT DATE(completed_at) as day,
+                COUNT(*) as order_count,
+                SUM(amount * 0.975) as revenue
+         FROM orders
+         WHERE seller_id = ${p(1)} AND status = 'completed'
+           AND completed_at >= datetime('now', ${p(2)})
+         GROUP BY DATE(completed_at)
+         ORDER BY day ASC`,
+        [agentId, `-${days} days`]
+      ).catch(() => dbAll(
+        `SELECT DATE(completed_at) as day,
+                COUNT(*) as order_count,
+                SUM(amount * 0.975) as revenue
+         FROM orders
+         WHERE seller_id = $1 AND status = 'completed'
+           AND completed_at >= NOW() - INTERVAL '${days} days'
+         GROUP BY DATE(completed_at)
+         ORDER BY day ASC`,
+        [agentId]
+      ).catch(() => [])),
+
+      // Category breakdown (completed sales)
+      dbAll(
+        `SELECT s.category,
+                COUNT(o.id) as order_count,
+                SUM(o.amount) as gross_volume,
+                SUM(o.amount * 0.975) as net_revenue
+         FROM orders o
+         JOIN services s ON o.service_id = s.id
+         WHERE o.seller_id = ${p(1)} AND o.status = 'completed'
+         GROUP BY s.category
+         ORDER BY net_revenue DESC`,
+        [agentId]
+      ).catch(() => []),
+
+      // Top buyers (by spend with this seller)
+      dbAll(
+        `SELECT a.id, a.name,
+                COUNT(o.id) as order_count,
+                SUM(o.amount) as total_spent
+         FROM orders o
+         JOIN agents a ON a.id = o.buyer_id
+         WHERE o.seller_id = ${p(1)} AND o.status = 'completed'
+         GROUP BY a.id, a.name
+         ORDER BY total_spent DESC
+         LIMIT 5`,
+        [agentId]
+      ).catch(() => []),
+
+      // Service performance
+      dbAll(
+        `SELECT s.id, s.name, s.price, s.category,
+                COUNT(o.id) as total_orders,
+                SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN o.status = 'disputed' THEN 1 ELSE 0 END) as disputes,
+                SUM(CASE WHEN o.status = 'completed' THEN o.amount * 0.975 ELSE 0 END) as revenue,
+                AVG(CASE WHEN r.rating IS NOT NULL THEN r.rating ELSE NULL END) as avg_rating
+         FROM services s
+         LEFT JOIN orders o ON o.service_id = s.id AND o.status NOT IN ('cancelled','refunded')
+         LEFT JOIN reviews r ON r.order_id = o.id
+         WHERE s.agent_id = ${p(1)}
+         GROUP BY s.id, s.name, s.price, s.category
+         ORDER BY revenue DESC`,
+        [agentId]
+      ).catch(() => []),
+
+      // Overall totals
+      dbGet(
+        `SELECT COUNT(*) as total_orders,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_orders,
+                SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed_orders,
+                SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as gross_revenue,
+                SUM(CASE WHEN status = 'completed' THEN amount * 0.975 ELSE 0 END) as net_revenue,
+                MIN(created_at) as first_order_at
+         FROM orders WHERE seller_id = ${p(1)}`,
+        [agentId]
+      ).catch(() => ({})),
+    ]);
+
+    const total = totals || {};
+    const completedOrders = parseInt(total.completed_orders || 0);
+    const totalOrders = parseInt(total.total_orders || 0);
+
+    res.json({
+      agent_id: agentId,
+      period_days: days,
+      summary: {
+        total_orders: totalOrders,
+        completed_orders: completedOrders,
+        disputed_orders: parseInt(total.disputed_orders || 0),
+        completion_rate: totalOrders > 0 ? parseFloat((completedOrders / totalOrders * 100).toFixed(1)) : 0,
+        gross_revenue: parseFloat(parseFloat(total.gross_revenue || 0).toFixed(4)),
+        net_revenue: parseFloat(parseFloat(total.net_revenue || 0).toFixed(4)),
+        first_order_at: total.first_order_at || null,
+      },
+      daily_revenue: dailyRevenue.map(d => ({
+        day: d.day,
+        order_count: parseInt(d.order_count),
+        revenue: parseFloat(parseFloat(d.revenue || 0).toFixed(4)),
+      })),
+      by_category: categoryBreakdown.map(c => ({
+        category: c.category,
+        order_count: parseInt(c.order_count),
+        gross_volume: parseFloat(parseFloat(c.gross_volume || 0).toFixed(4)),
+        net_revenue: parseFloat(parseFloat(c.net_revenue || 0).toFixed(4)),
+      })),
+      top_buyers: topBuyers.map(b => ({
+        id: b.id,
+        name: b.name,
+        order_count: parseInt(b.order_count),
+        total_spent: parseFloat(parseFloat(b.total_spent || 0).toFixed(4)),
+      })),
+      services: servicePerf.map(s => ({
+        id: s.id,
+        name: s.name,
+        price: parseFloat(s.price),
+        category: s.category,
+        total_orders: parseInt(s.total_orders || 0),
+        completed: parseInt(s.completed || 0),
+        disputes: parseInt(s.disputes || 0),
+        revenue: parseFloat(parseFloat(s.revenue || 0).toFixed(4)),
+        avg_rating: s.avg_rating ? parseFloat(parseFloat(s.avg_rating).toFixed(2)) : null,
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/search — public, search agents by name/description
 router.get('/search', async (req, res, next) => {
   try {

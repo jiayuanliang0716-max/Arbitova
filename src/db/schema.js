@@ -290,6 +290,16 @@ if (DATABASE_URL) {
       );
       INSERT INTO platform_revenue (id, balance, total_earned, total_withdrawn)
       VALUES ('singleton', 0, 0, 0) ON CONFLICT (id) DO NOTHING;
+
+      CREATE TABLE IF NOT EXISTS tips (
+        id          TEXT PRIMARY KEY,
+        order_id    TEXT NOT NULL REFERENCES orders(id),
+        from_id     TEXT NOT NULL REFERENCES agents(id),
+        to_id       TEXT NOT NULL REFERENCES agents(id),
+        amount      NUMERIC(18,6) NOT NULL,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_tips_order ON tips (order_id);
     `);
 
     // One-time migrations: set product_type for existing data
@@ -609,6 +619,21 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
   addColIfMissing('services', 'product_type', "TEXT DEFAULT 'ai_generated'");
   addColIfMissing('payments', 'service_id', 'TEXT');
+
+  // tips table
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS tips (
+        id          TEXT PRIMARY KEY,
+        order_id    TEXT NOT NULL REFERENCES orders(id),
+        from_id     TEXT NOT NULL REFERENCES agents(id),
+        to_id       TEXT NOT NULL REFERENCES agents(id),
+        amount      REAL NOT NULL,
+        created_at  TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_tips_order ON tips (order_id);
+    `);
+  } catch(e) { console.error('Migration warn:', e.message); }
 
   // reputation_by_category table
   try {

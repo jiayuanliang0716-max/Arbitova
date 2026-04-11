@@ -362,6 +362,23 @@ class Arbitova {
     const q = limit ? `?limit=${limit}` : '';
     return this._request('GET', `/agents/${agentId}/activity${q}`);
   }
+
+  /**
+   * Get your seller analytics: revenue, category breakdown, top buyers, service performance.
+   * @param {{ days?: number }} [opts]
+   */
+  async getMyAnalytics({ days } = {}) {
+    const q = days ? `?days=${days}` : '';
+    return this._request('GET', `/agents/me/analytics${q}`);
+  }
+
+  /**
+   * Get tip history for an order.
+   * @param {string} txId
+   */
+  async getTips(txId) {
+    return this._request('GET', `/orders/${txId}/tips`);
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────

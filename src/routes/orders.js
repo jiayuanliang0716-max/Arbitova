@@ -1385,15 +1385,49 @@ router.post('/:id/tip', requireApiKey, async (req, res, next) => {
       [order.seller_id]
     );
 
+    // Record tip in tips table
+    const tipId = uuidv4();
+    await dbRun(
+      `INSERT INTO tips (id, order_id, from_id, to_id, amount) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)})`,
+      [tipId, order.id, req.agent.id, order.seller_id, amount]
+    );
+
     // Fire webhook
     const { fireWebhookEvent } = require('../webhooks');
-    await fireWebhookEvent(order.seller_id, 'order.tip_received', { order_id: order.id, amount, from: req.agent.id }).catch(() => {});
+    await fireWebhookEvent(order.seller_id, 'order.tip_received', { order_id: order.id, tip_id: tipId, amount, from: req.agent.id }).catch(() => {});
 
     res.json({
-      id: order.id,
+      id: tipId,
+      order_id: order.id,
       tip_amount: amount,
       seller_id: order.seller_id,
       message: `Tip of ${amount} USDC sent to seller.`,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/tips — tip history for an order
+router.get('/:id/tips', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT id, buyer_id, seller_id FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Only order parties can view tips' });
+    }
+    const tips = await dbAll(
+      `SELECT t.id, t.amount, t.created_at, a.name as from_name
+       FROM tips t
+       LEFT JOIN agents a ON a.id = t.from_id
+       WHERE t.order_id = ${p(1)}
+       ORDER BY t.created_at ASC`,
+      [req.params.id]
+    );
+    const total = tips.reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    res.json({
+      order_id: req.params.id,
+      count: tips.length,
+      total: parseFloat(total.toFixed(6)),
+      tips: tips.map(t => ({ id: t.id, amount: parseFloat(t.amount), from_name: t.from_name, created_at: t.created_at })),
     });
   } catch (err) { next(err); }
 });

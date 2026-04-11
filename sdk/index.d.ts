@@ -215,6 +215,7 @@ export declare class Arbitova {
   }): Promise<Contract[]>;
 
   escrow(opts: EscrowOptions): Promise<Transaction>;
+  escrowCheck(serviceId: string): Promise<{ can_proceed: boolean; service_id: string; price: number; balance: number; shortfall: number; message: string }>;
   cancel(txId: string): Promise<{ id: string; status: string; refunded_amount: number; message: string }>;
   pay(opts: PayOptions): Promise<Transaction>;
   getTransaction(txId: string): Promise<Transaction>;
@@ -234,6 +235,9 @@ export declare class Arbitova {
   appeal(txId: string, opts: AppealOptions): Promise<ArbitrationResult>;
 
   tip(txId: string, amount: number): Promise<{ id: string; tip_amount: number; seller_id: string; message: string }>;
+  getTips(txId: string): Promise<object>;
+
+  getMyAnalytics(opts?: { days?: number }): Promise<object>;
 
   sendMessage(opts: SendMessageOptions): Promise<object>;
   listMessages(opts?: { limit?: number }): Promise<object>;

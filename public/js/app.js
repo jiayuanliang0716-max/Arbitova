@@ -1759,7 +1759,10 @@ async function loadAnalytics() {
   showSkeleton(container, 3);
 
   try {
-    const data = await api('/api/v1/analytics', { headers: authHeaders() });
+    const [data, sellerData] = await Promise.all([
+      api('/api/v1/analytics', { headers: authHeaders() }),
+      api('/api/v1/agents/me/analytics', { headers: authHeaders() }).catch(() => null),
+    ]);
     const daily = data.as_seller?.daily_revenue || [];
     const top = data.as_seller?.top_services || [];
     const buyer = data.as_buyer || {};
@@ -1782,6 +1785,65 @@ async function loadAnalytics() {
 
     const totalRevenue30 = daily.reduce((s, d) => s + d.revenue, 0);
     const totalOrders30 = daily.reduce((s, d) => s + d.orders, 0);
+
+    // Seller detailed section
+    let sellerSection = '';
+    if (sellerData) {
+      const summary = sellerData.summary || {};
+      const byCategory = sellerData.by_category || [];
+      const topBuyers = sellerData.top_buyers || [];
+      const services = sellerData.services || [];
+
+      const categoryHtml = byCategory.length > 0 ? byCategory.map(c => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="flex:1;font-size:12px">${escapeHtml(c.category)}</div>
+          <div style="font-size:12px;color:var(--text-soft)">${c.order_count} orders</div>
+          <div style="font-size:12px;font-weight:600;min-width:80px;text-align:right">${money(c.net_revenue)} USDC</div>
+        </div>`).join('') : '<div style="color:var(--text-soft);font-size:12px">No category data yet.</div>';
+
+      const buyersHtml = topBuyers.length > 0 ? topBuyers.map((b, i) => `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="font-size:11px;color:var(--text-soft);min-width:16px">${i+1}.</div>
+          <div style="flex:1;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(b.name)}</div>
+          <div style="font-size:12px;color:var(--text-soft)">${b.order_count}x</div>
+          <div style="font-size:12px;font-weight:600;min-width:70px;text-align:right">${money(b.total_spent)} USDC</div>
+        </div>`).join('') : '<div style="color:var(--text-soft);font-size:12px">No buyer data yet.</div>';
+
+      const serviceTableHtml = services.length > 0 ? `
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:var(--text-soft);border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:4px 0">Service</th>
+            <th style="text-align:right;padding:4px 4px">Orders</th>
+            <th style="text-align:right;padding:4px 4px">Revenue</th>
+            <th style="text-align:right;padding:4px 0">Rating</th>
+          </tr></thead>
+          <tbody>${services.map(s => `<tr style="border-bottom:1px solid var(--border)">
+            <td style="padding:5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${escapeHtml(s.name)}</td>
+            <td style="text-align:right;padding:5px 4px">${s.completed}/${s.total_orders}</td>
+            <td style="text-align:right;padding:5px 4px;font-weight:600">${money(s.revenue)}</td>
+            <td style="text-align:right;padding:5px 0">${s.avg_rating ? s.avg_rating.toFixed(1) + ' &#9733;' : '&mdash;'}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : '<div style="color:var(--text-soft);font-size:12px">No services yet.</div>';
+
+      sellerSection = `
+        <div class="dash-card" style="margin-top:16px">
+          <div class="dash-card-header"><h3>Seller Performance (All Time)</h3></div>
+          <div class="dash-card-body">
+            <div class="grid c4" style="margin-bottom:16px">
+              <div class="stat"><div class="n">${money(summary.net_revenue || 0)}</div><div class="l">Net Revenue</div></div>
+              <div class="stat"><div class="n">${summary.completed_orders || 0}</div><div class="l">Completed</div></div>
+              <div class="stat"><div class="n">${summary.completion_rate || 0}%</div><div class="l">Completion Rate</div></div>
+              <div class="stat"><div class="n">${summary.disputed_orders || 0}</div><div class="l">Disputes</div></div>
+            </div>
+            <h4 style="margin:0 0 8px;font-size:13px">By Category</h4>
+            ${categoryHtml}
+            <h4 style="margin:16px 0 8px;font-size:13px">Top Buyers</h4>
+            ${buyersHtml}
+            <h4 style="margin:16px 0 8px;font-size:13px">Service Breakdown</h4>
+            ${serviceTableHtml}
+          </div>
+        </div>`;
+    }
 
     container.innerHTML = `
       <div class="dash-card">
@@ -1810,7 +1872,8 @@ async function loadAnalytics() {
             }).join('')}
           </div>` : ''}
         </div>
-      </div>`;
+      </div>
+      ${sellerSection}`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadAnalytics);
   }
