@@ -233,12 +233,80 @@ router.get('/:id', requireApiKey, async (req, res, next) => {
        WHERE o.id = ${p(1)}`,
       [req.params.id]
     );
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (!order) return res.status(404).json({ error: 'Order not found', code: 'not_found' });
     if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
-      return res.status(403).json({ error: 'Access denied' });
+      return res.status(403).json({ error: 'Access denied', code: 'forbidden' });
     }
     const delivery = await dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [req.params.id]);
     res.json({ ...order, delivery: delivery || null });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/timeline — full event history for a transaction
+router.get('/:id/timeline', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found', code: 'not_found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied', code: 'forbidden' });
+    }
+
+    const events = [];
+
+    // Created
+    events.push({ event: 'order.created', timestamp: order.created_at, data: {
+      amount: order.amount, buyer_id: order.buyer_id, seller_id: order.seller_id,
+    }});
+
+    // Delivery
+    const delivery = await dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [order.id]);
+    if (delivery) {
+      events.push({ event: 'order.delivered', timestamp: delivery.delivered_at, data: {
+        delivery_id: delivery.id,
+      }});
+    }
+
+    // Dispute
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)}`, [order.id]);
+    if (dispute) {
+      events.push({ event: 'order.disputed', timestamp: dispute.created_at, data: {
+        dispute_id: dispute.id, raised_by: dispute.raised_by, reason: dispute.reason,
+      }});
+      if (dispute.status === 'resolved') {
+        events.push({ event: 'dispute.resolved', timestamp: dispute.resolved_at, data: {
+          resolution: dispute.resolution,
+        }});
+      }
+    }
+
+    // Final status
+    if (['completed', 'refunded'].includes(order.status)) {
+      events.push({ event: `order.${order.status}`, timestamp: order.completed_at, data: {
+        final_status: order.status, amount: order.amount,
+      }});
+    }
+
+    // Reputation events
+    const repHistory = await dbGet(
+      `SELECT * FROM reputation_history WHERE order_id = ${p(1)} ORDER BY created_at ASC`,
+      [order.id]
+    ).catch(() => null);
+
+    if (repHistory) {
+      events.push({ event: 'reputation.updated', timestamp: repHistory.created_at, data: {
+        agent_id: repHistory.agent_id, delta: repHistory.delta, reason: repHistory.reason,
+      }});
+    }
+
+    // Sort by timestamp
+    events.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    res.json({
+      order_id: order.id,
+      current_status: order.status,
+      timeline: events,
+      event_count: events.length,
+    });
   } catch (err) { next(err); }
 });
 
@@ -266,9 +334,18 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
       try { await adjustReputation(order.seller_id, -REP_DISPUTE_PENALTY, 'auto_verification_failed', order.id); } catch (e) {}
+      fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_FAILED, {
+        order_id: order.id, stage: verification.stage, errors: verification.errors,
+        buyer_id: order.buyer_id, seller_id: order.seller_id,
+      });
+      fire([order.buyer_id, order.seller_id], EVENTS.ORDER_REFUNDED, {
+        order_id: order.id, reason: 'verification_failed',
+        buyer_id: order.buyer_id, seller_id: order.seller_id,
+      });
       return res.status(400).json({
         order_id: order.id,
         status: 'refunded',
+        code: 'verification_failed',
         verification_failed: true,
         stage: verification.stage,
         errors: verification.errors,
@@ -289,6 +366,14 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
       try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'auto_verified_completion', order.id); } catch (e) {}
+      fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
+        order_id: order.id, delivery_id: deliveryId, auto_completed: true,
+      });
+      fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+        order_id: order.id, amount: order.amount,
+        platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
+        auto_verified: true,
+      });
       return res.json({
         delivery_id: deliveryId,
         order_id: order.id,
