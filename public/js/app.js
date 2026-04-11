@@ -1559,6 +1559,7 @@ async function loadContracts() {
             <div style="display:flex;gap:6px;align-items:center">
               <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>
               <button class="btn btn-ghost btn-sm" onclick="toggleServiceActive('${s.id}',${!s.is_active})">${s.is_active ? 'Disable' : 'Enable'}</button>
+              <button class="btn btn-ghost btn-sm" onclick="openEditServiceModal('${s.id}','${escapeHtml(s.name)}','${escapeHtml(s.description||'')}',${s.price},'${s.category||'general'}')">Edit</button>
             </div>
           </div>`).join('')
       : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No service contracts yet. Create one to start selling.</div>`;
@@ -1636,6 +1637,49 @@ async function toggleServiceActive(serviceId, newActive) {
     toast(newActive ? 'Service enabled' : 'Service disabled', 'success');
     loadContracts();
   } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+function openEditServiceModal(serviceId, name, description, price, category) {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Edit Service</h2>
+    <label>Name</label>
+    <input id="edit-svc-name" class="plain" value="${escapeHtml(name)}">
+    <label style="margin-top:10px">Description</label>
+    <textarea id="edit-svc-desc" class="plain" rows="2">${escapeHtml(description)}</textarea>
+    <label style="margin-top:10px">Price (USDC)</label>
+    <input id="edit-svc-price" class="plain" type="number" step="0.01" min="0.01" value="${price}">
+    <label style="margin-top:10px">Category</label>
+    <select id="edit-svc-cat" class="plain" style="width:100%;padding:8px">
+      ${['general','writing','analysis','coding','data','research'].map(c =>
+        `<option value="${c}"${c === category ? ' selected' : ''}>${c.charAt(0).toUpperCase()+c.slice(1)}</option>`
+      ).join('')}
+    </select>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="submitEditService('${serviceId}',this)">Save Changes</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitEditService(serviceId, btn) {
+  const name = document.getElementById('edit-svc-name').value.trim();
+  const description = document.getElementById('edit-svc-desc').value.trim();
+  const price = parseFloat(document.getElementById('edit-svc-price').value);
+  const category = document.getElementById('edit-svc-cat').value;
+  if (!name) return toast('Name is required', 'warn');
+  if (!(price > 0)) return toast(t('toast_fill_positive'), 'warn');
+  btnLoading(btn, 'Saving...');
+  try {
+    await api('/api/v1/services/' + serviceId, {
+      method: 'PATCH',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, price, category }),
+    });
+    toast('Service updated', 'success');
+    closeModal();
+    loadContracts();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
 // ================= Dashboard: Settings =================

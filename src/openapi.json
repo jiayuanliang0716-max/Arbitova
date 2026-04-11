@@ -548,6 +548,36 @@
         "responses": {
           "200": { "description": "Updated" }
         }
+      },
+      "patch": {
+        "tags": ["Contracts"],
+        "summary": "Partial update a service — name, description, price, category, is_active (owner only)",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "description": { "type": "string" },
+                  "price": { "type": "number", "minimum": 0.01 },
+                  "delivery_hours": { "type": "integer" },
+                  "category": { "type": "string" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated service object" },
+          "403": { "description": "Not owner" },
+          "404": { "description": "Service not found" }
+        }
       }
     },
 
