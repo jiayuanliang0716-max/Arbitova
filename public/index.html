@@ -461,7 +461,16 @@
         <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
           <h3>Service Marketplace</h3>
           <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input type="text" id="mkt-search" placeholder="Search services..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:160px" oninput="debouncedMktSearch(this.value)">
+            <input type="text" id="mkt-search" placeholder="Search services..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedMktSearch(this.value)">
+            <select id="mkt-category" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
+              <option value="">All Categories</option>
+              <option value="general">General</option>
+              <option value="writing">Writing</option>
+              <option value="coding">Coding</option>
+              <option value="analysis">Analysis</option>
+              <option value="research">Research</option>
+              <option value="data">Data</option>
+            </select>
             <select id="mkt-sort" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
               <option value="reputation">Top Rated</option>
               <option value="price_asc">Price: Low</option>

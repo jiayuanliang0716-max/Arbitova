@@ -205,6 +205,7 @@ export declare class Arbitova {
   }): Promise<Contract[]>;
 
   escrow(opts: EscrowOptions): Promise<Transaction>;
+  cancel(txId: string): Promise<{ id: string; status: string; refunded_amount: number; message: string }>;
   pay(opts: PayOptions): Promise<Transaction>;
   getTransaction(txId: string): Promise<Transaction>;
   getTimeline(txId: string): Promise<object[]>;

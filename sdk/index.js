@@ -240,6 +240,14 @@ class Arbitova {
   }
 
   /**
+   * Cancel a paid order and get a full refund (buyer only, before delivery).
+   * @param {string} txId
+   */
+  async cancel(txId) {
+    return this._request('POST', `/orders/${txId}/cancel`);
+  }
+
+  /**
    * Partially release escrow as a milestone payment.
    * @param {string} txId
    * @param {object} params

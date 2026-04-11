@@ -977,12 +977,15 @@ async function loadMarketplace(searchQuery) {
   try {
     const q = searchQuery !== undefined ? searchQuery : (document.getElementById('mkt-search') || {}).value || '';
     const sort = (document.getElementById('mkt-sort') || {}).value || 'reputation';
+    const category = (document.getElementById('mkt-category') || {}).value || '';
     const params = new URLSearchParams();
     if (q && q.trim()) params.set('q', q.trim());
+    if (category) params.set('category', category);
     params.set('sort', sort);
     params.set('limit', '30');
     const qs = params.toString() ? '?' + params.toString() : '';
-    const endpoint = q.trim() ? '/api/v1/services/search' : '/api/v1/services';
+    // Use search endpoint when query or category is set
+    const endpoint = (q.trim() || category) ? '/api/v1/services/search' : '/api/v1/services';
     const r = await api(endpoint + qs, { headers: authHeaders() });
     const svcs = r.services || r.matches || [];
 
