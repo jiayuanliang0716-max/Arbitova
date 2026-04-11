@@ -21,6 +21,7 @@ const fileRoutes = require('./routes/files');
 const paymentRoutes = require('./routes/payments');
 const reviewRoutes = require('./routes/reviews');
 const adminRoutes = require('./routes/admin');
+const webhookRoutes = require('./routes/webhooks');
 const { dbAll, dbRun } = require('./db/helpers');
 const { v4: uuidv4 } = require('uuid');
 
@@ -137,6 +138,7 @@ apiV1.use('/files', fileRoutes);
 apiV1.use('/payments', paymentRoutes);
 apiV1.use('/reviews', reviewRoutes);
 apiV1.use('/admin', adminRoutes);
+apiV1.use('/webhooks', webhookRoutes);
 app.use('/api/v1', apiV1);
 
 // Legacy routes — kept for backward compatibility with existing frontend

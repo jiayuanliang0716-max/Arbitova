@@ -205,6 +205,29 @@ if (DATABASE_URL) {
         is_read         BOOLEAN DEFAULT FALSE,
         created_at      TIMESTAMPTZ DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS webhooks (
+        id                TEXT PRIMARY KEY,
+        agent_id          TEXT NOT NULL REFERENCES agents(id),
+        url               TEXT NOT NULL,
+        events            JSONB NOT NULL,
+        secret            TEXT NOT NULL,
+        is_active         BOOLEAN DEFAULT TRUE,
+        created_at        TIMESTAMPTZ DEFAULT NOW(),
+        last_triggered_at TIMESTAMPTZ
+      );
+
+      CREATE TABLE IF NOT EXISTS webhook_deliveries (
+        id            TEXT PRIMARY KEY,
+        webhook_id    TEXT NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+        event_type    TEXT NOT NULL,
+        payload       TEXT NOT NULL,
+        response_code INTEGER,
+        attempts      INTEGER DEFAULT 1,
+        status        TEXT DEFAULT 'pending',
+        created_at    TIMESTAMPTZ DEFAULT NOW(),
+        delivered_at  TIMESTAMPTZ
+      );
     `);
 
     // One-time migrations: set product_type for existing data
@@ -377,6 +400,29 @@ if (DATABASE_URL) {
       subscription_id TEXT,
       is_read         INTEGER DEFAULT 0,
       created_at      TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS webhooks (
+      id                TEXT PRIMARY KEY,
+      agent_id          TEXT NOT NULL REFERENCES agents(id),
+      url               TEXT NOT NULL,
+      events            TEXT NOT NULL,
+      secret            TEXT NOT NULL,
+      is_active         INTEGER DEFAULT 1,
+      created_at        TEXT DEFAULT (datetime('now')),
+      last_triggered_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id            TEXT PRIMARY KEY,
+      webhook_id    TEXT NOT NULL REFERENCES webhooks(id),
+      event_type    TEXT NOT NULL,
+      payload       TEXT NOT NULL,
+      response_code INTEGER,
+      attempts      INTEGER DEFAULT 1,
+      status        TEXT DEFAULT 'pending',
+      created_at    TEXT DEFAULT (datetime('now')),
+      delivered_at  TEXT
     );
 
     CREATE TABLE IF NOT EXISTS deposits (

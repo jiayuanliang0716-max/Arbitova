@@ -4,6 +4,7 @@ const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
 const { verifyInput, verifyDelivery } = require('../verify');
 const { arbitrateDispute } = require('../arbitrate');
+const { fire, EVENTS } = require('../webhooks');
 
 const router = express.Router();
 
@@ -107,6 +108,12 @@ router.post('/', requireApiKey, async (req, res, next) => {
         }
       } catch (e) { console.error('[digital-product] auto-deliver error:', e.message); }
     }
+
+    fire([req.agent.id, service.agent_id], EVENTS.ORDER_CREATED, {
+      order_id: orderId, service_id: service_id, amount: service.price,
+      buyer_id: req.agent.id, seller_id: service.agent_id,
+      deadline: deadline.toISOString(),
+    });
 
     res.status(201).json({
       id: orderId, service_name: service.name, amount: service.price,
@@ -315,6 +322,12 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     }
 
     await dbRun(`UPDATE orders SET status = 'delivered' WHERE id = ${p(1)}`, [order.id]);
+
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DELIVERED, {
+      order_id: order.id, delivery_id: deliveryId,
+      buyer_id: order.buyer_id, seller_id: order.seller_id,
+    });
+
     res.json({
       delivery_id: deliveryId,
       order_id: order.id,
@@ -345,6 +358,12 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
 
     // Reputation: successful delivery confirmed by buyer
     try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'order_completed', order.id); } catch (e) { console.error('rep err:', e.message); }
+
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+      order_id: order.id, amount: order.amount,
+      platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
+      buyer_id: order.buyer_id, seller_id: order.seller_id,
+    });
 
     res.json({
       order_id: order.id, status: 'completed',
@@ -379,6 +398,11 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
       [disputeId, order.id, req.agent.id, reason, evidence || null]
     );
     await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
+
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DISPUTED, {
+      order_id: order.id, dispute_id: disputeId,
+      raised_by: req.agent.id, reason,
+    });
 
     res.status(201).json({
       dispute_id: disputeId, order_id: order.id, status: 'open',
@@ -444,6 +468,13 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
         await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [slashed, winnerId]);
       }
     } catch (e) { console.error('stake slash err:', e.message); }
+
+    fire([order.buyer_id, order.seller_id], EVENTS.DISPUTE_RESOLVED, {
+      order_id: order.id, dispute_id: dispute.id,
+      winner, loser_id: loserId,
+      new_status: winner === 'buyer' ? 'refunded' : 'completed',
+      stake_slashed: slashed,
+    });
 
     res.json({
       order_id: order.id,
