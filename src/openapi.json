@@ -95,10 +95,37 @@
     "/health": {
       "get": {
         "tags": ["System"],
-        "summary": "Health check",
+        "summary": "Health check — database status, AI arbitration status, uptime",
         "security": [],
         "responses": {
-          "200": { "description": "Server is running" }
+          "200": { "description": "Server is running" },
+          "503": { "description": "Service degraded" }
+        }
+      }
+    },
+    "/pricing": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Machine-readable fee schedule — no auth required",
+        "description": "Returns all platform fees, reputation point values, and per-operation limits.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Fee schedule",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "currency": { "type": "string", "example": "USDC" },
+                    "fees": { "type": "object" },
+                    "reputation": { "type": "object" },
+                    "limits": { "type": "object" }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },

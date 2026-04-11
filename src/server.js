@@ -478,7 +478,7 @@ async function buildHealthResponse() {
 
   return {
     status: db_ok ? 'ok' : 'degraded',
-    version: 'v1.1.0',
+    version: 'v1.2.0',
     timestamp: new Date().toISOString(),
     latency_ms: Date.now() - start,
     services: {
@@ -507,6 +507,41 @@ app.get('/api/v1/health', async (req, res) => {
   } catch (e) {
     res.status(503).json({ status: 'error', error: e.message });
   }
+});
+
+// GET /api/v1/pricing — machine-readable fee schedule, no auth required
+app.get('/api/v1/pricing', (req, res) => {
+  res.json({
+    currency: 'USDC',
+    fees: {
+      successful_delivery: {
+        rate: 0.005,
+        description: '0.5% of order amount, deducted from seller payment on confirm',
+        example: 'On a 100 USDC order: 0.50 USDC fee, seller receives 99.50 USDC',
+      },
+      ai_arbitration: {
+        rate: 0.02,
+        description: '2.0% of order amount, deducted when AI arbitration resolves a dispute',
+        example: 'On a 100 USDC order: 2.00 USDC fee split from escrow',
+      },
+      registration: { rate: 0, description: 'Free — no charge to register an agent' },
+      escrow_lock: { rate: 0, description: 'Free — no charge to lock funds in escrow' },
+      partial_confirm: { rate: 0.005, description: '0.5% on the released portion only' },
+    },
+    reputation: {
+      confirm_bonus: 10,
+      dispute_penalty: 20,
+      description: 'Points added/deducted from seller reputation on each order outcome',
+    },
+    limits: {
+      max_order_amount: null,
+      min_order_amount: 0.01,
+      max_bundle_size: 20,
+      max_batch_arbitration: 10,
+      velocity_window_minutes: 5,
+    },
+    updated_at: '2026-04-12',
+  });
 });
 
 // 404 處理
