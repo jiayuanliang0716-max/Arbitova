@@ -687,6 +687,7 @@ function switchPanel(name) {
   if (name === 'apikeys') loadApiKeys();
   if (name === 'webhooks') loadWebhooks();
   if (name === 'contracts') loadContracts();
+  if (name === 'analytics') loadAnalytics();
   if (name === 'settings') loadSettings();
 }
 
@@ -1709,6 +1710,71 @@ async function submitEditService(serviceId, btn) {
     closeModal();
     loadContracts();
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
+// ================= Dashboard: Analytics =================
+
+async function loadAnalytics() {
+  const container = document.getElementById('panel-analytics-content');
+  if (!container) return;
+  showSkeleton(container, 3);
+
+  try {
+    const data = await api('/api/v1/analytics', { headers: authHeaders() });
+    const daily = data.as_seller?.daily_revenue || [];
+    const top = data.as_seller?.top_services || [];
+    const buyer = data.as_buyer || {};
+
+    // Build mini bar chart (pure CSS/HTML, no library)
+    const maxRevenue = daily.length > 0 ? Math.max(...daily.map(d => d.revenue), 0.01) : 1;
+    const chartHtml = daily.length > 0 ? `
+      <div style="display:flex;align-items:flex-end;gap:3px;height:80px;margin:16px 0 4px">
+        ${daily.map(d => {
+          const h = Math.max(Math.round((d.revenue / maxRevenue) * 72), d.revenue > 0 ? 4 : 0);
+          return `<div title="${d.day}: ${money(d.revenue)} USDC (${d.orders} orders)"
+            style="flex:1;background:var(--accent);opacity:0.8;border-radius:2px 2px 0 0;height:${h}px;min-width:4px;cursor:pointer;transition:opacity 0.15s"
+            onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.8"></div>`;
+        }).join('')}
+      </div>
+      <div style="font-size:10px;color:var(--text-soft);display:flex;justify-content:space-between;margin-bottom:16px">
+        <span>${daily[0]?.day ? new Date(daily[0].day).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
+        <span>${daily[daily.length-1]?.day ? new Date(daily[daily.length-1].day).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : ''}</span>
+      </div>` : `<div style="text-align:center;padding:24px 0;color:var(--text-soft);font-size:13px">No revenue in last 30 days yet.</div>`;
+
+    const totalRevenue30 = daily.reduce((s, d) => s + d.revenue, 0);
+    const totalOrders30 = daily.reduce((s, d) => s + d.orders, 0);
+
+    container.innerHTML = `
+      <div class="dash-card">
+        <div class="dash-card-header"><h3>Analytics (Last 30 Days)</h3></div>
+        <div class="dash-card-body">
+          <div class="grid c4" style="margin-bottom:16px">
+            <div class="stat"><div class="n">${money(totalRevenue30)}</div><div class="l">Revenue (30d)</div></div>
+            <div class="stat"><div class="n">${totalOrders30}</div><div class="l">Orders Sold</div></div>
+            <div class="stat"><div class="n">${buyer.orders_placed || 0}</div><div class="l">Orders Bought</div></div>
+            <div class="stat"><div class="n">${money(buyer.total_spent || 0)}</div><div class="l">Total Spent</div></div>
+          </div>
+          <h4 style="margin:0 0 4px;font-size:13px">Revenue by Day</h4>
+          ${chartHtml}
+          ${top.length > 0 ? `
+          <h4 style="margin:16px 0 8px;font-size:13px">Top Services by Revenue</h4>
+          <div>
+            ${top.map(s => {
+              const pct = totalRevenue30 > 0 ? Math.round((s.revenue / totalRevenue30) * 100) : 0;
+              return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+                <div style="flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(s.name)}</div>
+                <div style="width:120px;background:var(--fill-secondary);border-radius:4px;height:8px;overflow:hidden">
+                  <div style="width:${pct}%;background:var(--accent);height:100%;border-radius:4px"></div>
+                </div>
+                <div style="font-size:12px;font-weight:600;min-width:70px;text-align:right">${money(s.revenue)} <span style="color:var(--text-soft);font-weight:400">(${s.orders})</span></div>
+              </div>`;
+            }).join('')}
+          </div>` : ''}
+        </div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadAnalytics);
+  }
 }
 
 // ================= Dashboard: Settings =================
