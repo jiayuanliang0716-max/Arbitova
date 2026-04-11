@@ -4,7 +4,6 @@ const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const openApiSpec = require('./openapi.json');
 const cors = require('cors');
-const cron = require('node-cron');
 
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
@@ -23,8 +22,7 @@ const reviewRoutes = require('./routes/reviews');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
 const apiKeyRoutes = require('./routes/apikeys');
-const { dbAll, dbRun } = require('./db/helpers');
-const { v4: uuidv4 } = require('uuid');
+const { dbAll } = require('./db/helpers');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -142,6 +140,104 @@ apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
 apiV1.use('/api-keys', apiKeyRoutes);
 
+// GET /api/v1/manifest — machine-readable tool manifest for agent frameworks
+// Follows a simplified OpenAI/Anthropic tool schema so agents can auto-discover actions.
+apiV1.get('/manifest', (req, res) => {
+  const base = process.env.API_BASE_URL || `https://a2a-system.onrender.com/api/v1`;
+  res.json({
+    schema_version: '1.0',
+    name: 'Arbitova',
+    description: 'Trust infrastructure for AI agent transactions — escrow, verification, arbitration.',
+    base_url: base,
+    auth: { type: 'api_key', header: 'X-API-Key' },
+    tools: [
+      {
+        name: 'register_agent',
+        description: 'Register a new agent identity on the platform.',
+        method: 'POST', path: '/agents/register',
+        parameters: {
+          name: { type: 'string', required: true },
+          description: { type: 'string' },
+          owner_email: { type: 'string' },
+        },
+      },
+      {
+        name: 'publish_service',
+        description: 'Publish a service that other agents can purchase.',
+        method: 'POST', path: '/services',
+        parameters: {
+          name: { type: 'string', required: true },
+          description: { type: 'string', required: true },
+          price: { type: 'number', required: true },
+          delivery_hours: { type: 'integer', default: 24 },
+          category: { type: 'string', default: 'general' },
+          market_type: { type: 'string', enum: ['h2a', 'a2a'], default: 'a2a' },
+          input_schema: { type: 'object', description: 'JSON Schema for buyer requirements' },
+          output_schema: { type: 'object', description: 'JSON Schema for delivery content' },
+          auto_verify: { type: 'boolean', default: false },
+          semantic_verify: { type: 'boolean', default: false },
+        },
+      },
+      {
+        name: 'search_services',
+        description: 'Search for available services by keyword or category.',
+        method: 'GET', path: '/services/search',
+        parameters: {
+          q: { type: 'string' },
+          category: { type: 'string' },
+          market: { type: 'string', enum: ['h2a', 'a2a'] },
+          max_price: { type: 'number' },
+        },
+      },
+      {
+        name: 'place_order',
+        description: 'Place an order for a service. Funds move to escrow immediately.',
+        method: 'POST', path: '/orders',
+        parameters: {
+          service_id: { type: 'string', required: true },
+          requirements: { type: 'string', description: 'Buyer requirements or JSON matching input_schema' },
+        },
+        headers: { 'Idempotency-Key': { type: 'string', description: 'UUID for safe retries' } },
+      },
+      {
+        name: 'deliver_order',
+        description: 'Submit delivery content for an order. Triggers verification.',
+        method: 'POST', path: '/orders/{order_id}/deliver',
+        parameters: {
+          content: { type: 'string', required: true },
+        },
+      },
+      {
+        name: 'confirm_order',
+        description: 'Buyer confirms delivery. Releases escrow to seller.',
+        method: 'POST', path: '/orders/{order_id}/confirm',
+        parameters: {},
+      },
+      {
+        name: 'dispute_order',
+        description: 'Raise a dispute on an order.',
+        method: 'POST', path: '/orders/{order_id}/dispute',
+        parameters: {
+          reason: { type: 'string', required: true },
+          evidence: { type: 'string' },
+        },
+      },
+      {
+        name: 'arbitrate_order',
+        description: 'Trigger AI arbitration (N=3 vote) for a disputed order.',
+        method: 'POST', path: '/orders/{order_id}/auto-arbitrate',
+        parameters: {},
+      },
+      {
+        name: 'get_reputation',
+        description: 'Get an agent\'s reputation score and category breakdown.',
+        method: 'GET', path: '/agents/{agent_id}/reputation',
+        parameters: {},
+      },
+    ],
+  });
+});
+
 // GET /api/v1/ — API overview
 apiV1.get('/', (req, res) => {
   res.json({
@@ -213,152 +309,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Cron: process subscription billing every hour ──────────────────────────
-cron.schedule('0 * * * *', async () => {
-  try {
-    const isPostgres = !!process.env.DATABASE_URL;
-    const p = (n) => isPostgres ? `$${n}` : '?';
-    const PLATFORM_FEE_RATE = 0.025;
-    const now = new Date().toISOString();
-    const due = await dbAll(
-      `SELECT sub.*, s.name as service_name
-       FROM subscriptions sub JOIN services s ON sub.service_id = s.id
-       WHERE sub.status = 'active' AND sub.next_billing_at <= ${p(1)}`,
-      [now]
-    );
-    let billed = 0, cancelled = 0;
-    for (const sub of due) {
-      const price = parseFloat(sub.price);
-      const buyer = await dbAll(`SELECT balance FROM agents WHERE id = ${p(1)}`, [sub.buyer_id]);
-      const balance = parseFloat(buyer[0]?.balance || 0);
-      const cancelNow = isPostgres ? 'NOW()' : "datetime('now')";
-      if (balance < price) {
-        await dbAll(`UPDATE subscriptions SET status = 'cancelled', cancelled_at = ${cancelNow} WHERE id = ${p(1)}`, [sub.id]);
-        cancelled++;
-        continue;
-      }
-      const sellerReceives = price * (1 - PLATFORM_FEE_RATE);
-      const nextBilling = (() => {
-        const d = new Date();
-        if (sub.interval === 'daily')   d.setDate(d.getDate() + 1);
-        if (sub.interval === 'weekly')  d.setDate(d.getDate() + 7);
-        if (sub.interval === 'monthly') d.setMonth(d.getMonth() + 1);
-        return d.toISOString();
-      })();
-      await dbAll(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, sub.buyer_id]);
-      await dbAll(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, sub.seller_id]);
-      await dbAll(`UPDATE subscriptions SET next_billing_at = ${p(1)} WHERE id = ${p(2)}`, [nextBilling, sub.id]);
-
-      // Create a content-delivery order so seller-agent can generate and deliver
-      const contentOrderId = uuidv4();
-      const deadline = new Date();
-      deadline.setHours(deadline.getHours() + 2);
-      await dbAll(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, subscription_id, deadline)
-         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',0,${p(5)},${p(6)},${p(7)})`,
-        [contentOrderId, sub.buyer_id, sub.seller_id, sub.service_id, sub.service_name, sub.id, deadline.toISOString()]
-      );
-
-      billed++;
-    }
-    if (due.length > 0) console.log(`[cron] subscription billing: ${billed} billed, ${cancelled} cancelled`);
-  } catch (err) {
-    console.error('[cron] subscription billing error:', err.message);
-  }
-});
-
-// ── Cron: expire overdue orders every 10 minutes ────────────────────────────
-cron.schedule('*/10 * * * *', async () => {
-  try {
-    const isPostgres = !!process.env.DATABASE_URL;
-    const p = (n) => isPostgres ? `$${n}` : '?';
-    const now = new Date().toISOString();
-    const expired = await dbAll(
-      `SELECT * FROM orders WHERE status = 'paid' AND deadline < ${p(1)}`,
-      [now]
-    );
-    for (const order of expired) {
-      // Refund buyer: move escrow back to balance
-      await dbAll(
-        `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(2)} WHERE id = ${p(3)}`,
-        [order.amount, order.amount, order.buyer_id]
-      );
-      const expiredNow = isPostgres ? 'NOW()' : "datetime('now')";
-      await dbAll(
-        `UPDATE orders SET status = 'refunded', completed_at = ${expiredNow} WHERE id = ${p(1)}`,
-        [order.id]
-      );
-    }
-    if (expired.length > 0) console.log(`[cron] expired orders refunded: ${expired.length}`);
-  } catch (err) {
-    console.error('[cron] order expiry error:', err.message);
-  }
-});
-
-// ── Cron: auto-confirm delivered orders after 48h (P2) ──────────────────────
-// If buyer never disputes or confirms within 48h of delivery, auto-confirm for seller.
-cron.schedule('*/30 * * * *', async () => {
-  try {
-    const isPostgres = !!process.env.DATABASE_URL;
-    const p = (n) => isPostgres ? `$${n}` : '?';
-    const PLATFORM_FEE_RATE = 0.025;
-    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
-    const now = isPostgres ? 'NOW()' : "datetime('now')";
-
-    // Orders in 'delivered' status with delivery older than 48h
-    const stale = await dbAll(
-      `SELECT o.* FROM orders o
-       JOIN deliveries d ON d.order_id = o.id
-       WHERE o.status = 'delivered' AND d.delivered_at < ${p(1)}`,
-      [cutoff]
-    );
-
-    for (const order of stale) {
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
-      const sellerReceives = parseFloat(order.amount) - fee;
-      await dbAll(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
-      await dbAll(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-      await dbAll(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-    }
-    if (stale.length > 0) console.log(`[cron] auto-confirmed ${stale.length} stale delivered orders`);
-  } catch (err) {
-    console.error('[cron] auto-confirm error:', err.message);
-  }
-});
-
-// ── Cron: daily reconciliation at 02:00 UTC (P1) ────────────────────────────
-// Verifies that SUM(agents.escrow) == SUM(orders.amount WHERE status='paid' OR 'delivered').
-// Logs discrepancies — flag for manual investigation.
-cron.schedule('0 2 * * *', async () => {
-  try {
-    const isPostgres = !!process.env.DATABASE_URL;
-    const p = (n) => isPostgres ? `$${n}` : '?';
-
-    const [escrowSum, ordersSum] = await Promise.all([
-      dbAll('SELECT COALESCE(SUM(escrow), 0) as total FROM agents', []),
-      dbAll(`SELECT COALESCE(SUM(amount), 0) as total FROM orders WHERE status IN ('paid', 'delivered', 'disputed', 'under_review')`, []),
-    ]);
-
-    const escrowTotal  = parseFloat(escrowSum[0]?.total  || 0);
-    const ordersTotal  = parseFloat(ordersSum[0]?.total  || 0);
-    const delta        = Math.abs(escrowTotal - ordersTotal);
-    const threshold    = 0.01; // allow $0.01 floating point tolerance
-
-    if (delta > threshold) {
-      console.error(`[reconciliation] MISMATCH: escrow_sum=${escrowTotal} orders_sum=${ordersTotal} delta=${delta.toFixed(6)}`);
-      // TODO: fire an alert webhook / Slack notification when wired up
-    } else {
-      console.log(`[reconciliation] OK: escrow=${escrowTotal} orders_in_flight=${ordersTotal}`);
-    }
-
-    // Purge expired idempotency keys
-    const expiredNow = isPostgres ? 'NOW()' : "datetime('now')";
-    await dbAll(`DELETE FROM idempotency_keys WHERE expires_at < ${expiredNow}`, [])
-      .catch(() => {});
-  } catch (err) {
-    console.error('[cron] reconciliation error:', err.message);
-  }
-});
+// ── Background jobs are handled by src/worker.js (separate process) ─────────
+// Run: node src/worker.js
+// On Render: add a second service with start command "node src/worker.js"
 
 app.listen(PORT, () => {
   console.log(`Arbitova running on http://localhost:${PORT}`);

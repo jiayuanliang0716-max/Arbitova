@@ -2,7 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
-const { verifyInput, verifyDelivery } = require('../verify');
+const { verifyInput, verifyDelivery, verifyDeliverySemantic } = require('../verify');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
@@ -25,6 +25,39 @@ async function adjustReputation(agentId, delta, reason, orderId) {
     `INSERT INTO reputation_history (agent_id, delta, reason, order_id) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
     [agentId, delta, reason, orderId || null]
   );
+
+  // Update per-category score if we have an order to look up
+  if (orderId) {
+    try {
+      const order = await dbGet(`SELECT service_id FROM orders WHERE id = ${p(1)}`, [orderId]);
+      if (order) {
+        const svc = await dbGet(`SELECT category FROM services WHERE id = ${p(1)}`, [order.service_id]);
+        const category = svc?.category || 'general';
+        const now = isPostgres ? 'NOW()' : "datetime('now')";
+        if (isPostgres) {
+          await dbRun(
+            `INSERT INTO reputation_by_category (agent_id, category, score, order_count, updated_at)
+             VALUES (${p(1)},${p(2)},${p(3)},1,${now})
+             ON CONFLICT (agent_id, category)
+             DO UPDATE SET score = reputation_by_category.score + ${p(3)},
+                           order_count = reputation_by_category.order_count + 1,
+                           updated_at = ${now}`,
+            [agentId, category, delta]
+          );
+        } else {
+          await dbRun(
+            `INSERT INTO reputation_by_category (agent_id, category, score, order_count, updated_at)
+             VALUES (${p(1)},${p(2)},${p(3)},1,${now})
+             ON CONFLICT (agent_id, category)
+             DO UPDATE SET score = score + ${p(3)},
+                           order_count = order_count + 1,
+                           updated_at = ${now}`,
+            [agentId, category, delta]
+          );
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+  }
 }
 
 // POST /orders
@@ -174,29 +207,35 @@ router.post('/bundle', idempotency(), requireApiKey, async (req, res, next) => {
     }
 
     const bundleId = uuidv4();
-    await dbRun(
-      `INSERT INTO order_bundles (id, buyer_id, total_amount, status) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
-      [bundleId, req.agent.id, totalAmount, 'active']
-    );
-
-    // Lock total escrow once, then create each order row
-    await dbRun(
-      `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
-      [totalAmount, totalAmount, req.agent.id]
-    );
-
     const childIds = [];
-    for (const { svc, requirements } of resolved) {
-      const orderId = uuidv4();
-      const deadline = new Date();
-      deadline.setHours(deadline.getHours() + svc.delivery_hours);
-      await dbRun(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, bundle_id, deadline)
-         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
-        [orderId, req.agent.id, svc.agent_id, svc.id, svc.price, requirements, bundleId, deadline.toISOString()]
+
+    // Wrap everything in a single DB transaction — all-or-nothing
+    await dbTransaction(async (tx) => {
+      const run = tx ? tx.run.bind(tx) : dbRun;
+
+      await run(
+        `INSERT INTO order_bundles (id, buyer_id, total_amount, status) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
+        [bundleId, req.agent.id, totalAmount, 'active']
       );
-      childIds.push(orderId);
-    }
+
+      // Lock total escrow atomically
+      await run(
+        `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
+        [totalAmount, totalAmount, req.agent.id]
+      );
+
+      for (const { svc, requirements: req_text } of resolved) {
+        const orderId = uuidv4();
+        const deadline = new Date();
+        deadline.setHours(deadline.getHours() + svc.delivery_hours);
+        await run(
+          `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, bundle_id, deadline)
+           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
+          [orderId, req.agent.id, svc.agent_id, svc.id, svc.price, req_text, bundleId, deadline.toISOString()]
+        );
+        childIds.push(orderId);
+      }
+    });
 
     res.status(201).json({
       bundle_id: bundleId,
@@ -336,7 +375,19 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     const hasContract = !!(service && (service.output_schema || service.verification_rules));
     const verification = hasContract ? verifyDelivery(service, content) : { ok: true, stage: null, errors: [] };
 
-    if (hasContract && !verification.ok) {
+    // Semantic verification: run after structural checks pass, when service.semantic_verify = true
+    let semanticResult = null;
+    if (verification.ok && service && (service.semantic_verify === true || service.semantic_verify === 1)) {
+      semanticResult = await verifyDeliverySemantic(service, content, order.requirements);
+      if (!semanticResult.ok) {
+        // Treat semantic failure same as structural failure
+        verification.ok = false;
+        verification.stage = 'semantic';
+        verification.errors = [`Semantic check failed (score: ${(semanticResult.score * 100).toFixed(0)}%): ${semanticResult.reasoning}`];
+      }
+    }
+
+    if ((hasContract || semanticResult) && !verification.ok) {
       // Auto-reject: refund buyer, mark delivery failed, penalize seller rep
       const now = isPostgres ? 'NOW()' : "datetime('now')";
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);

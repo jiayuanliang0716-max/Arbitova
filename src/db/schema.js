@@ -117,8 +117,20 @@ if (DATABASE_URL) {
       ALTER TABLE services ADD COLUMN IF NOT EXISTS output_schema JSONB;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS verification_rules JSONB;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS auto_verify BOOLEAN DEFAULT FALSE;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS semantic_verify BOOLEAN DEFAULT FALSE;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_seller_stake NUMERIC DEFAULT 0;
+      ALTER TABLE services ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general';
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS stake NUMERIC DEFAULT 0;
+
+      CREATE TABLE IF NOT EXISTS reputation_by_category (
+        id         SERIAL PRIMARY KEY,
+        agent_id   TEXT NOT NULL REFERENCES agents(id),
+        category   TEXT NOT NULL,
+        score      INTEGER DEFAULT 0,
+        order_count INTEGER DEFAULT 0,
+        updated_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (agent_id, category)
+      );
 
       CREATE TABLE IF NOT EXISTS orders (
         id           TEXT PRIMARY KEY,
@@ -560,7 +572,9 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'output_schema', 'TEXT');
   addColIfMissing('services', 'verification_rules', 'TEXT');
   addColIfMissing('services', 'auto_verify', 'INTEGER DEFAULT 0');
+  addColIfMissing('services', 'semantic_verify', 'INTEGER DEFAULT 0');
   addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
+  addColIfMissing('services', 'category', "TEXT DEFAULT 'general'");
   addColIfMissing('services', 'sub_price', 'REAL DEFAULT 0');
   addColIfMissing('services', 'sub_interval', 'TEXT');
   addColIfMissing('orders', 'bundle_id', 'TEXT');
@@ -572,6 +586,21 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
   addColIfMissing('services', 'product_type', "TEXT DEFAULT 'ai_generated'");
   addColIfMissing('payments', 'service_id', 'TEXT');
+
+  // reputation_by_category table
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS reputation_by_category (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        agent_id    TEXT NOT NULL REFERENCES agents(id),
+        category    TEXT NOT NULL,
+        score       INTEGER DEFAULT 0,
+        order_count INTEGER DEFAULT 0,
+        updated_at  TEXT DEFAULT (datetime('now')),
+        UNIQUE (agent_id, category)
+      );
+    `);
+  } catch(e) { console.error('Migration warn:', e.message); }
 
   // One-time migrations: set product_type for existing data
   try {

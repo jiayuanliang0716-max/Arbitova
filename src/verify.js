@@ -126,4 +126,66 @@ function verifyInput(service, requirements) {
   return validateAgainstSchema(inSchema, parsed);
 }
 
-module.exports = { verifyDelivery, verifyInput, validateAgainstSchema, runRules, parseMaybeJson, parseSchemaField };
+/**
+ * Semantic verification using Claude.
+ *
+ * Called after structural checks pass, when service.semantic_verify = true.
+ * Asks Claude: "Does this delivery actually fulfill the requirements?"
+ *
+ * Returns { ok, score, reasoning }
+ *   ok    — true if score >= threshold (default 0.7)
+ *   score — 0.0–1.0 fulfillment score
+ */
+async function verifyDeliverySemantic(service, deliveryContent, requirements) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { ok: true, score: 1.0, reasoning: 'Semantic verification skipped (no API key)' };
+  }
+
+  try {
+    const Anthropic = require('@anthropic-ai/sdk');
+    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const deliveryStr = typeof deliveryContent === 'string'
+      ? deliveryContent.slice(0, 3000)
+      : JSON.stringify(deliveryContent).slice(0, 3000);
+
+    const prompt = `You are a delivery quality reviewer for an AI agent marketplace.
+
+## Service
+Name: ${service.name || 'Unknown'}
+Description: ${service.description || 'N/A'}
+
+## Buyer Requirements
+${requirements || 'None specified'}
+
+## Delivery Content
+${deliveryStr}
+
+## Task
+Score how well this delivery fulfills the buyer's requirements.
+Respond ONLY in this JSON (no markdown):
+{"score": <0.0-1.0>, "reasoning": "<1-2 sentences>", "fulfilled": <true|false>}
+
+score: 1.0 = perfectly fulfilled, 0.0 = completely irrelevant.
+fulfilled: true if score >= 0.7.`;
+
+    const msg = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const result = JSON.parse(msg.content[0].text.trim());
+    const score = parseFloat(result.score) || 0;
+    return {
+      ok: score >= 0.7,
+      score,
+      reasoning: result.reasoning || '',
+    };
+  } catch (err) {
+    // Semantic check failure is non-fatal — fall back to structural check result
+    return { ok: true, score: 1.0, reasoning: `Semantic check error (ignored): ${err.message}` };
+  }
+}
+
+module.exports = { verifyDelivery, verifyInput, validateAgainstSchema, runRules, parseMaybeJson, parseSchemaField, verifyDeliverySemantic };

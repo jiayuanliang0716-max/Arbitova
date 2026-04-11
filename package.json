@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
+    "worker": "node src/worker.js",
     "dev": "node --watch src/server.js",
+    "dev:worker": "node --watch src/worker.js",
     "test": "node test/simulate.js"
   },
   "type": "commonjs",

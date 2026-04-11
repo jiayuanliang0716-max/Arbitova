@@ -84,15 +84,26 @@ router.get('/:id/reputation', async (req, res, next) => {
       [req.params.id]
     );
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
-    const history = await dbAll(
-      `SELECT delta, reason, order_id, created_at FROM reputation_history WHERE agent_id = ${p(1)} ORDER BY created_at DESC LIMIT 50`,
-      [req.params.id]
-    );
+    const [history, byCategory] = await Promise.all([
+      dbAll(
+        `SELECT delta, reason, order_id, created_at FROM reputation_history WHERE agent_id = ${p(1)} ORDER BY created_at DESC LIMIT 50`,
+        [req.params.id]
+      ),
+      dbAll(
+        `SELECT category, score, order_count FROM reputation_by_category WHERE agent_id = ${p(1)} ORDER BY score DESC`,
+        [req.params.id]
+      ).catch(() => []),
+    ]);
     res.json({
       agent_id: agent.id,
       name: agent.name,
       reputation_score: parseInt(agent.reputation_score || 0),
-      history
+      by_category: byCategory.map(r => ({
+        category: r.category,
+        score: parseInt(r.score || 0),
+        order_count: parseInt(r.order_count || 0),
+      })),
+      history,
     });
   } catch (err) { next(err); }
 });
