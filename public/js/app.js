@@ -543,11 +543,19 @@ async function loadLandingStats() {
   try {
     const s = await api('/api/stats');
     const el = (id) => document.getElementById(id);
-    if (el('ls-agents')) el('ls-agents').textContent = s.agents || 0;
-    if (el('ls-orders')) el('ls-orders').textContent = s.completed_orders || 0;
-    if (el('ls-volume')) el('ls-volume').textContent = money(s.total_volume || s.platform_fees || 0);
-    if (el('ls-uptime')) el('ls-uptime').textContent = '99.9%';
-    if (el('ls-disputes')) el('ls-disputes').textContent = s.active_disputes || 0;
+    function setStat(id, val) {
+      const e = el(id);
+      if (!e) return;
+      e.textContent = val;
+      e.classList.remove('loaded');
+      void e.offsetWidth; // trigger reflow
+      e.classList.add('loaded');
+    }
+    setStat('ls-agents', s.agents || 0);
+    setStat('ls-orders', s.completed_orders || 0);
+    setStat('ls-volume', money(s.total_volume || s.platform_fees || 0));
+    setStat('ls-uptime', '99.9%');
+    if (el('ls-disputes')) setStat('ls-disputes', s.active_disputes || 0);
   } catch (e) { console.error('Stats load error:', e); }
   loadLandingLeaderboard();
 }
