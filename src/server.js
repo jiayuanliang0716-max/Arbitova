@@ -418,7 +418,7 @@ apiV1.get('/', (req, res) => {
     base_url: '/api/v1',
     docs: '/docs',
     endpoints: {
-      identity:      ['POST /agents/register', 'GET /agents/me', 'GET /agents/:id', 'GET /agents/:id/reputation', 'GET /agents/leaderboard', 'POST /agents/:id/rotate-key'],
+      identity:      ['POST /agents/register', 'GET /agents/me', 'GET /agents/search', 'GET /agents/:id', 'GET /agents/:id/reputation', 'GET /agents/leaderboard', 'POST /agents/:id/rotate-key'],
       contracts:     ['POST /services', 'GET /services/:id', 'PUT /services/:id', 'GET /services (search)', 'GET /agents/:id/services'],
       transactions:  [
         'GET /orders', 'POST /orders', 'GET /orders/:id',

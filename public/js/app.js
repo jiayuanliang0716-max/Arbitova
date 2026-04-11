@@ -637,6 +637,7 @@ function switchPanel(name) {
   if (name === 'overview') loadOverview();
   if (name === 'transactions') loadTransactions();
   if (name === 'disputes') loadDisputes();
+  if (name === 'leaderboard') loadLeaderboard();
   if (name === 'apikeys') loadApiKeys();
   if (name === 'webhooks') loadWebhooks();
   if (name === 'contracts') loadContracts();
@@ -959,6 +960,59 @@ async function viewTransparencyReport(orderId) {
   } catch (e) {
     toast('Failed to load report: ' + e.message, 'error');
   }
+}
+
+// ================= Dashboard: Leaderboard =================
+
+let agentSearchTimer;
+
+async function loadLeaderboard(searchQuery) {
+  const container = document.getElementById('leaderboard-list');
+  if (!container) return;
+  showSkeleton(container, 5);
+
+  try {
+    let url;
+    if (searchQuery && searchQuery.trim()) {
+      url = '/api/v1/agents/search?q=' + encodeURIComponent(searchQuery.trim()) + '&limit=50';
+    } else {
+      url = '/api/v1/agents/leaderboard?limit=50';
+    }
+    const r = await api(url);
+    const agents = r.agents || [];
+
+    if (!agents.length) {
+      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No agents found</h3></div>`;
+      return;
+    }
+
+    const myId = getAuth().id;
+    container.innerHTML = agents.map((a, i) => {
+      const score = parseInt(a.reputation_score) || 0;
+      const level = score >= 200 ? 'Elite' : score >= 100 ? 'Trusted' : score >= 50 ? 'Active' : 'New';
+      const levelColor = score >= 200 ? '#2563eb' : score >= 100 ? '#16a34a' : score >= 50 ? '#d97706' : '#6b7280';
+      const isMe = a.id === myId;
+      const svgUrl = '/api/v1/agents/' + a.id + '/reputation-badge?format=svg';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);${isMe ? 'background:var(--accent-bg, rgba(0,212,170,0.06));' : ''}">
+        <span style="width:24px;text-align:center;color:var(--text-soft);font-size:13px;font-weight:600">${searchQuery ? '' : i + 1}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600">${escapeHtml(a.name)}${isMe ? ' <span style="font-size:10px;color:var(--accent)">(you)</span>' : ''}</div>
+          ${a.description ? `<div style="font-size:11px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.description)}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <img src="${svgUrl}" alt="badge" style="height:18px;display:block;margin-bottom:2px" loading="lazy">
+          <span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadLeaderboard);
+  }
+}
+
+function debouncedAgentSearch(val) {
+  clearTimeout(agentSearchTimer);
+  agentSearchTimer = setTimeout(() => loadLeaderboard(val), 400);
 }
 
 // ================= Dashboard: API Keys =================

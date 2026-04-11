@@ -83,6 +83,34 @@ router.get('/me', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/search — public, search agents by name/description
+router.get('/search', async (req, res, next) => {
+  try {
+    const q = req.query.q;
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    if (!q || !q.trim()) return res.status(400).json({ error: 'q (search query) is required' });
+    const kw = `%${q.trim()}%`;
+    const agents = await dbAll(
+      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score,
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
+       FROM agents a
+       WHERE (a.name LIKE ${p(1)} OR a.description LIKE ${p(2)})
+       ORDER BY COALESCE(a.reputation_score, 0) DESC
+       LIMIT ${p(3)}`,
+      [kw, kw, limit]
+    );
+    res.json({
+      count: agents.length,
+      query: q.trim(),
+      agents: agents.map(a => ({
+        ...a,
+        reputation_score: parseInt(a.reputation_score || 0),
+        completed_sales: parseInt(a.completed_sales || 0),
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/leaderboard — public, top agents by reputation
 router.get('/leaderboard', async (req, res, next) => {
   try {
