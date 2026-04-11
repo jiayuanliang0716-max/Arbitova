@@ -1,0 +1,24 @@
+{
+  "name": "@arbitova/mcp-server",
+  "version": "1.0.0",
+  "description": "Official MCP server for Arbitova — escrow, AI arbitration, and trust scoring for agent-to-agent payments",
+  "main": "index.js",
+  "bin": {
+    "arbitova-mcp": "./index.js"
+  },
+  "keywords": ["mcp", "a2a", "agent", "escrow", "arbitration", "arbitova", "x402", "ai"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiayuanliang0716-max/Arbitova"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "arbitova"
+version = "0.3.0"
+description = "Official Python SDK for Arbitova — escrow, AI arbitration, and trust scoring for agent-to-agent payments"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+keywords = ["a2a", "agent", "escrow", "arbitration", "ai", "sdk", "arbitova", "mcp"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "httpx>=0.24.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "python-dotenv"]
+
+[project.urls]
+Homepage = "https://arbitova.com"
+Repository = "https://github.com/jiayuanliang0716-max/Arbitova"
+Documentation = "https://a2a-system.onrender.com/docs"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["arbitova*"]

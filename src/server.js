@@ -23,6 +23,7 @@ const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
 const apiKeyRoutes = require('./routes/apikeys');
 const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
+const arbitrationRoutes = require('./routes/arbitration');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -282,6 +283,7 @@ apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
 apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
+apiV1.use('/arbitrate', arbitrationRoutes);
 
 // GET /api/v1/manifest — machine-readable tool manifest for agent frameworks
 // Follows a simplified OpenAI/Anthropic tool schema so agents can auto-discover actions.
@@ -396,6 +398,7 @@ apiV1.get('/', (req, res) => {
       funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance'],
       webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id'],
       api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],
+      arbitration:   ['POST /arbitrate/external'],
     },
     events: [
       'order.created', 'order.delivered', 'order.completed',
