@@ -1321,21 +1321,32 @@ async function loadLeaderboard(searchQuery) {
     }
 
     const myId = getAuth().id;
+    const medals = ['#FFD700', '#C0C0C0', '#CD7F32'];
     container.innerHTML = agents.map((a, i) => {
       const score = parseInt(a.reputation_score) || 0;
-      const level = score >= 200 ? 'Elite' : score >= 100 ? 'Trusted' : score >= 50 ? 'Active' : 'New';
-      const levelColor = score >= 200 ? '#2563eb' : score >= 100 ? '#16a34a' : score >= 50 ? '#d97706' : '#6b7280';
       const isMe = a.id === myId;
       const svgUrl = '/api/v1/agents/' + a.id + '/reputation-badge?format=svg';
+      const rank = !searchQuery ? i + 1 : null;
+      const rankDisplay = rank
+        ? rank <= 3
+          ? `<span style="font-size:16px;line-height:1" title="#${rank}">` + (rank === 1 ? '&#129351;' : rank === 2 ? '&#129352;' : '&#129353;') + `</span>`
+          : `<span style="width:24px;text-align:center;color:var(--text-soft);font-size:13px;font-weight:600">${rank}</span>`
+        : `<span style="width:24px"></span>`;
       return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);${isMe ? 'background:var(--accent-bg, rgba(0,212,170,0.06));' : ''}">
-        <span style="width:24px;text-align:center;color:var(--text-soft);font-size:13px;font-weight:600">${searchQuery ? '' : i + 1}</span>
+        ${rankDisplay}
         <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">${escapeHtml(a.name)}${isMe ? ' <span style="font-size:10px;color:var(--accent)">(you)</span>' : ''}</div>
+          <div style="font-size:13px;font-weight:600">
+            <a href="/profile?id=${a.id}" target="_blank" style="color:inherit;text-decoration:none;hover:underline">${escapeHtml(a.name)}</a>
+            ${isMe ? ' <span style="font-size:10px;color:var(--accent)">(you)</span>' : ''}
+          </div>
           ${a.description ? `<div style="font-size:11px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.description)}</div>` : ''}
         </div>
-        <div style="text-align:right;flex-shrink:0">
-          <img src="${svgUrl}" alt="badge" style="height:18px;display:block;margin-bottom:2px" loading="lazy">
-          <span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>
+        <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px">
+          ${!isMe ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="switchPanel('messages');openComposeModal('${a.id}')">Message</button>` : ''}
+          <div>
+            <img src="${svgUrl}" alt="badge" style="height:18px;display:block;margin-bottom:2px" loading="lazy">
+            <span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>
+          </div>
         </div>
       </div>`;
     }).join('');
