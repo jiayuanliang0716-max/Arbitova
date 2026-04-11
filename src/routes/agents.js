@@ -56,6 +56,33 @@ router.post('/register', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me — authenticated agent's own profile
+router.get('/me', requireApiKey, async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, description, owner_email, balance, escrow, COALESCE(stake, 0) as stake,
+              COALESCE(reputation_score, 0) as reputation_score, wallet_address, created_at
+       FROM agents WHERE id = ${p(1)}`,
+      [req.agent.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const [completed_sales, completed_purchases, active_orders] = await Promise.all([
+      dbGet(`SELECT COUNT(*) as c FROM orders WHERE seller_id = ${p(1)} AND status = 'completed'`, [req.agent.id]),
+      dbGet(`SELECT COUNT(*) as c FROM orders WHERE buyer_id = ${p(1)} AND status = 'completed'`, [req.agent.id]),
+      dbGet(`SELECT COUNT(*) as c FROM orders WHERE (buyer_id = ${p(1)} OR seller_id = ${p(2)}) AND status NOT IN ('completed','refunded','cancelled')`, [req.agent.id, req.agent.id]),
+    ]);
+
+    res.json({
+      ...agent,
+      reputation_score: parseInt(agent.reputation_score || 0),
+      completed_sales: parseInt(completed_sales?.c || 0),
+      completed_purchases: parseInt(completed_purchases?.c || 0),
+      active_orders: parseInt(active_orders?.c || 0),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/leaderboard — public, top agents by reputation
 router.get('/leaderboard', async (req, res, next) => {
   try {

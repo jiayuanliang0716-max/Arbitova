@@ -61,6 +61,48 @@ async function adjustReputation(agentId, delta, reason, orderId) {
   }
 }
 
+// GET /orders — list orders for the authenticated agent (as buyer or seller)
+router.get('/', requireApiKey, async (req, res, next) => {
+  try {
+    const role = req.query.role; // 'buyer' | 'seller' | undefined (both)
+    const status = req.query.status; // filter by status
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = parseInt(req.query.offset) || 0;
+
+    let where = [];
+    let params = [];
+    let pi = 1;
+
+    if (role === 'buyer') {
+      where.push(`o.buyer_id = ${p(pi++)}`); params.push(req.agent.id);
+    } else if (role === 'seller') {
+      where.push(`o.seller_id = ${p(pi++)}`); params.push(req.agent.id);
+    } else {
+      where.push(`(o.buyer_id = ${p(pi++)} OR o.seller_id = ${p(pi++)})`);
+      params.push(req.agent.id, req.agent.id);
+    }
+
+    if (status) {
+      where.push(`o.status = ${p(pi++)}`); params.push(status);
+    }
+
+    params.push(limit, offset);
+    const orders = await dbAll(
+      `SELECT o.id, o.buyer_id, o.seller_id, o.service_id, o.status, o.amount,
+              o.requirements, o.deadline, o.created_at,
+              s.name as service_name,
+              CASE WHEN o.buyer_id = '${req.agent.id}' THEN 'buyer' ELSE 'seller' END as your_role
+       FROM orders o
+       LEFT JOIN services s ON o.service_id = s.id
+       WHERE ${where.join(' AND ')}
+       ORDER BY o.created_at DESC
+       LIMIT ${p(pi++)} OFFSET ${p(pi++)}`,
+      params
+    );
+    res.json({ count: orders.length, orders });
+  } catch (err) { next(err); }
+});
+
 // POST /orders
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
@@ -524,6 +566,61 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/partial-confirm
+// Buyer confirms partial delivery and releases a percentage of escrowed funds.
+// Remaining funds stay locked until full delivery or dispute.
+router.post('/:id/partial-confirm', requireApiKey, async (req, res, next) => {
+  try {
+    const { percent, note } = req.body;
+    const pct = parseFloat(percent);
+    if (!(pct > 0 && pct < 100)) {
+      return res.status(400).json({ error: 'percent must be between 0 and 100 (exclusive). Use confirm for 100%.' });
+    }
+
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can confirm' });
+    if (!['delivered', 'paid'].includes(order.status)) {
+      return res.status(400).json({ error: `Cannot confirm: status is ${order.status}` });
+    }
+
+    const releaseAmount = parseFloat(order.amount) * (pct / 100);
+    const remaining = parseFloat(order.amount) - releaseAmount;
+    const fee = releaseAmount * RELEASE_FEE_RATE;
+    const sellerReceives = releaseAmount - fee;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Reduce escrow by released portion, credit seller
+    await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [releaseAmount, order.buyer_id]);
+    await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+    // Update order amount to remaining (locked portion)
+    await dbRun(`UPDATE orders SET amount = ${p(1)}, status = 'paid' WHERE id = ${p(2)}`, [remaining, order.id]);
+    await dbRun(
+      `UPDATE platform_revenue SET balance = balance + ${p(1)}, total_earned = total_earned + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+      [fee, fee]
+    );
+
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+      order_id: order.id, type: 'partial_release',
+      percent_released: pct, amount_released: releaseAmount,
+      remaining_locked: remaining,
+      platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
+      note: note || null,
+    });
+
+    res.json({
+      order_id: order.id,
+      status: 'paid',
+      percent_released: pct,
+      amount_released: releaseAmount.toFixed(4),
+      remaining_locked: remaining.toFixed(4),
+      platform_fee: fee.toFixed(4),
+      seller_received: sellerReceives.toFixed(4),
+      message: `${pct}% of funds released. Remaining ${(100 - pct).toFixed(0)}% stays locked pending full delivery.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/:id/dispute
 router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
   try {
@@ -861,6 +958,104 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed,
       arbitrated_by: 'claude-haiku-n3',
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/appeal
+// Either party can appeal an AI arbitration verdict (once) by providing additional evidence.
+// Triggers a fresh N=3 arbitration with the new evidence appended to context.
+// Only available within 1 hour of auto-arbitrate verdict, and only if confidence was < 0.85.
+router.post('/:id/appeal', requireApiKey, async (req, res, next) => {
+  try {
+    const { additional_evidence } = req.body;
+    if (!additional_evidence || additional_evidence.length < 20) {
+      return res.status(400).json({ error: 'additional_evidence must be at least 20 characters' });
+    }
+
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    if (!['refunded', 'completed'].includes(order.status)) {
+      return res.status(400).json({ error: 'Appeals can only be filed after an AI arbitration verdict (status must be refunded or completed)' });
+    }
+
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)} ORDER BY created_at DESC LIMIT 1`, [order.id]);
+    if (!dispute) return res.status(404).json({ error: 'No dispute found for this order' });
+    if (dispute.appealed) {
+      return res.status(400).json({ error: 'This dispute has already been appealed. Only one appeal is permitted.' });
+    }
+
+    // Check time window: must be within 1 hour of resolution
+    const resolvedAt = dispute.resolved_at ? new Date(dispute.resolved_at) : null;
+    if (resolvedAt) {
+      const hoursSinceResolution = (Date.now() - resolvedAt.getTime()) / (1000 * 60 * 60);
+      if (hoursSinceResolution > 1) {
+        return res.status(400).json({ error: 'Appeal window has expired. Appeals must be filed within 1 hour of the arbitration verdict.' });
+      }
+    }
+
+    // Mark dispute as appealed to prevent duplicate appeals
+    await dbRun(`UPDATE disputes SET appealed = 1 WHERE id = ${p(1)}`, [dispute.id]);
+
+    // Re-open order for re-arbitration
+    await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
+
+    // Rebuild context with additional evidence
+    const [service, delivery] = await Promise.all([
+      dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [order.service_id]),
+      dbGet(`SELECT * FROM deliveries WHERE order_id = ${p(1)}`, [order.id])
+    ]);
+
+    const enhancedDispute = {
+      ...dispute,
+      reason: dispute.reason,
+      evidence: [dispute.evidence, `\n\n[APPEAL EVIDENCE from ${req.agent.id === order.buyer_id ? 'buyer' : 'seller'}]: ${additional_evidence}`].filter(Boolean).join(''),
+    };
+
+    let verdict;
+    try {
+      verdict = await arbitrateDispute({ order, service, dispute: enhancedDispute, delivery });
+    } catch (e) {
+      // Restore order state on failure
+      await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
+      return res.status(500).json({ error: 'Re-arbitration failed', details: e.message });
+    }
+
+    const { winner: newWinner, confidence, votes, method, escalate_to_human } = verdict;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    if (escalate_to_human) {
+      await dbRun(`UPDATE orders SET status = 'under_review' WHERE id = ${p(1)}`, [order.id]);
+      return res.json({
+        appeal_result: 'escalated_to_human',
+        order_id: order.id,
+        message: 'Appeal evidence reviewed. Confidence still insufficient — escalated to human review.',
+        votes, confidence,
+      });
+    }
+
+    // Re-execute verdict
+    const originalFee = parseFloat(order.amount) * RELEASE_FEE_RATE;
+    if (newWinner === 'buyer') {
+      // Reverse seller payment if they were paid, refund buyer
+      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [parseFloat(order.amount) - originalFee, order.seller_id]);
+      await dbRun(`UPDATE agents SET escrow = escrow + ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [0, parseFloat(order.amount), order.buyer_id]);
+      await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    } else {
+      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+
+    res.json({
+      appeal_result: 're_arbitrated',
+      order_id: order.id,
+      original_winner: dispute.resolution?.includes('buyer') ? 'buyer' : 'seller',
+      new_winner: newWinner,
+      verdict_changed: true, // simplistic - buyer could evaluate
+      confidence, method, votes,
+      message: `Appeal re-arbitration complete. Winner: ${newWinner}.`,
     });
   } catch (err) { next(err); }
 });

@@ -171,10 +171,12 @@ if (DATABASE_URL) {
         evidence    TEXT,
         status      TEXT DEFAULT 'open',
         resolution  TEXT,
+        appealed    BOOLEAN DEFAULT FALSE,
         created_at  TIMESTAMPTZ DEFAULT NOW(),
         resolved_at TIMESTAMPTZ
       );
 
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS appealed BOOLEAN DEFAULT FALSE;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_price NUMERIC DEFAULT 0;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_interval TEXT DEFAULT NULL;
 
@@ -423,6 +425,7 @@ if (DATABASE_URL) {
       evidence    TEXT,
       status      TEXT DEFAULT 'open',
       resolution  TEXT,
+      appealed    INTEGER DEFAULT 0,
       created_at  TEXT DEFAULT (datetime('now')),
       resolved_at TEXT
     );
