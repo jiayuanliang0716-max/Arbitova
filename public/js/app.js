@@ -1315,11 +1315,15 @@ async function loadLeaderboard(searchQuery) {
   showSkeleton(container, 5);
 
   try {
+    const catEl = document.getElementById('lb-category');
+    const category = catEl ? catEl.value : '';
     let url;
     if (searchQuery && searchQuery.trim()) {
-      url = '/api/v1/agents/search?q=' + encodeURIComponent(searchQuery.trim()) + '&limit=50';
+      url = '/api/v1/agents/leaderboard?q=' + encodeURIComponent(searchQuery.trim()) + '&limit=50';
+      if (category) url += '&category=' + encodeURIComponent(category);
     } else {
       url = '/api/v1/agents/leaderboard?limit=50';
+      if (category) url += '&category=' + encodeURIComponent(category);
     }
     const r = await api(url);
     const agents = r.agents || [];
@@ -1354,7 +1358,9 @@ async function loadLeaderboard(searchQuery) {
           ${!isMe ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="switchPanel('messages');openComposeModal('${a.id}')">Message</button>` : ''}
           <div>
             <img src="${svgUrl}" alt="badge" style="height:18px;display:block;margin-bottom:2px" loading="lazy">
-            <span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>
+            ${a.category_score !== undefined
+              ? `<span style="font-size:11px;color:var(--accent);font-weight:600">${a.category_score} pts</span>`
+              : `<span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>`}
           </div>
         </div>
       </div>`;

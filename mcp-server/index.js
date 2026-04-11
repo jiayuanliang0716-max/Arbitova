@@ -253,6 +253,30 @@ const TOOLS = [
       required: ['agent_id'],
     },
   },
+  {
+    name: 'arbitova_get_stats',
+    description: 'Get order statistics summary for the authenticated agent — total count, total volume, pending delivery/confirmation counts, and breakdown by status.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'arbitova_edit_service',
+    description: 'Update a service you own — change name, description, price, category, or toggle active status.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service_id: { type: 'string', description: 'The ID of the service to update' },
+        name: { type: 'string', description: 'New service name (optional)' },
+        description: { type: 'string', description: 'New description (optional)' },
+        price: { type: 'number', minimum: 0.01, description: 'New price in USDC (optional)' },
+        category: { type: 'string', enum: ['general', 'writing', 'analysis', 'coding', 'data', 'research'], description: 'New category (optional)' },
+        is_active: { type: 'boolean', description: 'Enable or disable the service (optional)' },
+      },
+      required: ['service_id'],
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -383,6 +407,23 @@ async function handleTool(name, args) {
       return profile;
     }
 
+    case 'arbitova_get_stats': {
+      const stats = await apiRequest('GET', '/orders/stats', null);
+      return {
+        ...stats,
+        message: `Total orders: ${stats.total}. Volume: ${stats.total_volume} USDC. Pending delivery: ${stats.pending_delivery}. Pending confirmation: ${stats.pending_confirmation}.`,
+      };
+    }
+
+    case 'arbitova_edit_service': {
+      const { service_id, ...fields } = args;
+      const result = await apiRequest('PATCH', `/services/${service_id}`, fields);
+      return {
+        ...result,
+        message: `Service "${result.name}" updated successfully.`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -391,7 +432,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.2.0' },
+  { name: 'arbitova', version: '1.3.0' },
   { capabilities: { tools: {} } }
 );
 

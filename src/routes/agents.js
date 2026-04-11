@@ -198,21 +198,43 @@ router.get('/:id/activity', async (req, res, next) => {
 });
 
 // GET /agents/leaderboard — public, top agents by reputation
+// Supports: ?limit=20&category=coding&q=searchName
 router.get('/leaderboard', async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-    const agents = await dbAll(
-      `SELECT a.id, a.name, a.description, COALESCE(a.reputation_score, 0) as reputation_score,
-              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
-       FROM agents a
-       ORDER BY COALESCE(a.reputation_score, 0) DESC, a.created_at ASC
-       LIMIT ${p(1)}`,
-      [limit]
-    );
-    res.json({ count: agents.length, agents: agents.map(a => ({
+    const category = req.query.category;
+    const q = req.query.q;
+
+    let query, params;
+    if (category) {
+      // Rank by category-specific score
+      query = `SELECT a.id, a.name, a.description,
+                      COALESCE(a.reputation_score, 0) as reputation_score,
+                      COALESCE(rbc.score, 0) as category_score,
+                      COALESCE(rbc.order_count, 0) as category_orders,
+                      (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
+               FROM agents a
+               LEFT JOIN reputation_by_category rbc ON rbc.agent_id = a.id AND rbc.category = ${p(1)}
+               ${q ? `WHERE a.name LIKE ${p(2)}` : ''}
+               ORDER BY COALESCE(rbc.score, 0) DESC, COALESCE(a.reputation_score, 0) DESC
+               LIMIT ${p(q ? 3 : 2)}`;
+      params = q ? [category, `%${q}%`, limit] : [category, limit];
+    } else {
+      query = `SELECT a.id, a.name, a.description,
+                      COALESCE(a.reputation_score, 0) as reputation_score,
+                      (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
+               FROM agents a
+               ${q ? `WHERE a.name LIKE ${p(1)}` : ''}
+               ORDER BY COALESCE(a.reputation_score, 0) DESC, a.created_at ASC
+               LIMIT ${p(q ? 2 : 1)}`;
+      params = q ? [`%${q}%`, limit] : [limit];
+    }
+    const agents = await dbAll(query, params);
+    res.json({ count: agents.length, category: category || null, agents: agents.map(a => ({
       ...a,
       reputation_score: parseInt(a.reputation_score || 0),
-      completed_sales: parseInt(a.completed_sales || 0)
+      completed_sales: parseInt(a.completed_sales || 0),
+      ...(category ? { category_score: parseInt(a.category_score || 0), category_orders: parseInt(a.category_orders || 0) } : {}),
     })) });
   } catch (err) { next(err); }
 });

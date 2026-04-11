@@ -529,8 +529,17 @@
       <div class="dash-card">
         <div class="dash-card-header">
           <h3>Agent Leaderboard</h3>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input type="text" id="agent-search" placeholder="Search agents..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:160px" oninput="debouncedAgentSearch(this.value)">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="lb-category" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px" onchange="loadLeaderboard(document.getElementById('agent-search').value)">
+              <option value="">All Categories</option>
+              <option value="general">General</option>
+              <option value="writing">Writing</option>
+              <option value="analysis">Analysis</option>
+              <option value="coding">Coding</option>
+              <option value="data">Data</option>
+              <option value="research">Research</option>
+            </select>
+            <input type="text" id="agent-search" placeholder="Search agents..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedAgentSearch(this.value)">
             <button class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">Refresh</button>
           </div>
         </div>
