@@ -1,6 +1,6 @@
-# A2A Pay — Technical Blueprint
+# Arbitova — Technical Blueprint
 
-> **A2A Pay: Trust infrastructure for the Agent economy.**
+> **Arbitova: Trust infrastructure for the Agent economy.**
 
 Version 2.0 | April 2026
 
@@ -10,9 +10,9 @@ Version 2.0 | April 2026
 
 ### One-line definition
 
-A2A Pay is the escrow, verification, and arbitration layer that lets any AI agent pay any other AI agent — with programmable trust guarantees.
+Arbitova is the escrow, verification, and arbitration layer that lets any AI agent pay any other AI agent — with programmable trust guarantees.
 
-### What A2A Pay IS
+### What Arbitova IS
 
 - An **API and SDK** that agent frameworks (LangChain, CrewAI, AutoGen, custom) embed to handle payments between agents.
 - A **programmable escrow engine** — funds lock on task creation, release on verified delivery, refund on failure. No human in the loop unless needed.
@@ -20,9 +20,9 @@ A2A Pay is the escrow, verification, and arbitration layer that lets any AI agen
 - An **AI arbitrator** — when buyer and seller agents disagree, Claude adjudicates the dispute using the contract, delivery evidence, and order context.
 - A **reputation/credit scoring layer** — every completed transaction, every dispute outcome, every verification pass/fail feeds a public score that agents can query before transacting.
 
-### What A2A Pay is NOT
+### What Arbitova is NOT
 
-| A2A Pay is NOT...          | Why                                                                                          |
+| Arbitova is NOT...          | Why                                                                                          |
 |----------------------------|----------------------------------------------------------------------------------------------|
 | A marketplace              | We don't match buyers and sellers. Agent frameworks handle discovery. We handle the money.    |
 | A wallet                   | We custody funds in escrow during transactions. Agents fund accounts via USDC or fiat top-up. |
@@ -43,7 +43,7 @@ No existing payment infrastructure solves all four. Stripe handles money movemen
 
 ### Competitive positioning
 
-| Capability              | Stripe    | PayPal    | Coinbase Agent Kit | **A2A Pay**         |
+| Capability              | Stripe    | PayPal    | Coinbase Agent Kit | **Arbitova**         |
 |------------------------|-----------|-----------|--------------------|---------------------|
 | Agent-native API/SDK   | No        | No        | Partial            | **Yes**             |
 | Programmatic escrow    | No        | No        | No                 | **Yes**             |
@@ -68,8 +68,8 @@ No existing payment infrastructure solves all four. Stripe handles money movemen
                           +------+------+----+-----+-----+-----+-------+
                                  |           |           |
                           +------v-----------v-----------v-----------+
-                          |           @a2a-pay/sdk (npm)             |
-                          |           a2a-pay (PyPI)                 |
+                          |           @arbitova/sdk (npm)             |
+                          |           arbitova (PyPI)                 |
                           |                                          |
                           |  pay() escrow() verify() arbitrate()     |
                           |  getReputation() onStatusChange()        |
@@ -134,15 +134,15 @@ No existing payment infrastructure solves all four. Stripe handles money movemen
 
 | Change                            | Effort  | Details                                                                                    |
 |-----------------------------------|---------|--------------------------------------------------------------------------------------------|
-| Add SDK layer (`@a2a-pay/sdk`)    | Medium  | New npm package wrapping REST API. No backend changes.                                     |
-| Add Python SDK (`a2a-pay`)        | Medium  | Thin wrapper using `httpx`. No backend changes.                                            |
+| Add SDK layer (`@arbitova/sdk`)    | Medium  | New npm package wrapping REST API. No backend changes.                                     |
+| Add Python SDK (`arbitova`)        | Medium  | Thin wrapper using `httpx`. No backend changes.                                            |
 | Add webhook outbound system       | Medium  | New table `webhooks`, new module `src/webhooks.js`. POST to registered URLs on status change. |
 | Add `/api/v1/` prefix            | Small   | Namespace all API endpoints under `/api/v1/`. Keep old routes as aliases during migration.  |
 | Remove marketplace frontend       | Small   | Replace `public/` SPA with developer dashboard (balance, API keys, docs, tx history).       |
 | Remove `services` as public browse| Small   | Services become private contracts between agents, not browseable listings.                   |
 | Add `webhooks` table              | Small   | Schema migration in `src/db/schema.js`.                                                    |
 | Add `api_keys` table              | Small   | Support multiple keys per agent with scopes (read/write/admin).                             |
-| Rename branding                   | Trivial | "A2A Market" references become "A2A Pay" in server logs, health check, docs.               |
+| Rename branding                   | Trivial | "Arbitova" references become "Arbitova" in server logs, health check, docs.               |
 
 **What stays the same**: The entire escrow flow (`orders.js`), verification engine (`verify.js`), arbitration engine (`arbitrate.js`), reputation system (`agents.js:adjustReputation`), database schema pattern, auth middleware, deployment target (Render). The pivot is a **repositioning**, not a rewrite.
 
@@ -167,7 +167,7 @@ All endpoints under `/api/v1/`. Authentication via `X-API-Key` header unless mar
 
 ### 3.2 Contracts (formerly "Services")
 
-Services define the contract terms for a transaction. In A2A Pay, services are **private contracts** -- not public marketplace listings.
+Services define the contract terms for a transaction. In Arbitova, services are **private contracts** -- not public marketplace listings.
 
 | Method | Endpoint                        | Description                                          | Source file               |
 |--------|---------------------------------|------------------------------------------------------|---------------------------|
@@ -176,7 +176,7 @@ Services define the contract terms for a transaction. In A2A Pay, services are *
 | PUT    | `/services/:id`                 | Update contract terms.                               | `src/routes/services.js`  |
 | GET    | `/agents/:id/services`          | List contracts owned by an agent.                    | `src/routes/agents.js:101`|
 
-**Marketplace browse endpoints** (`GET /services` with filters) become **optional/deprecated**. Agent frameworks handle discovery; A2A Pay handles settlement.
+**Marketplace browse endpoints** (`GET /services` with filters) become **optional/deprecated**. Agent frameworks handle discovery; Arbitova handles settlement.
 
 ### 3.3 Transactions
 
@@ -286,16 +286,16 @@ Verification is embedded in the transaction flow, not a standalone endpoint. The
 
 ## Part 4: SDK Specification
 
-### 4.1 Node.js SDK -- `@a2a-pay/sdk`
+### 4.1 Node.js SDK -- `@arbitova/sdk`
 
-**Install**: `npm install @a2a-pay/sdk`
+**Install**: `npm install @arbitova/sdk`
 
 ```javascript
-const { A2APay } = require('@a2a-pay/sdk');
+const { Arbitova } = require('@arbitova/sdk');
 
-const client = new A2APay({
+const client = new Arbitova({
   apiKey: 'your-api-key',
-  baseUrl: 'https://api.a2apay.com/api/v1', // default
+  baseUrl: 'https://api.arbitova.com/api/v1', // default
 });
 ```
 
@@ -352,23 +352,23 @@ client.on('transaction.completed', (event) => {
 #### Constructor options
 
 ```javascript
-new A2APay({
+new Arbitova({
   apiKey: string,                    // required
-  baseUrl: string,                   // default: 'https://api.a2apay.com/api/v1'
+  baseUrl: string,                   // default: 'https://api.arbitova.com/api/v1'
   timeout: number,                   // request timeout in ms, default: 30000
   retries: number,                   // auto-retry on 5xx, default: 2
   webhookSecret: string,             // for verifying inbound webhook signatures
 });
 ```
 
-### 4.2 Python SDK -- `a2a-pay`
+### 4.2 Python SDK -- `arbitova`
 
-**Install**: `pip install a2a-pay`
+**Install**: `pip install arbitova`
 
 ```python
-from a2a_pay import A2APay
+from a2a_pay import Arbitova
 
-client = A2APay(api_key="your-api-key")
+client = Arbitova(api_key="your-api-key")
 
 # Escrow a transaction
 tx = client.escrow(
@@ -387,9 +387,9 @@ rep = client.get_reputation(agent_id="agent-uuid")
 
 ```python
 from langchain.tools import Tool
-from a2a_pay import A2APay
+from a2a_pay import Arbitova
 
-pay_client = A2APay(api_key="sk-...")
+pay_client = Arbitova(api_key="sk-...")
 
 a2a_pay_tool = Tool(
     name="a2a_pay",
@@ -429,12 +429,12 @@ agent.run("Hire an agent to summarize these 100 papers. Check their reputation f
 
 ```python
 from crewai.tools import BaseTool
-from a2a_pay import A2APay
+from a2a_pay import Arbitova
 
-pay_client = A2APay(api_key="sk-...")
+pay_client = Arbitova(api_key="sk-...")
 
-class A2APayTool(BaseTool):
-    name: str = "A2A Pay"
+class ArbitovaTool(BaseTool):
+    name: str = "Arbitova"
     description: str = (
         "Pay another AI agent to perform a task with escrow protection. "
         "Funds are locked until delivery passes automated verification."
@@ -473,7 +473,7 @@ class A2AReputationTool(BaseTool):
 ```
 +---------------------------------------------------------------------+
 |  +---------+                                                        |
-|  | A2A Pay |   Docs    Pricing    Dashboard              Login      |
+|  | Arbitova |   Docs    Pricing    Dashboard              Login      |
 |  +---------+                                                        |
 +---------------------------------------------------------------------+
 |                                                                      |
@@ -490,8 +490,8 @@ class A2AReputationTool(BaseTool):
 |  +-------------------------------------------------------------+    |
 |  |  // Pay another agent with 3 lines of code                  |    |
 |  |                                                              |    |
-|  |  const { A2APay } = require('@a2a-pay/sdk');                |    |
-|  |  const client = new A2APay({ apiKey: 'sk-...' });           |    |
+|  |  const { Arbitova } = require('@arbitova/sdk');                |    |
+|  |  const client = new Arbitova({ apiKey: 'sk-...' });           |    |
 |  |                                                              |    |
 |  |  const tx = await client.pay({                              |    |
 |  |    serviceId: 'summarize-docs-v2',                          |    |
@@ -524,7 +524,7 @@ class A2AReputationTool(BaseTool):
 |  +-------------+  +--------------+  +--------------+                |
 |                                                                      |
 +----------------------------------------------------------------------+
-|  "A2A Pay is like Stripe, but for AI agents.                        |
+|  "Arbitova is like Stripe, but for AI agents.                        |
 |   It handles the part humans can't -- verifying                     |
 |   that one AI actually did what another AI paid for."               |
 |                                                                      |
@@ -533,7 +533,7 @@ class A2AReputationTool(BaseTool):
 |                    +----------------------+                          |
 |                                                                      |
 |  ---------------------------------------------------------------    |
-|  A2A Pay  |  Docs  |  GitHub  |  Status       (c) 2026 A2A Pay     |
+|  Arbitova  |  Docs  |  GitHub  |  Status       (c) 2026 Arbitova     |
 +----------------------------------------------------------------------+
 ```
 
@@ -541,7 +541,7 @@ class A2AReputationTool(BaseTool):
 
 ```
 +---------------------------------------------------------------------+
-|  A2A Pay    Dashboard    Transactions    Docs    Settings            |
+|  Arbitova    Dashboard    Transactions    Docs    Settings            |
 +-----------+---------------------------------------------------------+
 |           |                                                          |
 |  Overview |   BALANCE          ESCROW LOCKED      REPUTATION         |
@@ -582,7 +582,7 @@ class A2AReputationTool(BaseTool):
 |           |                                                          |
 |           |   Quick Start (curl):                                    |
 |           |   +-------------------------------------------------+   |
-|           |   | curl -X POST https://api.a2apay.com/api/v1/     |   |
+|           |   | curl -X POST https://api.arbitova.com/api/v1/     |   |
 |           |   |   orders -H "X-API-Key: sk-****-a1b2"            |   |
 |           |   |   -d '{"service_id":"...","requirements":{}}'    |   |
 |           |   +-------------------------------------------------+   |
@@ -724,7 +724,7 @@ All tables are defined in `src/db/schema.js`. Dual-mode: PostgreSQL (production)
 
 #### Other existing tables
 
-| Table           | Purpose                                             | A2A Pay status     |
+| Table           | Purpose                                             | Arbitova status     |
 |-----------------|-----------------------------------------------------|--------------------|
 | `deposits`      | On-chain USDC deposit records                       | Keep               |
 | `withdrawals`   | Withdrawal requests + tx hashes                     | Keep               |
@@ -807,7 +807,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
 | Application server | Render      | Web Service, auto-deploy from Git                    |
 | Database (prod)    | Render / Railway | PostgreSQL, `DATABASE_URL` env var              |
 | Database (dev)     | Local       | SQLite file at `data/a2a.db`                         |
-| Domain             | TBD         | `api.a2apay.com` (CNAME to Render)                  |
+| Domain             | TBD         | `api.arbitova.com` (CNAME to Render)                  |
 | SSL                | Render      | Auto-provisioned Let's Encrypt                       |
 
 ### 7.2 Environment variables
@@ -897,14 +897,132 @@ src/
     telegram.js          -- Telegram bot (deprecated)
   [NEW] webhooks.js      -- Outbound webhook dispatcher (to build)
 
-sdk/                     -- (to build)
-  node/                  -- @a2a-pay/sdk
-    index.js
-    client.js
-    package.json
-  python/                -- a2a-pay PyPI package
-    a2a_pay/
-      __init__.py
-      client.py
-    pyproject.toml
+sdk/                     -- Node.js SDK (skeleton created)
+  index.js               -- Arbitova class, WebhooksAPI class
+  package.json           -- @arbitova/sdk, version 0.1.0
+scripts/
+  catalog.js             -- Demo service contracts for developer sandbox (NOT marketplace)
+  setup-catalog.js       -- Seeds demo contracts into a fresh database
+  seller-agent.js        -- Reference A2A seller agent implementation
+  e2e-test.js            -- End-to-end integration test
 ```
+
+---
+
+## Part 8: Execution Roadmap (Stripe Model)
+
+### Strategic positioning
+
+Arbitova follows the **Stripe model**, not the Visa model:
+
+| Visa model | Stripe model |
+|---|---|
+| Define an open protocol, give up control, build governance coalition | Build a product so good developers choose it by default |
+| Long-term play (decades) | Medium-term play (2-5 years) |
+| Requires industry coordination | Requires only developer love |
+| Competitive moat: network effects + standards | Competitive moat: developer experience + reliability |
+
+**Current stage**: Building the product foundation. The goal of M1–M3 is to reach a state where a developer can open the docs, run a transaction, and integrate Arbitova into their agent — without asking anyone for help. That is the Stripe benchmark.
+
+---
+
+### Milestone 1 — Infrastructure complete (target: Month 1)
+
+Goal: every API endpoint exists, versioned, and behaves predictably.
+
+| Task | Status | Notes |
+|---|---|---|
+| `/api/v1/` route prefix | Done | Legacy routes kept as aliases |
+| SDK skeleton (`sdk/index.js`) | Done | `Arbitova` class, all core methods |
+| Webhook outbound system | Not started | `src/webhooks.js` + `webhooks` table + retry queue |
+| Multiple API keys per agent | Not started | `api_keys` table, `POST /api/v1/api-keys` |
+| Transaction timeline endpoint | Not started | `GET /api/v1/transactions/:id/timeline` |
+| Health endpoint with version | Done | `GET /api/v1/health` |
+| Branding: rename all "Arbitova" → platform name | Partially done | `src/server.js` log message still says "Arbitova" |
+
+**Exit criterion**: Every endpoint listed in Part 3 exists and returns correct responses.
+
+---
+
+### Milestone 2 — Developer can self-onboard (target: Month 2)
+
+Goal: a developer reads the docs, runs their first transaction, without help.
+
+| Task | Status | Notes |
+|---|---|---|
+| Publish `@arbitova/sdk` to npm | Not started | `npm publish` from `sdk/` folder |
+| Quickstart guide page | Not started | Register → create contract → place order → deliver → confirm (5 min flow) |
+| API Reference page | Not started | Every endpoint: method, path, params, example request, example response |
+| Error codes standardized | Not started | Each error has a `code` field (e.g. `insufficient_balance`, `contract_not_found`) |
+| Sandbox / test mode documented | Not started | Document mock mode (no real money, 100 USDC auto-credited on register) |
+| `GET /api/v1/` returns API overview | Not started | List of available endpoints + version info |
+
+**Exit criterion**: A developer with no prior knowledge can complete a full escrow transaction in under 15 minutes using only the docs.
+
+---
+
+### Milestone 3 — Trust signals (target: Month 3)
+
+Goal: a developer who finds Arbitova for the first time trusts it enough to integrate.
+
+| Task | Status | Notes |
+|---|---|---|
+| Custom domain (`api.arbitova.com`) | Not started | CNAME to Render, SSL auto-provisioned |
+| Webhook signature verification | Not started | `X-Arbitova-Signature` header, HMAC-SHA256 |
+| Rate limit headers | Not started | `X-RateLimit-Remaining`, `X-RateLimit-Reset` in all responses |
+| Status page | Not started | Simple uptime indicator at `/status` or external (e.g. Betteruptime free tier) |
+| Python SDK (`arbitova` on PyPI) | Not started | Thin `httpx`-based wrapper, mirrors Node SDK API |
+
+**Exit criterion**: A developer comparing Arbitova to a competitor sees professional infrastructure, not a side project.
+
+---
+
+### Milestone 4 — First real customer (ongoing from Month 1)
+
+Goal: one developer or team runs real transactions with real money through Arbitova.
+
+This is the most important milestone and cannot be built — it must be found.
+
+**What "real" means**:
+- Real API key (not mock mode)
+- Real USDC or fiat payment flowing
+- At least one completed transaction per week
+
+**How to find them**:
+- Developer communities where agent frameworks are discussed (LangChain Discord, CrewAI Discord, Hugging Face forums)
+- AI hackathons — offer Arbitova as the payment layer for teams building multi-agent systems
+- Direct outreach to developers building agent pipelines on GitHub
+
+**What to offer them**:
+- Free usage for first 3 months (waive 2.5% fee)
+- Direct support (fast response to any integration issues)
+- Their logo on the website as a design partner
+
+**Exit criterion**: One developer sends a message saying "it works, I'm using it in production."
+
+---
+
+### Build order (week-by-week)
+
+```
+Week 1–2:   Webhook system (src/webhooks.js + DB tables + retry logic)
+Week 3:     Publish SDK to npm + write Quickstart page
+Week 4:     Error code standardization + API overview endpoint
+Week 5–6:   Developer docs (Quickstart + API Reference)
+Week 7:     Custom domain + webhook signature verification
+Week 8:     Python SDK
+Week 9+:    Iterate based on first customer feedback
+```
+
+---
+
+### What NOT to build right now
+
+These are explicitly deferred until after M4 (first real customer):
+
+- Python SDK LangChain/CrewAI integration (build after Python SDK exists)
+- Governance / open protocol / DAO structure (Visa model — only relevant at scale)
+- Mobile app or consumer-facing UI
+- Enterprise tier / SLA contracts
+- Blockchain settlement layer beyond current Base L2 setup
+- Multi-currency support beyond USDC

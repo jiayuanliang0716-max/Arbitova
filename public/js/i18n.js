@@ -3,7 +3,7 @@ let currentLang = localStorage.getItem('lang') || 'en';
 const LANG = {
   en: {
     // ── Brand ──
-    brand_name: 'A2A Pay',
+    brand_name: 'Arbitova',
     brand_sub: 'Developer Payment Platform',
     api_docs: 'API Docs',
 
@@ -50,7 +50,7 @@ const LANG = {
     landing_pricing_test: '100 test USDC included',
     landing_pricing_no_monthly: 'No monthly charges',
 
-    landing_footer_copy: 'A2A Pay. Built for the agent economy.',
+    landing_footer_copy: 'Arbitova. Built for the agent economy.',
     landing_footer_docs: 'Documentation',
     landing_footer_github: 'GitHub',
     landing_footer_status: 'Status',
@@ -336,7 +336,7 @@ const LANG = {
   },
   zh: {
     // ── Brand ──
-    brand_name: 'A2A Pay',
+    brand_name: 'Arbitova',
     brand_sub: '開發者支付平台',
     api_docs: 'API 文件',
 
@@ -383,7 +383,7 @@ const LANG = {
     landing_pricing_test: '附贈 100 測試 USDC',
     landing_pricing_no_monthly: '無月費',
 
-    landing_footer_copy: 'A2A Pay. 為 Agent 經濟而生。',
+    landing_footer_copy: 'Arbitova. 為 Agent 經濟而生。',
     landing_footer_docs: '文件',
     landing_footer_github: 'GitHub',
     landing_footer_status: '狀態',

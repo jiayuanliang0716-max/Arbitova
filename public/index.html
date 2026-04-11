@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A2A Pay — Trust Infrastructure for the Agent Economy</title>
+  <title>Arbitova — Trust Infrastructure for the Agent Economy</title>
 
   <!-- SEO Meta Tags -->
-  <meta name="description" content="A2A Pay — Escrow, auto-verification, AI arbitration. One SDK for agent-to-agent payments.">
-  <meta name="keywords" content="A2A Pay, agent payments, AI escrow, agent economy, SDK, API, developer platform">
-  <meta property="og:title" content="A2A Pay — Trust Infrastructure for the Agent Economy">
+  <meta name="description" content="Arbitova — Escrow, auto-verification, AI arbitration. One SDK for agent-to-agent payments.">
+  <meta name="keywords" content="Arbitova, agent payments, AI escrow, agent economy, SDK, API, developer platform">
+  <meta property="og:title" content="Arbitova — Trust Infrastructure for the Agent Economy">
   <meta property="og:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://a2a-system.onrender.com">
-  <meta property="og:site_name" content="A2A Pay">
+  <meta property="og:site_name" content="Arbitova">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="A2A Pay — Trust Infrastructure for the Agent Economy">
+  <meta name="twitter:title" content="Arbitova — Trust Infrastructure for the Agent Economy">
   <meta name="twitter:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
 
   <!-- PWA Meta Tags -->
@@ -56,7 +56,7 @@
   <nav class="landing-nav" role="navigation" aria-label="Main navigation">
     <div class="landing-nav-inner">
       <div class="landing-nav-left">
-        <a href="/" class="landing-logo" aria-label="A2A Pay home">
+        <a href="/" class="landing-logo" aria-label="Arbitova home">
           <span class="landing-logo-mark" aria-hidden="true">A2A</span>
           <span class="landing-logo-text">Pay</span>
         </a>
@@ -96,8 +96,8 @@
           <span class="code-window-title">quickstart.js</span>
         </div>
         <pre class="code-block"><code><span class="code-comment">// Pay another agent with 3 lines of code</span>
-<span class="code-keyword">const</span> { <span class="code-type">A2APay</span> } = <span class="code-fn">require</span>(<span class="code-string">'@a2a-pay/sdk'</span>);
-<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">A2APay</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'sk-...'</span> });
+<span class="code-keyword">const</span> { <span class="code-type">Arbitova</span> } = <span class="code-fn">require</span>(<span class="code-string">'@arbitova/sdk'</span>);
+<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">Arbitova</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'sk-...'</span> });
 
 <span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
   <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
@@ -170,7 +170,7 @@
   <section class="quote-section" aria-label="Testimonial">
     <div class="quote-inner">
       <blockquote class="quote-block">
-        <p class="quote-text" data-i18n="quote_text">&ldquo;A2A Pay is like Stripe, but for AI agents.&rdquo;</p>
+        <p class="quote-text" data-i18n="quote_text">&ldquo;Arbitova is like Stripe, but for AI agents.&rdquo;</p>
       </blockquote>
     </div>
   </section>
@@ -188,7 +188,7 @@
   <footer class="landing-footer" role="contentinfo">
     <div class="landing-footer-inner">
       <div class="landing-footer-left">
-        <span class="landing-footer-brand">A2A Pay</span>
+        <span class="landing-footer-brand">Arbitova</span>
         <span class="landing-footer-copy" data-i18n="footer_copy">&copy; 2026</span>
       </div>
       <div class="landing-footer-links">
@@ -210,7 +210,7 @@
   <!-- Sidebar -->
   <aside class="dash-sidebar" role="navigation" aria-label="Dashboard navigation">
     <div class="dash-sidebar-header">
-      <a href="/" class="landing-logo" aria-label="A2A Pay home">
+      <a href="/" class="landing-logo" aria-label="Arbitova home">
         <span class="landing-logo-mark" aria-hidden="true">A2A</span>
         <span class="landing-logo-text">Pay</span>
       </a>
@@ -321,8 +321,8 @@
           <h3 data-i18n="dash_quickstart">Quick Start</h3>
         </div>
         <div class="dash-card-body">
-          <pre class="code-block code-block-sm"><code><span class="code-keyword">const</span> { <span class="code-type">A2APay</span> } = <span class="code-fn">require</span>(<span class="code-string">'@a2a-pay/sdk'</span>);
-<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">A2APay</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'YOUR_API_KEY'</span> });
+          <pre class="code-block code-block-sm"><code><span class="code-keyword">const</span> { <span class="code-type">Arbitova</span> } = <span class="code-fn">require</span>(<span class="code-string">'@arbitova/sdk'</span>);
+<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">Arbitova</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'YOUR_API_KEY'</span> });
 
 <span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
   <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
@@ -413,7 +413,7 @@
         </div>
         <div class="dash-card-body">
           <pre class="code-block code-block-sm"><code><span class="code-comment"># Create a payment</span>
-curl -X POST https://api.a2apay.com/v1/payments \
+curl -X POST https://api.arbitova.com/v1/payments \
   -H <span class="code-string">"Authorization: Bearer sk-..."</span> \
   -H <span class="code-string">"Content-Type: application/json"</span> \
   -d <span class="code-string">'{
@@ -543,7 +543,7 @@ curl -X POST https://api.a2apay.com/v1/payments \
         <div class="dash-card-body">
           <div class="dash-form-row dash-form-row-between">
             <div>
-              <strong data-i18n="dash_settings_signout_title">Sign out of A2A Pay</strong>
+              <strong data-i18n="dash_settings_signout_title">Sign out of Arbitova</strong>
               <p class="dash-text-muted" data-i18n="dash_settings_signout_desc">Clear your local session and credentials.</p>
             </div>
             <button class="btn btn-danger btn-sm" data-action="logout" data-i18n="dash_logout">Sign Out</button>

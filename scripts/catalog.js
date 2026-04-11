@@ -1,5 +1,7 @@
-// catalog.js — Comprehensive AI service catalog for A2A Market cold-start
-// 40 services across 8 categories
+// catalog.js — Demo service contracts for developer onboarding and sandbox testing
+// These are example contracts that show developers what A2A Pay contracts look like.
+// Run with: node scripts/setup-catalog.js
+// NOT for production market listing — A2A Pay is infrastructure, not a marketplace.
 
 const CATEGORIES = {
   FINANCE:     'Finance & Investment',

@@ -125,7 +125,21 @@ app.get('/api/mode', (req, res) => {
 // API Docs
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
-// Routes
+// Routes — v1 (canonical, SDK points here)
+const apiV1 = express.Router();
+apiV1.use('/agents', agentRoutes);
+apiV1.use('/services', serviceRoutes);
+apiV1.use('/orders', orderRoutes);
+apiV1.use('/subscriptions', subscriptionRoutes);
+apiV1.use('/withdrawals', withdrawalRoutes);
+apiV1.use('/messages', messageRoutes);
+apiV1.use('/files', fileRoutes);
+apiV1.use('/payments', paymentRoutes);
+apiV1.use('/reviews', reviewRoutes);
+apiV1.use('/admin', adminRoutes);
+app.use('/api/v1', apiV1);
+
+// Legacy routes — kept for backward compatibility with existing frontend
 app.use('/agents', agentRoutes);
 app.use('/services', serviceRoutes);
 app.use('/orders', orderRoutes);
@@ -141,7 +155,10 @@ app.use('/admin', adminRoutes);
 
 // 健康檢查
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', version: 'v1', timestamp: new Date().toISOString() });
+});
+app.get('/api/v1/health', (req, res) => {
+  res.json({ status: 'ok', version: 'v1', timestamp: new Date().toISOString() });
 });
 
 // 404 處理
@@ -238,7 +255,7 @@ cron.schedule('*/10 * * * *', async () => {
 });
 
 app.listen(PORT, () => {
-  console.log(`A2A System running on http://localhost:${PORT}`);
+  console.log(`Arbitova running on http://localhost:${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
 });
 

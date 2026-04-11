@@ -37,7 +37,7 @@ async function sendTelegram(message) {
 }
 
 async function notifyDecisionNeeded(issue, options, recommendation) {
-  const message = `🚨 *A2A System - 需要你決策*
+  const message = `🚨 *Arbitova - 需要你決策*
 
 *問題：*
 ${issue}
@@ -54,7 +54,7 @@ ${recommendation}
 }
 
 async function notifyProgress(summary) {
-  const message = `✅ *A2A System - 進度更新*
+  const message = `✅ *Arbitova - 進度更新*
 
 ${summary}`;
 
@@ -62,7 +62,7 @@ ${summary}`;
 }
 
 async function notifyError(error) {
-  const message = `❌ *A2A System - 發生錯誤*
+  const message = `❌ *Arbitova - 發生錯誤*
 
 ${error}
 
