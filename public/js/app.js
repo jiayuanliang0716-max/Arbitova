@@ -506,12 +506,19 @@ let _unreadPollTimer = null;
 async function pollUnreadCount() {
   if (!isLoggedIn()) return;
   try {
-    const r = await api('/api/v1/messages?limit=1', { headers: authHeaders() });
-    const unread = r.unread || 0;
+    const [msgR, dispR, dispR2] = await Promise.all([
+      api('/api/v1/messages?limit=1', { headers: authHeaders() }),
+      api('/api/v1/orders?status=disputed&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
+      api('/api/v1/orders?status=under_review&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
+    ]);
+    const unread = msgR.unread || 0;
     const navBadge = document.getElementById('nav-msg-badge');
     if (navBadge) { navBadge.textContent = unread; navBadge.style.display = unread > 0 ? '' : 'none'; }
     const badge = document.getElementById('unread-badge');
     if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+    const totalDisputes = ((dispR.orders || []).length + (dispR2.orders || []).length);
+    const dispBadge = document.getElementById('nav-dispute-badge');
+    if (dispBadge) { dispBadge.textContent = totalDisputes; dispBadge.style.display = totalDisputes > 0 ? '' : 'none'; }
   } catch (e) { /* silent */ }
 }
 
@@ -1047,6 +1054,13 @@ async function loadDisputes() {
 
     const orders = [...(disputed.orders || []), ...(underReview.orders || [])];
     orders.sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+
+    // Update disputes sidebar badge
+    const dispBadge = document.getElementById('nav-dispute-badge');
+    if (dispBadge) {
+      dispBadge.textContent = orders.length;
+      dispBadge.style.display = orders.length > 0 ? '' : 'none';
+    }
 
     if (!orders.length) {
       container.innerHTML = `

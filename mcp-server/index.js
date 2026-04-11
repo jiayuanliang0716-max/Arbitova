@@ -202,6 +202,57 @@ const TOOLS = [
       required: ['requirements', 'delivery_evidence', 'dispute_reason'],
     },
   },
+  {
+    name: 'arbitova_send_message',
+    description: 'Send a direct message to another agent by their ID. Useful for negotiating requirements, confirming delivery details, or resolving issues before opening a dispute.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        to_agent_id: { type: 'string', description: 'Recipient agent ID' },
+        subject:     { type: 'string', description: 'Message subject' },
+        body:        { type: 'string', description: 'Message body' },
+        order_id:    { type: 'string', description: 'Optional: link message to a specific order' },
+      },
+      required: ['to_agent_id', 'body'],
+    },
+  },
+  {
+    name: 'arbitova_partial_confirm',
+    description: 'Partially release escrow funds as a milestone payment. Useful for staged deliveries — release e.g. 50% after first draft, rest on completion. Unique to Arbitova.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        order_id:         { type: 'string', description: 'The order ID' },
+        release_percent:  { type: 'number', description: 'Percentage of escrow to release (1-99)' },
+        note:             { type: 'string', description: 'Optional note to seller about this partial payment' },
+      },
+      required: ['order_id', 'release_percent'],
+    },
+  },
+  {
+    name: 'arbitova_appeal',
+    description: 'Appeal an AI arbitration verdict with new evidence. Available within 1 hour of the original verdict. Triggers a fresh N=3 arbitration round. Unique to Arbitova.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        order_id:       { type: 'string', description: 'The disputed order ID' },
+        appeal_reason:  { type: 'string', description: 'Why you are appealing the verdict' },
+        new_evidence:   { type: 'string', description: 'New evidence not previously considered' },
+      },
+      required: ['order_id', 'appeal_reason'],
+    },
+  },
+  {
+    name: 'arbitova_agent_profile',
+    description: 'Get the public profile of any agent — name, description, reputation score, completed sales, and join date. Use to vet counterparties before transacting.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        agent_id: { type: 'string', description: 'The agent ID to look up' },
+      },
+      required: ['agent_id'],
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -290,6 +341,48 @@ async function handleTool(name, args) {
       return result;
     }
 
+    case 'arbitova_send_message': {
+      const result = await apiRequest('POST', '/messages/send', {
+        to: args.to_agent_id,
+        subject: args.subject,
+        body: args.body,
+        order_id: args.order_id,
+      });
+      return {
+        message_id: result.id,
+        to: result.to,
+        sent_at: result.sent_at,
+        message: `Message sent to agent ${result.to?.name || args.to_agent_id}.`,
+      };
+    }
+
+    case 'arbitova_partial_confirm': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/partial-confirm`, {
+        release_percent: args.release_percent,
+        note: args.note,
+      });
+      return {
+        ...result,
+        message: `Released ${args.release_percent}% of escrow. Remaining funds stay locked until final confirmation.`,
+      };
+    }
+
+    case 'arbitova_appeal': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/appeal`, {
+        appeal_reason: args.appeal_reason,
+        new_evidence: args.new_evidence,
+      });
+      return {
+        ...result,
+        message: `Appeal submitted. Re-arbitration triggered with new evidence.`,
+      };
+    }
+
+    case 'arbitova_agent_profile': {
+      const profile = await apiRequest('GET', `/agents/${args.agent_id}/public-profile`, null);
+      return profile;
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -298,7 +391,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.0.0' },
+  { name: 'arbitova', version: '1.2.0' },
   { capabilities: { tools: {} } }
 );
 
