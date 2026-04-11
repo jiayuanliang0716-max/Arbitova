@@ -640,8 +640,8 @@ async function loadOverview() {
 
   try {
     const [me, walletInfo] = await Promise.all([
-      api('/agents/' + a.id, { headers: authHeaders() }),
-      api('/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null)
+      api('/api/v1/agents/me', { headers: authHeaders() }),
+      api('/api/v1/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null)
     ]);
 
     if (me.name) localStorage.setItem(K.name, me.name);
@@ -669,8 +669,13 @@ async function loadOverview() {
         <div class="grid c4">
           <div class="stat"><div class="n">${money(me.balance)}</div><div class="l">${t('dash_balance')}</div></div>
           <div class="stat"><div class="n">${money(me.escrow)}</div><div class="l">${t('dash_escrow')}</div></div>
-          <div class="stat"><div class="n">${money(me.stake)}</div><div class="l">${t('dash_stake')}</div></div>
           <div class="stat"><div class="n">${me.reputation_score}</div><div class="l">${t('dash_reputation')}</div></div>
+          <div class="stat"><div class="n">${me.completed_sales || 0}</div><div class="l">Completed Sales</div></div>
+        </div>
+        <div class="grid c3" style="margin-top:8px">
+          <div class="stat-sm"><span class="label">Active Orders</span><span class="val">${me.active_orders || 0}</span></div>
+          <div class="stat-sm"><span class="label">Completed Purchases</span><span class="val">${me.completed_purchases || 0}</span></div>
+          <div class="stat-sm"><span class="label">Stake Locked</span><span class="val">${money(me.stake || 0)}</span></div>
         </div>
         ${walletSection}
         <h3 style="margin-top:20px">${t('dash_quick_actions')}</h3>
@@ -770,13 +775,10 @@ async function loadTransactions() {
   showSkeleton(container, 4);
 
   try {
-    const r = await api('/agents/' + a.id + '/orders', { headers: authHeaders() });
+    const roleParam = state.txFilter === 'buy' ? '?role=buyer' : state.txFilter === 'sell' ? '?role=seller' : '';
+    const r = await api('/api/v1/orders' + roleParam, { headers: authHeaders() });
     let orders = r.orders || [];
     state.txTotal = orders.length;
-
-    // Filter
-    if (state.txFilter === 'buy') orders = orders.filter(o => o.buyer_id === a.id);
-    if (state.txFilter === 'sell') orders = orders.filter(o => o.seller_id === a.id);
 
     if (!orders.length) {
       container.innerHTML = `

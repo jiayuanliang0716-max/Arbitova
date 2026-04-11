@@ -1920,3 +1920,55 @@ label {
     color: #000;
   }
 }
+
+/* ==========================================================================
+   STAT GRID — Overview dashboard stats
+   ========================================================================== */
+
+.grid { display: grid; gap: 12px; }
+.grid.c3 { grid-template-columns: repeat(3, 1fr); }
+.grid.c4 { grid-template-columns: repeat(4, 1fr); }
+
+.stat {
+  background: var(--bg-soft, #1a1a2e);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.stat .n {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary, #7c6fff);
+  margin-bottom: 4px;
+}
+.stat .l {
+  font-size: 12px;
+  color: var(--text-soft, #8888aa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.stat-sm {
+  background: var(--bg-soft, #1a1a2e);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.stat-sm .label {
+  font-size: 12px;
+  color: var(--text-soft, #8888aa);
+}
+.stat-sm .val {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #e0e0ff);
+}
+
+@media (max-width: 640px) {
+  .grid.c4 { grid-template-columns: repeat(2, 1fr); }
+  .grid.c3 { grid-template-columns: repeat(1, 1fr); }
+}
