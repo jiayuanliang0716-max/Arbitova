@@ -1,9 +1,9 @@
 // ================= i18n helpers =================
-function t(key) { return (LANG[currentLang] || LANG.en)[key] || key; }
+function t(key) { return (LANG[currentLang] || LANG.en)[key] || (LANG.en)[key] || null; }
 function applyTranslations() {
-  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('[data-i18n]').forEach(el => { const v = t(el.dataset.i18n); if (v != null) el.textContent = v; });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { const v = t(el.dataset.i18nHtml); if (v != null) el.innerHTML = v; });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const v = t(el.dataset.i18nPlaceholder); if (v != null) el.placeholder = v; });
   document.documentElement.lang = currentLang === 'zh' ? 'zh-Hant' : 'en';
   const lb = document.getElementById('langBtn');
   if (lb) lb.textContent = currentLang === 'en' ? '中' : 'EN';
