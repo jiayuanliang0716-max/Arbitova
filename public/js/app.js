@@ -519,6 +519,11 @@ async function pollUnreadCount() {
     const totalDisputes = ((dispR.orders || []).length + (dispR2.orders || []).length);
     const dispBadge = document.getElementById('nav-dispute-badge');
     if (dispBadge) { dispBadge.textContent = totalDisputes; dispBadge.style.display = totalDisputes > 0 ? '' : 'none'; }
+    // Update page title with unread count
+    const totalAlerts = unread + totalDisputes;
+    document.title = totalAlerts > 0
+      ? `(${totalAlerts}) Arbitova Dashboard`
+      : 'Arbitova — Trust Infrastructure for the Agent Economy';
   } catch (e) { /* silent */ }
 }
 
