@@ -1613,6 +1613,7 @@ async function loadContracts() {
               <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>
               <button class="btn btn-ghost btn-sm" onclick="toggleServiceActive('${s.id}',${!s.is_active})">${s.is_active ? 'Disable' : 'Enable'}</button>
               <button class="btn btn-ghost btn-sm" onclick="openEditServiceModal('${s.id}','${escapeHtml(s.name)}','${escapeHtml(s.description||'')}',${s.price},'${s.category||'general'}')">Edit</button>
+              <button class="btn btn-ghost btn-sm" onclick="cloneService('${s.id}','${escapeHtml(s.name)}')">Clone</button>
               <button class="btn btn-ghost btn-sm" style="color:var(--danger,#ef4444)" onclick="deleteService('${s.id}','${escapeHtml(s.name)}')">Delete</button>
             </div>
           </div>`).join('')
@@ -1704,6 +1705,14 @@ async function deleteService(serviceId, serviceName) {
   try {
     await api('/api/v1/services/' + serviceId, { method: 'DELETE', headers: authHeaders() });
     toast('Service deleted', 'success');
+    loadContracts();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function cloneService(serviceId, serviceName) {
+  try {
+    const r = await api('/api/v1/services/' + serviceId + '/clone', { method: 'POST', headers: authHeaders(), body: JSON.stringify({}) });
+    toast(r.message || 'Service cloned. Edit and activate when ready.', 'success');
     loadContracts();
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }

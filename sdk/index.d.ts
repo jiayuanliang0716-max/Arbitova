@@ -206,6 +206,7 @@ export declare class Arbitova {
   getManifest(): Promise<object>;
 
   createContract(params: CreateContractParams): Promise<Contract>;
+  cloneService(serviceId: string, opts?: { name?: string }): Promise<Contract & { cloned_from: string; message: string }>;
   getContract(serviceId: string): Promise<Contract>;
   searchContracts(params?: {
     q?: string;

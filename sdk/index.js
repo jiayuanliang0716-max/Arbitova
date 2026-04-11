@@ -141,6 +141,15 @@ class Arbitova {
     return this._request('GET', `/services/${serviceId}`);
   }
 
+  /**
+   * Clone an existing service (owner only). The clone starts inactive.
+   * @param {string} serviceId
+   * @param {{ name?: string }} [opts] - Optional override for clone name
+   */
+  async cloneService(serviceId, { name } = {}) {
+    return this._request('POST', `/services/${serviceId}/clone`, name ? { name } : {});
+  }
+
   /** Search for contracts. */
   async searchContracts({ q, category, market, maxPrice } = {}) {
     const qs = new URLSearchParams();

@@ -26,9 +26,14 @@ const EVENTS = {
   ORDER_COMPLETED:      'order.completed',
   ORDER_REFUNDED:       'order.refunded',
   ORDER_DISPUTED:       'order.disputed',
+  ORDER_CANCELLED:      'order.cancelled',
+  ORDER_TIP_RECEIVED:   'order.tip_received',
+  ORDER_DEADLINE_EXTENDED: 'order.deadline_extended',
   DISPUTE_RESOLVED:     'dispute.resolved',
+  DISPUTE_APPEALED:     'dispute.appealed',
   VERIFICATION_PASSED:  'verification.passed',
   VERIFICATION_FAILED:  'verification.failed',
+  MESSAGE_RECEIVED:     'message.received',
 };
 
 // Build HMAC-SHA256 signature for a payload string

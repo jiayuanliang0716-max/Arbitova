@@ -379,4 +379,31 @@ router.delete('/:id', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /services/:id/clone — duplicate a service (owner only), returns new service
+router.post('/:id/clone', requireApiKey, async (req, res, next) => {
+  try {
+    const svc = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [req.params.id]);
+    if (!svc) return res.status(404).json({ error: 'Service not found' });
+    if (svc.agent_id !== req.agent.id) return res.status(403).json({ error: 'Only the owner can clone this service' });
+
+    const newId = uuidv4();
+    const clonedName = (req.body.name || svc.name + ' (copy)').slice(0, 200);
+
+    await dbRun(
+      `INSERT INTO services (id, agent_id, name, description, price, category, delivery_hours,
+        market_type, auto_verify, semantic_verify, input_schema, output_schema, product_type,
+        is_active, created_at)
+       VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)},
+               ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, ${p(12)}, ${p(13)}, 0, ${p(14)})`,
+      [newId, req.agent.id, clonedName, svc.description, svc.price, svc.category,
+       svc.delivery_hours, svc.market_type, svc.auto_verify, svc.semantic_verify,
+       svc.input_schema, svc.output_schema, svc.product_type || 'ai_generated',
+       new Date().toISOString()]
+    );
+
+    const newService = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [newId]);
+    res.status(201).json({ ...newService, is_active: false, cloned_from: svc.id, message: `Service cloned. New ID: ${newId}. Edit and activate when ready.` });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
