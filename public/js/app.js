@@ -502,12 +502,29 @@ function showLanding() {
   loadLandingStats();
 }
 
+let _unreadPollTimer = null;
+async function pollUnreadCount() {
+  if (!isLoggedIn()) return;
+  try {
+    const r = await api('/api/v1/messages?limit=1', { headers: authHeaders() });
+    const unread = r.unread || 0;
+    const navBadge = document.getElementById('nav-msg-badge');
+    if (navBadge) { navBadge.textContent = unread; navBadge.style.display = unread > 0 ? '' : 'none'; }
+    const badge = document.getElementById('unread-badge');
+    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
+  } catch (e) { /* silent */ }
+}
+
 function showDashboard() {
   const landing = document.getElementById('landing');
   const dashboard = document.getElementById('dashboard');
   if (landing) landing.style.display = 'none';
   if (dashboard) dashboard.style.display = '';
   switchPanel('overview');
+  // Poll unread count every 60s while on dashboard
+  if (_unreadPollTimer) clearInterval(_unreadPollTimer);
+  _unreadPollTimer = setInterval(pollUnreadCount, 60000);
+  pollUnreadCount();
 }
 
 async function loadLandingStats() {
@@ -977,11 +994,17 @@ async function loadMessages() {
     const msgs = r.messages || [];
     const unread = r.unread || 0;
 
-    // Update unread badge in sidebar
+    // Update unread badge in panel header
     const badge = document.getElementById('unread-badge');
     if (badge) {
       badge.textContent = unread;
       badge.style.display = unread > 0 ? '' : 'none';
+    }
+    // Update unread badge in sidebar nav item
+    const navBadge = document.getElementById('nav-msg-badge');
+    if (navBadge) {
+      navBadge.textContent = unread;
+      navBadge.style.display = unread > 0 ? '' : 'none';
     }
 
     if (!msgs.length) {
@@ -1427,8 +1450,12 @@ async function loadSettings() {
           <span style="font-size:12px;color:var(--text-soft)">${t('dash_settings_agent_id')}</span>
           <div><code style="font-size:12px;color:var(--warn)">${me.id}</code></div>
         </div>
-        <div style="font-size:12px;color:var(--text-soft)">
+        <div style="font-size:12px;color:var(--text-soft);margin-bottom:12px">
           ${me.completed_sales || 0} ${t('dash_settings_sales')} &middot; ${me.completed_purchases || 0} ${t('dash_settings_purchases')}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <a href="/profile?id=${me.id}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">View Public Profile</a>
+          <a href="/badge?id=${me.id}" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">Get Badge</a>
         </div>
       </div>
 

@@ -83,6 +83,10 @@ app.use(rateLimit({
 // Static frontend (SPA — public/index.html is served at /)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+// Clean URL aliases for standalone pages
+app.get('/profile', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
+app.get('/badge', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
+
 // Stats endpoint — 30s in-memory cache to reduce DB load
 let statsCache = null;
 let statsCacheAt = 0;

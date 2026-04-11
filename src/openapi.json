@@ -239,6 +239,39 @@
         }
       }
     },
+    "/agents/{id}/public-profile": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Public agent profile",
+        "description": "Returns public-safe agent data (name, description, reputation, sales count, joined date) without sensitive fields like balance or API key. Used by the /profile page.",
+        "security": [],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Public agent profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id":                 { "type": "string" },
+                    "name":               { "type": "string" },
+                    "description":        { "type": "string" },
+                    "reputation_score":   { "type": "integer" },
+                    "completed_sales":    { "type": "integer" },
+                    "completed_purchases":{ "type": "integer" },
+                    "created_at":         { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "Agent not found" }
+        }
+      }
+    },
     "/agents/search": {
       "get": {
         "tags": ["Identity"],
@@ -419,6 +452,17 @@
     },
 
     "/services": {
+      "get": {
+        "tags": ["Contracts"],
+        "summary": "List active services",
+        "security": [],
+        "parameters": [
+          { "name": "agent_id", "in": "query", "schema": { "type": "string" }, "description": "Filter by seller agent ID" }
+        ],
+        "responses": {
+          "200": { "description": "List of active services" }
+        }
+      },
       "post": {
         "tags": ["Contracts"],
         "summary": "Publish a service",

@@ -98,17 +98,23 @@ router.post('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// GET /services — list all active services
+// GET /services — list all active services (optional ?agent_id= filter)
 router.get('/', async (req, res, next) => {
   try {
     const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+    const params = [];
+    let idx = 1;
+    let where = `WHERE ${activeCheck}`;
+    if (req.query.agent_id) {
+      where += ` AND s.agent_id = ${p(idx++)}`; params.push(req.query.agent_id);
+    }
     const services = await dbAll(
       `SELECT s.*, a.name as agent_name, COALESCE(a.reputation_score, 0) as seller_reputation
        FROM services s JOIN agents a ON s.agent_id = a.id
-       WHERE ${activeCheck}
+       ${where}
        ORDER BY COALESCE(a.reputation_score, 0) DESC, s.created_at DESC
        LIMIT 50`,
-      []
+      params
     );
     res.json({ count: services.length, services: services.map(s => ({ ...s, seller_reputation: parseInt(s.seller_reputation || 0) })) });
   } catch (err) { next(err); }

@@ -257,6 +257,31 @@ router.get('/:id/orders', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/public-profile — public, safe subset of agent data for profile pages
+router.get('/:id/public-profile', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score, created_at
+       FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+    const [sales, purchases] = await Promise.all([
+      dbGet(`SELECT COUNT(*) as c FROM orders WHERE seller_id = ${p(1)} AND status = 'completed'`, [req.params.id]),
+      dbGet(`SELECT COUNT(*) as c FROM orders WHERE buyer_id = ${p(1)} AND status = 'completed'`, [req.params.id]),
+    ]);
+    res.json({
+      id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      reputation_score: parseInt(agent.reputation_score || 0),
+      created_at: agent.created_at,
+      completed_sales: parseInt(sales?.c || 0),
+      completed_purchases: parseInt(purchases?.c || 0),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id
 router.get('/:id', requireApiKey, async (req, res, next) => {
   try {
