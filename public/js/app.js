@@ -634,6 +634,7 @@ function switchPanel(name) {
   // Load appropriate data
   if (name === 'overview') loadOverview();
   if (name === 'transactions') loadTransactions();
+  if (name === 'disputes') loadDisputes();
   if (name === 'apikeys') loadApiKeys();
   if (name === 'webhooks') loadWebhooks();
   if (name === 'contracts') loadContracts();
@@ -852,6 +853,100 @@ function filterTxStatus(status) {
   if (btn) btn.classList.add('active');
 
   loadTransactions();
+}
+
+// ================= Dashboard: Disputes =================
+
+async function loadDisputes() {
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  const container = document.getElementById('disputes-list');
+  if (!container) return;
+  showSkeleton(container, 3);
+
+  try {
+    // Fetch disputed + under_review orders
+    const [disputed, underReview] = await Promise.all([
+      api('/api/v1/orders?status=disputed&limit=50', { headers: authHeaders() }),
+      api('/api/v1/orders?status=under_review&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
+    ]);
+
+    const orders = [...(disputed.orders || []), ...(underReview.orders || [])];
+    orders.sort((x, y) => new Date(y.created_at) - new Date(x.created_at));
+
+    if (!orders.length) {
+      container.innerHTML = `
+        <div class="empty" style="text-align:center;padding:40px 0">
+          <h3>No active disputes</h3>
+          <p class="muted">Disputed orders will appear here.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = orders.map(o => {
+      const isBuyer = o.buyer_id === a.id;
+      const truncId = o.id ? o.id.slice(0, 8) + '...' : '';
+      const statusCls = statusBadgeClass(o.status);
+      const time = relativeTime(o.created_at);
+
+      return `<div class="order" style="cursor:pointer" onclick="openOrderDetail('${o.id}')">
+        <div class="top">
+          <div>
+            <div class="name" style="font-size:13px">
+              <code style="color:var(--text-soft);font-size:11px">${truncId}</code>
+              <span class="badge" style="font-size:10px;margin-left:6px">${isBuyer ? 'buyer' : 'seller'}</span>
+            </div>
+            <div class="role" style="font-size:11px;color:var(--text-soft)">${time ? time + ' &middot; ' : ''}${escapeHtml(o.service_name || '')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:600;font-size:14px">${money(o.amount)} USDC</div>
+            <span class="status-badge ${statusCls}">${statusLabel(o.status)}</span>
+          </div>
+        </div>
+        ${o.requirements ? `<div class="small" style="margin-top:4px;color:var(--text-soft)">${escapeHtml(String(o.requirements).slice(0, 80))}${String(o.requirements).length > 80 ? '...' : ''}</div>` : ''}
+        <div class="actions" style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          ${o.status === 'disputed' ? `<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();openArbitrateModal('${o.id}')">Run AI Arbitration</button>` : ''}
+          ${o.status === 'disputed' ? `<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();viewTransparencyReport('${o.id}')">Transparency Report</button>` : ''}
+          ${o.status === 'under_review' ? `<span style="font-size:11px;color:var(--warn);font-weight:600">Under human review</span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadDisputes);
+  }
+}
+
+async function viewTransparencyReport(orderId) {
+  try {
+    const r = await fetch('/api/v1/orders/' + orderId + '/dispute/transparency-report');
+    const data = await r.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+
+    const ai = data.ai_arbitration;
+    const votes = ai?.votes?.map(v => `${v.winner} (${Math.round(v.confidence * 100)}%)`).join(', ') || 'N/A';
+    const body = `
+      <h2 style="margin-bottom:16px">Transparency Report</h2>
+      <div style="font-size:13px;line-height:1.7">
+        <div><b>Order:</b> <code>${escapeHtml(data.order_id || '')}</code></div>
+        <div><b>Status:</b> ${escapeHtml(data.dispute?.status || '')}</div>
+        <div><b>Raised by:</b> ${escapeHtml(data.dispute?.raised_by || '')}</div>
+        <div style="margin-top:10px"><b>Dispute reason:</b></div>
+        <div style="color:var(--text-soft);margin-bottom:10px">${escapeHtml(data.dispute?.reason || '')}</div>
+        ${ai ? `
+        <div><b>AI Method:</b> ${escapeHtml(ai.method || '')}</div>
+        <div><b>Model:</b> ${escapeHtml(ai.model || '')}</div>
+        <div><b>Votes:</b> ${escapeHtml(votes)}</div>
+        <div><b>Avg confidence:</b> ${ai.avg_confidence ? Math.round(ai.avg_confidence * 100) + '%' : 'N/A'}</div>
+        <div style="margin-top:10px"><b>Reasoning:</b></div>
+        <div style="color:var(--text-soft)">${escapeHtml(ai.reasoning || '')}</div>
+        ` : '<div style="color:var(--text-soft)">No AI arbitration data yet.</div>'}
+        ${data.verdict ? `<div style="margin-top:12px;font-weight:700;color:var(--accent)">Verdict: ${escapeHtml(data.verdict.winner)} wins</div>` : ''}
+      </div>
+      <div style="margin-top:20px"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button></div>`;
+    openModal(body);
+  } catch (e) {
+    toast('Failed to load report: ' + e.message, 'error');
+  }
 }
 
 // ================= Dashboard: API Keys =================
