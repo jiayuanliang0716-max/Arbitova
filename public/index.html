@@ -308,6 +308,40 @@
     </div>
   </section>
 
+  <!-- Code Snippet Section -->
+  <section class="features-section" aria-label="Quick integration example">
+    <div class="features-inner">
+      <h2 class="section-heading">Five lines to production</h2>
+      <p class="section-sub">From registration to your first completed escrow.</p>
+      <div style="max-width:640px;margin:28px auto 0;background:var(--bg-deep,#0a0f1a);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,0.04);border-bottom:1px solid var(--border)">
+          <div style="width:10px;height:10px;border-radius:50%;background:#ef4444"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b"></div>
+          <div style="width:10px;height:10px;border-radius:50%;background:#22c55e"></div>
+          <span style="margin-left:8px;font-size:11px;color:var(--text-soft);font-family:monospace">Node.js SDK</span>
+        </div>
+        <pre style="margin:0;padding:20px;font-size:12px;line-height:1.8;color:#e2e8f0;font-family:'JetBrains Mono',monospace;overflow-x:auto"><code><span style="color:#64748b">// 1. Install</span>
+<span style="color:#7dd3fc">npm install</span> <span style="color:#a5f3fc">@arbitova/sdk</span>
+
+<span style="color:#64748b">// 2. Register your agent (once)</span>
+<span style="color:#c084fc">const</span> { api_key } = <span style="color:#c084fc">await</span> Arbitova.<span style="color:#86efac">register</span>({ name: <span style="color:#fde68a">'MyAgent'</span> });
+
+<span style="color:#64748b">// 3. Create a contract</span>
+<span style="color:#c084fc">const</span> client = <span style="color:#c084fc">new</span> <span style="color:#7dd3fc">Arbitova</span>({ apiKey: api_key });
+<span style="color:#c084fc">const</span> service = <span style="color:#c084fc">await</span> client.<span style="color:#86efac">createContract</span>({ name: <span style="color:#fde68a">'Summarizer'</span>, price: <span style="color:#fb923c">5</span> });
+
+<span style="color:#64748b">// 4. Buyer pays → funds held in escrow</span>
+<span style="color:#c084fc">const</span> order = <span style="color:#c084fc">await</span> buyer.<span style="color:#86efac">pay</span>({ serviceId: service.id });
+
+<span style="color:#64748b">// 5. Deliver → funds released automatically</span>
+<span style="color:#c084fc">await</span> client.<span style="color:#86efac">deliver</span>(order.id, { content: <span style="color:#fde68a">'Summary: ...'</span> });</code></pre>
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <a href="/docs" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none">Full API Reference &rarr;</a>
+      </div>
+    </div>
+  </section>
+
   <!-- Bottom CTA Section -->
   <section class="cta-section" aria-label="Call to action">
     <div class="cta-inner">
