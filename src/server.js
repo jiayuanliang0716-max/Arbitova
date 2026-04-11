@@ -500,7 +500,83 @@ apiV1.get('/manifest', (req, res) => {
         method: 'GET', path: '/agents/{agent_id}/reputation',
         parameters: {},
       },
+      {
+        name: 'partial_confirm',
+        description: 'Release a percentage of escrow as a milestone payment (buyer only).',
+        method: 'POST', path: '/orders/{order_id}/partial-confirm',
+        parameters: {
+          release_percent: { type: 'integer', minimum: 1, maximum: 99, required: true },
+          note: { type: 'string' },
+        },
+      },
+      {
+        name: 'appeal_verdict',
+        description: 'Re-arbitrate a disputed order with new evidence (within 1 hour of verdict).',
+        method: 'POST', path: '/orders/{order_id}/appeal',
+        parameters: {
+          appeal_reason: { type: 'string', required: true },
+          new_evidence: { type: 'string' },
+        },
+      },
+      {
+        name: 'cancel_order',
+        description: 'Buyer cancels a paid order for a full refund (before delivery).',
+        method: 'POST', path: '/orders/{order_id}/cancel',
+        parameters: {},
+      },
+      {
+        name: 'extend_deadline',
+        description: 'Buyer extends the order deadline by adding hours.',
+        method: 'POST', path: '/orders/{order_id}/extend-deadline',
+        parameters: { hours: { type: 'integer', minimum: 1, maximum: 720, required: true } },
+      },
+      {
+        name: 'get_notifications',
+        description: 'Get recent notifications: new orders, deliveries, messages, disputes.',
+        method: 'GET', path: '/notifications',
+        parameters: { limit: { type: 'integer', default: 20 } },
+      },
+      {
+        name: 'get_order_stats',
+        description: 'Get order count, volume, and pending action summary for the authenticated agent.',
+        method: 'GET', path: '/orders/stats',
+        parameters: {},
+      },
+      {
+        name: 'send_message',
+        description: 'Send a direct message to another agent, optionally linking an order.',
+        method: 'POST', path: '/messages/send',
+        parameters: {
+          to: { type: 'string', required: true },
+          subject: { type: 'string' },
+          body: { type: 'string', required: true },
+          order_id: { type: 'string' },
+        },
+      },
+      {
+        name: 'get_public_profile',
+        description: 'Get the public profile of any agent — name, reputation, sales count.',
+        method: 'GET', path: '/agents/{agent_id}/public-profile',
+        parameters: {},
+      },
+      {
+        name: 'escrow_check',
+        description: 'Pre-flight check: verify buyer balance and service availability before placing an order.',
+        method: 'POST', path: '/orders/escrow-check',
+        parameters: { service_id: { type: 'string', required: true } },
+      },
+      {
+        name: 'get_pricing',
+        description: 'Get platform fee schedule (no auth required).',
+        method: 'GET', path: '/pricing',
+        parameters: {},
+      },
     ],
+    tool_count: 23,
+    sdk: {
+      nodejs: { package: '@arbitova/sdk', version: '0.5.0', npm: 'https://www.npmjs.com/package/@arbitova/sdk' },
+      mcp: { package: '@arbitova/mcp-server', version: '1.3.0', npm: 'https://www.npmjs.com/package/@arbitova/mcp-server' },
+    },
   });
 });
 
@@ -517,8 +593,12 @@ apiV1.get('/', (req, res) => {
       contracts:     ['POST /services', 'GET /services/:id', 'PUT /services/:id', 'GET /services (search)', 'GET /agents/:id/services'],
       transactions:  [
         'GET /orders', 'POST /orders', 'GET /orders/:id',
+        'GET /orders/stats', 'GET /orders/:id/receipt',
+        'POST /orders/escrow-check',
+        'PATCH /orders/:id/requirements',
         'POST /orders/:id/deliver', 'POST /orders/:id/confirm',
-        'POST /orders/:id/partial-confirm',
+        'POST /orders/:id/partial-confirm', 'POST /orders/:id/cancel',
+        'POST /orders/:id/extend-deadline',
         'POST /orders/:id/dispute', 'POST /orders/:id/auto-arbitrate',
         'POST /orders/:id/appeal',
         'POST /orders/batch-arbitrate',
@@ -527,6 +607,8 @@ apiV1.get('/', (req, res) => {
         'POST /orders/bundle', 'GET /orders/bundle/:id',
         'POST /orders/:id/subdelegate',
       ],
+      analytics:     ['GET /analytics', 'GET /services/:id/analytics'],
+      notifications: ['GET /notifications'],
       funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance', 'GET /agents/:id/wallet'],
       webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id', 'POST /webhooks/:id/test', 'GET /webhooks/:id/deliveries'],
       api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],

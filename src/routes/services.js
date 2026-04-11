@@ -300,6 +300,64 @@ router.patch('/:id', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /services/:id/analytics — per-service stats (owner only)
+router.get('/:id/analytics', requireApiKey, async (req, res, next) => {
+  try {
+    const service = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [req.params.id]);
+    if (!service) return res.status(404).json({ error: 'Service not found' });
+    if (service.agent_id !== req.agent.id) return res.status(403).json({ error: 'Not your service' });
+
+    const [orders, reviews, dailyRevenue] = await Promise.all([
+      dbAll(
+        `SELECT status, COUNT(*) as cnt, COALESCE(SUM(amount), 0) as vol
+         FROM orders WHERE service_id = ${p(1)} GROUP BY status`,
+        [service.id]
+      ),
+      dbAll(
+        `SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE service_id = ${p(1)}`,
+        [service.id]
+      ),
+      dbAll(
+        `SELECT ${isPostgres ? "DATE_TRUNC('day', completed_at)" : "DATE(completed_at)"} as day,
+                COUNT(*) as cnt, COALESCE(SUM(amount * 0.995), 0) as rev
+         FROM orders WHERE service_id = ${p(1)} AND status = 'completed'
+           AND completed_at >= ${isPostgres ? "NOW() - INTERVAL '30 days'" : "datetime('now', '-30 days')"}
+         GROUP BY 1 ORDER BY 1`,
+        [service.id]
+      ),
+    ]);
+
+    const byStatus = {};
+    let total = 0;
+    let totalRevenue = 0;
+    for (const r of orders) {
+      byStatus[r.status] = { count: parseInt(r.cnt), volume: parseFloat(r.vol) };
+      total += parseInt(r.cnt);
+      if (r.status === 'completed') totalRevenue = parseFloat(r.vol) * 0.995;
+    }
+
+    res.json({
+      service_id: service.id,
+      service_name: service.name,
+      price: parseFloat(service.price),
+      is_active: !!service.is_active,
+      totals: {
+        orders: total,
+        completed: byStatus['completed']?.count || 0,
+        revenue_net: totalRevenue,
+        avg_rating: parseFloat(reviews[0]?.avg_rating || 0).toFixed(2),
+        review_count: parseInt(reviews[0]?.count || 0),
+      },
+      by_status: byStatus,
+      daily_revenue_30d: dailyRevenue.map(r => ({
+        day: r.day,
+        orders: parseInt(r.cnt),
+        revenue: parseFloat(r.rev),
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
 // DELETE /services/:id — owner only, only if no active orders
 router.delete('/:id', requireApiKey, async (req, res, next) => {
   try {
