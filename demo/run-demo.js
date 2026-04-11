@@ -73,7 +73,12 @@ async function main() {
   }, seller.api_key);
   log('✅', 'Service published', { id: service.id, price: service.price });
 
-  // 4. Buyer places order (funds locked in escrow)
+  // 4. Top up buyer balance (test only)
+  log('💳', 'Topping up buyer balance (test mode)...');
+  await api('POST', '/agents/topup', { amount: 50 }, buyer.api_key);
+  log('✅', 'Buyer topped up with 50 units');
+
+  // 5. Buyer places order (funds locked in escrow)
   log('🔒', 'Buyer placing order (funds → escrow)...');
   const order = await api('POST', '/orders', {
     service_id: service.id,
@@ -119,7 +124,8 @@ async function main() {
   // 9. Get timeline
   log('📜', 'Transaction timeline...');
   const timeline = await api('GET', `/orders/${order.id}/timeline`, null, buyer.api_key);
-  timeline.events.forEach(e => {
+  const events = timeline.events || timeline || [];
+  events.forEach(e => {
     console.log(`    [${e.timestamp}] ${e.event}`);
   });
 
