@@ -1,101 +1,82 @@
 # 專案進度記錄
 
 ## 狀態
-- 最後更新：2026-04-10
-- 當前階段：Phase 2 完成（AI 仲裁架構 / 跨 Agent 子委託 / 訂閱式計費）
-- 完成度：Phase 1 100%，Phase 1.5 100%，Phase 2 100%
+- 最後更新：2026-04-11
+- 當前階段：Phase 3 — 上線推廣中
+- 完成度：Phase 1 100%，Phase 1.5 100%，Phase 2 100%，Phase 3 進行中
 
 ## 已完成
 ### 基礎建設
 - Telegram 雙向通訊整合（通知 + 指令接收）
 - Node.js + Express API 伺服器
 - SQLite（本機）/ PostgreSQL（雲端）雙模式資料庫
-- 7 張資料表：agents、services、orders、deliveries、disputes、reputation_history、order_bundles
-- Swagger API Docs（/docs）
 - 部署至 Render：https://a2a-system.onrender.com
+- 網域：www.arbitova.com
 
 ### 核心交易
 - Agent 註冊 + API key 認證
-- 服務上架 / 搜尋市場 / 排序（reputation / price / newest）
+- 服務上架 / 搜尋市場
 - 下單 + Escrow 鎖定資金
 - 交付 + 確認 + 釋放款項（2.5% 平台手續費）
-- 爭議機制（凍結資金，等待仲裁）
-- 平台仲裁 API：POST /orders/:id/resolve-dispute（需 ADMIN_KEY header，會扣信用+沒收質押）
+- 爭議機制 + AI 仲裁（N=3 majority voting）
+- 人類升級仲裁 queue
 
-### 信用評分
-- agents.reputation_score 欄位
-- 買家確認交易 / 自動驗收通過 → 賣家 +10
-- 自動驗收失敗 / 爭議敗訴 → -20
-- reputation_history 表完整紀錄
-- GET /agents/:id/reputation、GET /agents/leaderboard
+### 平台收益系統（2026-04-11 新增）
+- platform_revenue 表追蹤累積手續費
+- 訂單確認時自動將 2.5% 記入平台帳戶
+- GET /api/v1/admin/payout-status：查看累積餘額
+- POST /api/v1/admin/payout：提款到 OWNER_WALLET_ADDRESS
+- 平台錢包：0x694824F2c2E12301C3f4F1c650c58480FcAeEe45
+- 收款錢包：0x714AF4eA69f1a1824B89A646C0a62bCfd2dF73cf（已設為預設）
 
-### 結構化契約 + 自動驗收（Step 1）
-- services 加欄位：input_schema、output_schema、verification_rules、auto_verify
-- src/verify.js：Ajv JSON Schema 驗證 + 規則引擎（required/min_length/max_length/contains/regex/equals/min_items）
-- POST /orders：下單時驗證 requirements 是否符合 input_schema
-- POST /orders/:id/deliver：
-  - 驗證 output_schema + verification_rules
-  - auto_verify=true 且通過 → 自動放款、信用 +10
-  - 驗收失敗 → 自動退款、信用 -20
-- 完全向後相容：未宣告契約的服務走原流程
+### x402 付款協議（2026-04-11）
+- x402-express 整合完成
+- GET /api/v1/x402/services：付 $0.001 USDC 搜尋市場
+- POST /api/v1/x402/topup：付 $1.00 USDC 充值 Arbitova 餘額
+- GET /api/v1/x402/info：免費查詢付款資訊
+- 已切換到 Base Mainnet（CHAIN=base）
 
-### Capability-based Discovery（Step 2）
-- POST /services/discover：吃 { input_like, output_like, max_price, limit }
-- 評分：輸入 schema 相容度 × 輸出欄位涵蓋度 × 賣家信用
-- 回傳 ranked matches 含 match_score / match_reasons
+### Google A2A Protocol v0.2
+- GET /.well-known/agent.json：Agent card，9 個技能
+- POST /tasks/send：接受 A2A 任務指派
 
-### Stake-based 冷啟動信任（Step 3）
-- agents.stake 欄位
-- POST /agents/stake、POST /agents/unstake
-- services.min_seller_stake 門檻
-- 爭議敗訴自動沒收質押（上限 = 訂單金額）轉給勝訴方
+### Moltbook 推廣（2026-04-11）
+- 帳號：@arbitova（Active，已認證）
+- 所有者：@JohnnyLiang0716（X 帳號驗證）
+- 已發文：m/introductions、m/agentfinance
+- karma：4，follower：1
+- 互動：回覆 big-pickle（MoltBank 合作）、concordiumagent（x402 討論）、labelslab（實體商品）
 
-### 組合下單 Bundle（Step 4）
-- order_bundles 表 + orders.bundle_id
-- POST /orders/bundle：原子性下多單（全部成功或全部回滾）
-- 每項自動跑 input 驗證與 stake 門檻
-- GET /orders/bundle/:id：看 bundle 狀態 + 所有子訂單，全部完成自動 settle
+### 前端儀表板
+- 完整 Dashboard：Overview、Transactions、API Keys、Webhooks、Contracts、Settings
+- Webhook 管理：列表、建立、刪除
+- Contract 管理：列表、建立服務
 
-### 人類友善中文介面（Step 5）
-- 完整重寫 public/index.html 為繁體中文介面
-- 首頁引導、新手 onboarding modal、概念說明卡片
-- 11 個分頁：首頁 / 註冊 / 我的帳戶 / 市場 / 智慧配對 / 發布 / 訂單 / 組合下單 / 排行榜 / 說明 / 設定
-- 我的帳戶：餘額、託管、質押、信用分視覺化 + 質押/儲值/信用歷史 modal
-- 發布服務：進階模式支援結構化契約輸入（JSON editor）
-- 訂單詳情：時間軸進度視圖 + 交付/確認/爭議 modal
-- 組合下單：互動式 bundle builder
-- 智慧配對：人類可讀的 discover UI
-- 完整說明/FAQ 頁，解釋所有概念（Agent、託管、信用、契約、質押、bundle、配對）
-- Toast 通知系統取代 alert、modal 對話框取代 prompt
-- 狀態徽章全中文（已付款·託管中 / 已交付·待確認 / 已完成 / 爭議中 / 已退款）
+### Telegram 通知
+- TELEGRAM_TOKEN、TELEGRAM_CHAT_ID 已設定
+- Chat ID：1836362757（@zaco1125）
+- 有新交易/爭議時自動通知
 
-### 測試
-- test/simulate.js：7 步驟端對端交易（legacy）
-- test/contract.js：15 個 assertion（契約驗證 + discover）
-- test/stake_bundle.js：16 個 assertion（質押 + bundle 原子性）
-- 全部通過
-
-### Phase 2 新功能
-- AI 仲裁（Claude Haiku）：架構完成，等 ANTHROPIC_API_KEY 加入 Render 環境變數即啟用
-- 跨 Agent 子委託：POST /orders/:id/subdelegate，委託鏈 parent_order_id 追蹤
-- 訂閱式計費：services 加 sub_price/sub_interval，/subscriptions CRUD，/process-billing cron 端點
-
-## 進行中
-（無）
+## 環境變數（Render）
+- DATABASE_URL：Supabase PostgreSQL
+- ADMIN_KEY：a2a-admin-2026
+- TELEGRAM_TOKEN：已設定
+- TELEGRAM_CHAT_ID：1836362757
+- CHAIN：base（主網）
+- OWNER_WALLET_ADDRESS：0x714AF4eA69f1a1824B89A646C0a62bCfd2dF73cf
+- ALCHEMY_API_KEY：已設定
 
 ## 待完成
-- Phase 3：真實 USDC 支付（Coinbase AgentKit）
-- API 金鑰 rotation
-- 爭議自動仲裁啟用（加 ANTHROPIC_API_KEY 到 Render）
+- x402 真實 USDC 測試（需要約 $1 USDC 在 Base Mainnet 平台錢包）
+- Moltbook 持續發文累積曝光
+- 找第一個真實用戶
+- LemonSqueezy 切換 live mode（人類訂閱方案，非急迫）
+
+## Moltbook API Key
+- moltbook_sk_zWtspypi3RX0dtrJ4wy1537qDQNzvkU_（勿公開）
 
 ## 技術細節
 - Repo：https://github.com/jiayuanliang0716-max/a2a-system
-- 資料庫：Supabase PostgreSQL（Session Pooler）
+- 資料庫：Supabase PostgreSQL
 - 部署：Render.com
 - 本機：SQLite，資料在 data/a2a.db
-
-## 遇到的問題和解決方式
-- auth.js 雙查詢 bug（$1 || ?）→ 改為根據 db.type 選擇 SQL 語法
-- SQLite dbTransaction 不支援 async → 改為直接傳入 tx 物件
-- Render IPv6 連線失敗 → 改用 Supabase Session Pooler URL
-- Render DATABASE_URL 換行問題 → 重新貼入完整一行

@@ -124,7 +124,7 @@ async function main() {
   // 9. Get timeline
   log('📜', 'Transaction timeline...');
   const timeline = await api('GET', `/orders/${order.id}/timeline`, null, buyer.api_key);
-  const events = timeline.events || timeline || [];
+  const events = Array.isArray(timeline) ? timeline : Array.isArray(timeline?.events) ? timeline.events : [];
   events.forEach(e => {
     console.log(`    [${e.timestamp}] ${e.event}`);
   });
