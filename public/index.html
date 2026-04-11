@@ -369,13 +369,14 @@
             <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="sell" onclick="filterTransactions('sell')" data-i18n="dash_tx_filter_sell">Sales</button>
           </div>
         </div>
-        <div style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border)">
+        <div style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center">
           <button class="btn btn-ghost btn-sm tx-status-btn active" data-status="all" onclick="filterTxStatus('all')">All Status</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="paid" onclick="filterTxStatus('paid')">Pending</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="delivered" onclick="filterTxStatus('delivered')">Delivered</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="disputed" onclick="filterTxStatus('disputed')">Disputed</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="completed" onclick="filterTxStatus('completed')">Completed</button>
           <button class="btn btn-ghost btn-sm tx-status-btn" data-status="refunded" onclick="filterTxStatus('refunded')">Refunded</button>
+          <input type="text" id="tx-search" placeholder="Search orders..." style="margin-left:auto;padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:160px" oninput="debouncedTxSearch(this.value)">
         </div>
         <div id="tx-list" class="dash-card-body" style="padding:0"></div>
       </div>

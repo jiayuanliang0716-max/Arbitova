@@ -20,7 +20,8 @@ function toggleLang() {
 // ================= State & Storage =================
 const API = '';
 const K = { id: 'a2a_agent_id', key: 'a2a_api_key', name: 'a2a_agent_name' };
-const state = { txPage: 1, txTotal: 0, txFilter: 'all', txStatus: 'all', activePanel: 'overview' };
+const state = { txPage: 1, txTotal: 0, txFilter: 'all', txStatus: 'all', txQuery: '', activePanel: 'overview' };
+let txSearchTimer;
 
 function getAuth() {
   return { id: localStorage.getItem(K.id), key: localStorage.getItem(K.key), name: localStorage.getItem(K.name) };
@@ -801,6 +802,7 @@ async function loadTransactions() {
     if (state.txFilter === 'buy') params.set('role', 'buyer');
     else if (state.txFilter === 'sell') params.set('role', 'seller');
     if (state.txStatus && state.txStatus !== 'all') params.set('status', state.txStatus);
+    if (state.txQuery && state.txQuery.trim()) params.set('q', state.txQuery.trim());
     params.set('limit', '200');
 
     const qs = params.toString() ? '?' + params.toString() : '';
@@ -853,6 +855,15 @@ function filterTxStatus(status) {
   if (btn) btn.classList.add('active');
 
   loadTransactions();
+}
+
+function debouncedTxSearch(val) {
+  clearTimeout(txSearchTimer);
+  txSearchTimer = setTimeout(() => {
+    state.txQuery = val;
+    state.txPage = 1;
+    loadTransactions();
+  }, 400);
 }
 
 // ================= Dashboard: Disputes =================
@@ -1027,7 +1038,10 @@ async function loadWebhooks() {
               <div style="font-size:13px;font-weight:600;word-break:break-all">${escapeHtml(h.url)}</div>
               <div style="font-size:11px;color:var(--text-soft);margin-top:2px">${(h.events||[]).join(', ') || 'all events'}</div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="deleteWebhook('${h.id}')">Delete</button>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" id="test-btn-${h.id}" onclick="testWebhook('${h.id}')">Test</button>
+              <button class="btn btn-ghost btn-sm" onclick="deleteWebhook('${h.id}')">Delete</button>
+            </div>
           </div>`).join('')
       : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No webhook endpoints yet</div>`;
 
@@ -1041,6 +1055,33 @@ async function loadWebhooks() {
       </div>`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadWebhooks);
+  }
+}
+
+async function testWebhook(id) {
+  const btn = document.getElementById('test-btn-' + id);
+  if (btn) btnLoading(btn, 'Sending...');
+  try {
+    const r = await api('/api/v1/webhooks/' + id + '/test', { method: 'POST', headers: authHeaders() });
+    if (btn) btnRestore(btn);
+    const statusColor = r.success ? 'var(--success)' : '#ef4444';
+    const statusText = r.success ? 'Success' : 'Failed';
+    openModal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2>Webhook Test Result</h2>
+      <div style="font-size:13px;line-height:1.8;margin-top:12px">
+        <div><b>URL:</b> <code style="word-break:break-all">${escapeHtml(r.url)}</code></div>
+        <div><b>Status:</b> <span style="color:${statusColor};font-weight:700">${statusText} (HTTP ${r.status_code || 'no response'})</span></div>
+        <div><b>Duration:</b> ${r.duration_ms}ms</div>
+        ${r.error ? `<div style="color:#ef4444;margin-top:6px"><b>Error:</b> ${escapeHtml(r.error)}</div>` : ''}
+        <div style="margin-top:12px"><b>Payload sent:</b></div>
+        <pre style="background:var(--bg-soft);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:11px;overflow-x:auto;margin-top:6px">${escapeHtml(JSON.stringify(r.payload, null, 2))}</pre>
+      </div>
+      <div style="margin-top:16px"><button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button></div>
+    `);
+  } catch (e) {
+    if (btn) btnRestore(btn);
+    toast('Test failed: ' + e.message, 'error');
   }
 }
 

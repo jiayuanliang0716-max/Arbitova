@@ -313,6 +313,37 @@
         }
       }
     },
+    "/webhooks/{id}/test": {
+      "post": {
+        "tags": ["Webhooks"],
+        "summary": "Send a test ping to a webhook endpoint",
+        "description": "Fires a synthetic `test.ping` event to your webhook URL and returns the HTTP status code and latency. Useful for verifying your endpoint is reachable and signature verification is working.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Test result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "webhook_id":  { "type": "string" },
+                    "url":         { "type": "string" },
+                    "status_code": { "type": "integer", "description": "HTTP response code from your endpoint" },
+                    "duration_ms": { "type": "integer" },
+                    "success":     { "type": "boolean" },
+                    "error":       { "type": "string", "nullable": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/webhooks/{id}/deliveries": {
       "get": {
         "tags": ["Webhooks"],
@@ -768,6 +799,7 @@
         "parameters": [
           { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["buyer", "seller"] }, "description": "Filter by role. Omit to get both." },
           { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "Filter by order status (paid, delivered, completed, disputed, refunded)" },
+          { "name": "q", "in": "query", "schema": { "type": "string" }, "description": "Keyword search — matches against requirements text and service name (LIKE %q%)" },
           { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 200 } },
           { "name": "offset", "in": "query", "schema": { "type": "integer", "default": 0 } }
         ],

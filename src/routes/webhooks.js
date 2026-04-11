@@ -98,6 +98,60 @@ router.delete('/:id', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── POST /api/v1/webhooks/:id/test ───────────────────────────────────────────
+// Fire a synthetic test event to a webhook URL and return the HTTP response.
+router.post('/:id/test', requireApiKey, async (req, res, next) => {
+  try {
+    const wh = await dbGet(
+      `SELECT id, url, secret FROM webhooks WHERE id = ${p(1)} AND agent_id = ${p(2)}`,
+      [req.params.id, req.agent.id]
+    );
+    if (!wh) return res.status(404).json({ error: 'Webhook not found' });
+
+    const payload = {
+      event: 'test.ping',
+      webhook_id: wh.id,
+      agent_id: req.agent.id,
+      timestamp: new Date().toISOString(),
+      data: { message: 'This is a test event from Arbitova.' },
+    };
+
+    const body = JSON.stringify(payload);
+    const sig  = crypto.createHmac('sha256', wh.secret).update(body).digest('hex');
+
+    const start = Date.now();
+    let status_code = null;
+    let error = null;
+    try {
+      const resp = await fetch(wh.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Arbitova-Signature': `sha256=${sig}`,
+          'X-Arbitova-Event': 'test.ping',
+        },
+        body,
+        signal: AbortSignal.timeout(10000),
+      });
+      status_code = resp.status;
+    } catch (e) {
+      error = e.message;
+    }
+    const duration_ms = Date.now() - start;
+
+    res.json({
+      webhook_id: wh.id,
+      url: wh.url,
+      event: 'test.ping',
+      status_code,
+      duration_ms,
+      success: status_code >= 200 && status_code < 300,
+      error: error || null,
+      payload,
+    });
+  } catch (err) { next(err); }
+});
+
 // ── GET /api/v1/webhooks/:id/deliveries ──────────────────────────────────────
 // View delivery history for a specific webhook (for debugging).
 router.get('/:id/deliveries', requireApiKey, async (req, res, next) => {

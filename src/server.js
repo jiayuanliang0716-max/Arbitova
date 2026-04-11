@@ -429,7 +429,7 @@ apiV1.get('/', (req, res) => {
         'POST /orders/:id/subdelegate',
       ],
       funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance', 'GET /agents/:id/wallet'],
-      webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id'],
+      webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id', 'POST /webhooks/:id/test', 'GET /webhooks/:id/deliveries'],
       api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],
       arbitration:   ['POST /arbitrate/external', 'POST /arbitrate/batch'],
     },

@@ -64,9 +64,10 @@ async function adjustReputation(agentId, delta, reason, orderId) {
 // GET /orders — list orders for the authenticated agent (as buyer or seller)
 router.get('/', requireApiKey, async (req, res, next) => {
   try {
-    const role = req.query.role; // 'buyer' | 'seller' | undefined (both)
+    const role   = req.query.role;   // 'buyer' | 'seller' | undefined (both)
     const status = req.query.status; // filter by status
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const q      = req.query.q;      // keyword search on requirements + service name
+    const limit  = Math.min(parseInt(req.query.limit) || 50, 200);
     const offset = parseInt(req.query.offset) || 0;
 
     let where = [];
@@ -84,6 +85,12 @@ router.get('/', requireApiKey, async (req, res, next) => {
 
     if (status) {
       where.push(`o.status = ${p(pi++)}`); params.push(status);
+    }
+
+    if (q && q.trim()) {
+      const kw = `%${q.trim()}%`;
+      where.push(`(o.requirements LIKE ${p(pi++)} OR s.name LIKE ${p(pi++)})`);
+      params.push(kw, kw);
     }
 
     params.push(limit, offset);
