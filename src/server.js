@@ -309,9 +309,9 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Background jobs are handled by src/worker.js (separate process) ─────────
-// Run: node src/worker.js
-// On Render: add a second service with start command "node src/worker.js"
+// ── Background jobs (cron) — runs in-process on free hosting ─────────────────
+// To separate: run "node src/worker.js" as a second service (requires paid plan)
+require('./worker');
 
 app.listen(PORT, () => {
   console.log(`Arbitova running on http://localhost:${PORT}`);
