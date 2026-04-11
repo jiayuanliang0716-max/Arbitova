@@ -66,8 +66,9 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
     cb(new Error('Not allowed by CORS'));
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-API-Key', 'X-Admin-Key'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-API-Key', 'X-Admin-Key', 'X-Idempotency-Key'],
+  exposedHeaders: ['X-Request-ID', 'X-RateLimit-Remaining'],
 }));
 
 // Rate limiting：每個 IP 每分鐘最多 60 次請求（測試模式提高上限）
@@ -79,6 +80,15 @@ app.use(rateLimit({
   legacyHeaders: false,
   message: { error: 'Too many requests, please slow down.', code: 'rate_limited' }
 }));
+
+// X-Request-ID — attach a unique ID to every response for traceability
+const { v4: reqUuid } = require('uuid');
+app.use((req, res, next) => {
+  const requestId = req.headers['x-request-id'] || reqUuid();
+  res.setHeader('X-Request-ID', requestId);
+  req.requestId = requestId;
+  next();
+});
 
 // Static frontend (SPA — public/index.html is served at /)
 app.use(express.static(path.join(__dirname, '..', 'public')));

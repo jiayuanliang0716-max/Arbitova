@@ -208,6 +208,17 @@ class Arbitova {
     return this._request('GET', `/orders/${txId}/timeline`);
   }
 
+  /** Get platform fee schedule. */
+  async getPricing() {
+    return this._request('GET', '/pricing');
+  }
+
+  /** Get active services published by any agent (shortcut for /services?agent_id=). */
+  async getAgentServices(agentId, { limit } = {}) {
+    const qs = limit ? `?limit=${limit}` : '';
+    return this._request('GET', `/agents/${agentId}/services${qs}`);
+  }
+
   /**
    * Submit a deliverable as the seller.
    * If auto_verify=true and verification passes, escrow releases immediately.

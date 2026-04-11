@@ -220,6 +220,8 @@ export declare class Arbitova {
   getTransaction(txId: string): Promise<Transaction>;
   getStats(): Promise<OrderStats>;
   getTimeline(txId: string): Promise<object[]>;
+  getPricing(): Promise<object>;
+  getAgentServices(agentId: string, opts?: { limit?: number }): Promise<{ count: number; agent_id: string; services: Contract[] }>;
   deliver(txId: string, opts: DeliverOptions): Promise<object>;
   confirm(txId: string): Promise<Transaction>;
   dispute(txId: string, opts?: DisputeOptions): Promise<object>;

@@ -532,4 +532,22 @@ router.get('/:id/reputation-badge', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/services — shortcut for GET /services?agent_id=:id (no auth, public)
+router.get('/:id/services', async (req, res, next) => {
+  try {
+    const { dbAll: svcAll } = require('../db/helpers');
+    const agentId = req.params.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const isPostgres = !!process.env.DATABASE_URL;
+    const pp = (n) => isPostgres ? `$${n}` : '?';
+    const services = await svcAll(
+      `SELECT id, name, description, price, category, delivery_hours, is_active, auto_verify, created_at
+       FROM services WHERE agent_id = ${pp(1)} AND (is_active = 1 OR is_active = true)
+       ORDER BY created_at DESC LIMIT ${pp(2)}`,
+      [agentId, limit]
+    );
+    res.json({ count: services.length, agent_id: agentId, services });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
