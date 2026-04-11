@@ -82,11 +82,12 @@ app.use(rateLimit({
   message: { error: 'Too many requests, please slow down.', code: 'rate_limited' }
 }));
 
-// X-Request-ID — attach a unique ID to every response for traceability
+// X-Request-ID and X-Arbitova-Version — attach to every response
 const { v4: reqUuid } = require('uuid');
 app.use((req, res, next) => {
   const requestId = req.headers['x-request-id'] || reqUuid();
   res.setHeader('X-Request-ID', requestId);
+  res.setHeader('X-Arbitova-Version', '1.2.0');
   req.requestId = requestId;
   next();
 });
@@ -304,6 +305,84 @@ apiV1.use('/webhooks', webhookRoutes);
 apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
+
+// GET /api/v1/analytics — agent's own sales + volume analytics (last 30 days, by day)
+const { requireApiKey: analyticsAuth } = require('./middleware/auth');
+apiV1.get('/analytics', analyticsAuth, async (req, res) => {
+  try {
+    const id = req.agent.id;
+    const isPostgres = !!process.env.DATABASE_URL;
+    const { dbAll: aDbAll } = require('./db/helpers');
+
+    // Revenue by day (last 30 days, as seller)
+    let dailyRevenue;
+    if (isPostgres) {
+      dailyRevenue = await aDbAll(
+        `SELECT DATE_TRUNC('day', completed_at) as day,
+                COUNT(*) as count,
+                COALESCE(SUM(amount * 0.995), 0) as revenue
+         FROM orders
+         WHERE seller_id = $1 AND status = 'completed'
+           AND completed_at >= NOW() - INTERVAL '30 days'
+         GROUP BY 1 ORDER BY 1`,
+        [id]
+      );
+    } else {
+      dailyRevenue = await aDbAll(
+        `SELECT DATE(completed_at) as day,
+                COUNT(*) as count,
+                COALESCE(SUM(amount * 0.995), 0) as revenue
+         FROM orders
+         WHERE seller_id = ? AND status = 'completed'
+           AND completed_at >= datetime('now', '-30 days')
+         GROUP BY 1 ORDER BY 1`,
+        [id]
+      );
+    }
+
+    // Top services by revenue
+    const topServices = await aDbAll(
+      `SELECT s.id, s.name, COUNT(o.id) as order_count,
+              COALESCE(SUM(o.amount * 0.995), 0) as revenue
+       FROM orders o
+       JOIN services s ON o.service_id = s.id
+       WHERE o.seller_id = ${isPostgres ? '$1' : '?'} AND o.status = 'completed'
+       GROUP BY s.id, s.name
+       ORDER BY revenue DESC LIMIT 5`,
+      [id]
+    );
+
+    // Buyer spend (last 30 days)
+    const [buyerStats] = await aDbAll(
+      `SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as spent
+       FROM orders
+       WHERE buyer_id = ${isPostgres ? '$1' : '?'} AND status = 'completed'
+         AND completed_at >= ${isPostgres ? "NOW() - INTERVAL '30 days'" : "datetime('now', '-30 days')"}`,
+      [id]
+    );
+
+    res.json({
+      period_days: 30,
+      as_seller: {
+        daily_revenue: dailyRevenue.map(r => ({
+          day: r.day,
+          orders: parseInt(r.count || 0),
+          revenue: parseFloat(r.revenue || 0),
+        })),
+        top_services: topServices.map(s => ({
+          id: s.id,
+          name: s.name,
+          orders: parseInt(s.order_count || 0),
+          revenue: parseFloat(s.revenue || 0),
+        })),
+      },
+      as_buyer: {
+        orders_placed: parseInt(buyerStats?.count || 0),
+        total_spent: parseFloat(buyerStats?.spent || 0),
+      },
+    });
+  } catch (err) { res.status(500).json({ error: 'Analytics unavailable', code: 'internal_error' }); }
+});
 
 // GET /api/v1/manifest — machine-readable tool manifest for agent frameworks
 // Follows a simplified OpenAI/Anthropic tool schema so agents can auto-discover actions.
