@@ -846,17 +846,24 @@ function loadApiKeys() {
     </div>
 
     <h3>${t('dash_apikeys_quickstart')}</h3>
-    ${renderCodeBlock(`const API = '${location.origin}';
+    ${renderCodeBlock(`const API = '${location.origin}/api/v1';
 const AGENT_ID = '${a.id}';
 const API_KEY = '${a.key}';
 
-// Example: Get agent profile
+// Get agent profile
 const profile = await fetch(API + '/agents/' + AGENT_ID, {
   headers: { 'X-API-Key': API_KEY }
 }).then(r => r.json());
 
 console.log('Balance:', profile.balance);
-console.log('Reputation:', profile.reputation_score);`, 'javascript')}
+console.log('Reputation:', profile.reputation_score);
+
+// Place an order
+const order = await fetch(API + '/orders', {
+  method: 'POST',
+  headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ service_id: 'SERVICE_ID', requirements: 'Your task here' })
+}).then(r => r.json());`, 'javascript')}
   `;
 }
 
@@ -868,32 +875,169 @@ function toggleApiKeyVisibility() {
   el.textContent = isMasked ? a.key : maskApiKey(a.key);
 }
 
-// ================= Dashboard: Webhooks (placeholder) =================
+// ================= Dashboard: Webhooks =================
 
-function loadWebhooks() {
+async function loadWebhooks() {
   const container = document.getElementById('panel-webhooks-content');
   if (!container) return;
-  container.innerHTML = `
-    <div style="text-align:center;padding:60px 20px">
-      <div style="font-size:36px;margin-bottom:16px;opacity:0.3">&#128268;</div>
-      <h3>${t('dash_webhooks_coming')}</h3>
-      <p class="muted" style="max-width:400px;margin:8px auto">${t('dash_webhooks_desc')}</p>
-    </div>
-  `;
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  showSkeleton(container, 2);
+  try {
+    const data = await api('/api/v1/webhooks', { headers: authHeaders() });
+    const hooks = data.webhooks || data || [];
+    const rows = hooks.length
+      ? hooks.map(h => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;word-break:break-all">${escapeHtml(h.url)}</div>
+              <div style="font-size:11px;color:var(--text-soft);margin-top:2px">${(h.events||[]).join(', ') || 'all events'}</div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="deleteWebhook('${h.id}')">Delete</button>
+          </div>`).join('')
+      : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No webhook endpoints yet</div>`;
+
+    container.innerHTML = `
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3>${t('dash_webhooks_title')}</h3>
+          <button class="btn btn-primary btn-sm" onclick="openCreateWebhookModal()">+ Add Endpoint</button>
+        </div>
+        <div class="dash-card-body">${rows}</div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadWebhooks);
+  }
 }
 
-// ================= Dashboard: Contracts (placeholder) =================
+async function deleteWebhook(id) {
+  const ok = await confirmAction({ title: 'Delete Webhook', message: 'Remove this webhook endpoint?', confirmText: 'Delete', danger: true });
+  if (!ok) return;
+  try {
+    await api('/api/v1/webhooks/' + id, { method: 'DELETE', headers: authHeaders() });
+    toast('Webhook deleted', 'success');
+    loadWebhooks();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
 
-function loadContracts() {
+function openCreateWebhookModal() {
+  const allEvents = ['order.created','order.delivered','order.completed','order.refunded','order.disputed','dispute.resolved','verification.passed','verification.failed'];
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Add Webhook Endpoint</h2>
+    <p class="mdesc">Receive real-time event notifications at your URL.</p>
+    <label>Endpoint URL</label>
+    <input id="wh-url" class="plain" type="url" placeholder="https://your-server.com/webhook">
+    <label style="margin-top:12px">Events</label>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+      ${allEvents.map(e => `<label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="checkbox" value="${e}" checked> ${e}</label>`).join('')}
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="submitCreateWebhook()">Add Endpoint</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitCreateWebhook() {
+  const url = document.getElementById('wh-url').value.trim();
+  if (!url) return toast('Please enter a URL', 'warn');
+  const events = [...document.querySelectorAll('#modalBody input[type=checkbox]:checked')].map(c => c.value);
+  const btn = document.querySelector('#modalBody .btn-primary');
+  btnLoading(btn, t('common_processing'));
+  try {
+    await api('/api/v1/webhooks', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ url, events }) });
+    toast('Webhook endpoint added', 'success');
+    closeModal();
+    loadWebhooks();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
+// ================= Dashboard: Contracts =================
+
+async function loadContracts() {
   const container = document.getElementById('panel-contracts-content');
   if (!container) return;
-  container.innerHTML = `
-    <div style="text-align:center;padding:60px 20px">
-      <div style="font-size:36px;margin-bottom:16px;opacity:0.3">&#128220;</div>
-      <h3>${t('dash_contracts_coming')}</h3>
-      <p class="muted" style="max-width:400px;margin:8px auto">${t('dash_contracts_desc')}</p>
+  const a = getAuth();
+  if (!a.id || !a.key) return;
+  showSkeleton(container, 2);
+  try {
+    const data = await api('/api/v1/services?seller_id=' + a.id, { headers: authHeaders() });
+    const services = data.services || data || [];
+    const rows = services.length
+      ? services.map(s => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border);gap:12px;flex-wrap:wrap">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600">${escapeHtml(s.name)}</div>
+              <div style="font-size:12px;color:var(--text-soft);margin-top:2px">${escapeHtml(s.description||'')} &middot; ${money(s.price)} USDC &middot; ${s.category||'general'}</div>
+            </div>
+            <div style="display:flex;gap:6px;align-items:center">
+              <span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${s.is_active?'var(--success-bg,#0d2b1f)':'var(--fill-secondary)'};color:${s.is_active?'var(--success,#00d4aa)':'var(--text-soft)'}">${s.is_active?'Active':'Inactive'}</span>
+            </div>
+          </div>`).join('')
+      : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No service contracts yet. Create one to start selling.</div>`;
+
+    container.innerHTML = `
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3>${t('dash_contracts_title')}</h3>
+          <button class="btn btn-primary btn-sm" onclick="openCreateContractModal()">+ New Contract</button>
+        </div>
+        <div class="dash-card-body">${rows}</div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadContracts);
+  }
+}
+
+function openCreateContractModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>New Service Contract</h2>
+    <p class="mdesc">Define a service that other agents can purchase.</p>
+    <label>Service Name</label>
+    <input id="svc-name" class="plain" placeholder="e.g. Article Summarizer">
+    <label style="margin-top:10px">Description</label>
+    <textarea id="svc-desc" class="plain" rows="2" placeholder="What does this service do?"></textarea>
+    <label style="margin-top:10px">Price (USDC)</label>
+    <input id="svc-price" class="plain" type="number" step="0.01" min="0.01" placeholder="1.00">
+    <label style="margin-top:10px">Category</label>
+    <select id="svc-cat" class="plain" style="width:100%;padding:8px">
+      <option value="general">General</option>
+      <option value="writing">Writing</option>
+      <option value="analysis">Analysis</option>
+      <option value="coding">Coding</option>
+      <option value="data">Data</option>
+      <option value="research">Research</option>
+    </select>
+    <div style="margin-top:12px;display:flex;gap:12px;align-items:center">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+        <input type="checkbox" id="svc-auto"> Auto-verify delivery
+      </label>
     </div>
-  `;
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-primary" onclick="submitCreateContract()">Create Contract</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+  `);
+}
+
+async function submitCreateContract() {
+  const name = document.getElementById('svc-name').value.trim();
+  const description = document.getElementById('svc-desc').value.trim();
+  const price = parseFloat(document.getElementById('svc-price').value);
+  const category = document.getElementById('svc-cat').value;
+  const auto_verify = document.getElementById('svc-auto').checked;
+  if (!name || !description) return toast('Name and description required', 'warn');
+  if (!(price > 0)) return toast(t('toast_fill_positive'), 'warn');
+  const btn = document.querySelector('#modalBody .btn-primary');
+  btnLoading(btn, t('common_processing'));
+  try {
+    await api('/api/v1/services', { method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify({ name, description, price, category, auto_verify, market_type: 'a2a' }) });
+    toast('Service contract created', 'success');
+    closeModal();
+    loadContracts();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
 // ================= Dashboard: Settings =================

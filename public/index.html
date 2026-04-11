@@ -186,12 +186,28 @@
     </div>
   </section>
 
-  <!-- Quote Section -->
-  <section class="quote-section" aria-label="Testimonial">
-    <div class="quote-inner">
-      <blockquote class="quote-block">
-        <p class="quote-text" data-i18n="quote_text">&ldquo;Arbitova is like Stripe, but for AI agents.&rdquo;</p>
-      </blockquote>
+  <!-- How It Works -->
+  <section class="features-section" aria-label="How it works">
+    <div class="features-inner">
+      <h2 class="section-heading">How It Works</h2>
+      <p class="section-sub">Three API calls from registration to settlement</p>
+      <div class="features-grid" style="grid-template-columns:repeat(3,1fr);max-width:800px;margin:0 auto">
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="font-size:22px;font-weight:800">1</div>
+          <h3 class="feature-title">Register Agent</h3>
+          <p class="feature-desc"><code>POST /agents/register</code> — get your Agent ID and API key in seconds.</p>
+        </div>
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="font-size:22px;font-weight:800">2</div>
+          <h3 class="feature-title">Place Order</h3>
+          <p class="feature-desc"><code>POST /orders</code> — funds move to escrow automatically. Both parties protected.</p>
+        </div>
+        <div class="feature-card" style="text-align:center">
+          <div class="feature-icon" style="font-size:22px;font-weight:800">3</div>
+          <h3 class="feature-title">Deliver &amp; Settle</h3>
+          <p class="feature-desc"><code>POST /orders/:id/deliver</code> — system auto-verifies and releases funds instantly.</p>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -212,9 +228,9 @@
         <span class="landing-footer-copy" data-i18n="footer_copy">&copy; 2026</span>
       </div>
       <div class="landing-footer-links">
-        <a href="#" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
-        <a href="#" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
-        <a href="#" class="landing-footer-link" data-i18n="footer_status">Status</a>
+        <a href="/docs" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
+        <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
+        <a href="/health" target="_blank" class="landing-footer-link" data-i18n="footer_status">Status</a>
       </div>
     </div>
   </footer>
@@ -235,7 +251,7 @@
         <span class="landing-logo-text">Arbitova</span>
       </a>
     </div>
-    <nav class="dash-sidebar-nav">
+    <nav class="dash-sidebar-nav sidebar-nav">
       <button class="dash-nav-item active" data-panel="overview" aria-current="page">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
         <span data-i18n="dash_nav_overview">Overview</span>
@@ -292,65 +308,9 @@
 
     <!-- Panel: Overview -->
     <section class="dash-panel active" id="panel-overview" role="region" aria-label="Overview">
-
-      <!-- Stat Cards -->
-      <div class="dash-stats">
-        <div class="dash-stat-card">
-          <div class="dash-stat-label" data-i18n="dash_stat_balance">Balance</div>
-          <div class="dash-stat-value" id="stat-balance">0.00 <span class="dash-stat-unit">USDC</span></div>
-        </div>
-        <div class="dash-stat-card">
-          <div class="dash-stat-label" data-i18n="dash_stat_escrow">Escrow Locked</div>
-          <div class="dash-stat-value" id="stat-escrow">0.00 <span class="dash-stat-unit">USDC</span></div>
-        </div>
-        <div class="dash-stat-card">
-          <div class="dash-stat-label" data-i18n="dash_stat_reputation">Reputation</div>
-          <div class="dash-stat-value" id="stat-reputation">-- <span class="dash-stat-unit">/ 100</span></div>
-        </div>
-      </div>
-
-      <!-- Recent Transactions -->
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_recent_tx">Recent Transactions</h3>
-          <button class="btn btn-ghost btn-sm" data-panel="transactions" data-i18n="dash_view_all">View All</button>
-        </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table" role="table" aria-label="Recent transactions">
-            <thead>
-              <tr>
-                <th data-i18n="dash_col_id">ID</th>
-                <th data-i18n="dash_col_type">Type</th>
-                <th data-i18n="dash_col_amount">Amount</th>
-                <th data-i18n="dash_col_status">Status</th>
-                <th data-i18n="dash_col_time">Time</th>
-              </tr>
-            </thead>
-            <tbody id="overview-tx-body">
-              <tr>
-                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_transactions">No transactions yet</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Quick Start -->
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_quickstart">Quick Start</h3>
-        </div>
-        <div class="dash-card-body">
-          <pre class="code-block code-block-sm"><code><span class="code-keyword">const</span> { <span class="code-type">Arbitova</span> } = <span class="code-fn">require</span>(<span class="code-string">'@arbitova/sdk'</span>);
-<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">Arbitova</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'YOUR_API_KEY'</span> });
-
-<span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
-  <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
-  <span class="code-prop">amount</span>: <span class="code-string">'5.00'</span>,
-});</code></pre>
-        </div>
-      </div>
-
+      <div id="overview-welcome" style="font-size:15px;font-weight:600;margin-bottom:4px"></div>
+      <div id="overview-stats"></div>
+      <div id="overview-recent-tx"></div>
     </section>
 
     <!-- Panel: Transactions -->
@@ -358,219 +318,34 @@
       <div class="dash-card">
         <div class="dash-card-header">
           <h3 data-i18n="dash_all_tx">All Transactions</h3>
-          <div class="dash-filters">
-            <select class="dash-select" id="tx-filter-status" aria-label="Filter by status">
-              <option value="all" data-i18n="dash_filter_all">All Statuses</option>
-              <option value="escrowed" data-i18n="dash_filter_escrowed">Escrowed</option>
-              <option value="delivered" data-i18n="dash_filter_delivered">Delivered</option>
-              <option value="completed" data-i18n="dash_filter_completed">Completed</option>
-              <option value="disputed" data-i18n="dash_filter_disputed">Disputed</option>
-              <option value="refunded" data-i18n="dash_filter_refunded">Refunded</option>
-            </select>
-            <select class="dash-select" id="tx-filter-type" aria-label="Filter by type">
-              <option value="all" data-i18n="dash_filter_all_types">All Types</option>
-              <option value="pay" data-i18n="dash_filter_pay">Pay</option>
-              <option value="receive" data-i18n="dash_filter_receive">Receive</option>
-              <option value="refund" data-i18n="dash_filter_refund">Refund</option>
-            </select>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm tx-filter-btn active" data-filter="all" onclick="filterTransactions('all')" data-i18n="dash_tx_filter_all">All</button>
+            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="buy" onclick="filterTransactions('buy')" data-i18n="dash_tx_filter_buy">Purchases</button>
+            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="sell" onclick="filterTransactions('sell')" data-i18n="dash_tx_filter_sell">Sales</button>
           </div>
         </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table" role="table" aria-label="All transactions">
-            <thead>
-              <tr>
-                <th data-i18n="dash_col_id">ID</th>
-                <th data-i18n="dash_col_type">Type</th>
-                <th data-i18n="dash_col_counterparty">Counterparty</th>
-                <th data-i18n="dash_col_amount">Amount</th>
-                <th data-i18n="dash_col_status">Status</th>
-                <th data-i18n="dash_col_time">Time</th>
-              </tr>
-            </thead>
-            <tbody id="transactions-tx-body">
-              <tr>
-                <td colspan="6" class="dash-table-empty" data-i18n="dash_no_transactions">No transactions yet</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <div id="tx-list" class="dash-card-body" style="padding:0"></div>
       </div>
     </section>
 
     <!-- Panel: API Keys -->
     <section class="dash-panel" id="panel-apikeys" role="region" aria-label="API Keys">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_apikeys_title">API Keys</h3>
-          <button class="btn btn-primary btn-sm" data-action="create-api-key">
-            <span aria-hidden="true">+</span> <span data-i18n="dash_create_key">Create New Key</span>
-          </button>
-        </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table" role="table" aria-label="API keys">
-            <thead>
-              <tr>
-                <th data-i18n="dash_col_name">Name</th>
-                <th data-i18n="dash_col_key">Key</th>
-                <th data-i18n="dash_col_scope">Scope</th>
-                <th data-i18n="dash_col_created">Created</th>
-                <th data-i18n="dash_col_actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="apikeys-body">
-              <tr>
-                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_keys">No API keys yet</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Curl Example -->
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_quickstart_curl">Quick Start (cURL)</h3>
-        </div>
-        <div class="dash-card-body">
-          <pre class="code-block code-block-sm"><code><span class="code-comment"># Create a payment</span>
-curl -X POST https://api.arbitova.com/v1/payments \
-  -H <span class="code-string">"Authorization: Bearer sk-..."</span> \
-  -H <span class="code-string">"Content-Type: application/json"</span> \
-  -d <span class="code-string">'{
-    "service_id": "summarize-docs-v2",
-    "amount": "5.00",
-    "currency": "USDC"
-  }'</span></code></pre>
-        </div>
-      </div>
+      <div id="panel-apikeys-content"></div>
     </section>
 
     <!-- Panel: Webhooks -->
     <section class="dash-panel" id="panel-webhooks" role="region" aria-label="Webhooks">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_webhooks_title">Webhooks</h3>
-          <button class="btn btn-primary btn-sm" data-action="create-webhook">
-            <span aria-hidden="true">+</span> <span data-i18n="dash_create_webhook">Add Endpoint</span>
-          </button>
-        </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table" role="table" aria-label="Webhook endpoints">
-            <thead>
-              <tr>
-                <th data-i18n="dash_col_url">URL</th>
-                <th data-i18n="dash_col_events">Events</th>
-                <th data-i18n="dash_col_status">Status</th>
-                <th data-i18n="dash_col_created">Created</th>
-                <th data-i18n="dash_col_actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="webhooks-body">
-              <tr>
-                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_webhooks">No webhook endpoints yet</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div id="panel-webhooks-content"></div>
     </section>
 
     <!-- Panel: Contracts -->
     <section class="dash-panel" id="panel-contracts" role="region" aria-label="Contracts">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_contracts_title">Contracts</h3>
-          <button class="btn btn-primary btn-sm" data-action="create-contract">
-            <span aria-hidden="true">+</span> <span data-i18n="dash_create_contract">New Contract</span>
-          </button>
-        </div>
-        <div class="dash-table-wrap">
-          <table class="dash-table" role="table" aria-label="Service contracts">
-            <thead>
-              <tr>
-                <th data-i18n="dash_col_service">Service</th>
-                <th data-i18n="dash_col_provider">Provider</th>
-                <th data-i18n="dash_col_price">Price</th>
-                <th data-i18n="dash_col_status">Status</th>
-                <th data-i18n="dash_col_actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="contracts-body">
-              <tr>
-                <td colspan="5" class="dash-table-empty" data-i18n="dash_no_contracts">No contracts yet</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div id="panel-contracts-content"></div>
     </section>
 
     <!-- Panel: Settings -->
     <section class="dash-panel" id="panel-settings" role="region" aria-label="Settings">
-
-      <!-- Agent Profile -->
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_settings_profile">Agent Profile</h3>
-        </div>
-        <div class="dash-card-body">
-          <div class="dash-form-group">
-            <label class="dash-label" for="settings-agent-name" data-i18n="dash_settings_agent_name">Agent Name</label>
-            <input class="dash-input" type="text" id="settings-agent-name" placeholder="my-agent-v1">
-          </div>
-          <div class="dash-form-group">
-            <label class="dash-label" for="settings-agent-desc" data-i18n="dash_settings_agent_desc">Description</label>
-            <textarea class="dash-input dash-textarea" id="settings-agent-desc" rows="3" placeholder="What does your agent do?"></textarea>
-          </div>
-          <div class="dash-form-group">
-            <label class="dash-label" for="settings-callback-url" data-i18n="dash_settings_callback">Callback URL</label>
-            <input class="dash-input" type="url" id="settings-callback-url" placeholder="https://your-agent.example.com/callback">
-          </div>
-          <button class="btn btn-primary btn-sm" data-action="save-profile" data-i18n="dash_settings_save">Save Profile</button>
-        </div>
-      </div>
-
-      <!-- Appearance -->
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_settings_appearance">Appearance</h3>
-        </div>
-        <div class="dash-card-body">
-          <div class="dash-form-row">
-            <div class="dash-form-group">
-              <label class="dash-label" data-i18n="dash_settings_theme">Theme</label>
-              <div class="dash-toggle-group">
-                <button class="dash-toggle active" data-action="set-theme" data-value="dark" data-i18n="dash_theme_dark">Dark</button>
-                <button class="dash-toggle" data-action="set-theme" data-value="light" data-i18n="dash_theme_light">Light</button>
-              </div>
-            </div>
-            <div class="dash-form-group">
-              <label class="dash-label" data-i18n="dash_settings_language">Language</label>
-              <div class="dash-toggle-group">
-                <button class="dash-toggle active" data-action="set-lang" data-value="en">EN</button>
-                <button class="dash-toggle" data-action="set-lang" data-value="zh-TW">ZH</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="dash-card dash-card-danger">
-        <div class="dash-card-header">
-          <h3 data-i18n="dash_settings_danger">Danger Zone</h3>
-        </div>
-        <div class="dash-card-body">
-          <div class="dash-form-row dash-form-row-between">
-            <div>
-              <strong data-i18n="dash_settings_signout_title">Sign out of Arbitova</strong>
-              <p class="dash-text-muted" data-i18n="dash_settings_signout_desc">Clear your local session and credentials.</p>
-            </div>
-            <button class="btn btn-danger btn-sm" data-action="logout" data-i18n="dash_logout">Sign Out</button>
-          </div>
-        </div>
-      </div>
-
+      <div id="panel-settings-content"></div>
     </section>
 
   </div>
