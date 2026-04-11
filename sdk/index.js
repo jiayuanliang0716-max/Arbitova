@@ -298,6 +298,27 @@ class Arbitova {
   }
 
   /**
+   * Cancel up to 10 orders at once (buyer only, paid/unpaid orders).
+   * @param {string[]} orderIds
+   */
+  async bulkCancel(orderIds) {
+    return this._request('POST', '/orders/bulk-cancel', { order_ids: orderIds });
+  }
+
+  /**
+   * Get paginated balance history (orders, deposits, withdrawals, tips).
+   * @param {{ limit?: number; offset?: number; type?: string }} [opts]
+   */
+  async getBalanceHistory({ limit, offset, type } = {}) {
+    const qs = new URLSearchParams();
+    if (limit)  qs.set('limit', limit);
+    if (offset) qs.set('offset', offset);
+    if (type)   qs.set('type', type);
+    const query = qs.toString() ? `?${qs}` : '';
+    return this._request('GET', `/agents/me/balance-history${query}`);
+  }
+
+  /**
    * Partially release escrow as a milestone payment.
    * @param {string} txId
    * @param {object} params

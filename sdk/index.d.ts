@@ -237,8 +237,10 @@ export declare class Arbitova {
 
   tip(txId: string, amount: number): Promise<{ id: string; tip_amount: number; seller_id: string; message: string }>;
   getTips(txId: string): Promise<object>;
+  bulkCancel(orderIds: string[]): Promise<{ processed: number; succeeded: number; failed: number; results: object[] }>;
 
   getMyAnalytics(opts?: { days?: number }): Promise<object>;
+  getBalanceHistory(opts?: { limit?: number; offset?: number; type?: string }): Promise<{ count: number; limit: number; offset: number; events: object[] }>;
 
   sendMessage(opts: SendMessageOptions): Promise<object>;
   listMessages(opts?: { limit?: number }): Promise<object>;

@@ -131,6 +131,77 @@ router.get('/me/services', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/balance-history — paginated log of all balance changes (orders, withdrawals, deposits, tips)
+router.get('/me/balance-history', requireApiKey, async (req, res, next) => {
+  try {
+    const agentId = req.agent.id;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const type = req.query.type; // 'order' | 'deposit' | 'withdrawal' | 'tip'
+
+    const events = [];
+
+    // Completed orders as seller (credit) and buyer (debit)
+    const orders = await dbAll(
+      `SELECT o.id, o.amount, o.completed_at as ts, o.seller_id, o.buyer_id,
+              s.name as service_name
+       FROM orders o
+       LEFT JOIN services s ON o.service_id = s.id
+       WHERE (o.seller_id = ${p(1)} OR o.buyer_id = ${p(2)}) AND o.status = 'completed'`,
+      [agentId, agentId]
+    ).catch(() => []);
+
+    for (const o of orders) {
+      if (o.seller_id === agentId) {
+        events.push({ type: 'order_credit', amount: parseFloat((o.amount * 0.975).toFixed(6)), ref_id: o.id, description: `Sale: ${o.service_name || 'order'}`, ts: o.ts });
+      } else {
+        events.push({ type: 'order_debit', amount: -parseFloat(o.amount), ref_id: o.id, description: `Purchase: ${o.service_name || 'order'}`, ts: o.ts });
+      }
+    }
+
+    // Deposits
+    const deposits = await dbAll(
+      `SELECT id, amount, confirmed_at as ts FROM deposits WHERE agent_id = ${p(1)}`,
+      [agentId]
+    ).catch(() => []);
+    for (const d of deposits) {
+      events.push({ type: 'deposit', amount: parseFloat(d.amount), ref_id: d.id, description: 'USDC deposit', ts: d.ts });
+    }
+
+    // Withdrawals
+    const withdrawals = await dbAll(
+      `SELECT id, amount, created_at as ts FROM withdrawals WHERE agent_id = ${p(1)} AND status = 'completed'`,
+      [agentId]
+    ).catch(() => []);
+    for (const w of withdrawals) {
+      events.push({ type: 'withdrawal', amount: -parseFloat(w.amount), ref_id: w.id, description: 'USDC withdrawal', ts: w.ts });
+    }
+
+    // Tips sent and received
+    const tips = await dbAll(
+      `SELECT id, amount, created_at as ts, from_id, to_id FROM tips WHERE from_id = ${p(1)} OR to_id = ${p(2)}`,
+      [agentId, agentId]
+    ).catch(() => []);
+    for (const t of tips) {
+      if (t.to_id === agentId) {
+        events.push({ type: 'tip_received', amount: parseFloat(t.amount), ref_id: t.id, description: 'Tip received', ts: t.ts });
+      } else {
+        events.push({ type: 'tip_sent', amount: -parseFloat(t.amount), ref_id: t.id, description: 'Tip sent', ts: t.ts });
+      }
+    }
+
+    // Sort, optionally filter by type, paginate
+    const sorted = events
+      .filter(e => !type || e.type === type || (type === 'order' && e.type.startsWith('order')))
+      .sort((a, b) => new Date(b.ts) - new Date(a.ts));
+
+    const total = sorted.length;
+    const page = sorted.slice(offset, offset + limit);
+
+    res.json({ count: total, limit, offset, events: page });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/me/analytics — seller analytics: revenue 30d, category breakdown, top buyers, service perf
 router.get('/me/analytics', requireApiKey, async (req, res, next) => {
   try {

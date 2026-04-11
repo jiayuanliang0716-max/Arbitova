@@ -1163,6 +1163,40 @@ router.post('/:id/appeal', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/bulk-cancel — buyer cancels up to 10 unpaid/paid orders at once (full refund)
+// Must be before /:id routes
+router.post('/bulk-cancel', requireApiKey, async (req, res, next) => {
+  try {
+    const { order_ids } = req.body;
+    if (!Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({ error: 'order_ids must be a non-empty array' });
+    }
+    if (order_ids.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 orders per bulk cancel' });
+    }
+
+    const results = await Promise.allSettled(order_ids.map(async (orderId) => {
+      const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [orderId]);
+      if (!order) return { order_id: orderId, error: 'Order not found' };
+      if (order.buyer_id !== req.agent.id) return { order_id: orderId, error: 'Only buyer can cancel' };
+      if (!['paid', 'unpaid'].includes(order.status)) {
+        return { order_id: orderId, error: `Cannot cancel order with status: ${order.status}` };
+      }
+      // Refund escrow amount to buyer
+      if (order.status === 'paid') {
+        await dbRun(`UPDATE agents SET balance = balance + ${p(1)}, escrow = COALESCE(escrow,0) - ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, req.agent.id]);
+        await dbRun(`UPDATE agents SET escrow = COALESCE(escrow,0) - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.seller_id]);
+      }
+      await dbRun(`UPDATE orders SET status = 'cancelled' WHERE id = ${p(1)}`, [orderId]);
+      return { order_id: orderId, refunded: order.status === 'paid' ? order.amount : 0, status: 'cancelled' };
+    }));
+
+    const summary = results.map((r, i) => r.status === 'fulfilled' ? r.value : { order_id: order_ids[i], error: r.reason?.message || 'Unknown error' });
+    const succeeded = summary.filter(r => !r.error).length;
+    res.json({ processed: order_ids.length, succeeded, failed: order_ids.length - succeeded, results: summary });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/batch-arbitrate
 // NOTE: must be registered BEFORE /:id routes so Express doesn't treat 'batch-arbitrate' as an id
 // Arbitrate multiple disputed orders at once (up to 10 per call).
