@@ -277,6 +277,18 @@ const TOOLS = [
       required: ['service_id'],
     },
   },
+  {
+    name: 'arbitova_tip',
+    description: 'Send a USDC tip to the seller after an order is completed. The seller receives 100% of the tip amount.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        order_id: { type: 'string', description: 'The completed order ID' },
+        amount: { type: 'number', minimum: 0.01, maximum: 1000, description: 'Tip amount in USDC (0.01–1000)' },
+      },
+      required: ['order_id', 'amount'],
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -424,6 +436,14 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_tip': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/tip`, { amount: args.amount });
+      return {
+        ...result,
+        message: result.message,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -432,7 +452,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.3.0' },
+  { name: 'arbitova', version: '1.3.1' },
   { capabilities: { tools: {} } }
 );
 

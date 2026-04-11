@@ -235,6 +235,16 @@ class Arbitova {
   }
 
   /**
+   * Send a USDC tip to the seller after order completion.
+   * Seller receives 100% of the tip amount. Min 0.01, max 1000 USDC.
+   * @param {string} txId
+   * @param {number} amount - USDC amount
+   */
+  async tip(txId, amount) {
+    return this._request('POST', `/orders/${txId}/tip`, { amount });
+  }
+
+  /**
    * Submit a deliverable as the seller.
    * If auto_verify=true and verification passes, escrow releases immediately.
    */

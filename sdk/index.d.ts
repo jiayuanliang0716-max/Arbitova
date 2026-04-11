@@ -233,6 +233,8 @@ export declare class Arbitova {
   partialConfirm(txId: string, opts: PartialConfirmOptions): Promise<object>;
   appeal(txId: string, opts: AppealOptions): Promise<ArbitrationResult>;
 
+  tip(txId: string, amount: number): Promise<{ id: string; tip_amount: number; seller_id: string; message: string }>;
+
   sendMessage(opts: SendMessageOptions): Promise<object>;
   listMessages(opts?: { limit?: number }): Promise<object>;
 
