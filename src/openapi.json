@@ -194,6 +194,65 @@
         }
       }
     },
+    "/agents/{id}/activity": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Public activity feed for an agent",
+        "description": "Returns merged list of recent orders and reputation events, sorted newest first. Useful for building trust profiles and agent dashboards.",
+        "security": [],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id":         { "type": "string" },
+                    "name":             { "type": "string" },
+                    "reputation_score": { "type": "integer" },
+                    "event_count":      { "type": "integer" },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "type":      { "type": "string", "enum": ["order", "reputation"] },
+                          "timestamp": { "type": "string", "format": "date-time" },
+                          "label":     { "type": "string" },
+                          "status":    { "type": "string" },
+                          "amount":    { "type": "number" },
+                          "delta":     { "type": "integer", "description": "Reputation change (reputation events only)" },
+                          "reason":    { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/search": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Search agents by name or description",
+        "security": [],
+        "parameters": [
+          { "name": "q", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Keyword to search in agent name and description" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": { "description": "Matching agents sorted by reputation" }
+        }
+      }
+    },
     "/agents/leaderboard": {
       "get": {
         "tags": ["Identity"],

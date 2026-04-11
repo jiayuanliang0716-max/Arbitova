@@ -1608,36 +1608,65 @@ async function submitArbitrate(orderId) {
 
 async function openOrderDetail(orderId) {
   try {
-    const r = await api('/orders/' + orderId, { headers: authHeaders() });
+    const [r, tlData] = await Promise.all([
+      api('/api/v1/orders/' + orderId, { headers: authHeaders() }),
+      api('/api/v1/orders/' + orderId + '/timeline', { headers: authHeaders() }).catch(() => null),
+    ]);
     const a = getAuth();
     const isBuyer = r.buyer_id === a.id;
 
-    const steps = [
-      { label: t('tx_detail_created'), done: true },
-      { label: t('tx_detail_paid'), done: true },
-      { label: t('tx_detail_delivered'), done: ['delivered', 'completed'].includes(r.status) },
-      { label: t('tx_detail_completed'), done: r.status === 'completed' }
-    ];
-    const timeline = steps.map(s => `<li class="${s.done ? 'done' : ''}">${escapeHtml(s.label)}</li>`).join('');
+    // Build timeline from API data if available, else fallback to status-based steps
+    let timelineHtml = '';
+    if (tlData && tlData.timeline && tlData.timeline.length) {
+      timelineHtml = tlData.timeline.map(e => `
+        <li class="done" style="font-size:12px;padding:4px 0">
+          <span style="font-weight:600">${escapeHtml(e.event || e.status || '')}</span>
+          ${e.note ? `<span style="color:var(--text-soft)"> — ${escapeHtml(e.note)}</span>` : ''}
+          <span style="color:var(--text-soft);font-size:11px;margin-left:6px">${relativeTime(e.timestamp || e.created_at)}</span>
+        </li>`).join('');
+    } else {
+      const steps = [
+        { label: t('tx_detail_created'), done: true },
+        { label: t('tx_detail_paid'), done: true },
+        { label: t('tx_detail_delivered'), done: ['delivered', 'completed', 'disputed', 'refunded'].includes(r.status) },
+        { label: t('tx_detail_completed'), done: r.status === 'completed' },
+        ...(r.status === 'refunded' ? [{ label: 'Refunded', done: true }] : []),
+        ...(r.status === 'disputed' ? [{ label: 'Disputed — awaiting resolution', done: true }] : []),
+      ];
+      timelineHtml = steps.map(s => `<li class="${s.done ? 'done' : ''}">${escapeHtml(s.label)}</li>`).join('');
+    }
+
+    // Dispute section
+    const disputeSection = (r.status === 'disputed' || r.status === 'refunded' || r.status === 'under_review') ? `
+      <div style="margin-top:12px;padding:10px 14px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:8px;font-size:12px">
+        <b>Dispute active</b>
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+          ${r.status === 'disputed' ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openArbitrateModal('${r.id}')">${t('tx_btn_arbitrate')}</button>` : ''}
+          <button class="btn btn-ghost btn-sm" onclick="closeModal();viewTransparencyReport('${r.id}')">Transparency Report</button>
+        </div>
+      </div>` : '';
 
     modal(`
       <button class="close" onclick="closeModal()">&times;</button>
       <h2>${t('tx_detail_title')}</h2>
       <div style="margin:12px 0">
-        <div style="font-size:12px;color:var(--text-soft)">
-          ${t('tx_detail_buyer')} <code>${escapeHtml(r.buyer_id?.slice(0, 12))}...</code><br>
-          ${t('tx_detail_seller')} <code>${escapeHtml(r.seller_id?.slice(0, 12))}...</code>
+        <div style="font-size:12px;color:var(--text-soft);margin-bottom:6px">
+          <div>${t('tx_detail_buyer')} <code>${escapeHtml(r.buyer_id?.slice(0, 12) || '')}...</code></div>
+          <div>${t('tx_detail_seller')} <code>${escapeHtml(r.seller_id?.slice(0, 12) || '')}...</code></div>
+          ${r.service_name ? `<div>Service: <b>${escapeHtml(r.service_name)}</b></div>` : ''}
+          ${r.deadline ? `<div>Deadline: ${relativeTime(r.deadline)}</div>` : ''}
         </div>
         <div style="margin:8px 0"><b>${money(r.amount)} USDC</b> &middot; <span class="status-badge ${statusBadgeClass(r.status)}">${statusLabel(r.status)}</span></div>
       </div>
       <h4>${t('tx_detail_progress')}</h4>
-      <ul class="timeline">${timeline}</ul>
-      ${r.requirements ? `<h4>${t('tx_detail_req')}</h4><div class="code-block"><pre>${escapeHtml(typeof r.requirements === 'object' ? JSON.stringify(r.requirements, null, 2) : r.requirements)}</pre></div>` : ''}
-      ${r.delivery_content ? `<h4>${t('tx_detail_delivery')}</h4><div class="code-block"><pre>${escapeHtml(typeof r.delivery_content === 'object' ? JSON.stringify(r.delivery_content, null, 2) : r.delivery_content)}</pre></div>` : ''}
+      <ul class="timeline">${timelineHtml}</ul>
+      ${disputeSection}
+      ${r.requirements ? `<h4>${t('tx_detail_req')}</h4><div class="code-block"><pre style="white-space:pre-wrap;word-break:break-word;font-size:11px">${escapeHtml(typeof r.requirements === 'object' ? JSON.stringify(r.requirements, null, 2) : r.requirements)}</pre></div>` : ''}
+      ${r.delivery_content ? `<h4>${t('tx_detail_delivery')}</h4><div class="code-block"><pre style="white-space:pre-wrap;word-break:break-word;font-size:11px">${escapeHtml(typeof r.delivery_content === 'object' ? JSON.stringify(r.delivery_content, null, 2) : r.delivery_content)}</pre></div>` : ''}
       <div class="btn-row" style="margin-top:16px">
         ${r.status === 'paid' && !isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openDeliverModal('${r.id}')">${t('tx_btn_deliver')}</button>` : ''}
         ${r.status === 'delivered' && isBuyer ? `<button class="btn btn-primary btn-sm" onclick="closeModal();confirmComplete('${r.id}')">${t('tx_btn_confirm')}</button>` : ''}
-        ${r.status === 'disputed' ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openArbitrateModal('${r.id}')">${t('tx_btn_arbitrate')}</button>` : ''}
+        ${(r.status === 'delivered' || r.status === 'paid') && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openDisputeModal('${r.id}')">${t('tx_btn_dispute')}</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>
     `);

@@ -111,6 +111,65 @@ router.get('/search', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/activity — public activity feed (recent transactions + rep events)
+// Placed BEFORE leaderboard so /:id doesn't shadow it via exact-match
+router.get('/:id/activity', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as reputation_score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+
+    const [orders, repHistory] = await Promise.all([
+      dbAll(
+        `SELECT o.id, o.status, o.amount, o.created_at, o.completed_at,
+                s.name as service_name,
+                CASE WHEN o.buyer_id = ${p(2)} THEN 'buyer' ELSE 'seller' END as role
+         FROM orders o
+         LEFT JOIN services s ON o.service_id = s.id
+         WHERE o.buyer_id = ${p(3)} OR o.seller_id = ${p(4)}
+         ORDER BY o.created_at DESC LIMIT ${p(5)}`,
+        [req.params.id, req.params.id, req.params.id, req.params.id, limit]
+      ),
+      dbAll(
+        `SELECT delta, reason, order_id, created_at FROM reputation_history
+         WHERE agent_id = ${p(1)} ORDER BY created_at DESC LIMIT 20`,
+        [req.params.id]
+      ),
+    ]);
+
+    // Merge and sort activity events by date
+    const events = [
+      ...orders.map(o => ({
+        type: 'order',
+        id: o.id,
+        label: o.role === 'buyer' ? `Placed order: ${o.service_name || 'service'}` : `Received order: ${o.service_name || 'service'}`,
+        status: o.status,
+        amount: o.amount,
+        role: o.role,
+        timestamp: o.completed_at || o.created_at,
+      })),
+      ...repHistory.map(r => ({
+        type: 'reputation',
+        delta: r.delta,
+        reason: r.reason,
+        order_id: r.order_id,
+        timestamp: r.created_at,
+      })),
+    ].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, limit);
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      reputation_score: parseInt(agent.reputation_score),
+      event_count: events.length,
+      events,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/leaderboard — public, top agents by reputation
 router.get('/leaderboard', async (req, res, next) => {
   try {
