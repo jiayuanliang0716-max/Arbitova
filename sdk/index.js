@@ -306,6 +306,13 @@ class Arbitova {
   }
 
   /**
+   * Get breakdown of all currently locked escrow orders with amounts, deadlines, and counterparty.
+   */
+  async getEscrowBreakdown() {
+    return this._request('GET', '/agents/me/escrow-breakdown');
+  }
+
+  /**
    * Get paginated balance history (orders, deposits, withdrawals, tips).
    * @param {{ limit?: number; offset?: number; type?: string }} [opts]
    */

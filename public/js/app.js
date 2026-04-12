@@ -688,6 +688,7 @@ function switchPanel(name) {
   if (name === 'webhooks') loadWebhooks();
   if (name === 'contracts') loadContracts();
   if (name === 'analytics') loadAnalytics();
+  if (name === 'wallet') loadWallet();
   if (name === 'settings') loadSettings();
 }
 
@@ -1885,6 +1886,72 @@ async function loadAnalytics() {
       ${sellerSection}`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadAnalytics);
+  }
+}
+
+// ================= Dashboard: Wallet =================
+
+async function loadWallet() {
+  const container = document.getElementById('panel-wallet-content');
+  if (!container) return;
+  showSkeleton(container, 3);
+
+  try {
+    const [escrow, history] = await Promise.all([
+      api('/api/v1/agents/me/escrow-breakdown', { headers: authHeaders() }),
+      api('/api/v1/agents/me/balance-history?limit=30', { headers: authHeaders() }),
+    ]);
+
+    const lockedOrders = escrow.breakdown || [];
+    const events = history.events || [];
+
+    const typeLabel = { order_credit: 'Sale', order_debit: 'Purchase', deposit: 'Deposit', withdrawal: 'Withdrawal', tip_received: 'Tip In', tip_sent: 'Tip Out' };
+    const typeColor = { order_credit: 'var(--success,#00d4aa)', order_debit: 'var(--danger,#ef4444)', deposit: 'var(--accent)', withdrawal: 'var(--danger,#ef4444)', tip_received: 'var(--success,#00d4aa)', tip_sent: 'var(--danger,#ef4444)' };
+
+    const escrowRows = lockedOrders.length > 0 ? lockedOrders.map(o => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(o.service)}</div>
+          <div style="font-size:11px;color:var(--text-soft)">${o.role} &middot; ${escapeHtml(o.counterparty || '')} &middot; ${o.overdue ? '<span style="color:var(--danger,#ef4444)">Overdue</span>' : o.hours_remaining + 'h remaining'}</div>
+        </div>
+        <div style="font-size:13px;font-weight:600;white-space:nowrap">${money(o.amount)} USDC</div>
+        <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--fill-secondary);color:var(--text-soft)">${o.status}</span>
+      </div>`).join('') : '<div style="padding:16px 0;text-align:center;color:var(--text-soft);font-size:13px">No locked funds.</div>';
+
+    const historyRows = events.length > 0 ? events.map(e => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px">${escapeHtml(e.description || e.type)}</div>
+          <div style="font-size:11px;color:var(--text-soft)">${e.ts ? new Date(e.ts).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>
+        </div>
+        <div style="font-size:13px;font-weight:600;color:${typeColor[e.type]||'inherit'};white-space:nowrap">${e.amount >= 0 ? '+' : ''}${money(e.amount)} USDC</div>
+        <span style="font-size:11px;padding:2px 6px;border-radius:4px;background:var(--fill-secondary);color:var(--text-soft)">${typeLabel[e.type]||e.type}</span>
+      </div>`).join('') : '<div style="padding:16px 0;text-align:center;color:var(--text-soft);font-size:13px">No transaction history yet.</div>';
+
+    container.innerHTML = `
+      <div class="dash-card">
+        <div class="dash-card-header"><h3>Wallet Overview</h3></div>
+        <div class="dash-card-body">
+          <div class="grid c3" style="margin-bottom:20px">
+            <div class="stat"><div class="n">${money(escrow.available_balance || 0)}</div><div class="l">Available</div></div>
+            <div class="stat"><div class="n">${money(escrow.total_locked || 0)}</div><div class="l">In Escrow</div></div>
+            <div class="stat"><div class="n">${escrow.locked_order_count || 0}</div><div class="l">Active Orders</div></div>
+          </div>
+          <h4 style="margin:0 0 8px;font-size:13px">Locked Escrow Orders</h4>
+          ${escrowRows}
+        </div>
+      </div>
+      <div class="dash-card" style="margin-top:16px">
+        <div class="dash-card-header">
+          <h3>Transaction History</h3>
+          <span style="font-size:12px;color:var(--text-soft)">${history.count || 0} events total</span>
+        </div>
+        <div class="dash-card-body">
+          ${historyRows}
+        </div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadWallet);
   }
 }
 

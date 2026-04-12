@@ -131,6 +131,57 @@ router.get('/me/services', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/escrow-breakdown — list all currently locked escrow orders with amounts and deadlines
+router.get('/me/escrow-breakdown', requireApiKey, async (req, res, next) => {
+  try {
+    const agentId = req.agent.id;
+
+    const [agent, orders] = await Promise.all([
+      dbGet(`SELECT balance, COALESCE(escrow, 0) as escrow FROM agents WHERE id = ${p(1)}`, [agentId]),
+      dbAll(
+        `SELECT o.id, o.amount, o.status, o.deadline, o.created_at,
+                s.name as service_name, s.category,
+                a_buyer.name as buyer_name, a_seller.name as seller_name,
+                CASE WHEN o.buyer_id = ${p(2)} THEN 'buyer' ELSE 'seller' END as role
+         FROM orders o
+         LEFT JOIN services s ON o.service_id = s.id
+         LEFT JOIN agents a_buyer ON a_buyer.id = o.buyer_id
+         LEFT JOIN agents a_seller ON a_seller.id = o.seller_id
+         WHERE o.status IN ('paid', 'delivered') AND (o.buyer_id = ${p(3)} OR o.seller_id = ${p(4)})
+         ORDER BY o.deadline ASC`,
+        [agentId, agentId, agentId, agentId]
+      ),
+    ]);
+
+    const now = new Date();
+    const breakdown = orders.map(o => {
+      const deadline = new Date(o.deadline);
+      const hoursRemaining = Math.round((deadline - now) / 3600000);
+      return {
+        order_id: o.id,
+        role: o.role,
+        amount: parseFloat(o.amount),
+        status: o.status,
+        service: o.service_name || 'Unknown',
+        category: o.category,
+        counterparty: o.role === 'buyer' ? o.seller_name : o.buyer_name,
+        deadline: o.deadline,
+        hours_remaining: hoursRemaining,
+        overdue: hoursRemaining < 0,
+        created_at: o.created_at,
+      };
+    });
+
+    res.json({
+      agent_id: agentId,
+      available_balance: parseFloat(parseFloat(agent.balance).toFixed(6)),
+      total_locked: parseFloat(parseFloat(agent.escrow || 0).toFixed(6)),
+      locked_order_count: breakdown.length,
+      breakdown,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/me/balance-history — paginated log of all balance changes (orders, withdrawals, deposits, tips)
 router.get('/me/balance-history', requireApiKey, async (req, res, next) => {
   try {
