@@ -306,6 +306,14 @@ class Arbitova {
   }
 
   /**
+   * Get AI-generated business insights for your seller account.
+   * Requires ANTHROPIC_API_KEY on the server. Returns 3 actionable insights.
+   */
+  async getInsights() {
+    return this._request('GET', '/agents/me/insights');
+  }
+
+  /**
    * Get composite trust score (0-100) for an agent.
    * Combines: reputation, completion rate, dispute rate, avg rating, account age, review volume.
    * Returns: { trust_score, level, level_desc, signals, components }

@@ -893,6 +893,92 @@ router.get('/:id/services', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/insights — AI-generated business insights for the seller (requires ANTHROPIC_API_KEY)
+router.get('/me/insights', requireApiKey, async (req, res, next) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(503).json({ error: 'AI insights not available: ANTHROPIC_API_KEY not configured' });
+    }
+
+    const agentId = req.agent.id;
+
+    // Gather seller data
+    const [agent, orderStats, byCategory, topBuyers, recentRep] = await Promise.all([
+      dbGet(`SELECT id, name, COALESCE(reputation_score,0) as reputation_score, created_at FROM agents WHERE id = ${p(1)}`, [agentId]),
+      dbGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed,
+                SUM(CASE WHEN status='completed' THEN amount*0.975 ELSE 0 END) as net_revenue
+         FROM orders WHERE seller_id=${p(1)}`,
+        [agentId]
+      ),
+      dbAll(
+        `SELECT s.category, COUNT(o.id) as cnt, SUM(o.amount*0.975) as rev
+         FROM orders o JOIN services s ON o.service_id=s.id
+         WHERE o.seller_id=${p(1)} AND o.status='completed' GROUP BY s.category ORDER BY rev DESC LIMIT 5`,
+        [agentId]
+      ).catch(() => []),
+      dbAll(
+        `SELECT a.name, COUNT(o.id) as cnt FROM orders o JOIN agents a ON a.id=o.buyer_id
+         WHERE o.seller_id=${p(1)} AND o.status='completed' GROUP BY a.id,a.name ORDER BY cnt DESC LIMIT 3`,
+        [agentId]
+      ).catch(() => []),
+      dbAll(
+        `SELECT delta, reason FROM reputation_history WHERE agent_id=${p(1)} ORDER BY created_at DESC LIMIT 10`,
+        [agentId]
+      ).catch(() => []),
+    ]);
+
+    const stats = orderStats || {};
+    const total = parseInt(stats.total || 0);
+    const completed = parseInt(stats.completed || 0);
+    const disputed = parseInt(stats.disputed || 0);
+
+    const dataContext = `
+Agent: ${agent.name}
+Reputation: ${agent.reputation_score}
+Total orders as seller: ${total}
+Completed: ${completed} (${total > 0 ? ((completed/total)*100).toFixed(0) : 0}%)
+Disputed: ${disputed}
+Net revenue: ${parseFloat(stats.net_revenue || 0).toFixed(2)} USDC
+Top categories: ${byCategory.map(c => `${c.category} (${c.cnt} orders, ${parseFloat(c.rev||0).toFixed(2)} USDC)`).join(', ') || 'none'}
+Top buyers: ${topBuyers.map(b => `${b.name} (${b.cnt} orders)`).join(', ') || 'none'}
+Recent rep changes: ${recentRep.map(r => `${r.delta>0?'+':''}${r.delta} (${r.reason})`).join(', ') || 'none'}
+`.trim();
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      messages: [{
+        role: 'user',
+        content: `You are a business advisor for AI agents selling services on the Arbitova marketplace. Analyze this seller's data and give 3 concise, actionable insights (each under 2 sentences). Focus on: what's working, what to improve, and one growth opportunity. Be specific and practical.\n\n${dataContext}`,
+      }],
+    });
+
+    const text = msg.content?.[0]?.text || '';
+    // Parse numbered insights
+    const lines = text.split('\n').filter(l => l.trim());
+
+    res.json({
+      agent_id: agentId,
+      name: agent.name,
+      generated_at: new Date().toISOString(),
+      insights: lines.filter(l => l.trim()).slice(0, 6),
+      raw: text,
+      data_snapshot: {
+        reputation: parseInt(agent.reputation_score),
+        completion_rate: total > 0 ? parseFloat((completed/total*100).toFixed(1)) : 0,
+        net_revenue: parseFloat(parseFloat(stats.net_revenue||0).toFixed(2)),
+        top_category: byCategory[0]?.category || null,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id/trust-score — composite trust score (0-100) combining rep, completion, dispute rate, rating, age
 router.get('/:id/trust-score', async (req, res, next) => {
   try {

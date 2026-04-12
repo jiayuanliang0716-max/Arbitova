@@ -1015,9 +1015,15 @@ async function loadMarketplace(searchQuery) {
     container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px">` +
       svcs.map(s => {
         const rep = parseInt(s.seller_reputation || 0);
-        const repBadge = rep >= 80 ? `<span style="background:rgba(0,212,170,.15);color:var(--accent);font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;margin-left:6px">Top Rated</span>` : '';
+        // Derive trust level from reputation as proxy (full composite requires a separate call)
+        const trustLevel = rep >= 150 ? 'Elite' : rep >= 80 ? 'Trusted' : rep >= 20 ? 'Rising' : 'New';
+        const trustColor = trustLevel === 'Elite' ? 'var(--accent)' : trustLevel === 'Trusted' ? '#00b890' : trustLevel === 'Rising' ? 'var(--text-soft)' : 'var(--text-soft)';
+        const trustBg = trustLevel === 'Elite' ? 'rgba(0,212,170,.18)' : trustLevel === 'Trusted' ? 'rgba(0,184,144,.12)' : 'var(--fill-secondary)';
         return `<div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px">
-          <div style="font-weight:700;font-size:14px">${escapeHtml(s.name)}${repBadge}</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
+            <div style="font-weight:700;font-size:14px;flex:1">${escapeHtml(s.name)}</div>
+            ${s.category ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--fill-secondary);color:var(--text-soft);white-space:nowrap">${s.category}</span>` : ''}
+          </div>
           ${s.description ? `<div style="font-size:12px;color:var(--text-soft);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${escapeHtml(s.description)}</div>` : ''}
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
             <div>
@@ -1026,7 +1032,7 @@ async function loadMarketplace(searchQuery) {
             </div>
             <div style="text-align:right">
               <a href="/profile?id=${s.agent_id}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">${escapeHtml(s.agent_name || 'unknown')}</a>
-              <div style="font-size:11px;color:var(--text-soft)">Rep: ${rep}</div>
+              <div style="margin-top:2px"><span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${trustBg};color:${trustColor};font-weight:600">${trustLevel}</span></div>
             </div>
           </div>
           <div style="display:flex;gap:6px">
@@ -1883,9 +1889,42 @@ async function loadAnalytics() {
           </div>` : ''}
         </div>
       </div>
-      ${sellerSection}`;
+      ${sellerSection}
+      <div class="dash-card" style="margin-top:16px">
+        <div class="dash-card-header">
+          <h3>AI Business Insights</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadAIInsights()" id="btn-load-insights">Generate</button>
+        </div>
+        <div class="dash-card-body" id="insights-content">
+          <div style="text-align:center;padding:16px 0;color:var(--text-soft);font-size:13px">Click Generate to get AI-powered insights based on your sales data.</div>
+        </div>
+      </div>`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadAnalytics);
+  }
+}
+
+async function loadAIInsights() {
+  const container = document.getElementById('insights-content');
+  const btn = document.getElementById('btn-load-insights');
+  if (!container || !btn) return;
+  btnLoading(btn, 'Thinking...');
+  container.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-soft);font-size:13px">Analyzing your data with Claude...</div>`;
+  try {
+    const r = await api('/api/v1/agents/me/insights', { headers: authHeaders() });
+    const lines = (r.insights || [r.raw]).filter(Boolean);
+    container.innerHTML = `
+      <div style="font-size:12px;color:var(--text-soft);margin-bottom:10px">Generated ${r.generated_at ? new Date(r.generated_at).toLocaleString() : 'now'} based on your sales data</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        ${lines.map((l, i) => `
+          <div style="padding:10px 14px;background:var(--fill-secondary);border-radius:8px;font-size:13px;line-height:1.5">
+            ${escapeHtml(l.replace(/^\d+\.\s*/, '').replace(/^\*+\s*/, ''))}
+          </div>`).join('')}
+      </div>`;
+    btnRestore(btn);
+  } catch (e) {
+    container.innerHTML = `<div style="text-align:center;padding:16px 0;color:var(--text-soft);font-size:13px">${e.message === 'AI insights not available: ANTHROPIC_API_KEY not configured' ? 'AI insights require Claude API key (not configured on this server).' : friendlyError(e.message)}</div>`;
+    btnRestore(btn);
   }
 }
 
