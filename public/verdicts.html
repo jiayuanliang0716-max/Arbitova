@@ -231,6 +231,15 @@
     .load-more { display: block; margin: 24px auto 0; padding: 10px 28px; border-radius: var(--radius-md); border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; transition: all var(--duration) var(--ease); }
     .load-more:hover { border-color: var(--brand); color: var(--text-primary); }
     .load-more:disabled { opacity: 0.4; cursor: default; }
+    .range-btn {
+      padding: 6px 12px; border-radius: var(--radius-md);
+      border: 1px solid var(--border-default); background: transparent;
+      color: var(--text-secondary); font-size: 12px; cursor: pointer;
+      transition: all var(--duration) var(--ease);
+    }
+    .range-btn:hover { border-color: var(--brand); color: var(--text-primary); }
+    .range-btn.active { background: var(--bg-surface); border-color: var(--border-default); color: var(--text-primary); font-weight: 600; }
+    #search-input:focus { border-color: var(--brand); }
   </style>
 </head>
 <body>
@@ -259,10 +268,15 @@
 </div>
 
 <div class="filters">
-  <span class="filter-label">Filter:</span>
+  <input type="text" id="search-input" placeholder="Search case # or dispute type..." style="padding:6px 12px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-surface);color:var(--text-primary);font-size:13px;font-family:var(--font-ui);outline:none;width:220px;" oninput="debouncedSearch()">
+  <span class="filter-label">Winner:</span>
   <button class="filter-btn active" data-filter="all">All</button>
-  <button class="filter-btn" data-filter="buyer">Buyer wins</button>
-  <button class="filter-btn" data-filter="seller">Seller wins</button>
+  <button class="filter-btn" data-filter="buyer">Buyer</button>
+  <button class="filter-btn" data-filter="seller">Seller</button>
+  <span class="filter-label" style="margin-left:8px">Range:</span>
+  <button class="range-btn active" data-days="0">All time</button>
+  <button class="range-btn" data-days="30">30d</button>
+  <button class="range-btn" data-days="7">7d</button>
 </div>
 
 <div class="table-wrap">
@@ -299,6 +313,9 @@
 <script>
   const API = 'https://api.arbitova.com/api/v1/arbitrate/verdicts';
   let currentFilter = 'all';
+  let currentDays   = 0;   // 0 = all time
+  let currentSearch = '';
+  let searchTimer;
   let currentPage   = 0;
   let allVerdicts   = [];
   let total         = 0;
@@ -316,9 +333,31 @@
     general:             'General',
   };
 
+  function debouncedSearch() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      currentSearch = document.getElementById('search-input').value.trim().toLowerCase();
+      renderTable(filterLocal(allVerdicts));
+    }, 200);
+  }
+
+  function filterLocal(verdicts) {
+    if (!currentSearch) return verdicts;
+    return verdicts.filter(v => {
+      const type = (v.dispute_type || '').toLowerCase();
+      const label = (DISPUTE_LABELS[v.dispute_type] || '').toLowerCase();
+      const caseNum = String(v.case_number || '');
+      return type.includes(currentSearch) || label.includes(currentSearch) || caseNum.includes(currentSearch);
+    });
+  }
+
   async function loadVerdicts(page = 0, append = false) {
     const params = new URLSearchParams({ page, limit: PAGE_SIZE });
     if (currentFilter !== 'all') params.set('winner', currentFilter);
+    if (currentDays > 0) {
+      const since = new Date(Date.now() - currentDays * 86400000).toISOString();
+      params.set('since', since);
+    }
 
     try {
       const res  = await fetch(`${API}?${params}`);
@@ -340,7 +379,7 @@
         allVerdicts = data.verdicts;
       }
 
-      renderTable(allVerdicts);
+      renderTable(filterLocal(allVerdicts));
       document.getElementById('loadingState').style.display = 'none';
 
       const loadMoreBtn = document.getElementById('loadMore');
@@ -445,7 +484,7 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
-  // Filter buttons
+  // Winner filter buttons
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -453,6 +492,20 @@
       currentFilter = btn.dataset.filter;
       currentPage   = 0;
       allVerdicts   = [];
+      document.getElementById('loadingState').style.display = 'block';
+      document.getElementById('verdictsTable').style.display = 'none';
+      loadVerdicts(0, false);
+    });
+  });
+
+  // Time range buttons
+  document.querySelectorAll('.range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDays = parseInt(btn.dataset.days, 10);
+      currentPage = 0;
+      allVerdicts = [];
       document.getElementById('loadingState').style.display = 'block';
       document.getElementById('verdictsTable').style.display = 'none';
       loadVerdicts(0, false);

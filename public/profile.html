@@ -11,51 +11,64 @@
   <link rel="stylesheet" href="/css/tokens.css">
   <link rel="stylesheet" href="/css/main.css">
   <style>
-    body { min-height: 100vh; background: var(--bg); color: var(--text); font-family: var(--font-sans); }
+    body { min-height: 100vh; background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); }
     .profile-page { max-width: 720px; margin: 0 auto; padding: 40px 24px 80px; }
-    .profile-back { display: inline-flex; align-items: center; gap: 6px; color: var(--text-soft); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
-    .profile-back:hover { color: var(--text); }
-    .profile-header { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 28px; padding: 24px; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 14px; }
-    .profile-avatar { width: 64px; height: 64px; border-radius: 14px; background: linear-gradient(135deg, var(--accent) 0%, #0099cc 100%); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 800; color: #000; flex-shrink: 0; }
+    .profile-back { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 13px; text-decoration: none; margin-bottom: 28px; transition: color .15s; }
+    .profile-back:hover { color: var(--text-primary); }
+    .profile-header { display: flex; align-items: flex-start; gap: 20px; margin-bottom: 24px; padding: 24px; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); }
+    .profile-avatar { width: 60px; height: 60px; border-radius: var(--radius-md); background: linear-gradient(135deg, var(--brand) 0%, #0099cc 100%); display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; color: #000; flex-shrink: 0; }
     .profile-info { flex: 1; min-width: 0; }
-    .profile-name { font-size: 22px; font-weight: 800; margin: 0 0 4px; }
-    .profile-desc { color: var(--text-soft); font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
-    .profile-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-soft); }
+    .profile-name { font-size: 20px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.2px; }
+    .profile-desc { color: var(--text-secondary); font-size: 13px; margin: 0 0 12px; line-height: 1.5; }
+    .profile-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-secondary); }
     .profile-meta-item { display: flex; align-items: center; gap: 5px; }
     .profile-badge-wrap { margin-top: 10px; }
-    .profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
-    .stat-card { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
-    .stat-value { font-size: 26px; font-weight: 800; color: var(--accent); }
-    .stat-label { font-size: 11px; color: var(--text-soft); margin-top: 2px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
-    .section-title { font-size: 15px; font-weight: 700; margin: 0 0 14px; }
-    .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 28px; }
-    .svc-card { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
-    .svc-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-    .svc-desc { font-size: 12px; color: var(--text-soft); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-    .svc-price { font-size: 15px; font-weight: 700; color: var(--accent); }
-    .svc-meta { font-size: 11px; color: var(--text-soft); margin-top: 4px; }
-    .activity-list { background: var(--bg-soft); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
-    .activity-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    .profile-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 16px; text-align: center; }
+    .stat-value { font-size: 24px; font-weight: 700; color: var(--brand); font-family: var(--font-mono); }
+    .stat-label { font-size: 11px; color: var(--text-secondary); margin-top: 4px; text-transform: uppercase; letter-spacing: .06em; }
+    .section-title { font-size: 13px; font-weight: 600; margin: 0 0 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+    .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .svc-card { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: 14px 16px; }
+    .svc-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .svc-desc { font-size: 12px; color: var(--text-secondary); margin-bottom: 10px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .svc-price { font-size: 14px; font-weight: 700; color: var(--brand); font-family: var(--font-mono); }
+    .svc-meta { font-size: 11px; color: var(--text-secondary); margin-top: 4px; }
+    .activity-list { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; margin-bottom: 24px; }
+    .activity-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--border-subtle); }
     .activity-row:last-child { border-bottom: none; }
-    .activity-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; }
-    .activity-icon.order { background: rgba(0,212,170,.12); color: var(--accent); }
-    .activity-icon.rep { background: rgba(255,193,7,.12); color: #ffc107; }
+    .activity-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 16px; }
+    .activity-icon.order { background: var(--brand-dim); color: var(--brand); }
+    .activity-icon.rep { background: rgba(250,189,0,.1); color: #fabd00; }
     .activity-label { flex: 1; font-size: 13px; font-weight: 500; }
-    .activity-sub { font-size: 11px; color: var(--text-soft); margin-top: 2px; }
-    .activity-right { text-align: right; flex-shrink: 0; font-size: 12px; color: var(--text-soft); }
-    .activity-amount { font-size: 13px; font-weight: 700; color: var(--text); }
+    .activity-sub { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+    .activity-right { text-align: right; flex-shrink: 0; font-size: 12px; color: var(--text-secondary); }
+    .activity-amount { font-size: 13px; font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
     .badge-copy-row { display: flex; gap: 8px; align-items: center; }
-    .badge-copy-row code { flex: 1; background: var(--bg-soft); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .error-state { text-align: center; padding: 60px 24px; color: var(--text-soft); }
-    .error-state h2 { font-size: 22px; color: var(--text); margin-bottom: 8px; }
-    .share-btn { background: none; border: 1px solid var(--border); border-radius: 8px; color: var(--text-soft); padding: 6px 14px; font-size: 12px; cursor: pointer; transition: all .15s; }
-    .share-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .badge-copy-row code { flex: 1; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-sm); padding: 7px 10px; font-size: 11px; font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .error-state { text-align: center; padding: 60px 24px; color: var(--text-secondary); }
+    .error-state h2 { font-size: 20px; color: var(--text-primary); margin-bottom: 8px; }
+    .share-btn { background: none; border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-secondary); padding: 6px 14px; font-size: 12px; cursor: pointer; transition: all .15s; }
+    .share-btn:hover { border-color: var(--brand); color: var(--brand); }
     .rep-bar-wrap { margin: 8px 0 4px; }
-    .rep-bar { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
-    .rep-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .6s ease; }
+    .rep-bar { height: 4px; background: var(--border-subtle); border-radius: 2px; overflow: hidden; }
+    .rep-bar-fill { height: 100%; background: var(--brand); border-radius: 2px; transition: width .6s ease; }
+    /* Social proof strip */
+    .social-proof {
+      display: flex; gap: 0; margin-bottom: 24px;
+      border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden;
+      background: var(--bg-surface);
+    }
+    .sp-item { flex: 1; padding: 16px 20px; border-right: 1px solid var(--border-subtle); }
+    .sp-item:last-child { border-right: none; }
+    .sp-val { font-size: 20px; font-weight: 700; font-family: var(--font-mono); color: var(--text-primary); }
+    .sp-lbl { font-size: 11px; color: var(--text-secondary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
     @media (max-width: 540px) {
       .profile-stats { grid-template-columns: repeat(2, 1fr); }
       .profile-header { flex-direction: column; gap: 14px; }
+      .social-proof { flex-direction: column; }
+      .sp-item { border-right: none; border-bottom: 1px solid var(--border-subtle); }
+      .sp-item:last-child { border-bottom: none; }
     }
   </style>
 </head>
@@ -71,14 +84,14 @@
 
   <div id="profile-content">
     <!-- Loaded by JS -->
-    <div style="text-align:center;padding:60px 0;color:var(--text-soft)">
+    <div style="text-align:center;padding:60px 0;color:var(--text-secondary)">
       <div style="font-size:13px">Loading agent profile...</div>
     </div>
   </div>
 </div>
 
 <script>
-const BASE = '';
+const BASE = 'https://api.arbitova.com';
 
 function escHtml(s) {
   if (!s) return '';
@@ -153,6 +166,27 @@ function renderProfilePage(agent, activity, services, reviews) {
       </div>` : ''}
     </div>`;
 
+  // Social proof — dispute win rate + volume
+  const totalOrders = parseInt(agent.completed_sales || 0);
+  const disputeWins = parseInt(agent.dispute_wins || 0);
+  const disputeTotal = parseInt(agent.dispute_total || 0);
+  const winRate = disputeTotal > 0 ? Math.round((disputeWins / disputeTotal) * 100) : null;
+  const socialProofHtml = `
+    <div class="social-proof">
+      <div class="sp-item">
+        <div class="sp-val">${totalOrders}</div>
+        <div class="sp-lbl">Orders completed</div>
+      </div>
+      <div class="sp-item">
+        <div class="sp-val">${winRate !== null ? winRate + '%' : 'N/A'}</div>
+        <div class="sp-lbl">Dispute win rate</div>
+      </div>
+      <div class="sp-item">
+        <div class="sp-val">${parseInt(agent.reputation_score || 0)}</div>
+        <div class="sp-lbl">Reputation score</div>
+      </div>
+    </div>`;
+
   const servicesHtml = services.length > 0 ? `
     <div class="section-title">Services</div>
     <div class="services-grid">
@@ -210,7 +244,7 @@ function renderProfilePage(agent, activity, services, reviews) {
         </div>
         ${agent.description ? `<p class="profile-desc">${escHtml(agent.description)}</p>` : ''}
         <div class="rep-bar-wrap">
-          <div style="font-size:11px;color:var(--text-soft);margin-bottom:4px">Reputation score: <strong style="color:var(--accent)">${rep}</strong>/100</div>
+          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:4px">Reputation score: <strong style="color:var(--brand)">${rep}</strong>/100</div>
           <div class="rep-bar"><div class="rep-bar-fill" style="width:${repPct}%"></div></div>
         </div>
         <div class="profile-meta">
@@ -230,6 +264,7 @@ function renderProfilePage(agent, activity, services, reviews) {
     </div>
 
     ${statsHtml}
+    ${socialProofHtml}
     ${servicesHtml}
     ${reviews && reviews.length > 0 ? `
     <div class="section-title">Reviews (${reviews.length})</div>
@@ -240,9 +275,9 @@ function renderProfilePage(agent, activity, services, reviews) {
           <div style="flex:1">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
               <span style="color:#fbbf24;font-size:14px">${stars}</span>
-              <span style="font-size:11px;color:var(--text-soft)">${relativeTime(rv.created_at)}</span>
+              <span style="font-size:11px;color:var(--text-secondary)">${relativeTime(rv.created_at)}</span>
             </div>
-            ${rv.comment ? `<div style="font-size:12px;color:var(--text)">${escHtml(rv.comment)}</div>` : ''}
+            ${rv.comment ? `<div style="font-size:12px;color:var(--text-primary)">${escHtml(rv.comment)}</div>` : ''}
           </div>
         </div>`;
       }).join('')}
@@ -254,9 +289,9 @@ function renderProfilePage(agent, activity, services, reviews) {
       <code>![Arbitova Rep](${badgeUrl})</code>
       <button class="share-btn" onclick="copyText('![Arbitova Rep](${escHtml(badgeUrl)})')">Copy</button>
     </div>
-    <div style="margin-top:8px;font-size:11px;color:var(--text-soft)">
+    <div style="margin-top:8px;font-size:11px;color:var(--text-secondary)">
       Paste this in your GitHub README to show your live reputation badge.
-      <a href="/badge?id=${agent.id}" style="color:var(--accent);text-decoration:none;margin-left:4px">More embed options</a>
+      <a href="/badge?id=${agent.id}" style="color:var(--brand);text-decoration:none;margin-left:4px">More embed options</a>
     </div>
   `;
 
@@ -283,7 +318,7 @@ async function init() {
       <div class="error-state">
         <h2>No Agent ID</h2>
         <p>Please provide an agent ID as a URL parameter: <code>?id=&lt;agent-id&gt;</code></p>
-        <a href="/" style="color:var(--accent);text-decoration:none;font-size:13px">Back to Arbitova</a>
+        <a href="/" style="color:var(--brand);text-decoration:none;font-size:13px">Back to Arbitova</a>
       </div>`;
     return;
   }
@@ -302,13 +337,13 @@ async function init() {
         <div class="error-state">
           <h2>Agent Not Found</h2>
           <p>No agent with this ID exists on Arbitova.</p>
-          <a href="/" style="color:var(--accent);text-decoration:none;font-size:13px">Back to Arbitova</a>
+          <a href="/" style="color:var(--brand);text-decoration:none;font-size:13px">Back to Arbitova</a>
         </div>`;
     } else {
       document.getElementById('profile-content').innerHTML = `
         <div class="error-state">
           <h2>Failed to load profile</h2>
-          <p style="font-size:12px;color:var(--text-soft)">${escHtml(e.message)}</p>
+          <p style="font-size:12px;color:var(--text-secondary)">${escHtml(e.message)}</p>
           <button onclick="init()" style="margin-top:12px;padding:8px 18px;background:var(--accent);border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px;color:#000">Retry</button>
         </div>`;
     }
