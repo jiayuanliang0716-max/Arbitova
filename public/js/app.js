@@ -692,6 +692,7 @@ function switchPanel(name) {
   if (name === 'analytics') loadAnalytics();
   if (name === 'wallet') loadWallet();
   if (name === 'settings') loadSettings();
+  if (name === 'rfp') loadRfpPanel();
 }
 
 // Bind sidebar buttons
@@ -2882,6 +2883,311 @@ async function openRepHistory(id) {
       <p class="mdesc">${t('rep_current')} <b style="color:var(--primary)">${r.reputation_score}</b></p>
       <ul class="timeline">${items}</ul>
     `);
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+// ================= RFP Board =================
+
+let rfpAllRequests = [];
+let rfpCurrentTab = 'browse';
+
+async function loadRfpPanel() {
+  if (rfpCurrentTab === 'browse') await loadRfpBrowse();
+  else await loadRfpMine();
+}
+
+function switchRfpTab(tab) {
+  rfpCurrentTab = tab;
+  const browseTab = document.getElementById('rfp-browse-tab');
+  const mineTab = document.getElementById('rfp-mine-tab');
+  const browseBtn = document.getElementById('rfp-tab-browse');
+  const mineBtn = document.getElementById('rfp-tab-mine');
+  if (tab === 'browse') {
+    browseTab.style.display = '';
+    mineTab.style.display = 'none';
+    browseBtn.className = 'btn btn-sm';
+    mineBtn.className = 'btn btn-sm btn-ghost';
+    loadRfpBrowse();
+  } else {
+    browseTab.style.display = 'none';
+    mineTab.style.display = '';
+    browseBtn.className = 'btn btn-sm btn-ghost';
+    mineBtn.className = 'btn btn-sm';
+    loadRfpMine();
+  }
+}
+
+async function loadRfpBrowse() {
+  const list = document.getElementById('rfp-browse-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading...</div>';
+  try {
+    const r = await api('/requests', { headers: authHeaders() });
+    rfpAllRequests = r.requests || [];
+    renderRfpBrowse(rfpAllRequests);
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function filterRfpRequests() {
+  const q = (document.getElementById('rfp-filter-q')?.value || '').toLowerCase();
+  const cat = (document.getElementById('rfp-filter-cat')?.value || '').toLowerCase();
+  const maxB = parseFloat(document.getElementById('rfp-filter-max')?.value) || Infinity;
+  const filtered = rfpAllRequests.filter(r => {
+    if (q && !r.title.toLowerCase().includes(q) && !r.description.toLowerCase().includes(q)) return false;
+    if (cat && !(r.category || '').toLowerCase().includes(cat)) return false;
+    if (r.budget_usdc > maxB) return false;
+    return true;
+  });
+  renderRfpBrowse(filtered);
+}
+
+function renderRfpBrowse(requests) {
+  const list = document.getElementById('rfp-browse-list');
+  if (!list) return;
+  if (!requests.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">No open requests found.</div>';
+    return;
+  }
+  list.innerHTML = requests.map(r => `
+    <div class="rfp-card">
+      <div style="display:flex;align-items:flex-start;gap:10px">
+        <div style="flex:1">
+          <div class="rfp-card-title">${escapeHtml(r.title)}</div>
+          <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;line-height:1.4">${escapeHtml((r.description || '').slice(0, 120))}${r.description?.length > 120 ? '...' : ''}</div>
+        </div>
+        <span class="rfp-status-badge rfp-status-${r.status || 'open'}">${r.status || 'open'}</span>
+      </div>
+      <div class="rfp-card-meta">
+        <span class="rfp-card-budget">${money(r.budget_usdc)} USDC budget</span>
+        ${r.category ? `<span>Category: ${escapeHtml(r.category)}</span>` : ''}
+        ${r.delivery_hours ? `<span>Deliver in ${r.delivery_hours}h</span>` : ''}
+        <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
+      </div>
+      <div class="rfp-card-actions">
+        <button class="btn btn-sm btn-primary" onclick="openApplyModal('${r.id}', ${r.budget_usdc})">Apply</button>
+        <button class="btn btn-sm btn-ghost" onclick="openRfpDetail('${r.id}')">View Details</button>
+      </div>
+    </div>`).join('');
+}
+
+async function loadRfpMine() {
+  const list = document.getElementById('rfp-mine-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading...</div>';
+  try {
+    const requests = await api('/requests/mine', { headers: authHeaders() });
+    if (!requests.length) {
+      list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">You have not posted any requests yet.</div>';
+      return;
+    }
+    list.innerHTML = requests.map(r => `
+      <div class="rfp-card">
+        <div style="display:flex;align-items:flex-start;gap:10px">
+          <div style="flex:1">
+            <div class="rfp-card-title">${escapeHtml(r.title)}</div>
+            <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px">${escapeHtml((r.description || '').slice(0, 100))}${r.description?.length > 100 ? '...' : ''}</div>
+          </div>
+          <span class="rfp-status-badge rfp-status-${r.status || 'open'}">${r.status || 'open'}</span>
+        </div>
+        <div class="rfp-card-meta">
+          <span class="rfp-card-budget">${money(r.budget_usdc)} USDC</span>
+          ${r.application_count != null ? `<span>${r.application_count} application${r.application_count !== 1 ? 's' : ''}</span>` : ''}
+          ${r.category ? `<span>${escapeHtml(r.category)}</span>` : ''}
+          <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
+        </div>
+        <div class="rfp-card-actions">
+          ${r.status === 'open' ? `<button class="btn btn-sm" onclick="openRequestApplications('${r.id}')">View Applications</button>` : ''}
+          ${r.status === 'open' ? `<button class="btn btn-sm btn-ghost" onclick="closeRfpRequest('${r.id}')">Close Request</button>` : ''}
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function showPostRequestModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Post a Task Request</h2>
+    <p class="mdesc" style="margin-bottom:16px">Sellers will bid on your request. Accept the best application to auto-create an escrow order.</p>
+    <div class="form-group">
+      <label class="form-label">Title *</label>
+      <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-title" placeholder="e.g. Summarize 50-page PDF into bullet points">
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">Description *</label>
+      <textarea id="rfp-post-desc" class="input-sm" style="width:100%;box-sizing:border-box;height:80px;resize:vertical" placeholder="Describe the task in detail..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Budget (USDC) *</label>
+        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-budget" type="number" min="0.01" step="0.01" placeholder="5.00">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Category</label>
+        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-cat" placeholder="e.g. research, coding">
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Delivery (hours)</label>
+        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-delivery" type="number" value="24">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">Expires in (hours)</label>
+        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-expires" type="number" value="72">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="submitPostRequest()">Post Request</button>
+  `);
+}
+
+async function submitPostRequest() {
+  const title = document.getElementById('rfp-post-title')?.value?.trim();
+  const description = document.getElementById('rfp-post-desc')?.value?.trim();
+  const budget_usdc = parseFloat(document.getElementById('rfp-post-budget')?.value);
+  const category = document.getElementById('rfp-post-cat')?.value?.trim();
+  const delivery_hours = parseInt(document.getElementById('rfp-post-delivery')?.value) || 24;
+  const expires_in_hours = parseInt(document.getElementById('rfp-post-expires')?.value) || 72;
+
+  if (!title) { toast('Title is required', 'error'); return; }
+  if (!description) { toast('Description is required', 'error'); return; }
+  if (!budget_usdc || budget_usdc <= 0) { toast('Enter a valid budget', 'error'); return; }
+
+  try {
+    await api('/requests', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ title, description, budget_usdc, category: category || undefined, delivery_hours, expires_in_hours })
+    });
+    closeModal();
+    toast('Request posted to RFP board', 'success');
+    switchRfpTab('mine');
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function openApplyModal(requestId, budget) {
+  // Load user's services first
+  let servicesHtml = '<option value="">Loading...</option>';
+  try {
+    const a = getAuth();
+    const svcRes = await api('/services?agent_id=' + a.id, { headers: authHeaders() });
+    const svcs = svcRes.services || svcRes || [];
+    servicesHtml = svcs.length
+      ? svcs.filter(s => s.is_active !== false).map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${money(s.price)} USDC)</option>`).join('')
+      : '<option value="">No active services</option>';
+  } catch (_) {}
+
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>Apply to Request</h2>
+    <p class="mdesc">Budget: <b style="color:var(--accent)">${money(budget)} USDC</b>. Propose your price and the service you'll use.</p>
+    <div class="form-group" style="margin-top:12px">
+      <label class="form-label">Your Service *</label>
+      <select id="apply-service-id" class="input-sm" style="width:100%;box-sizing:border-box">
+        ${servicesHtml}
+      </select>
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">Proposed Price (USDC) *</label>
+      <input class="input-sm" style="width:100%;box-sizing:border-box" id="apply-price" type="number" min="0.01" step="0.01" value="${budget}">
+    </div>
+    <div class="form-group" style="margin-top:10px">
+      <label class="form-label">Message to buyer (optional)</label>
+      <textarea id="apply-msg" class="input-sm" style="width:100%;box-sizing:border-box;height:70px;resize:vertical" placeholder="Why you're the right agent for this task..."></textarea>
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="submitApplication('${requestId}')">Submit Application</button>
+  `);
+}
+
+async function submitApplication(requestId) {
+  const service_id = document.getElementById('apply-service-id')?.value;
+  const proposed_price = parseFloat(document.getElementById('apply-price')?.value);
+  const message = document.getElementById('apply-msg')?.value?.trim();
+
+  if (!service_id) { toast('Select a service', 'error'); return; }
+  if (!proposed_price || proposed_price <= 0) { toast('Enter a valid price', 'error'); return; }
+
+  try {
+    await api('/requests/' + requestId + '/apply', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ service_id, proposed_price, message: message || undefined })
+    });
+    closeModal();
+    toast('Application submitted', 'success');
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function openRfpDetail(requestId) {
+  try {
+    const r = await api('/requests/' + requestId, { headers: authHeaders() });
+    modal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2>${escapeHtml(r.title)}</h2>
+      <span class="rfp-status-badge rfp-status-${r.status}">${r.status}</span>
+      <p style="margin:12px 0;line-height:1.6;color:var(--text-secondary)">${escapeHtml(r.description || '')}</p>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
+        <span>Budget: <b style="color:var(--accent)">${money(r.budget_usdc)} USDC</b></span>
+        ${r.category ? `<span>Category: ${escapeHtml(r.category)}</span>` : ''}
+        ${r.delivery_hours ? `<span>Delivery: ${r.delivery_hours}h</span>` : ''}
+        <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
+      </div>
+      ${r.status === 'open' ? `<button class="btn btn-primary" style="width:100%" onclick="closeModal();openApplyModal('${r.id}', ${r.budget_usdc})">Apply to this Request</button>` : ''}
+    `);
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function openRequestApplications(requestId) {
+  try {
+    const apps = await api('/requests/' + requestId + '/applications', { headers: authHeaders() });
+    if (!apps.length) {
+      modal(`<button class="close" onclick="closeModal()">&times;</button><h2>Applications</h2><p class="mdesc">No applications yet.</p>`);
+      return;
+    }
+    const items = apps.map(a => `
+      <div class="rfp-card" style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b>${escapeHtml(a.seller_name || a.seller_id)}</b>
+          <span class="rfp-status-badge rfp-status-${a.status}">${a.status}</span>
+        </div>
+        <div class="rfp-card-meta">
+          <span>Rep: ${a.reputation_score ?? '—'}</span>
+          <span>Completed Sales: ${a.completed_sales ?? '—'}</span>
+          <span class="rfp-card-budget">${money(a.proposed_price)} USDC</span>
+        </div>
+        ${a.message ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px">${escapeHtml(a.message)}</div>` : ''}
+        ${a.status === 'pending' ? `<div class="rfp-card-actions"><button class="btn btn-sm btn-primary" onclick="acceptApplication('${requestId}','${a.application_id}')">Accept</button></div>` : ''}
+      </div>`).join('');
+    modal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2>Applications (${apps.length})</h2>
+      <div style="margin-top:12px">${items}</div>
+    `);
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function acceptApplication(requestId, applicationId) {
+  try {
+    const r = await api('/requests/' + requestId + '/accept', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ application_id: applicationId })
+    });
+    closeModal();
+    toast('Application accepted! Escrow order created: ' + r.order?.id, 'success');
+    loadRfpMine();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function closeRfpRequest(requestId) {
+  if (!confirm('Close this request? All pending applications will be rejected.')) return;
+  try {
+    await api('/requests/' + requestId + '/close', { method: 'POST', headers: authHeaders() });
+    toast('Request closed', 'success');
+    loadRfpMine();
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
 

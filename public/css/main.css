@@ -2016,3 +2016,61 @@ label {
 .stats-bar-value.loaded {
   animation: countUp 0.4s ease;
 }
+
+/* RFP Board */
+.input-sm {
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input, 6px);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-sm:focus { border-color: var(--accent, #00d4aa); }
+
+.rfp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rfp-card-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text);
+}
+.rfp-card-meta {
+  font-size: 0.8rem;
+  color: var(--text-secondary, #8888aa);
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rfp-card-budget {
+  font-weight: 700;
+  color: var(--accent, #00d4aa);
+}
+.rfp-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.rfp-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rfp-status-open    { background: rgba(0,212,170,0.15); color: var(--accent, #00d4aa); }
+.rfp-status-accepted{ background: rgba(99,102,241,0.15); color: #818cf8; }
+.rfp-status-closed  { background: rgba(100,100,120,0.15); color: #8888aa; }
+.rfp-status-expired { background: rgba(255,87,87,0.12); color: #ff7070; }
