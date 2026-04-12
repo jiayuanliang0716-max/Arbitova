@@ -353,7 +353,7 @@ router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
       title: title || 'Spot order',
       message: `Spot escrow created. ${n} USDC locked. Seller has been notified.`,
     });
-  } catch (err) { next(err); }
+  } catch (err) { console.error('[spot] ERROR:', err.message, err.stack?.split('\n')[1]); next(err); }
 });
 
 // GET /orders/overdue — list orders past their deadline that haven't been delivered yet.

@@ -157,6 +157,7 @@ if (DATABASE_URL) {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS max_revisions INTEGER DEFAULT 3;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS spot_order_title TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS comments TEXT;
+      ALTER TABLE orders ALTER COLUMN service_id DROP NOT NULL;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS away_mode TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS blocklist TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS capability_tags TEXT;
