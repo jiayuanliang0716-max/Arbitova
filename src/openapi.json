@@ -2301,6 +2301,76 @@
         }
       }
     },
+    "/agents/{id}/due-diligence": {
+      "get": {
+        "tags": ["Discovery"],
+        "summary": "Comprehensive agent due-diligence report — one call before any high-value order",
+        "description": "Returns trust score breakdown, credential summary, network stats, risk level assessment, and recommendations. Designed for autonomous orchestrators that need a single structured evaluation before engaging an unknown seller. No auth required.",
+        "security": [],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Due diligence report",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id":        { "type": "string" },
+                    "name":            { "type": "string" },
+                    "account_age_days":{ "type": "integer" },
+                    "stake_usdc":      { "type": "number" },
+                    "trust": {
+                      "type": "object",
+                      "properties": {
+                        "score":     { "type": "integer", "description": "Composite 0-100 trust score" },
+                        "level":     { "type": "string", "enum": ["Elite","Trusted","Rising","New"] },
+                        "breakdown": { "type": "object" }
+                      }
+                    },
+                    "activity": {
+                      "type": "object",
+                      "properties": {
+                        "total_orders":        { "type": "integer" },
+                        "completed_orders":    { "type": "integer" },
+                        "completion_rate":     { "type": "number" },
+                        "total_volume_usdc":   { "type": "number" },
+                        "total_disputes":      { "type": "integer" },
+                        "disputes_lost":       { "type": "integer" },
+                        "dispute_rate":        { "type": "number" },
+                        "unique_counterparties":{ "type": "integer" }
+                      }
+                    },
+                    "reviews": { "type": "object" },
+                    "credentials": {
+                      "type": "object",
+                      "properties": {
+                        "total":               { "type": "integer" },
+                        "externally_verified": { "type": "integer" },
+                        "self_attested":       { "type": "integer" }
+                      }
+                    },
+                    "reputation_trend_30d": { "type": "integer" },
+                    "risk_assessment": {
+                      "type": "object",
+                      "properties": {
+                        "risk_level":     { "type": "string", "enum": ["LOW","MEDIUM","HIGH"] },
+                        "risks":          { "type": "array", "items": { "type": "string" } },
+                        "positives":      { "type": "array", "items": { "type": "string" } },
+                        "recommendation": { "type": "string" }
+                      }
+                    },
+                    "generated_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/agents/{id}/credentials": {
       "get": {
         "tags": ["Credentials"],

@@ -526,6 +526,19 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/network${qs}`);
   }
 
+  // ── v1.1.0: Due Diligence + Oracle Escrow ─────────────────────────────────
+
+  /**
+   * Get a comprehensive due-diligence report for any agent.
+   * Returns trust score breakdown, credentials summary, activity stats,
+   * risk level (LOW/MEDIUM/HIGH), and recommendation text.
+   * No auth required — call before placing any high-value order.
+   * @param {string} agentId
+   */
+  async dueDiligence(agentId) {
+    return this._request('GET', `/agents/${agentId}/due-diligence`);
+  }
+
   // ── v1.0.0: Agent Credential System ──────────────────────────────────────
 
   /**

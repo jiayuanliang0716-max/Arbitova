@@ -1397,4 +1397,167 @@ router.get('/:id/trust-score', async (req, res, next) => {
 const { getPublicCredentials } = require('./credentials');
 router.get('/:id/credentials', getPublicCredentials);
 
+// GET /agents/:id/due-diligence — comprehensive agent evaluation report (no auth)
+// Returns trust score, credentials, network stats, risk level, and recommendations.
+// One-call evaluation for orchestrators deciding whether to engage a seller.
+router.get('/:id/due-diligence', async (req, res, next) => {
+  try {
+    const agent = await dbGet(`SELECT * FROM agents WHERE id = ${p(1)}`, [req.params.id]);
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const agentId = agent.id;
+
+    // Run all stats queries in parallel
+    const selfAttested = isPostgres ? 'FALSE' : '0';
+    const isPublicTrue = isPostgres ? 'TRUE' : '1';
+    const last30days   = isPostgres ? "NOW() - INTERVAL '30 days'" : "datetime('now', '-30 days')";
+
+    const [orderStats, disputeStats, reviewStats, credStats, networkStats, repHistory] = await Promise.all([
+      dbGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END), 0) as volume
+         FROM orders WHERE seller_id = ${p(1)}`,
+        [agentId]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as total_disputes,
+                SUM(CASE WHEN d.status='resolved_for_buyer' THEN 1 ELSE 0 END) as lost
+         FROM disputes d JOIN orders o ON d.order_id = o.id WHERE o.seller_id = ${p(1)}`,
+        [agentId]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as total, AVG(rating) as avg_rating FROM reviews WHERE seller_id = ${p(1)}`,
+        [agentId]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN self_attested = ${selfAttested} THEN 1 ELSE 0 END) as verified_count
+         FROM agent_credentials WHERE agent_id = ${p(1)} AND is_public = ${isPublicTrue}`,
+        [agentId]
+      ),
+      dbGet(
+        `SELECT COUNT(DISTINCT CASE WHEN buyer_id = ${p(1)} THEN seller_id ELSE buyer_id END) as unique_counterparties
+         FROM orders WHERE (buyer_id = ${p(2)} OR seller_id = ${p(3)}) AND status = 'completed'`,
+        [agentId, agentId, agentId]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as cnt, COALESCE(SUM(delta), 0) as net_30
+         FROM reputation_history WHERE agent_id = ${p(1)}
+         AND created_at > ${last30days}`,
+        [agentId]
+      ),
+    ]);
+
+    const total     = parseInt(orderStats?.total || 0);
+    const completed = parseInt(orderStats?.completed || 0);
+    const volume    = parseFloat(orderStats?.volume || 0);
+    const totalDisp = parseInt(disputeStats?.total_disputes || 0);
+    const lostDisp  = parseInt(disputeStats?.lost || 0);
+    const reviews   = parseInt(reviewStats?.total || 0);
+    const avgRating = parseFloat(reviewStats?.avg_rating || 0);
+    const credTotal = parseInt(credStats?.total || 0);
+    const credVerified = parseInt(credStats?.verified_count || 0);
+    const counterparties = parseInt(networkStats?.unique_counterparties || 0);
+    const reputationTrend30 = parseInt(repHistory?.net_30 || 0);
+
+    const completionRate = total > 0 ? completed / total : null;
+    const disputeRate    = total > 0 ? lostDisp / total : null;
+
+    // Compute trust score
+    const ageDays = Math.min((Date.now() - new Date(agent.created_at).getTime()) / 86400000, 30);
+    const rep = parseInt(agent.reputation_score || 0);
+    const repPts      = Math.min(Math.max(rep, 0) / 200 * 30, 30);
+    const compPts     = completionRate !== null ? completionRate * 25 : 0;
+    const dispPenalty = disputeRate !== null ? Math.min(disputeRate * 40, 20) : 0;
+    const ratingPts   = reviews > 0 ? (avgRating / 5) * 25 : 12.5;
+    const agePts      = (ageDays / 30) * 10;
+    const revBonus    = Math.min(reviews * 0.5, 10);
+    const trustScore  = Math.min(Math.max(Math.round(repPts + compPts - dispPenalty + ratingPts + agePts + revBonus), 0), 100);
+    const trustLevel  = trustScore >= 90 ? 'Elite' : trustScore >= 70 ? 'Trusted' : trustScore >= 45 ? 'Rising' : 'New';
+
+    // Risk assessment
+    const risks = [];
+    const positives = [];
+
+    if (total === 0) risks.push('No transaction history');
+    if (completionRate !== null && completionRate < 0.7) risks.push(`Low completion rate (${(completionRate * 100).toFixed(0)}%)`);
+    if (disputeRate !== null && disputeRate > 0.15) risks.push(`High dispute rate (${(disputeRate * 100).toFixed(0)}%)`);
+    if (ageDays < 7) risks.push('New account (< 7 days old)');
+    if (parseFloat(agent.stake || 0) === 0) risks.push('No stake locked (no skin in game)');
+    if (reputationTrend30 < -20) risks.push('Reputation declining in last 30 days');
+
+    if (completed >= 10) positives.push(`${completed} completed orders`);
+    if (completionRate !== null && completionRate >= 0.9) positives.push(`Excellent completion rate (${(completionRate * 100).toFixed(0)}%)`);
+    if (credVerified > 0) positives.push(`${credVerified} externally-verified credential(s)`);
+    if (counterparties >= 5) positives.push(`Active network: ${counterparties} unique trading partners`);
+    if (parseFloat(agent.stake || 0) > 0) positives.push(`${agent.stake} USDC staked (has skin in game)`);
+    if (reputationTrend30 > 10) positives.push(`Reputation rising (+${reputationTrend30} in 30 days)`);
+    if (reviews >= 3 && avgRating >= 4.5) positives.push(`High rating: ${avgRating.toFixed(1)}/5 (${reviews} reviews)`);
+
+    const riskLevel = risks.length >= 3 ? 'HIGH'
+                    : risks.length >= 1 ? 'MEDIUM'
+                    : 'LOW';
+
+    res.json({
+      agent_id: agentId,
+      name: agent.name,
+      description: agent.description,
+      account_age_days: Math.floor((Date.now() - new Date(agent.created_at).getTime()) / 86400000),
+      stake_usdc: parseFloat(agent.stake || 0),
+
+      trust: {
+        score: trustScore,
+        level: trustLevel,
+        breakdown: {
+          reputation: parseFloat(repPts.toFixed(1)),
+          completion: parseFloat(compPts.toFixed(1)),
+          rating: parseFloat(ratingPts.toFixed(1)),
+          age: parseFloat(agePts.toFixed(1)),
+          dispute_penalty: -parseFloat(dispPenalty.toFixed(1)),
+          review_bonus: parseFloat(revBonus.toFixed(1)),
+        }
+      },
+
+      activity: {
+        total_orders: total,
+        completed_orders: completed,
+        completion_rate: completionRate !== null ? parseFloat((completionRate * 100).toFixed(1)) : null,
+        total_volume_usdc: parseFloat(volume.toFixed(2)),
+        total_disputes: totalDisp,
+        disputes_lost: lostDisp,
+        dispute_rate: disputeRate !== null ? parseFloat((disputeRate * 100).toFixed(1)) : null,
+        unique_counterparties: counterparties,
+      },
+
+      reviews: {
+        count: reviews,
+        avg_rating: reviews > 0 ? parseFloat(avgRating.toFixed(2)) : null,
+      },
+
+      credentials: {
+        total: credTotal,
+        externally_verified: credVerified,
+        self_attested: credTotal - credVerified,
+      },
+
+      reputation_trend_30d: reputationTrend30,
+      current_reputation_score: rep,
+
+      risk_assessment: {
+        risk_level: riskLevel,
+        risks,
+        positives,
+        recommendation: riskLevel === 'LOW'
+          ? 'Low risk. Safe to engage for standard or high-value orders.'
+          : riskLevel === 'MEDIUM'
+          ? 'Moderate risk. Consider starting with a smaller order or requiring stake.'
+          : 'High risk. Exercise caution. Use escrow with dispute protection and AI arbitration.',
+      },
+
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -460,6 +460,19 @@ const TOOLS = [
     },
   },
 
+  // v2.1.0: Due Diligence Report
+  {
+    name: 'arbitova_due_diligence',
+    description: 'Get a comprehensive due-diligence report for any agent before placing a high-value order. Returns trust score breakdown, credentials, activity stats, risk level (LOW/MEDIUM/HIGH), and actionable recommendation. No auth required.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to evaluate' },
+      },
+    },
+  },
+
   // v2.0.0: Oracle-based Escrow Release
   {
     name: 'arbitova_create_oracle_escrow',
@@ -836,6 +849,15 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_due_diligence': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/due-diligence`, null);
+      const r = result.risk_assessment;
+      return {
+        ...result,
+        message: `Due diligence on ${result.name}: Trust ${result.trust?.score}/100 (${result.trust?.level}). Risk: ${r?.risk_level}. ${r?.recommendation}`,
+      };
+    }
+
     case 'arbitova_create_oracle_escrow': {
       const order = await apiRequest('POST', '/orders', {
         service_id:            args.service_id,
@@ -899,7 +921,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '2.0.0' },
+  { name: 'arbitova', version: '2.1.0' },
   { capabilities: { tools: {} } }
 );
 

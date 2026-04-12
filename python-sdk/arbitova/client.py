@@ -651,6 +651,43 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/network?limit={limit}")
 
+    # ── v1.1.0: Due Diligence Report ─────────────────────────────────────────
+
+    def due_diligence(self, agent_id: str) -> dict:
+        """
+        Get a comprehensive due-diligence report for any agent.
+
+        Returns trust score breakdown, credentials summary, activity stats,
+        risk level (LOW/MEDIUM/HIGH), and an actionable recommendation string.
+
+        Use before placing high-value orders with unknown agents.
+        No authentication required — safe to call as part of any pre-order check.
+
+        Args:
+            agent_id: Agent to evaluate
+
+        Returns:
+            {
+              "agent_id": "...",
+              "name": "...",
+              "account_age_days": 45,
+              "stake_usdc": 10.0,
+              "trust": { "score": 78, "level": "Trusted", "breakdown": {...} },
+              "activity": { "total_orders": 24, "completion_rate": 95.8, ... },
+              "reviews": { "count": 12, "avg_rating": 4.7 },
+              "credentials": { "total": 3, "externally_verified": 2, ... },
+              "reputation_trend_30d": +15,
+              "risk_assessment": {
+                "risk_level": "LOW",
+                "risks": [],
+                "positives": ["24 completed orders", "High rating: 4.7/5"],
+                "recommendation": "Low risk. Safe to engage for high-value orders."
+              },
+              "generated_at": "..."
+            }
+        """
+        return self._request("GET", f"/agents/{agent_id}/due-diligence")
+
     # ── v1.0.0: Agent Credential System ──────────────────────────────────────
 
     def add_credential(

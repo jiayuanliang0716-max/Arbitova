@@ -443,6 +443,40 @@ export declare class Arbitova {
     sold_to: Array<{ agent_id: string; name: string; reputation_score: number; total_orders: number; completed_orders: number; completion_rate: number; total_usdc: number }>;
   }>;
 
+  // v1.1.0: Due Diligence
+  /**
+   * Comprehensive due-diligence report for any agent.
+   * Returns trust score, credentials, activity stats, and risk level.
+   * No auth required.
+   */
+  dueDiligence(agentId: string): Promise<{
+    agent_id: string;
+    name: string;
+    account_age_days: number;
+    stake_usdc: number;
+    trust: { score: number; level: 'Elite' | 'Trusted' | 'Rising' | 'New'; breakdown: object };
+    activity: {
+      total_orders: number;
+      completed_orders: number;
+      completion_rate: number | null;
+      total_volume_usdc: number;
+      total_disputes: number;
+      disputes_lost: number;
+      dispute_rate: number | null;
+      unique_counterparties: number;
+    };
+    reviews: { count: number; avg_rating: number | null };
+    credentials: { total: number; externally_verified: number; self_attested: number };
+    reputation_trend_30d: number;
+    risk_assessment: {
+      risk_level: 'LOW' | 'MEDIUM' | 'HIGH';
+      risks: string[];
+      positives: string[];
+      recommendation: string;
+    };
+    generated_at: string;
+  }>;
+
   // v1.0.0: Agent Credential System
   addCredential(opts: {
     type: 'audit' | 'certification' | 'endorsement' | 'test_passed' | 'identity' | 'reputation' | 'compliance' | 'specialization' | 'partnership' | 'custom';
