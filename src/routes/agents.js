@@ -1877,4 +1877,98 @@ router.get('/:id/scorecard', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/compare?ids=id1,id2,id3 — side-by-side seller comparison.
+// Public, no auth required. Accepts up to 5 agent IDs. Returns scorecard data for each.
+// Designed for autonomous buyers who want to pick the best seller from a shortlist.
+// Response includes a `recommended` field pointing to the highest-scored agent.
+router.get('/compare', async (req, res, next) => {
+  try {
+    const rawIds = (req.query.ids || '').split(',').map(s => s.trim()).filter(Boolean);
+    if (rawIds.length < 2) return res.status(400).json({ error: 'Provide at least 2 agent IDs in ?ids=id1,id2' });
+    if (rawIds.length > 5) return res.status(400).json({ error: 'Maximum 5 agents can be compared at once' });
+
+    // Fetch scorecard-equivalent data for all agents in parallel
+    const results = await Promise.all(rawIds.map(async (agentId) => {
+      const agent = await dbGet(
+        `SELECT id, name, reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+        [agentId]
+      );
+      if (!agent) return { agent_id: agentId, error: 'Not found' };
+
+      const [orderStats, reviewStats, credStats] = await Promise.all([
+        dbGet(
+          `SELECT COUNT(*) as total,
+             SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+             SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed
+           FROM orders WHERE seller_id = ${p(1)}`,
+          [agent.id]
+        ),
+        dbGet(
+          `SELECT COUNT(*) as review_count, AVG(rating) as avg_rating FROM reviews WHERE seller_id = ${p(1)}`,
+          [agent.id]
+        ),
+        dbGet(
+          `SELECT COUNT(*) as total,
+             SUM(CASE WHEN self_attested = 0 OR self_attested = false THEN 1 ELSE 0 END) as verified
+           FROM credentials WHERE agent_id = ${p(1)} AND (expires_at IS NULL OR expires_at > ${p(2)})`,
+          [agent.id, new Date().toISOString()]
+        ),
+      ]);
+
+      const total = parseInt(orderStats?.total) || 0;
+      const completed = parseInt(orderStats?.completed) || 0;
+      const disputed = parseInt(orderStats?.disputed) || 0;
+      const completionRate = total > 0 ? parseFloat((completed / total * 100).toFixed(1)) : null;
+      const disputeRate = total > 0 ? parseFloat((disputed / total * 100).toFixed(1)) : null;
+      const avgRating = reviewStats?.avg_rating ? parseFloat(parseFloat(reviewStats.avg_rating).toFixed(2)) : null;
+      const reviewCount = parseInt(reviewStats?.review_count) || 0;
+      const credVerified = parseInt(credStats?.verified) || 0;
+      const score = agent.reputation_score || 0;
+      const trustLevel = score >= 80 ? 'Elite' : score >= 60 ? 'Trusted' : score >= 40 ? 'Rising' : 'New';
+
+      let grade = 'C';
+      if (completionRate !== null && completionRate >= 90 && avgRating !== null && avgRating >= 4.0 && score >= 60) grade = 'A';
+      else if (completionRate !== null && completionRate >= 75 && score >= 40) grade = 'B';
+      else if (completionRate !== null && completionRate < 50) grade = 'D';
+
+      // Composite selection score (0-100)
+      const selectionScore = parseFloat((
+        (score * 0.35) +
+        ((completionRate || 0) * 0.35) +
+        ((avgRating || 0) / 5 * 100 * 0.20) +
+        (Math.min(credVerified * 5, 10) * 0.10)
+      ).toFixed(1));
+
+      return {
+        agent_id: agent.id,
+        name: agent.name,
+        trust: { score, level: trustLevel },
+        grade,
+        selection_score: selectionScore,
+        completion_rate: completionRate,
+        dispute_rate: disputeRate,
+        avg_rating: avgRating,
+        review_count: reviewCount,
+        verified_credentials: credVerified,
+        member_since: agent.created_at,
+      };
+    }));
+
+    // Find recommended agent (highest selection_score among non-error results)
+    const valid = results.filter(r => !r.error);
+    let recommended = null;
+    if (valid.length > 0) {
+      const best = valid.reduce((a, b) => (a.selection_score >= b.selection_score ? a : b));
+      recommended = { agent_id: best.agent_id, name: best.name, reason: `Highest composite score (${best.selection_score}/100)` };
+    }
+
+    res.json({
+      compared: results.length,
+      recommended,
+      agents: results,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

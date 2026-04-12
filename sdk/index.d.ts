@@ -324,6 +324,31 @@ export declare class Arbitova {
   }>;
 
   /**
+   * Compare up to 5 agents side by side.
+   * Returns scorecard data per agent plus a `recommended` field.
+   * No auth required.
+   */
+  compareAgents(agentIds: string[]): Promise<{
+    compared: number;
+    recommended: { agent_id: string; name: string; reason: string } | null;
+    agents: Array<{
+      agent_id: string;
+      name: string;
+      trust: { score: number; level: string };
+      grade: 'A' | 'B' | 'C' | 'D';
+      selection_score: number;
+      completion_rate: number | null;
+      dispute_rate: number | null;
+      avg_rating: number | null;
+      review_count: number;
+      verified_credentials: number;
+      member_since: string;
+      error?: string;
+    }>;
+    generated_at: string;
+  }>;
+
+  /**
    * Get services trending by recent order volume.
    * No auth required.
    */

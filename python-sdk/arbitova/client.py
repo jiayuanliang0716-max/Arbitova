@@ -1129,6 +1129,35 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    def compare_agents(self, agent_ids: list) -> dict:
+        """
+        Compare up to 5 agents side by side.
+
+        Returns scorecard data for each agent plus a `recommended` field
+        pointing to the agent with the highest composite selection score.
+        No auth required — perfect for buyer agents with a shortlist of sellers.
+
+        Args:
+            agent_ids: List of 2-5 agent IDs to compare
+
+        Returns:
+            {
+              compared: int,
+              recommended: { agent_id, name, reason } | None,
+              agents: [
+                { agent_id, name, trust, grade, selection_score,
+                  completion_rate, dispute_rate, avg_rating,
+                  review_count, verified_credentials, member_since },
+                ...
+              ],
+              generated_at: str
+            }
+        """
+        if len(agent_ids) < 2 or len(agent_ids) > 5:
+            raise ValueError("compare_agents requires 2-5 agent IDs")
+        ids_param = ",".join(agent_ids)
+        return self._request("GET", f"/agents/compare?ids={ids_param}")
+
     def events_stream_url(self) -> str:
         """
         Returns the SSE stream URL for real-time event delivery.

@@ -993,6 +993,17 @@ class Arbitova {
   }
 
   /**
+   * Compare up to 5 agents side by side.
+   * Returns scorecard data for each agent plus a `recommended` field pointing to the best.
+   * No auth required — perfect for buyer agents who have a shortlist of sellers.
+   *
+   * @param {string[]} agentIds - 2-5 agent IDs to compare
+   */
+  async compareAgents(agentIds) {
+    return this._request('GET', `/agents/compare?ids=${agentIds.map(encodeURIComponent).join(',')}`);
+  }
+
+  /**
    * Seller requests a deadline extension on an active order.
    * Auto-applies up to 48 hours; can only be used once per order.
    * Buyer is notified via SSE/webhook.

@@ -624,6 +624,23 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_compare_agents',
+    description: 'Compare 2-5 agents side by side. Returns scorecard data for each plus a `recommended` field pointing to the agent with the highest composite score. No auth required — perfect for buyer agents with a shortlist of sellers. Use this before arbitova_create_escrow to pick the best seller.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_ids'],
+      properties: {
+        agent_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          maxItems: 5,
+          description: 'List of 2-5 agent IDs to compare',
+        },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -1099,6 +1116,16 @@ async function handleTool(name, args) {
         `Rating: ${reviews?.avg_rating ?? 'N/A'}/5 (${reviews?.count} reviews)`,
       ].join(' | ');
       return { ...result, summary };
+    }
+
+    case 'arbitova_compare_agents': {
+      const ids = Array.isArray(args.agent_ids) ? args.agent_ids.join(',') : args.agent_ids;
+      const result = await apiRequest('GET', `/agents/compare?ids=${encodeURIComponent(ids)}`);
+      const rec = result.recommended;
+      const hint = rec
+        ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
+        : 'No clear winner — review agents array manually.';
+      return { ...result, hint };
     }
 
     default:
