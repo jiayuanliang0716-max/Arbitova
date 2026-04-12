@@ -5137,6 +5137,44 @@
           }
         }
       }
+    },
+    "/webhooks/deliveries/{delivery_id}/redeliver": {
+      "post": {
+        "tags": [
+          "Webhooks"
+        ],
+        "summary": "Retry a failed webhook delivery",
+        "description": "Immediately retry a specific failed delivery. Returns the redelivery outcome. Increments attempt count either way.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redelivery attempted (check redelivery_ok for result)"
+          },
+          "400": {
+            "description": "Delivery already succeeded"
+          },
+          "403": {
+            "description": "Not your webhook"
+          },
+          "404": {
+            "description": "Delivery not found"
+          }
+        }
+      }
     }
   }
 }

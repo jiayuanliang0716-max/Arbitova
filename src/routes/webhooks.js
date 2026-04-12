@@ -179,4 +179,72 @@ router.get('/:id/deliveries', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/webhooks/deliveries/:delivery_id/redeliver
+// Retry a specific failed delivery immediately (owner only).
+router.post('/deliveries/:deliveryId/redeliver', requireApiKey, async (req, res, next) => {
+  try {
+    const delivery = await dbGet(
+      `SELECT wd.*, wh.url, wh.secret, wh.agent_id, wh.events
+       FROM webhook_deliveries wd
+       JOIN webhooks wh ON wh.id = wd.webhook_id
+       WHERE wd.id = ${p(1)}`,
+      [req.params.deliveryId]
+    );
+
+    if (!delivery) return res.status(404).json({ error: 'Delivery not found' });
+    if (delivery.agent_id !== req.agent.id) return res.status(403).json({ error: 'Access denied' });
+    if (delivery.status === 'delivered') {
+      return res.status(400).json({ error: 'Delivery already succeeded — no need to retry', delivery_id: delivery.id });
+    }
+
+    const { sign } = require('../webhooks');
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    let redeliveryStatus = 0;
+    let ok = false;
+    try {
+      const res2 = await fetch(delivery.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Arbitova-Signature': sign(delivery.payload, delivery.secret),
+          'X-Arbitova-Event':     delivery.event_type,
+          'X-Arbitova-Delivery':  delivery.id,
+          'X-Arbitova-Redelivery': 'true',
+        },
+        body: delivery.payload,
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      redeliveryStatus = res2.status;
+      ok = res2.ok;
+    } catch (_) {
+      clearTimeout(timer);
+    }
+
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    if (ok) {
+      await dbRun(
+        `UPDATE webhook_deliveries SET status = 'delivered', response_code = ${p(1)}, attempts = attempts + 1, delivered_at = ${now} WHERE id = ${p(2)}`,
+        [redeliveryStatus, delivery.id]
+      ).catch(() => {});
+    } else {
+      await dbRun(
+        `UPDATE webhook_deliveries SET attempts = attempts + 1, response_code = ${p(1)} WHERE id = ${p(2)}`,
+        [redeliveryStatus, delivery.id]
+      ).catch(() => {});
+    }
+
+    res.json({
+      delivery_id: delivery.id,
+      webhook_id: delivery.webhook_id,
+      event_type: delivery.event_type,
+      url: delivery.url,
+      redelivery_ok: ok,
+      response_code: redeliveryStatus,
+      message: ok ? 'Redelivery succeeded.' : `Redelivery failed (HTTP ${redeliveryStatus || 'timeout'}).`,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
