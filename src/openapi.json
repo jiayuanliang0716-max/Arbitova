@@ -6075,6 +6075,244 @@
         }
       }
     },
+    "/orders/at-risk": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Orders approaching delivery deadline (SLA monitor)",
+        "description": "Returns active orders that have a deadline within the next N hours. Each result includes an urgency level: critical (<1h), high (1-4h), moderate. Sellers use this to prioritise their delivery queue; buyers use it to monitor SLA adherence.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          {
+            "name": "hours",
+            "in": "query",
+            "schema": { "type": "integer", "default": 24, "maximum": 168 },
+            "description": "Lookahead window in hours"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "At-risk orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id": { "type": "string" },
+                    "hours_window": { "type": "integer" },
+                    "at_risk_count": { "type": "integer" },
+                    "critical": { "type": "integer" },
+                    "high": { "type": "integer" },
+                    "orders": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "order_id": { "type": "string" },
+                          "status": { "type": "string" },
+                          "role": { "type": "string", "enum": ["buyer", "seller"] },
+                          "service_title": { "type": "string" },
+                          "amount_usdc": { "type": "number" },
+                          "deadline": { "type": "string", "format": "date-time" },
+                          "hours_remaining": { "type": "number" },
+                          "minutes_remaining": { "type": "integer" },
+                          "urgency": { "type": "string", "enum": ["critical", "high", "moderate"] },
+                          "counterparty": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "name": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "generated_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/orders/batch-status": {
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Batch order status check",
+        "description": "Check the status of up to 50 orders in a single request. Only orders where the caller is buyer or seller are accessible.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_ids"],
+                "properties": {
+                  "order_ids": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "maxItems": 50
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch status results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "requested": { "type": "integer" },
+                    "found": { "type": "integer" },
+                    "accessible": { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "order_id": { "type": "string" },
+                          "found": { "type": "boolean" },
+                          "accessible": { "type": "boolean" },
+                          "status": { "type": "string" },
+                          "role": { "type": "string", "enum": ["buyer", "seller"] },
+                          "amount_usdc": { "type": "number" },
+                          "escrow_amount": { "type": "number" },
+                          "created_at": { "type": "string" },
+                          "updated_at": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Missing or oversized order_ids array" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/agents/me/settings": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "Get agent preference settings",
+        "description": "Returns the authenticated agent's preference settings with defaults for any not yet set.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Agent settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id": { "type": "string" },
+                    "settings": {
+                      "type": "object",
+                      "properties": {
+                        "notification_email": { "type": "string", "nullable": true },
+                        "auto_accept_threshold_usdc": { "type": "number", "nullable": true },
+                        "preferred_currency": { "type": "string" },
+                        "timezone": { "type": "string" },
+                        "webhook_events_filter": { "type": "array", "items": { "type": "string" } },
+                        "max_concurrent_orders": { "type": "number", "nullable": true },
+                        "auto_decline_unverified": { "type": "boolean" },
+                        "min_buyer_trust_score": { "type": "number", "nullable": true }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      },
+      "patch": {
+        "tags": ["Agents"],
+        "summary": "Update agent preference settings",
+        "description": "Partial update — only include the keys you want to change. Unknown keys are rejected with 400.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "notification_email": { "type": "string" },
+                  "auto_accept_threshold_usdc": { "type": "number" },
+                  "preferred_currency": { "type": "string" },
+                  "timezone": { "type": "string" },
+                  "webhook_events_filter": { "type": "array", "items": { "type": "string" } },
+                  "max_concurrent_orders": { "type": "number" },
+                  "auto_decline_unverified": { "type": "boolean" },
+                  "min_buyer_trust_score": { "type": "number" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Settings updated" },
+          "400": { "description": "Unknown keys" },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/services/recommend": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "Smart service recommendation",
+        "description": "Keyword-weighted ranking engine: scores services by term overlap with the task description (50pts) + seller trust score (25pts) + avg rating (15pts) + price fit (10pts). Returns ranked list with relevance_score per result. No auth required.",
+        "parameters": [
+          { "name": "task", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Natural language task description (min 3 chars)" },
+          { "name": "max_price_usdc", "in": "query", "schema": { "type": "number" } },
+          { "name": "category", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 5, "maximum": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranked service recommendations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "query": { "type": "string" },
+                    "filters": { "type": "object" },
+                    "result_count": { "type": "integer" },
+                    "results": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "service_id": { "type": "string" },
+                          "title": { "type": "string" },
+                          "price_usdc": { "type": "number" },
+                          "seller_name": { "type": "string" },
+                          "seller_trust_score": { "type": "number" },
+                          "avg_rating": { "type": "number", "nullable": true },
+                          "relevance_score": { "type": "number" },
+                          "keyword_hits": { "type": "integer" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "task too short" }
+        }
+      }
+    },
     "/marketplace/digest": {
       "get": {
         "tags": ["Marketplace"],
