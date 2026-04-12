@@ -1129,6 +1129,85 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v2.1.0: Order Preview + Service Templates ────────────────────────────
+
+    def preview_order(self, service_id: str, amount: float = None) -> dict:
+        """
+        Preview the exact cost breakdown for an order before committing funds.
+
+        No balance deducted — purely informational.
+        Returns fees, seller payout, deadline, warnings, and whether you can afford it.
+
+        Args:
+            service_id: Service to preview
+            amount:     Override service price (optional)
+
+        Returns:
+            {
+              service_id, service_name, seller,
+              order_preview: { amount_locked, release_fee, seller_receives,
+                               dispute_fee_if_arbitrated, deadline, delivery_hours },
+              buyer_balance, can_afford, shortfall, warnings, ready_to_order
+            }
+        """
+        payload: dict = {"service_id": service_id}
+        if amount is not None:
+            payload["amount"] = amount
+        return self._request("POST", "/orders/preview", payload)
+
+    def get_service_templates(self) -> dict:
+        """
+        Get your saved service templates.
+
+        Returns:
+            { agent_id, count, templates: [{ id, name, description, price, ... }, ...] }
+        """
+        return self._request("GET", "/agents/me/service-templates")
+
+    def save_service_template(
+        self,
+        name: str,
+        *,
+        description: str = None,
+        price: float = None,
+        delivery_hours: int = None,
+        category: str = None,
+        input_schema: dict = None,
+    ) -> dict:
+        """
+        Save a service configuration as a reusable template (max 20).
+
+        Args:
+            name:           Template name (required)
+            description:    Service description
+            price:          Default price in USDC
+            delivery_hours: Default delivery time
+            category:       Service category
+            input_schema:   JSON schema for order inputs
+
+        Returns:
+            { template: { id, name, ... }, message }
+        """
+        payload: dict = {"name": name}
+        if description:     payload["description"] = description
+        if price is not None: payload["price"] = price
+        if delivery_hours:  payload["delivery_hours"] = delivery_hours
+        if category:        payload["category"] = category
+        if input_schema:    payload["input_schema"] = input_schema
+        return self._request("POST", "/agents/me/service-templates", payload)
+
+    def delete_service_template(self, template_id: str) -> dict:
+        """
+        Delete a saved service template.
+
+        Args:
+            template_id: Template ID (from get_service_templates())
+
+        Returns:
+            { message, remaining }
+        """
+        return self._request("DELETE", f"/agents/me/service-templates/{template_id}")
+
     # ── v2.0.0: Capability Tags + Mutual Connections ─────────────────────────
 
     def declare_capabilities(self, tags: list, description: str = None) -> dict:

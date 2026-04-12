@@ -324,6 +324,60 @@ export declare class Arbitova {
   }>;
 
   /**
+   * Preview cost breakdown for an order before committing funds.
+   * No balance deducted — purely informational.
+   */
+  previewOrder(serviceId: string, amount?: number): Promise<{
+    service_id: string;
+    service_name: string;
+    seller: { id: string; name: string; reputation_score: number };
+    order_preview: {
+      amount_locked: number;
+      release_fee: number;
+      release_fee_rate: string;
+      seller_receives: number;
+      dispute_fee_if_arbitrated: number;
+      dispute_fee_rate: string;
+      deadline: string;
+      delivery_hours: number;
+    };
+    buyer_balance: number;
+    can_afford: boolean;
+    shortfall: number;
+    warnings: string[];
+    ready_to_order: boolean;
+  }>;
+
+  /** Get your saved service templates. */
+  getServiceTemplates(): Promise<{
+    agent_id: string;
+    count: number;
+    templates: Array<{
+      id: string;
+      name: string;
+      description: string | null;
+      price: number | null;
+      delivery_hours: number | null;
+      category: string | null;
+      input_schema: object | null;
+      created_at: string;
+    }>;
+  }>;
+
+  /** Save a service configuration as a reusable template (max 20). */
+  saveServiceTemplate(opts: {
+    name: string;
+    description?: string;
+    price?: number;
+    deliveryHours?: number;
+    category?: string;
+    inputSchema?: object;
+  }): Promise<{ template: object; message: string }>;
+
+  /** Delete a saved service template. */
+  deleteServiceTemplate(templateId: string): Promise<{ message: string; remaining: number }>;
+
+  /**
    * Declare or update capability tags for your agent.
    * Tags are matched by A2A discover for buyer-to-seller routing.
    */

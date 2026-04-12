@@ -195,6 +195,70 @@ router.get('/recent', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/preview — calculate exact cost breakdown before committing funds.
+// No funds locked. Returns fees, deadline, seller payout, and risk signals.
+// Buyers can compare multiple services before deciding which to order.
+router.post('/preview', requireApiKey, async (req, res, next) => {
+  try {
+    const { service_id, amount: overrideAmount } = req.body;
+    if (!service_id) return res.status(400).json({ error: 'service_id is required' });
+
+    const service = await dbGet(
+      `SELECT s.*, a.id as agent_id, a.name as agent_name, a.reputation_score,
+              a.away_mode, a.blocklist
+       FROM services s JOIN agents a ON a.id = s.agent_id
+       WHERE s.id = ${p(1)} AND (s.is_active = 1 OR s.is_active = true)`,
+      [service_id]
+    );
+    if (!service) return res.status(404).json({ error: 'Service not found or inactive' });
+
+    const buyer = await dbGet(`SELECT balance, blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const effectiveAmount = parseFloat(overrideAmount || service.price);
+    const releaseFee = parseFloat((effectiveAmount * RELEASE_FEE_RATE).toFixed(6));
+    const sellerReceives = parseFloat((effectiveAmount - releaseFee).toFixed(6));
+    const disputeFee = parseFloat((effectiveAmount * DISPUTE_FEE_RATE).toFixed(6));
+
+    // Check for potential blocklist issues
+    const sellerBl = service.blocklist ? (typeof service.blocklist === 'string' ? JSON.parse(service.blocklist) : service.blocklist) : [];
+    const buyerBl = buyer?.blocklist ? (typeof buyer.blocklist === 'string' ? JSON.parse(buyer.blocklist) : buyer.blocklist) : [];
+    const warnings = [];
+    if (sellerBl.some(b => b.agent_id === req.agent.id)) warnings.push('Seller has blocked your agent');
+    if (buyerBl.some(b => b.agent_id === service.agent_id)) warnings.push('You have blocked this seller');
+
+    // Check away mode
+    if (service.away_mode) {
+      const away = typeof service.away_mode === 'string' ? JSON.parse(service.away_mode) : service.away_mode;
+      if (away?.active && !(away.until && new Date(away.until) < new Date())) {
+        warnings.push(`Seller is away until ${away.until || 'unknown'}`);
+      }
+    }
+
+    const deadline = new Date(Date.now() + (service.delivery_hours || 48) * 3600000).toISOString();
+    const canAfford = parseFloat(buyer?.balance || 0) >= effectiveAmount;
+
+    res.json({
+      service_id,
+      service_name: service.name,
+      seller: { id: service.agent_id, name: service.agent_name, reputation_score: service.reputation_score },
+      order_preview: {
+        amount_locked: effectiveAmount,
+        release_fee: releaseFee,
+        release_fee_rate: `${(RELEASE_FEE_RATE * 100).toFixed(1)}%`,
+        seller_receives: sellerReceives,
+        dispute_fee_if_arbitrated: disputeFee,
+        dispute_fee_rate: `${(DISPUTE_FEE_RATE * 100).toFixed(1)}%`,
+        deadline,
+        delivery_hours: service.delivery_hours || 48,
+      },
+      buyer_balance: parseFloat(buyer?.balance || 0),
+      can_afford: canAfford,
+      shortfall: canAfford ? 0 : parseFloat((effectiveAmount - parseFloat(buyer?.balance || 0)).toFixed(6)),
+      warnings,
+      ready_to_order: canAfford && warnings.length === 0,
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/spot — create an escrow order directly to an agent (no service listing required).
 // Buyer specifies: to_agent_id, amount, requirements, delivery_hours.
 // Seller can accept or decline (within 24h, or it auto-refunds).

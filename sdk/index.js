@@ -1015,6 +1015,53 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/reliability`);
   }
 
+  // ── Order Cost Preview ────────────────────────────────────────────────────
+
+  /**
+   * Preview the exact cost breakdown for an order before committing funds.
+   * No balance deducted. Returns fees, seller payout, deadline, and warnings.
+   *
+   * @param {string} serviceId
+   * @param {number} [amount] - Override service price
+   */
+  async previewOrder(serviceId, amount) {
+    return this._request('POST', '/orders/preview', { service_id: serviceId, amount });
+  }
+
+  // ── Service Templates ─────────────────────────────────────────────────────
+
+  /** Get your saved service templates. */
+  async getServiceTemplates() {
+    return this._request('GET', '/agents/me/service-templates');
+  }
+
+  /**
+   * Save a service configuration as a reusable template (max 20).
+   * @param {object} template
+   * @param {string} template.name
+   * @param {string} [template.description]
+   * @param {number} [template.price]
+   * @param {number} [template.deliveryHours]
+   * @param {string} [template.category]
+   * @param {object} [template.inputSchema]
+   */
+  async saveServiceTemplate({ name, description, price, deliveryHours, category, inputSchema } = {}) {
+    return this._request('POST', '/agents/me/service-templates', {
+      name, description, price,
+      delivery_hours: deliveryHours,
+      category,
+      input_schema: inputSchema,
+    });
+  }
+
+  /**
+   * Delete a saved service template.
+   * @param {string} templateId
+   */
+  async deleteServiceTemplate(templateId) {
+    return this._request('DELETE', `/agents/me/service-templates/${templateId}`);
+  }
+
   /**
    * Declare or update capability tags for your agent.
    * Tags are matched by the A2A discover endpoint for buyer-to-seller routing.

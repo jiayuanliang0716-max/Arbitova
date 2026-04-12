@@ -776,6 +776,70 @@ router.get('/:id/reputation-history', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Service Templates ─────────────────────────────────────────────────────────
+// Sellers save reusable service configurations as templates for quick clone/creation.
+// Stored as JSON array in agents.service_templates. Max 20 templates.
+
+// GET /agents/me/service-templates — list saved templates
+router.get('/me/service-templates', requireApiKey, async (req, res, next) => {
+  try {
+    const agent = await dbGet(`SELECT service_templates FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const templates = agent?.service_templates
+      ? (typeof agent.service_templates === 'string' ? JSON.parse(agent.service_templates) : agent.service_templates)
+      : [];
+    res.json({ agent_id: req.agent.id, count: templates.length, templates });
+  } catch (err) { next(err); }
+});
+
+// POST /agents/me/service-templates — save a new service template
+router.post('/me/service-templates', requireApiKey, async (req, res, next) => {
+  try {
+    const { name, description, price, delivery_hours, category, input_schema } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const agentRow = await dbGet(`SELECT service_templates FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const templates = agentRow?.service_templates
+      ? (typeof agentRow.service_templates === 'string' ? JSON.parse(agentRow.service_templates) : agentRow.service_templates)
+      : [];
+
+    if (templates.length >= 20) return res.status(400).json({ error: 'Maximum 20 service templates. Delete one first.' });
+
+    const templateId = 'tpl_' + require('crypto').randomBytes(8).toString('hex');
+    const template = {
+      id: templateId,
+      name: name.slice(0, 100),
+      description: description ? description.slice(0, 1000) : null,
+      price: price ? parseFloat(price) : null,
+      delivery_hours: delivery_hours ? parseInt(delivery_hours) : null,
+      category: category || null,
+      input_schema: input_schema || null,
+      created_at: new Date().toISOString(),
+    };
+
+    templates.push(template);
+    await dbRun(`UPDATE agents SET service_templates = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(templates), req.agent.id]);
+
+    res.status(201).json({ template, message: `Template saved. Use POST /services with template fields to create a service.` });
+  } catch (err) { next(err); }
+});
+
+// DELETE /agents/me/service-templates/:templateId — delete a saved template
+router.delete('/me/service-templates/:templateId', requireApiKey, async (req, res, next) => {
+  try {
+    const agentRow = await dbGet(`SELECT service_templates FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const templates = agentRow?.service_templates
+      ? (typeof agentRow.service_templates === 'string' ? JSON.parse(agentRow.service_templates) : agentRow.service_templates)
+      : [];
+
+    const idx = templates.findIndex(t => t.id === req.params.templateId);
+    if (idx === -1) return res.status(404).json({ error: 'Template not found' });
+
+    templates.splice(idx, 1);
+    await dbRun(`UPDATE agents SET service_templates = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(templates), req.agent.id]);
+    res.json({ message: 'Template deleted.', remaining: templates.length });
+  } catch (err) { next(err); }
+});
+
 // POST /agents/me/capabilities — declare or update capability tags.
 // Agents can advertise skills beyond their formal service listings.
 // Used by the A2A discover endpoint to match buyers with the right agents.

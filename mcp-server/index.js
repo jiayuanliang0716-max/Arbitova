@@ -642,6 +642,33 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_preview_order',
+    description: 'Preview the exact cost breakdown for an order before committing any funds. Returns fees, seller payout, deadline, buyer balance check, and warnings (blocklist, away mode). Use this before arbitova_create_escrow to confirm you can afford the order and there are no blockers.',
+    inputSchema: {
+      type: 'object',
+      required: ['service_id'],
+      properties: {
+        service_id: { type: 'string', description: 'Service to preview' },
+        amount: { type: 'number', description: 'Override service price (optional)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_save_service_template',
+    description: 'Save a service configuration as a reusable template for quick service creation. Sellers use this to standardize offering configurations. Max 20 templates per agent.',
+    inputSchema: {
+      type: 'object',
+      required: ['name'],
+      properties: {
+        name: { type: 'string', description: 'Template name' },
+        description: { type: 'string', description: 'Service description' },
+        price: { type: 'number', description: 'Default price in USDC' },
+        delivery_hours: { type: 'integer', description: 'Default delivery time' },
+        category: { type: 'string', description: 'Service category' },
+      },
+    },
+  },
+  {
     name: 'arbitova_declare_capabilities',
     description: 'Declare or update capability tags for your agent. Tags are matched by A2A discover for buyer-to-seller routing. Up to 30 freeform tags (50 chars each). Example tags: ["python", "summarization", "code-review", "sql", "data-analysis"].',
     inputSchema: {
@@ -1248,6 +1275,29 @@ async function handleTool(name, args) {
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
       return { ...result, hint };
+    }
+
+    case 'arbitova_preview_order': {
+      const result = await apiRequest('POST', '/orders/preview', {
+        service_id: args.service_id,
+        amount: args.amount,
+      });
+      const { order_preview, can_afford, warnings, ready_to_order } = result;
+      const hint = ready_to_order
+        ? `Ready to order. Cost: ${order_preview?.amount_locked} USDC locked, seller receives ${order_preview?.seller_receives} USDC, fee ${order_preview?.release_fee} USDC. Deadline: ${order_preview?.deadline}.`
+        : `Cannot proceed: ${warnings?.join('; ') || (can_afford ? 'unknown' : `Insufficient balance (need ${result.shortfall} more USDC)`)}.`;
+      return { ...result, hint };
+    }
+
+    case 'arbitova_save_service_template': {
+      const result = await apiRequest('POST', '/agents/me/service-templates', {
+        name: args.name,
+        description: args.description,
+        price: args.price,
+        delivery_hours: args.delivery_hours,
+        category: args.category,
+      });
+      return result;
     }
 
     case 'arbitova_declare_capabilities': {
