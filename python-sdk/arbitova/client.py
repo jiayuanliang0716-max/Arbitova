@@ -976,3 +976,36 @@ class Arbitova:
         """
         from urllib.parse import quote
         return f"{self._base_url}/events/stream?api_key={quote(self._api_key)}"
+
+
+def verify_webhook_signature(payload: str, signature: str, secret: str) -> bool:
+    """
+    Verify an incoming Arbitova webhook signature using constant-time HMAC comparison.
+    Call in your webhook handler before processing any event.
+
+    Args:
+        payload:   Raw request body as string (NOT parsed JSON)
+        signature: Value of the X-Arbitova-Signature header
+        secret:    Webhook secret set at registration time
+
+    Returns:
+        True if signature is valid, False otherwise
+
+    Example (FastAPI):
+        @app.post("/webhook")
+        async def handle_webhook(request: Request):
+            payload = await request.body()
+            signature = request.headers.get("x-arbitova-signature", "")
+            if not verify_webhook_signature(payload.decode(), signature, WEBHOOK_SECRET):
+                raise HTTPException(status_code=401, detail="Invalid signature")
+            event = json.loads(payload)
+            print(event["event"], event["data"])
+    """
+    import hmac
+    import hashlib
+    if not payload or not signature or not secret:
+        return False
+    expected = "sha256=" + hmac.new(
+        secret.encode(), payload.encode(), hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)

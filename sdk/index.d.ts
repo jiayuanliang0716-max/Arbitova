@@ -585,3 +585,18 @@ export interface Credential {
   }>;
   created_at: string;
 }
+
+/**
+ * Verify an incoming Arbitova webhook signature using constant-time HMAC comparison.
+ * Call in your webhook handler before processing any event.
+ *
+ * @param opts.payload   - Raw request body as string (NOT parsed JSON)
+ * @param opts.signature - Value of X-Arbitova-Signature header
+ * @param opts.secret    - Webhook secret set at registration
+ * @returns true if signature is valid
+ */
+export function verifyWebhookSignature(opts: {
+  payload: string;
+  signature: string;
+  secret: string;
+}): boolean;

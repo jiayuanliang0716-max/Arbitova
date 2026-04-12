@@ -974,4 +974,45 @@ function _sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = { Arbitova, ArbitovaError };
+// ── Webhook verification ──────────────────────────────────────────────────────
+
+/**
+ * Verify an incoming Arbitova webhook signature.
+ * Call this in your webhook handler before processing any event.
+ *
+ * @param {object} opts
+ * @param {string} opts.payload   - Raw request body as string (do NOT parse JSON first)
+ * @param {string} opts.signature - Value of the X-Arbitova-Signature header
+ * @param {string} opts.secret    - The webhook secret you set when registering the webhook
+ * @returns {boolean}             - true if signature is valid
+ *
+ * @example
+ * // Express webhook handler
+ * app.post('/webhook', express.raw({ type: 'application/json' }), (req, res) => {
+ *   const isValid = verifyWebhookSignature({
+ *     payload: req.body.toString(),
+ *     signature: req.headers['x-arbitova-signature'],
+ *     secret: process.env.WEBHOOK_SECRET,
+ *   });
+ *   if (!isValid) return res.status(401).send('Invalid signature');
+ *   const event = JSON.parse(req.body);
+ *   // ... handle event
+ * });
+ */
+function verifyWebhookSignature({ payload, signature, secret }) {
+  if (!payload || !signature || !secret) return false;
+  try {
+    const crypto = require('crypto');
+    const expected = 'sha256=' + crypto
+      .createHmac('sha256', secret)
+      .update(payload)
+      .digest('hex');
+    // Constant-time comparison to prevent timing attacks
+    if (expected.length !== signature.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
+  } catch (_) {
+    return false;
+  }
+}
+
+module.exports = { Arbitova, ArbitovaError, verifyWebhookSignature };
