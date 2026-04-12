@@ -5401,6 +5401,84 @@
           }
         }
       }
+    },
+    "/orders/{id}/comments": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Post a comment on an order",
+        "description": "Buyer or seller can post messages on an order (order-linked thread, max 100 comments). The other party is notified via SSE/webhook.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "message"
+                ],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comment posted, other party notified"
+          },
+          "403": {
+            "description": "Only buyer/seller can comment"
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Get all comments on an order",
+        "description": "Retrieve the full comment thread for an order.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comment list"
+          }
+        }
+      }
     }
   }
 }

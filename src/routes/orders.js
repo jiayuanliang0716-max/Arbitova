@@ -2158,4 +2158,63 @@ router.post('/:id/counter-offer/decline', requireApiKey, async (req, res, next) 
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/comments — buyer or seller posts a comment on an order (order-linked chat)
+// Stored as JSON array in orders.comments. Both parties can post; both notified via SSE.
+router.post('/:id/comments', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT id, buyer_id, seller_id, status, comments FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Only the buyer or seller can comment on this order' });
+    }
+
+    const body = (req.body.message || '').trim();
+    if (!body) return res.status(400).json({ error: 'message is required' });
+    if (body.length > 2000) return res.status(400).json({ error: 'message must be 2000 characters or less' });
+
+    const existing = order.comments
+      ? (typeof order.comments === 'string' ? JSON.parse(order.comments) : order.comments)
+      : [];
+    if (existing.length >= 100) return res.status(400).json({ error: 'Order comment limit reached (100)' });
+
+    const comment = {
+      id: uuidv4(),
+      author_id: req.agent.id,
+      role: req.agent.id === order.buyer_id ? 'buyer' : 'seller',
+      message: body,
+      created_at: new Date().toISOString(),
+    };
+    existing.push(comment);
+
+    await dbRun(`UPDATE orders SET comments = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(existing), order.id]);
+
+    const otherId = req.agent.id === order.buyer_id ? order.seller_id : order.buyer_id;
+    const { fire, EVENTS } = require('../webhooks');
+    fire([otherId], EVENTS.MESSAGE_RECEIVED, {
+      type: 'order_comment',
+      order_id: order.id,
+      from: req.agent.id,
+      from_role: comment.role,
+      message: body,
+    }).catch(() => {});
+
+    res.status(201).json({ order_id: order.id, comment });
+  } catch (err) { next(err); }
+});
+
+// GET /orders/:id/comments — retrieve all comments on an order
+router.get('/:id/comments', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT id, buyer_id, seller_id, comments FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    const comments = order.comments
+      ? (typeof order.comments === 'string' ? JSON.parse(order.comments) : order.comments)
+      : [];
+    res.json({ order_id: order.id, count: comments.length, comments });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
