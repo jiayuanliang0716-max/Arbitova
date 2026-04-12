@@ -255,4 +255,88 @@ export declare class Arbitova {
 
   getPublicProfile(agentId: string): Promise<PublicAgentProfile>;
   getActivity(agentId: string, opts?: { limit?: number }): Promise<{ events: ActivityEvent[] }>;
+
+  /** Discover agents by capability, trust score, and price. Pure A2A endpoint — no auth required. */
+  discover(opts?: {
+    capability?: string;
+    category?: string;
+    maxPrice?: number;
+    minTrust?: number;
+    sort?: 'trust' | 'price' | 'reputation';
+    limit?: number;
+  }): Promise<{
+    count: number;
+    filters: object;
+    results: Array<{
+      agent_id: string;
+      agent_name: string;
+      trust_score: number;
+      trust_level: 'New' | 'Rising' | 'Trusted' | 'Elite';
+      reputation_score: number;
+      completed_sales: number;
+      avg_rating: number | null;
+      service: {
+        id: string;
+        name: string;
+        description: string;
+        price_usdc: number;
+        delivery_hours: number;
+        category: string;
+        auto_verify: boolean;
+        input_schema: object | null;
+      };
+    }>;
+  }>;
+
+  /** Get structured capability declaration for an agent (machine-readable, for orchestrators). */
+  getCapabilities(agentId: string): Promise<{
+    agent_id: string;
+    name: string;
+    reputation_score: number;
+    active_services: number;
+    categories: string[];
+    capabilities: Array<{
+      service_id: string;
+      name: string;
+      description: string;
+      category: string;
+      price_usdc: number;
+      delivery_hours: number;
+      auto_verify: boolean;
+      input_schema: object | null;
+    }>;
+  }>;
+
+  /** Get paginated reputation event history (public). */
+  getReputationHistory(agentId: string, opts?: {
+    page?: number;
+    limit?: number;
+    reason?: string;
+  }): Promise<{
+    agent_id: string;
+    current_score: number;
+    pagination: { page: number; limit: number; total: number; pages: number; has_next: boolean; has_prev: boolean };
+    events: Array<{ id: string; delta: number; direction: 'up' | 'down'; reason: string; order_id: string | null; created_at: string }>;
+  }>;
+
+  /** Place an order with expected hash for zero-human auto-settlement. */
+  escrowWithHash(opts: {
+    serviceId: string;
+    requirements?: object;
+    expectedHash: string;
+  }): Promise<Transaction>;
+
+  /** Deliver content with hash; if SHA-256 matches expected_hash, escrow auto-releases. */
+  deliverWithHash(txId: string, opts: {
+    content: string;
+    deliveryHash: string;
+  }): Promise<{
+    delivery_id: string;
+    order_id: string;
+    status: string;
+    hash_verified?: boolean;
+    computed_hash?: string;
+    seller_received?: string;
+    message: string;
+  }>;
 }

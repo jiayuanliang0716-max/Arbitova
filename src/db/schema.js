@@ -147,6 +147,7 @@ if (DATABASE_URL) {
       );
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_id TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS parent_order_id TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_hash TEXT;
 
       CREATE TABLE IF NOT EXISTS order_bundles (
         id           TEXT PRIMARY KEY,
@@ -634,6 +635,9 @@ if (DATABASE_URL) {
       CREATE INDEX IF NOT EXISTS idx_tips_order ON tips (order_id);
     `);
   } catch(e) { console.error('Migration warn:', e.message); }
+
+  // expected_hash on orders — buyer pre-commits SHA-256 of expected delivery for zero-human A2A auto-settle
+  addColIfMissing('orders', 'expected_hash', 'TEXT');
 
   // reputation_by_category table
   try {

@@ -1,5 +1,6 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
 const { verifyInput, verifyDelivery, verifyDeliverySemantic } = require('../verify');
@@ -241,7 +242,7 @@ router.get('/stats', requireApiKey, async (req, res, next) => {
 // POST /orders
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
-    const { service_id, requirements } = req.body;
+    const { service_id, requirements, expected_hash } = req.body;
     if (!service_id) return res.status(400).json({ error: 'service_id is required' });
 
     const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
@@ -286,8 +287,8 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
         : dbRun(`UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`, [service.price, service.price, req.agent.id]);
 
       await (tx?.run || dbRun)(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)})`,
-        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString()]
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
+        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null]
       );
     });
 
@@ -548,7 +549,7 @@ router.get('/:id/timeline', requireApiKey, async (req, res, next) => {
 // POST /orders/:id/deliver
 router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
   try {
-    const { content } = req.body;
+    const { content, delivery_hash } = req.body;
     if (!content) return res.status(400).json({ error: 'content is required' });
 
     const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
@@ -602,6 +603,54 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
 
     const deliveryId = uuidv4();
     await dbRun(`INSERT INTO deliveries (id, order_id, content) VALUES (${p(1)},${p(2)},${p(3)})`, [deliveryId, order.id, content]);
+
+    // Hash-verified auto-settle: buyer pre-committed expected_hash on order creation;
+    // seller provides delivery_hash on deliver. Compute SHA-256 of content and compare.
+    // If matched → auto-complete with zero human involvement (pure A2A settlement).
+    if (order.expected_hash && delivery_hash) {
+      const computedHash = crypto.createHash('sha256').update(content).digest('hex');
+      const hashMatch = computedHash === delivery_hash && delivery_hash === order.expected_hash;
+      if (hashMatch) {
+        const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
+        const sellerReceives = parseFloat(order.amount) - fee;
+        const now = isPostgres ? 'NOW()' : "datetime('now')";
+        await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+        await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+        await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+        try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'hash_verified_completion', order.id); } catch (e) {}
+        fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
+          order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'hash',
+        });
+        fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+          order_id: order.id, amount: order.amount,
+          platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
+          hash_verified: true,
+        });
+        return res.json({
+          delivery_id: deliveryId,
+          order_id: order.id,
+          status: 'completed',
+          hash_verified: true,
+          computed_hash: computedHash,
+          platform_fee: fee.toFixed(4),
+          seller_received: sellerReceives.toFixed(4),
+          message: 'Delivery hash matched. Funds released automatically — no human confirmation required.',
+        });
+      }
+      // Hash provided but mismatched — reject immediately
+      if (delivery_hash !== order.expected_hash || computedHash !== delivery_hash) {
+        const computedHash2 = crypto.createHash('sha256').update(content).digest('hex');
+        return res.status(400).json({
+          order_id: order.id,
+          status: 'delivered',
+          code: 'hash_mismatch',
+          expected_hash: order.expected_hash,
+          provided_hash: delivery_hash,
+          computed_hash: computedHash2,
+          message: 'Delivery hash does not match expected hash. Order remains open for manual review.',
+        });
+      }
+    }
 
     // If service has auto_verify and output verification passed, auto-complete immediately
     const autoVerify = service && (service.auto_verify === true || service.auto_verify === 1);

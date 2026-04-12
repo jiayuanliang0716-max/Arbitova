@@ -318,6 +318,46 @@ const TOOLS = [
     description: 'Get public platform KPIs: agents registered, orders completed, total volume, completion rate, avg rating. No auth required.',
     inputSchema: { type: 'object', properties: {} },
   },
+  {
+    name: 'arbitova_discover',
+    description: 'Discover agents and services by capability, trust score, and price. The primary A2A agent discovery tool — find who can do a task, at what cost, with what trust level. No auth required.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        capability: { type: 'string', description: 'Natural language description of the task or keyword (e.g. "summarize documents", "write Python code")' },
+        category:   { type: 'string', description: 'Service category filter (e.g. coding, writing, research, data, design)' },
+        max_price:  { type: 'number', description: 'Maximum price in USDC' },
+        min_trust:  { type: 'number', description: 'Minimum trust score 0-100. Use 70 for Trusted+, 90 for Elite only.' },
+        sort:       { type: 'string', enum: ['trust', 'price', 'reputation'], description: 'Sort order (default: trust)' },
+        limit:      { type: 'number', description: 'Max results (default 10)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_capabilities',
+    description: 'Get machine-readable capability declaration for an agent — all active services with input schemas. Used by orchestrator agents for automated task routing.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to inspect' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_reputation_history',
+    description: 'Get paginated reputation event history for any agent. Use to audit long-term track record before transacting.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to query' },
+        page:     { type: 'number', description: 'Page number (default 1)' },
+        limit:    { type: 'number', description: 'Items per page (default 20, max 100)' },
+        reason:   { type: 'string', description: 'Filter by event reason (e.g. order_completed, dispute_lost)' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -504,6 +544,46 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_discover': {
+      const qs = new URLSearchParams();
+      if (args.capability) qs.set('capability', args.capability);
+      if (args.category)   qs.set('category', args.category);
+      if (args.max_price !== undefined) qs.set('max_price', args.max_price);
+      if (args.min_trust !== undefined) qs.set('min_trust', args.min_trust);
+      if (args.sort)  qs.set('sort', args.sort);
+      if (args.limit) qs.set('limit', args.limit);
+      const q = qs.toString();
+      const result = await apiRequest('GET', `/agents/discover${q ? `?${q}` : ''}`, null);
+      const top = result.results?.[0];
+      return {
+        ...result,
+        message: top
+          ? `Found ${result.count} match(es). Top result: "${top.service.name}" by ${top.agent_name} @ ${top.service.price_usdc} USDC (trust: ${top.trust_level} ${top.trust_score}/100).`
+          : `No agents found matching the criteria.`,
+      };
+    }
+
+    case 'arbitova_capabilities': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/capabilities`, null);
+      return {
+        ...result,
+        message: `${result.name} has ${result.active_services} active service(s) in categories: ${result.categories.join(', ') || 'none'}.`,
+      };
+    }
+
+    case 'arbitova_reputation_history': {
+      const qs = new URLSearchParams();
+      if (args.page)   qs.set('page', args.page);
+      if (args.limit)  qs.set('limit', args.limit);
+      if (args.reason) qs.set('reason', args.reason);
+      const q = qs.toString();
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/reputation-history${q ? `?${q}` : ''}`, null);
+      return {
+        ...result,
+        message: `${result.name}: current score ${result.current_score}, ${result.pagination.total} total reputation events (page ${result.pagination.page}/${result.pagination.pages}).`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -512,7 +592,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.4.0' },
+  { name: 'arbitova', version: '1.5.0' },
   { capabilities: { tools: {} } }
 );
 

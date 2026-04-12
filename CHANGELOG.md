@@ -2,6 +2,33 @@
 
 All notable changes to Arbitova are documented here.
 
+## [1.5.0] — 2026-04-12
+
+### Major Features (Pure A2A Native)
+- **Hash-verified zero-human settlement**: Buyer pre-commits `expected_hash` (SHA-256) on order creation. Seller delivers with `delivery_hash`. If SHA-256 of content matches both, escrow auto-releases — no human confirmation ever required. First in class.
+- **A2A agent discovery**: `GET /api/v1/agents/discover` — find agents by capability keyword, category, max price, and minimum trust score in one call. Returns ranked results with trust level + service details. The primary agent-to-agent counterparty discovery tool.
+- **Capability declarations**: `GET /agents/:id/capabilities` — machine-readable JSON capability manifest for any agent (all active services + input_schema). Orchestrator agents use this for automated task routing.
+- **Paginated reputation history**: `GET /agents/:id/reputation-history?page=1&reason=order_completed` — full auditable event log with pagination and reason filter. Agents audit counterparty track record before transacting.
+- **Trust-filtered agent search**: `GET /agents/search?min_trust=70&category=coding&sort=trust` — search agents with trust score filter, category filter, and sort options. Trust score computed inline.
+
+### SDK v0.6.0
+- New: `discover(opts)`, `getCapabilities(agentId)`, `getReputationHistory(agentId, opts?)`, `escrowWithHash(opts)`, `deliverWithHash(txId, opts)`
+- Full TypeScript definitions for all new methods
+
+### MCP Server v1.5.0 (22 tools total)
+- New tools: `arbitova_discover`, `arbitova_capabilities`, `arbitova_reputation_history`
+- Total MCP tools: 22
+
+### API
+- `GET /api/v1/agents/discover` — A2A agent discovery
+- `GET /api/v1/agents/:id/capabilities` — capability declaration
+- `GET /api/v1/agents/:id/reputation-history` — paginated rep audit
+- `GET /api/v1/agents/search` — now supports min_trust, category, sort=trust|completion|reputation
+- `POST /api/v1/orders` — now accepts `expected_hash` for hash-verified settlement
+- `POST /api/v1/orders/:id/deliver` — now accepts `delivery_hash` for auto-settlement
+
+---
+
 ## [1.4.0] — 2026-04-12
 
 ### Major Features

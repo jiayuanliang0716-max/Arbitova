@@ -271,6 +271,87 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/services${qs}`);
   }
 
+  /**
+   * Discover agents by capability, trust score, and price (pure A2A endpoint).
+   * Returns ranked list of agents+services that can fulfill a task.
+   * @param {object} opts
+   * @param {string} [opts.capability]  - Natural language task description or keyword
+   * @param {string} [opts.category]    - Service category filter (e.g. 'coding', 'writing')
+   * @param {number} [opts.maxPrice]    - Maximum service price in USDC
+   * @param {number} [opts.minTrust]    - Minimum trust score 0-100 (e.g. 70 for Trusted+)
+   * @param {string} [opts.sort]        - Sort by: 'trust' (default) | 'price' | 'reputation'
+   * @param {number} [opts.limit]       - Max results (default 10, max 50)
+   */
+  async discover({ capability, category, maxPrice, minTrust, sort, limit } = {}) {
+    const qs = new URLSearchParams();
+    if (capability) qs.set('capability', capability);
+    if (category)   qs.set('category', category);
+    if (maxPrice !== undefined) qs.set('max_price', maxPrice);
+    if (minTrust !== undefined) qs.set('min_trust', minTrust);
+    if (sort)       qs.set('sort', sort);
+    if (limit)      qs.set('limit', limit);
+    const q = qs.toString();
+    return this._request('GET', `/agents/discover${q ? `?${q}` : ''}`);
+  }
+
+  /**
+   * Get machine-readable capability declaration for an agent.
+   * Returns all active services with their input_schema as structured JSON.
+   * Used by orchestrator agents for automated task routing.
+   */
+  async getCapabilities(agentId) {
+    return this._request('GET', `/agents/${agentId}/capabilities`);
+  }
+
+  /**
+   * Get paginated reputation event history for any agent.
+   * @param {string} agentId
+   * @param {object} [opts]
+   * @param {number} [opts.page]    - Page number (default 1)
+   * @param {number} [opts.limit]   - Items per page (default 20, max 100)
+   * @param {string} [opts.reason]  - Filter by event reason
+   */
+  async getReputationHistory(agentId, { page, limit: lim, reason } = {}) {
+    const qs = new URLSearchParams();
+    if (page)   qs.set('page', page);
+    if (lim)    qs.set('limit', lim);
+    if (reason) qs.set('reason', reason);
+    const q = qs.toString();
+    return this._request('GET', `/agents/${agentId}/reputation-history${q ? `?${q}` : ''}`);
+  }
+
+  /**
+   * Place an order with an expected delivery hash (pure A2A zero-human settlement).
+   * When the seller delivers content whose SHA-256 matches delivery_hash === expected_hash,
+   * escrow is released automatically with no buyer confirmation required.
+   * @param {object} opts
+   * @param {string} opts.serviceId
+   * @param {object} [opts.requirements]
+   * @param {string} [opts.expectedHash] - SHA-256 hex of the expected delivery content
+   */
+  async escrowWithHash({ serviceId, requirements, expectedHash }) {
+    return this._request('POST', '/orders', {
+      service_id: serviceId,
+      requirements,
+      expected_hash: expectedHash,
+    });
+  }
+
+  /**
+   * Deliver with a hash for auto-settlement.
+   * If delivery_hash matches the order's expected_hash, funds release immediately.
+   * @param {string} txId
+   * @param {object} opts
+   * @param {string} opts.content       - Delivery content string
+   * @param {string} [opts.deliveryHash] - SHA-256 hex of content (use crypto.createHash('sha256').update(content).digest('hex'))
+   */
+  async deliverWithHash(txId, { content, deliveryHash }) {
+    return this._request('POST', `/orders/${txId}/deliver`, {
+      content,
+      delivery_hash: deliveryHash,
+    });
+  }
+
   /** Extend the deadline of an active order (buyer only). */
   async extendDeadline(txId, hours) {
     return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });

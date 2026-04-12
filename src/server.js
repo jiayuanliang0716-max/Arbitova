@@ -691,10 +691,10 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {},
       },
     ],
-    tool_count: 19,
+    tool_count: 22,
     sdk: {
-      nodejs: { package: '@arbitova/sdk', version: '0.5.9', npm: 'https://www.npmjs.com/package/@arbitova/sdk' },
-      mcp: { package: '@arbitova/mcp-server', version: '1.4.0', npm: 'https://www.npmjs.com/package/@arbitova/mcp-server' },
+      nodejs: { package: '@arbitova/sdk', version: '0.6.0', npm: 'https://www.npmjs.com/package/@arbitova/sdk' },
+      mcp: { package: '@arbitova/mcp-server', version: '1.5.0', npm: 'https://www.npmjs.com/package/@arbitova/mcp-server' },
     },
   });
 });
@@ -879,6 +879,164 @@ app.get('/api/v1/pricing', (req, res) => {
     },
     updated_at: '2026-04-12',
   });
+});
+
+// GET /api/v1/agents/discover — A2A agent discovery (pure A2A, no auth)
+// Find agents that can fulfill a task, filtered by capability/category, price, and minimum trust score.
+// Designed for autonomous agent use: buyer agent calls this before placing an order.
+// Query params: capability (keyword), category, max_price, min_trust (0-100), sort (trust|price|reputation), limit
+app.get('/api/v1/agents/discover', async (req, res) => {
+  try {
+    const { dbAll: pgAll } = require('./db/helpers');
+    const capability = req.query.capability || req.query.q;
+    const category   = req.query.category;
+    const maxPrice   = parseFloat(req.query.max_price) || null;
+    const minTrust   = parseInt(req.query.min_trust) || 0;
+    const sort       = req.query.sort || 'trust'; // trust|price|reputation
+    const limit      = Math.min(parseInt(req.query.limit) || 10, 50);
+
+    // Build service filter
+    const svcConditions = ['s.is_active = 1 OR s.is_active = true'];
+    const svcParams = [];
+    let idx = 1;
+
+    if (capability) {
+      svcConditions.push(`(s.name LIKE $${idx} OR s.description LIKE $${idx + 1})`);
+      svcParams.push(`%${capability}%`, `%${capability}%`);
+      idx += 2;
+    }
+    if (category) {
+      svcConditions.push(`s.category = $${idx}`);
+      svcParams.push(category);
+      idx++;
+    }
+    if (maxPrice !== null) {
+      svcConditions.push(`s.price <= $${idx}`);
+      svcParams.push(maxPrice);
+      idx++;
+    }
+
+    const isPostgres = !!process.env.DATABASE_URL;
+    const ph = (n) => isPostgres ? `$${n}` : '?';
+
+    // Re-build with correct placeholder syntax
+    const svcConds2 = ['(s.is_active = 1 OR s.is_active = true)'];
+    const svcP2 = [];
+    let i2 = 1;
+    if (capability) {
+      svcConds2.push(`(s.name LIKE ${ph(i2)} OR s.description LIKE ${ph(i2+1)})`);
+      svcP2.push(`%${capability}%`, `%${capability}%`);
+      i2 += 2;
+    }
+    if (category) {
+      svcConds2.push(`s.category = ${ph(i2)}`);
+      svcP2.push(category);
+      i2++;
+    }
+    if (maxPrice !== null) {
+      svcConds2.push(`s.price <= ${ph(i2)}`);
+      svcP2.push(maxPrice);
+      i2++;
+    }
+
+    const services = await pgAll(
+      `SELECT s.id as service_id, s.name as service_name, s.description as service_desc,
+              s.price, s.delivery_hours, s.category, s.auto_verify, s.input_schema,
+              a.id as agent_id, a.name as agent_name, a.description as agent_desc,
+              COALESCE(a.reputation_score, 0) as reputation_score,
+              a.created_at as agent_since,
+              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id AND o.status = 'completed') as completed_sales,
+              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id) as total_sales,
+              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id AND o.status IN ('disputed','refunded')) as disputes,
+              (SELECT AVG(rating) FROM reviews r WHERE r.seller_id = a.id) as avg_rating,
+              (SELECT COUNT(*) FROM reviews r WHERE r.seller_id = a.id) as review_count
+       FROM services s
+       JOIN agents a ON s.agent_id = a.id
+       WHERE ${svcConds2.join(' AND ')}
+       ORDER BY COALESCE(a.reputation_score, 0) DESC
+       LIMIT ${ph(i2)}`,
+      [...svcP2, limit * 5] // fetch extra to filter by trust
+    );
+
+    // Compute trust score inline
+    function computeTrust(row) {
+      const total = parseInt(row.total_sales || 0);
+      const completed = parseInt(row.completed_sales || 0);
+      const disputed = parseInt(row.disputes || 0);
+      const rep = parseInt(row.reputation_score || 0);
+      const avgR = parseFloat(row.avg_rating || 0);
+      const nRev = parseInt(row.review_count || 0);
+      const ageDays = Math.min((Date.now() - new Date(row.agent_since).getTime()) / 86400000, 30);
+      const cr = total > 0 ? completed / total : 0;
+      const dr = total > 0 ? disputed / total : 0;
+      const raw = Math.min(Math.max(rep, 0) / 200 * 30
+        + cr * 25 - Math.min(dr * 40, 20)
+        + (nRev > 0 ? (avgR / 5) * 25 : 12.5)
+        + (ageDays / 30) * 10
+        + Math.min(nRev * 0.5, 10), 100);
+      return Math.max(Math.round(raw), 0);
+    }
+    function trustLevel(s) {
+      if (s >= 90) return 'Elite';
+      if (s >= 70) return 'Trusted';
+      if (s >= 45) return 'Rising';
+      return 'New';
+    }
+
+    let results = services.map(row => {
+      const trust_score = computeTrust(row);
+      return {
+        agent_id: row.agent_id,
+        agent_name: row.agent_name,
+        agent_description: row.agent_desc,
+        trust_score,
+        trust_level: trustLevel(trust_score),
+        reputation_score: parseInt(row.reputation_score || 0),
+        completed_sales: parseInt(row.completed_sales || 0),
+        avg_rating: row.avg_rating ? parseFloat(parseFloat(row.avg_rating).toFixed(2)) : null,
+        service: {
+          id: row.service_id,
+          name: row.service_name,
+          description: row.service_desc,
+          price_usdc: row.price,
+          delivery_hours: row.delivery_hours,
+          category: row.category,
+          auto_verify: !!(row.auto_verify),
+          input_schema: row.input_schema
+            ? (typeof row.input_schema === 'string' ? (() => { try { return JSON.parse(row.input_schema); } catch { return null; } })() : row.input_schema)
+            : null,
+        },
+      };
+    });
+
+    // Apply min_trust filter
+    if (minTrust > 0) results = results.filter(r => r.trust_score >= minTrust);
+
+    // Sort
+    if (sort === 'price') {
+      results.sort((a, b) => a.service.price_usdc - b.service.price_usdc);
+    } else if (sort === 'reputation') {
+      results.sort((a, b) => b.reputation_score - a.reputation_score);
+    } else {
+      results.sort((a, b) => b.trust_score - a.trust_score);
+    }
+
+    results = results.slice(0, limit);
+
+    res.json({
+      count: results.length,
+      filters: {
+        capability: capability || null,
+        category: category || null,
+        max_price: maxPrice,
+        min_trust: minTrust || null,
+        sort,
+      },
+      results,
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // 404 處理

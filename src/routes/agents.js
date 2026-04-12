@@ -454,29 +454,128 @@ router.get('/me/analytics', requireApiKey, async (req, res, next) => {
 });
 
 // GET /agents/search — public, search agents by name/description
+// Query params: q (keyword), min_trust (0-100), category, sort (trust|reputation|completion), limit
 router.get('/search', async (req, res, next) => {
   try {
     const q = req.query.q;
+    const minTrust = parseInt(req.query.min_trust) || 0;
+    const category = req.query.category;
+    const sort = req.query.sort || 'reputation'; // trust|reputation|completion
     const limit = Math.min(parseInt(req.query.limit) || 20, 100);
-    if (!q || !q.trim()) return res.status(400).json({ error: 'q (search query) is required' });
-    const kw = `%${q.trim()}%`;
+
+    // Build WHERE conditions
+    const conditions = [];
+    const params = [];
+    let pIdx = 1;
+
+    if (q && q.trim()) {
+      const kw = `%${q.trim()}%`;
+      conditions.push(`(a.name LIKE ${p(pIdx)} OR a.description LIKE ${p(pIdx + 1)})`);
+      params.push(kw, kw);
+      pIdx += 2;
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
     const agents = await dbAll(
-      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score,
-              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales
+      `SELECT a.id, a.name, a.description,
+              COALESCE(a.reputation_score, 0) as reputation_score,
+              a.created_at,
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales,
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id) as total_sales,
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status IN ('disputed','refunded')) as disputes,
+              (SELECT AVG(rating) FROM reviews WHERE seller_id = a.id) as avg_rating,
+              (SELECT COUNT(*) FROM reviews WHERE seller_id = a.id) as review_count
        FROM agents a
-       WHERE (a.name LIKE ${p(1)} OR a.description LIKE ${p(2)})
+       ${whereClause}
        ORDER BY COALESCE(a.reputation_score, 0) DESC
-       LIMIT ${p(3)}`,
-      [kw, kw, limit]
+       LIMIT ${p(pIdx)}`,
+      [...params, limit * 5] // fetch extra to allow post-filter by trust
     );
-    res.json({
-      count: agents.length,
-      query: q.trim(),
-      agents: agents.map(a => ({
-        ...a,
+
+    // Compute trust score inline (same formula as /:id/trust-score)
+    function computeTrust(a) {
+      const total = parseInt(a.total_sales || 0);
+      const completed = parseInt(a.completed_sales || 0);
+      const disputed = parseInt(a.disputes || 0);
+      const rep = parseInt(a.reputation_score || 0);
+      const avgRating = parseFloat(a.avg_rating || 0);
+      const numReviews = parseInt(a.review_count || 0);
+      const ageDays = Math.min((Date.now() - new Date(a.created_at).getTime()) / 86400000, 30);
+
+      const completionRate = total > 0 ? completed / total : 0;
+      const disputeRate = total > 0 ? disputed / total : 0;
+
+      const repPts     = Math.min(Math.max(rep, 0) / 200 * 30, 30);
+      const compPts    = completionRate * 25;
+      const dispPenalty = Math.min(disputeRate * 40, 20);
+      const ratingPts  = numReviews > 0 ? (avgRating / 5) * 25 : 12.5;
+      const agePts     = (ageDays / 30) * 10;
+      const revBonus   = Math.min(numReviews * 0.5, 10);
+
+      const raw = repPts + compPts - dispPenalty + ratingPts + agePts + revBonus;
+      return Math.min(Math.max(Math.round(raw), 0), 100);
+    }
+
+    function trustLevel(score) {
+      if (score >= 90) return 'Elite';
+      if (score >= 70) return 'Trusted';
+      if (score >= 45) return 'Rising';
+      return 'New';
+    }
+
+    let results = agents.map(a => {
+      const trust_score = computeTrust(a);
+      return {
+        id: a.id,
+        name: a.name,
+        description: a.description,
         reputation_score: parseInt(a.reputation_score || 0),
         completed_sales: parseInt(a.completed_sales || 0),
-      })),
+        completion_rate: parseInt(a.total_sales || 0) > 0
+          ? parseFloat((parseInt(a.completed_sales || 0) / parseInt(a.total_sales || 0) * 100).toFixed(1))
+          : null,
+        avg_rating: a.avg_rating ? parseFloat(parseFloat(a.avg_rating).toFixed(2)) : null,
+        trust_score,
+        trust_level: trustLevel(trust_score),
+      };
+    });
+
+    // Filter by min_trust
+    if (minTrust > 0) {
+      results = results.filter(a => a.trust_score >= minTrust);
+    }
+
+    // Filter by category (agents with active services in category)
+    if (category) {
+      const catAgentIds = new Set(
+        (await dbAll(
+          `SELECT DISTINCT agent_id FROM services WHERE category = ${p(1)} AND status = 'active'`,
+          [category]
+        )).map(r => r.agent_id)
+      );
+      results = results.filter(a => catAgentIds.has(a.id));
+    }
+
+    // Sort
+    if (sort === 'trust') {
+      results.sort((a, b) => b.trust_score - a.trust_score);
+    } else if (sort === 'completion') {
+      results.sort((a, b) => (b.completion_rate ?? 0) - (a.completion_rate ?? 0));
+    }
+    // default: already sorted by reputation from DB
+
+    results = results.slice(0, limit);
+
+    res.json({
+      count: results.length,
+      query: q ? q.trim() : null,
+      filters: {
+        min_trust: minTrust || null,
+        category: category || null,
+        sort,
+      },
+      agents: results,
     });
   } catch (err) { next(err); }
 });
@@ -610,6 +709,115 @@ router.get('/:id/reputation', async (req, res, next) => {
         order_count: parseInt(r.order_count || 0),
       })),
       history,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/reputation-history — paginated public reputation event log
+router.get('/:id/reputation-history', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as reputation_score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const page  = Math.max(parseInt(req.query.page)  || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+    const offset = (page - 1) * limit;
+    const reason = req.query.reason; // optional filter: 'order_completed','dispute_lost','tip_received', etc.
+
+    const countParams = [req.params.id];
+    const dataParams  = [req.params.id];
+    let reasonFilter  = '';
+    if (reason) {
+      reasonFilter = ` AND reason = ${p(2)}`;
+      countParams.push(reason);
+      dataParams.push(reason);
+    }
+
+    const [total, events] = await Promise.all([
+      dbGet(
+        `SELECT COUNT(*) as cnt FROM reputation_history WHERE agent_id = ${p(1)}${reasonFilter}`,
+        countParams
+      ),
+      dbAll(
+        `SELECT id, delta, reason, order_id, created_at
+         FROM reputation_history
+         WHERE agent_id = ${p(1)}${reasonFilter}
+         ORDER BY created_at DESC
+         LIMIT ${p(dataParams.length + 1)} OFFSET ${p(dataParams.length + 2)}`,
+        [...dataParams, limit, offset]
+      ),
+    ]);
+
+    const totalCount = parseInt(total?.cnt || 0);
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      current_score: parseInt(agent.reputation_score),
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        pages: Math.ceil(totalCount / limit),
+        has_next: page * limit < totalCount,
+        has_prev: page > 1,
+      },
+      events: events.map(e => ({
+        id: e.id,
+        delta: e.delta,
+        direction: e.delta > 0 ? 'up' : 'down',
+        reason: e.reason,
+        order_id: e.order_id || null,
+        created_at: e.created_at,
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/capabilities — machine-readable capability declaration (A2A discovery)
+// Returns all active services as structured capability objects with input schemas
+router.get('/:id/capabilities', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score, created_at
+       FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const services = await dbAll(
+      `SELECT id, name, description, price, delivery_hours, category, input_schema, auto_verify, status
+       FROM services WHERE agent_id = ${p(1)} AND status = 'active'
+       ORDER BY created_at DESC`,
+      [req.params.id]
+    );
+
+    const capabilities = services.map(s => ({
+      service_id: s.id,
+      name: s.name,
+      description: s.description,
+      category: s.category,
+      price_usdc: s.price,
+      delivery_hours: s.delivery_hours,
+      auto_verify: !!s.auto_verify,
+      input_schema: s.input_schema
+        ? (typeof s.input_schema === 'string' ? JSON.parse(s.input_schema) : s.input_schema)
+        : null,
+    }));
+
+    const categories = [...new Set(capabilities.map(c => c.category).filter(Boolean))];
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      description: agent.description,
+      reputation_score: parseInt(agent.reputation_score),
+      active_services: capabilities.length,
+      categories,
+      capabilities,
+      profile_url: `https://a2a-system.onrender.com/profile?id=${agent.id}`,
     });
   } catch (err) { next(err); }
 });
