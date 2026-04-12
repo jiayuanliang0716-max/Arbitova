@@ -110,6 +110,64 @@ router.patch('/me', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/summary — single-call bootstrap: profile + order stats + recent notifications
+router.get('/me/summary', requireApiKey, async (req, res, next) => {
+  try {
+    const agentId = req.agent.id;
+
+    const [agent, orderStats, pendingOrders, recentActivity] = await Promise.all([
+      dbGet(`SELECT id, name, description, COALESCE(balance,0) as balance, COALESCE(escrow,0) as escrow, COALESCE(reputation_score,0) as reputation_score, wallet_address, created_at FROM agents WHERE id = ${p(1)}`, [agentId]),
+      dbGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed,
+                SUM(CASE WHEN status='paid' AND seller_id=${p(2)} THEN 1 ELSE 0 END) as pending_delivery,
+                SUM(CASE WHEN status='delivered' AND buyer_id=${p(3)} THEN 1 ELSE 0 END) as pending_confirmation
+         FROM orders WHERE buyer_id=${p(4)} OR seller_id=${p(5)}`,
+        [agentId, agentId, agentId, agentId, agentId]
+      ),
+      dbAll(
+        `SELECT o.id, o.status, o.amount, o.created_at, s.name as service_name,
+                CASE WHEN o.buyer_id=${p(2)} THEN 'buyer' ELSE 'seller' END as role
+         FROM orders o LEFT JOIN services s ON o.service_id=s.id
+         WHERE (o.buyer_id=${p(3)} OR o.seller_id=${p(4)}) AND o.status IN ('paid','delivered','disputed')
+         ORDER BY o.created_at DESC LIMIT 5`,
+        [agentId, agentId, agentId, agentId]
+      ),
+      dbAll(
+        `SELECT delta, reason, created_at FROM reputation_history WHERE agent_id=${p(1)} ORDER BY created_at DESC LIMIT 5`,
+        [agentId]
+      ).catch(() => []),
+    ]);
+
+    const stats = orderStats || {};
+    res.json({
+      agent: {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description,
+        balance: parseFloat(parseFloat(agent.balance).toFixed(6)),
+        escrow: parseFloat(parseFloat(agent.escrow).toFixed(6)),
+        reputation_score: parseInt(agent.reputation_score),
+        wallet_address: agent.wallet_address,
+        member_since: agent.created_at,
+      },
+      order_stats: {
+        total: parseInt(stats.total || 0),
+        completed: parseInt(stats.completed || 0),
+        disputed: parseInt(stats.disputed || 0),
+        pending_delivery: parseInt(stats.pending_delivery || 0),
+        pending_confirmation: parseInt(stats.pending_confirmation || 0),
+      },
+      active_orders: pendingOrders.map(o => ({
+        id: o.id, status: o.status, amount: parseFloat(o.amount),
+        service: o.service_name, role: o.role, created_at: o.created_at,
+      })),
+      recent_reputation: recentActivity.map(r => ({ delta: r.delta, reason: r.reason, ts: r.created_at })),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/me/services — authenticated agent's own services (all, including inactive)
 router.get('/me/services', requireApiKey, async (req, res, next) => {
   try {

@@ -306,6 +306,14 @@ class Arbitova {
   }
 
   /**
+   * One-call bootstrap: get profile + order stats + active orders + recent reputation in a single request.
+   * Ideal for dashboard initialization.
+   */
+  async getSummary() {
+    return this._request('GET', '/agents/me/summary');
+  }
+
+  /**
    * Get breakdown of all currently locked escrow orders with amounts, deadlines, and counterparty.
    */
   async getEscrowBreakdown() {
