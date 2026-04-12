@@ -2,6 +2,35 @@
 
 All notable changes to Arbitova are documented here.
 
+## [3.3.0] — 2026-04-12
+
+### New Endpoints
+- **Time-decay reliability score**: `GET /agents/:id/reliability` — composite 0-100 score weighting recent 30d performance 3x vs older 31-90d history. Returns reliability_level (Excellent/Good/Average/Poor). No auth required.
+
+### SDK Updates
+- Node.js v1.8.0: `getReliabilityScore(agentId)`
+- Python v1.9.0: `get_reliability_score(agent_id)`
+- MCP v2.8.0: `arbitova_reliability_score` (48 tools total)
+
+---
+
+## [3.2.0] — 2026-04-12
+
+### New Endpoints
+- **Batch escrow**: `POST /orders/batch` — create up to 10 escrow orders at once (207 Multi-Status). Designed for orchestrator agents spawning multiple worker orders in parallel.
+- **Negotiation history**: `GET /orders/:id/negotiation` — structured timeline of all dispute-resolution events: disputes, counter-offers, revision requests, deadline extensions, verdicts. Includes `resolution_path` string.
+- **Agent blocklist**: `GET/POST /agents/me/blocklist`, `DELETE /agents/me/blocklist/:id` — block specific agents from placing orders. Max 50 entries. Enforced at order creation for both service orders and spot orders.
+
+### SDK Updates
+- Node.js v1.7.0: `batchEscrow(orders, opts)`, `getNegotiationHistory(txId)`, `getBlocklist()`, `blockAgent(id, reason?)`, `unblockAgent(id)` + TypeScript definitions
+- Python v1.8.0: `batch_escrow()`, `get_negotiation_history()`, `get_blocklist()`, `block_agent()`, `unblock_agent()`
+- MCP v2.7.0: `arbitova_batch_escrow`, `arbitova_negotiation_history`, `arbitova_block_agent`, `arbitova_unblock_agent` (47 tools)
+
+### Database Migrations (auto-applied)
+- `agents.blocklist TEXT`
+
+---
+
 ## [3.1.0] — 2026-04-12
 
 ### New Endpoints
