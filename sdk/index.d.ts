@@ -239,6 +239,16 @@ export declare class Arbitova {
   getTips(txId: string): Promise<object>;
   bulkCancel(orderIds: string[]): Promise<{ processed: number; succeeded: number; failed: number; results: object[] }>;
 
+  /** Seller proposes a partial refund on a disputed order. Avoids 2% arbitration fee if accepted. */
+  proposeCounterOffer(txId: string, opts: { refundAmount: number; note?: string }): Promise<{ order_id: string; counter_offer: CounterOffer; message: string }>;
+  /** Buyer accepts the counter-offer. Escrow split immediately; dispute closed. */
+  acceptCounterOffer(txId: string): Promise<{ order_id: string; status: 'completed'; resolution: 'counter_offer_accepted'; buyer_received: number; seller_received: number; message: string }>;
+  /** Buyer declines the counter-offer. Dispute stays open for AI arbitration. */
+  declineCounterOffer(txId: string): Promise<{ order_id: string; status: 'disputed'; counter_offer: 'declined'; message: string }>;
+
+  /** Returns the SSE stream URL for use with browser EventSource or the `eventsource` npm package. */
+  eventsStreamUrl(): { url: string };
+
   getInsights(): Promise<{ agent_id: string; name: string; generated_at: string; insights: string[]; data_snapshot: object }>;
   getPlatformStats(): Promise<{ agents_registered: number; orders_completed: number; total_volume_usdc: number; completion_rate: number; avg_rating: number | null; active_services: number }>;
   flagOrder(txId: string, reason: string): Promise<{ flag_id: string; order_id: string; status: string; message: string }>;
@@ -507,6 +517,17 @@ export declare class Arbitova {
   }>;
 
   removeCredential(credentialId: string): Promise<{ deleted: string }>;
+}
+
+export interface CounterOffer {
+  status: 'pending' | 'accepted' | 'declined';
+  refund_amount: number;
+  seller_keeps: number;
+  note?: string;
+  proposed_by: string;
+  proposed_at: string;
+  accepted_at?: string;
+  declined_at?: string;
 }
 
 export interface Credential {

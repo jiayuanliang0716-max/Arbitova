@@ -706,10 +706,20 @@ apiV1.get('/manifest', (req, res) => {
 // GET /api/v1/events/stream — SSE real-time event stream for authenticated agents
 // Connect once; receive all events fired for your agent_id in real time.
 // Heartbeat every 30s keeps the connection alive through proxies.
+// Accepts api_key as query param for browser EventSource (can't set custom headers).
 {
   const { sseSubscribe, sseUnsubscribe } = require('./webhooks');
   const { requireApiKey: sseAuth } = require('./middleware/auth');
-  apiV1.get('/events/stream', sseAuth, (req, res) => {
+
+  // Middleware: fall back to ?api_key query param (SSE / browser EventSource)
+  const sseAuthMiddleware = (req, res, next) => {
+    if (!req.headers['x-api-key'] && req.query.api_key) {
+      req.headers['x-api-key'] = req.query.api_key;
+    }
+    return sseAuth(req, res, next);
+  };
+
+  apiV1.get('/events/stream', sseAuthMiddleware, (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');

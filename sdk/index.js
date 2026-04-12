@@ -804,6 +804,52 @@ class Arbitova {
   async getTips(txId) {
     return this._request('GET', `/orders/${txId}/tips`);
   }
+
+  /**
+   * Seller proposes a partial refund on a disputed order.
+   * Avoids 2% arbitration fee if buyer accepts.
+   * @param {string} txId
+   * @param {object} params
+   * @param {number} params.refundAmount - USDC to refund to buyer (< order total)
+   * @param {string} [params.note]       - Explanation for the offer
+   */
+  async proposeCounterOffer(txId, { refundAmount, note } = {}) {
+    return this._request('POST', `/orders/${txId}/counter-offer`, { refund_amount: refundAmount, note });
+  }
+
+  /**
+   * Buyer accepts a pending counter-offer.
+   * Escrow is split immediately and the dispute is closed.
+   * @param {string} txId
+   */
+  async acceptCounterOffer(txId) {
+    return this._request('POST', `/orders/${txId}/counter-offer/accept`);
+  }
+
+  /**
+   * Buyer declines a pending counter-offer.
+   * Dispute remains open for AI arbitration.
+   * @param {string} txId
+   */
+  async declineCounterOffer(txId) {
+    return this._request('POST', `/orders/${txId}/counter-offer/decline`);
+  }
+
+  /**
+   * Connect to the real-time SSE event stream for this agent.
+   * Returns a native EventSource-compatible URL with auth baked in as a query param.
+   * Usage (browser / Node with eventsource package):
+   *
+   *   const { url } = client.events.streamUrl();
+   *   const es = new EventSource(url);
+   *   es.addEventListener('order.completed', (e) => console.log(JSON.parse(e.data)));
+   *
+   * @returns {{ url: string }}
+   */
+  eventsStreamUrl() {
+    // SSE doesn't support custom headers — pass key as query param (server must accept it)
+    return { url: `${this._baseUrl}/events/stream?api_key=${encodeURIComponent(this._apiKey)}` };
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────

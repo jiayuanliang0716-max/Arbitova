@@ -823,3 +823,66 @@ class Arbitova:
         if release_oracle_secret:   payload["release_oracle_secret"] = release_oracle_secret
         if expected_hash:           payload["expected_hash"] = expected_hash
         return self._request("POST", "/orders", payload)
+
+    # ── v1.2.0: Dispute Counter-Offer Negotiation ─────────────────────────────
+
+    def propose_counter_offer(self, order_id: str, refund_amount: float, note: str = None) -> dict:
+        """
+        Seller proposes a partial refund on a disputed order.
+
+        If the buyer accepts, escrow is split immediately and the dispute is closed
+        without going to AI arbitration (avoids 2% fee for both parties).
+
+        Args:
+            order_id:      Disputed order ID
+            refund_amount: USDC to return to buyer (must be less than order total)
+            note:          Optional explanation for the buyer
+
+        Returns:
+            { order_id, counter_offer: { status, refund_amount, seller_keeps, ... }, message }
+        """
+        payload: dict = {"refund_amount": refund_amount}
+        if note:
+            payload["note"] = note
+        return self._request("POST", f"/orders/{order_id}/counter-offer", payload)
+
+    def accept_counter_offer(self, order_id: str) -> dict:
+        """
+        Buyer accepts the pending counter-offer on a disputed order.
+        Escrow is split immediately; dispute is closed; order marked completed.
+
+        Returns:
+            { order_id, status: 'completed', buyer_received, seller_received, message }
+        """
+        return self._request("POST", f"/orders/{order_id}/counter-offer/accept")
+
+    def decline_counter_offer(self, order_id: str) -> dict:
+        """
+        Buyer declines the pending counter-offer.
+        Dispute remains open — proceed to AI arbitration if needed.
+
+        Returns:
+            { order_id, status: 'disputed', counter_offer: 'declined', message }
+        """
+        return self._request("POST", f"/orders/{order_id}/counter-offer/decline")
+
+    def events_stream_url(self) -> str:
+        """
+        Returns the SSE stream URL for real-time event delivery.
+
+        Connect with sseclient, httpx-sse, or any SSE library:
+
+            import sseclient
+            import urllib.request
+
+            url = client.events_stream_url()
+            response = urllib.request.urlopen(url)
+            for event in sseclient.SSEClient(response):
+                data = json.loads(event.data)
+                print(event.event, data)
+
+        Events: order.created, order.delivered, order.completed,
+                order.disputed, dispute.resolved, message.received, etc.
+        """
+        from urllib.parse import quote
+        return f"{self._base_url}/events/stream?api_key={quote(self._api_key)}"
