@@ -303,14 +303,17 @@ router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
     // Deduct from buyer balance, hold in escrow
+    // Try with escrow column first; fall back to balance-only update if column not yet migrated
     await dbRun(
       `UPDATE agents SET balance = balance - ${p(1)}, escrow = COALESCE(escrow,0) + ${p(2)} WHERE id = ${p(3)}`,
       [n, n, req.agent.id]
+    ).catch(() =>
+      dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [n, req.agent.id])
     );
     await dbRun(
       `UPDATE agents SET escrow = COALESCE(escrow,0) + ${p(1)} WHERE id = ${p(2)}`,
       [n, to_agent_id]
-    );
+    ).catch(() => {});
 
     // Create spot order (no service_id — NULL)
     await dbRun(
