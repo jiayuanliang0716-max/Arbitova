@@ -16,7 +16,8 @@ router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
             input_schema, output_schema, verification_rules, auto_verify, semantic_verify,
-            min_seller_stake, sub_price, sub_interval, file_id, market_type, product_type,
+            min_seller_stake, min_buyer_trust,
+            sub_price, sub_interval, file_id, market_type, product_type,
             category } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
@@ -62,18 +63,23 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const id = uuidv4();
     const stringify = (v) => v == null ? null : (typeof v === 'string' ? v : JSON.stringify(v));
     const svcCategory = category || 'general';
+    const minBuyerTrust = parseInt(min_buyer_trust || 0);
+    if (minBuyerTrust < 0 || minBuyerTrust > 100) {
+      return res.status(400).json({ error: 'min_buyer_trust must be 0-100' });
+    }
+
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
-          input_schema, output_schema, verification_rules, auto_verify, semantic_verify, min_seller_stake,
+          input_schema, output_schema, verification_rules, auto_verify, semantic_verify, min_seller_stake, min_buyer_trust,
           sub_price, sub_interval, file_id, market_type, product_type, category)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)},${p(17)},${p(18)})`,
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)},${p(17)},${p(18)},${p(19)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema), stringify(verification_rules),
         auto_verify     ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
         semantic_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        minStake, subPrice, subInterval, resolvedFileId, mktType, prodType, svcCategory
+        minStake, minBuyerTrust, subPrice, subInterval, resolvedFileId, mktType, prodType, svcCategory
       ]
     );
 
@@ -86,6 +92,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
       auto_verify: !!auto_verify,
       semantic_verify: !!semantic_verify,
       min_seller_stake: minStake,
+      min_buyer_trust: minBuyerTrust,
       sub_price: subPrice,
       sub_interval: subInterval,
       file_id: resolvedFileId,
@@ -281,17 +288,35 @@ router.patch('/:id', requireApiKey, async (req, res, next) => {
     if (!service) return res.status(404).json({ error: 'Service not found' });
     if (service.agent_id !== req.agent.id) return res.status(403).json({ error: 'You do not own this service' });
 
-    const { name, description, price, delivery_hours, is_active } = req.body;
+    const { name, description, price, delivery_hours, is_active, min_buyer_trust, min_seller_stake, category } = req.body;
 
     if (isPostgres) {
       await dbRun(
-        `UPDATE services SET name=COALESCE($1,name), description=COALESCE($2,description), price=COALESCE($3,price), delivery_hours=COALESCE($4,delivery_hours), is_active=COALESCE($5,is_active) WHERE id=$6`,
-        [name||null, description||null, price||null, delivery_hours||null, is_active !== undefined ? is_active : null, req.params.id]
+        `UPDATE services SET
+           name=COALESCE($1,name), description=COALESCE($2,description),
+           price=COALESCE($3,price), delivery_hours=COALESCE($4,delivery_hours),
+           is_active=COALESCE($5,is_active), category=COALESCE($6,category),
+           min_buyer_trust=COALESCE($7,min_buyer_trust), min_seller_stake=COALESCE($8,min_seller_stake)
+         WHERE id=$9`,
+        [name||null, description||null, price||null, delivery_hours||null,
+         is_active !== undefined ? is_active : null, category||null,
+         min_buyer_trust !== undefined ? parseInt(min_buyer_trust) : null,
+         min_seller_stake !== undefined ? parseFloat(min_seller_stake) : null,
+         req.params.id]
       );
     } else {
       await dbRun(
-        `UPDATE services SET name=COALESCE(?,name), description=COALESCE(?,description), price=COALESCE(?,price), delivery_hours=COALESCE(?,delivery_hours), is_active=COALESCE(?,is_active) WHERE id=?`,
-        [name||null, description||null, price||null, delivery_hours||null, is_active !== undefined ? (is_active ? 1 : 0) : null, req.params.id]
+        `UPDATE services SET
+           name=COALESCE(?,name), description=COALESCE(?,description),
+           price=COALESCE(?,price), delivery_hours=COALESCE(?,delivery_hours),
+           is_active=COALESCE(?,is_active), category=COALESCE(?,category),
+           min_buyer_trust=COALESCE(?,min_buyer_trust), min_seller_stake=COALESCE(?,min_seller_stake)
+         WHERE id=?`,
+        [name||null, description||null, price||null, delivery_hours||null,
+         is_active !== undefined ? (is_active ? 1 : 0) : null, category||null,
+         min_buyer_trust !== undefined ? parseInt(min_buyer_trust) : null,
+         min_seller_stake !== undefined ? parseFloat(min_seller_stake) : null,
+         req.params.id]
       );
     }
 

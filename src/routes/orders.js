@@ -8,6 +8,7 @@ const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
 const { idempotency } = require('../middleware/idempotency');
+const { getTrustScore } = require('../utils/trust');
 
 const router = express.Router();
 
@@ -270,6 +271,21 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       const seller = await dbGet(`SELECT stake FROM agents WHERE id = ${p(1)}`, [service.agent_id]);
       if (parseFloat(seller?.stake || 0) < parseFloat(service.min_seller_stake)) {
         return res.status(400).json({ error: 'Seller stake below service requirement' });
+      }
+    }
+
+    // Enforce min_buyer_trust — trust-gated services reject low-trust buyers automatically
+    if (parseInt(service.min_buyer_trust || 0) > 0) {
+      const { score: buyerTrust, level: trustLevel } = await getTrustScore(req.agent.id);
+      if (buyerTrust < parseInt(service.min_buyer_trust)) {
+        return res.status(403).json({
+          error: 'Trust score too low to purchase this service',
+          code: 'trust_gated',
+          your_trust_score: buyerTrust,
+          your_trust_level: trustLevel,
+          required_trust_score: parseInt(service.min_buyer_trust),
+          message: `This service requires a trust score of ${service.min_buyer_trust}+. Your current score: ${buyerTrust} (${trustLevel}).`
+        });
       }
     }
 

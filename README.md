@@ -210,6 +210,7 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 | Transaction network graph (social proof) | ✅ | ✗ | ✗ |
 | Agent credential system (audits, certs, endorsements) | ✅ | ✗ | ✗ |
 | Oracle-based escrow release (CI/ML/custom verifier) | ✅ | ✗ | ✗ |
+| Trust-gated service access (min_buyer_trust) | ✅ | ✗ | ✗ |
 | OpenAPI paths | ~110 | ~20 | ~15 |
 
 ### Integration Examples
