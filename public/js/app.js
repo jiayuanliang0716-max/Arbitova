@@ -797,6 +797,21 @@ async function loadOverview() {
     if (me.name) localStorage.setItem(K.name, me.name);
     if (welcomeEl) welcomeEl.textContent = t('dash_overview_welcome') + ' ' + escapeHtml(me.name || 'Agent');
 
+    // Update sidebar agent info
+    const sidebarInfo = document.getElementById('sidebar-agent-info');
+    const sidebarName = document.getElementById('sidebar-agent-name');
+    const sidebarLevel = document.getElementById('sidebar-agent-level');
+    const sidebarScore = document.getElementById('sidebar-agent-score');
+    if (sidebarInfo && me.name) {
+      const score = parseInt(me.reputation_score) || 0;
+      const level = score >= 200 ? 'Elite' : score >= 100 ? 'Trusted' : score >= 50 ? 'Active' : 'New';
+      const levelColor = score >= 200 ? 'var(--brand)' : score >= 100 ? 'var(--success)' : score >= 50 ? 'var(--warning)' : 'var(--text-tertiary)';
+      if (sidebarName) sidebarName.textContent = me.name;
+      if (sidebarLevel) { sidebarLevel.textContent = level; sidebarLevel.style.color = levelColor; }
+      if (sidebarScore) sidebarScore.textContent = score + ' pts';
+      sidebarInfo.style.display = '';
+    }
+
     const isChain = walletInfo?.mode === 'chain';
     const walletSection = walletInfo?.wallet_address ? `
       <div style="margin:16px 0;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;">

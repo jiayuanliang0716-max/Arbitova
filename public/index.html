@@ -440,6 +440,14 @@
       </button>
     </nav>
     <div class="dash-sidebar-footer">
+      <div id="sidebar-agent-info" style="padding:12px 16px;border-top:1px solid var(--border-subtle);margin-bottom:8px;display:none">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sidebar-agent-name"></div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;display:flex;align-items:center;gap:6px">
+          <span id="sidebar-agent-level" style="font-weight:600"></span>
+          <span style="color:var(--border-strong)">·</span>
+          <span id="sidebar-agent-score" style="font-family:var(--font-mono)"></span>
+        </div>
+      </div>
       <button class="btn btn-ghost btn-sm btn-block" data-action="logout" data-i18n="dash_logout">Sign Out</button>
     </div>
   </aside>
