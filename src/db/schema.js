@@ -364,6 +364,21 @@ if (DATABASE_URL) {
         created_at   TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_credentials_agent ON agent_credentials (agent_id);
+
+      CREATE TABLE IF NOT EXISTS site_config (
+        key        TEXT PRIMARY KEY,
+        value      JSONB NOT NULL,
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS announcements (
+        id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        text       TEXT NOT NULL,
+        url        TEXT,
+        active     BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
 
     // One-time migrations: set product_type for existing data

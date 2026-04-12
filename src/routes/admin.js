@@ -589,4 +589,106 @@ router.post('/payout', async (req, res) => {
   }
 });
 
+// ── Site Config (CMS) ──────────────────────────────────────────────────────
+
+// GET /admin/site-config — get all config values
+router.get('/site-config', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT key, value FROM site_config ORDER BY key');
+    const config = {};
+    for (const r of rows) {
+      config[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
+    }
+    res.json({ config });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /admin/site-config — set one or more config values
+router.put('/site-config', requireAdminKey, async (req, res) => {
+  try {
+    const updates = req.body; // { key: value, ... }
+    if (!updates || typeof updates !== 'object') return res.status(400).json({ error: 'Body must be a JSON object' });
+    for (const [key, value] of Object.entries(updates)) {
+      const jsonVal = JSON.stringify(value);
+      await dbRun(
+        `INSERT INTO site_config (key, value, updated_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, jsonVal]
+      );
+    }
+    res.json({ ok: true, updated: Object.keys(updates) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Announcements ──────────────────────────────────────────────────────────
+
+// GET /admin/announcements — list all announcements
+router.get('/announcements', requireAdminKey, async (req, res) => {
+  try {
+    const rows = await dbAll('SELECT * FROM announcements ORDER BY created_at DESC');
+    res.json({ announcements: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/announcements — create and publish announcement
+router.post('/announcements', requireAdminKey, async (req, res) => {
+  try {
+    const { text, url, active = true } = req.body;
+    if (!text) return res.status(400).json({ error: 'text is required' });
+
+    const id = require('crypto').randomUUID();
+    await dbRun(
+      `INSERT INTO announcements (id, text, url, active, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())`,
+      [id, text, url || null, active]
+    );
+
+    // Sync to Discord if webhook configured
+    if (active && process.env.DISCORD_WEBHOOK_URL) {
+      const discordBody = {
+        content: `**Arbitova Update:** ${text}${url ? '\n' + url : ''}`
+      };
+      fetch(process.env.DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(discordBody)
+      }).catch(e => console.error('Discord webhook error:', e.message));
+    }
+
+    res.json({ ok: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /admin/announcements/:id — toggle active status
+router.patch('/announcements/:id', requireAdminKey, async (req, res) => {
+  try {
+    const { active } = req.body;
+    await dbRun(
+      'UPDATE announcements SET active = $1, updated_at = NOW() WHERE id = $2',
+      [active, req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /admin/announcements/:id
+router.delete('/announcements/:id', requireAdminKey, async (req, res) => {
+  try {
+    await dbRun('DELETE FROM announcements WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
