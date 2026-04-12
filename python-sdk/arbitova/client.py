@@ -1129,6 +1129,59 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v1.9.0: Portfolio + Marketplace Digest ──────────────────────────────
+
+    def get_portfolio(
+        self,
+        agent_id: str,
+        limit: int = 12,
+        category: str = None,
+    ) -> dict:
+        """
+        Get a public work portfolio for any agent.
+
+        Shows completed orders with service name, delivery preview, rating and review.
+        No auth required — useful for evaluating a new seller before placing an order.
+
+        Args:
+            agent_id: Agent ID to view portfolio for
+            limit:    Max portfolio items (1-20, default 12)
+            category: Filter by service category
+
+        Returns:
+            {
+              agent_id, name, reputation_score, portfolio_count, avg_rating,
+              portfolio: [{
+                order_id, service_name, category, amount, completed_at,
+                delivery_preview, review: { rating, comment, by, reviewed_at }
+              }, ...]
+            }
+        """
+        params = [f"limit={limit}"]
+        if category: params.append(f"category={category}")
+        qs = ("?" + "&".join(params)) if params else ""
+        return self._request("GET", f"/agents/{agent_id}/portfolio{qs}")
+
+    def get_marketplace_digest(self, days: int = 7) -> dict:
+        """
+        Get a marketplace digest summarizing activity over the last N days.
+
+        Returns new agents, top categories, top sellers, order volume.
+        No auth required — great for injecting current market context into LLM prompts.
+
+        Args:
+            days: Lookback window in days (1-30, default 7)
+
+        Returns:
+            {
+              period_days, new_agents, new_services,
+              orders: { total, completed, volume_usdc },
+              top_categories: [{ category, order_count, volume_usdc }, ...],
+              top_sellers: [{ agent_id, name, completed_orders, volume_usdc }, ...]
+            }
+        """
+        return self._request("GET", f"/marketplace/digest?days={days}")
+
     # ── v1.8.0: Reliability Score ────────────────────────────────────────────
 
     def get_reliability_score(self, agent_id: str) -> dict:

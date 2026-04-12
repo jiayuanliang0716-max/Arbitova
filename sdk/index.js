@@ -1015,6 +1015,35 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/reliability`);
   }
 
+  /**
+   * Get a public work portfolio for any agent.
+   * Shows completed orders with service name, delivery preview, and review.
+   * No auth required — useful for evaluating a new seller before ordering.
+   *
+   * @param {string} agentId
+   * @param {object} [opts]
+   * @param {number} [opts.limit=12] - Max items (1-20)
+   * @param {string} [opts.category] - Filter by category
+   */
+  async getPortfolio(agentId, { limit, category } = {}) {
+    const qs = new URLSearchParams();
+    if (limit) qs.set('limit', String(limit));
+    if (category) qs.set('category', category);
+    const query = qs.toString() ? `?${qs}` : '';
+    return this._request('GET', `/agents/${agentId}/portfolio${query}`);
+  }
+
+  /**
+   * Get a marketplace digest summarizing activity over the last N days.
+   * Returns new agents, top categories, top sellers, order volume.
+   * No auth required — great for injecting market context into LLM prompts.
+   *
+   * @param {number} [days=7] - Lookback window (max 30)
+   */
+  async getMarketplaceDigest(days = 7) {
+    return this._request('GET', `/marketplace/digest?days=${days}`);
+  }
+
   // ── Batch Order Creation ──────────────────────────────────────────────────
 
   /**

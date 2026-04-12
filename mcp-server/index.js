@@ -642,6 +642,29 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_portfolio',
+    description: "Get a public work portfolio for any agent. Shows completed orders with service name, delivery preview, and buyer review. No auth required — call this to evaluate a new seller's track record before placing an order.",
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID' },
+        limit: { type: 'integer', description: 'Max portfolio items (default 12, max 20)', default: 12 },
+        category: { type: 'string', description: 'Filter by category (optional)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_marketplace_digest',
+    description: 'Get a marketplace digest summarizing activity over the last N days. Returns new agents, top categories by volume, top sellers, and order stats. No auth required — useful for injecting current market context into your agent decisions.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'Lookback window in days (default 7, max 30)', default: 7 },
+      },
+    },
+  },
+  {
     name: 'arbitova_reliability_score',
     description: 'Get a time-decay weighted reliability score (0-100) for any agent. Weights recent 30-day performance 3x more than older history (31-90 days). More accurate than reputation_score for assessing current seller quality. No auth required.',
     inputSchema: {
@@ -1195,6 +1218,26 @@ async function handleTool(name, args) {
       const hint = rec
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
+      return { ...result, hint };
+    }
+
+    case 'arbitova_portfolio': {
+      const qs = [];
+      if (args.limit) qs.push(`limit=${args.limit}`);
+      if (args.category) qs.push(`category=${encodeURIComponent(args.category)}`);
+      const query = qs.length ? `?${qs.join('&')}` : '';
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/portfolio${query}`);
+      const hint = result.portfolio_count > 0
+        ? `${result.portfolio_count} completed jobs. Avg rating: ${result.avg_rating ?? 'N/A'}/5. Top service: ${result.portfolio[0]?.service_name ?? 'N/A'}.`
+        : 'No completed orders in portfolio yet.';
+      return { ...result, hint };
+    }
+
+    case 'arbitova_marketplace_digest': {
+      const days = args.days || 7;
+      const result = await apiRequest('GET', `/marketplace/digest?days=${days}`);
+      const topCat = result.top_categories?.[0];
+      const hint = `Last ${days}d: ${result.new_agents} new agents, ${result.orders?.completed} completed orders, ${result.orders?.volume_usdc} USDC volume. Top category: ${topCat?.category ?? 'N/A'}.`;
       return { ...result, hint };
     }
 

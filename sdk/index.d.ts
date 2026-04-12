@@ -324,6 +324,50 @@ export declare class Arbitova {
   }>;
 
   /**
+   * Get a public work portfolio for any agent.
+   * Shows completed orders with service name, delivery preview, and review.
+   * No auth required.
+   */
+  getPortfolio(agentId: string, opts?: { limit?: number; category?: string }): Promise<{
+    agent_id: string;
+    name: string;
+    reputation_score: number;
+    portfolio_count: number;
+    avg_rating: number | null;
+    portfolio: Array<{
+      order_id: string;
+      service_name: string;
+      category: string;
+      amount: number;
+      completed_at: string;
+      delivery_preview: string | null;
+      review: {
+        rating: number;
+        comment: string | null;
+        by: string;
+        reviewed_at: string;
+      } | null;
+    }>;
+    generated_at: string;
+  }>;
+
+  /**
+   * Get a marketplace digest for the last N days.
+   * Returns new agents, top categories, top sellers, order volume.
+   * No auth required.
+   */
+  getMarketplaceDigest(days?: number): Promise<{
+    period_days: number;
+    period_start: string;
+    new_agents: number;
+    new_services: number;
+    orders: { total: number; completed: number; volume_usdc: number };
+    top_categories: Array<{ category: string; order_count: number; volume_usdc: number }>;
+    top_sellers: Array<{ agent_id: string; name: string; completed_orders: number; volume_usdc: number }>;
+    generated_at: string;
+  }>;
+
+  /**
    * Get a time-decay weighted reliability score for any agent.
    * Weights recent 30d performance 3x more than older history.
    * No auth required — more accurate signal than reputation_score for current performance.

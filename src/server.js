@@ -894,6 +894,53 @@ app.get('/api/v1/platform/stats', async (req, res) => {
   }
 });
 
+// GET /api/v1/marketplace/digest — weekly marketplace summary.
+// No auth required. Returns last 7-day stats: new agents, top categories by volume,
+// most active services, platform growth. Useful for LLM context injection.
+app.get('/api/v1/marketplace/digest', async (req, res) => {
+  try {
+    const { dbGet: pg, dbAll: pgA } = require('./db/helpers');
+    const isPostgres = !!process.env.DATABASE_URL;
+    const pp = (n) => isPostgres ? `$${n}` : '?';
+    const days = Math.min(parseInt(req.query.days) || 7, 30);
+    const since = new Date(Date.now() - days * 24 * 3600000).toISOString();
+
+    const [newAgents, newOrders, topCategories, newServices, topSellers] = await Promise.all([
+      pg(`SELECT COUNT(*) as c FROM agents WHERE created_at > ${pp(1)}`, [since]).catch(() => ({ c: 0 })),
+      pg(`SELECT COUNT(*) as total, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) as volume FROM orders WHERE created_at > ${pp(1)}`, [since]).catch(() => ({ total: 0, completed: 0, volume: 0 })),
+      pgA(`SELECT s.category, COUNT(o.id) as order_count, SUM(o.amount) as volume FROM orders o JOIN services s ON s.id = o.service_id WHERE o.created_at > ${pp(1)} AND s.category IS NOT NULL GROUP BY s.category ORDER BY order_count DESC LIMIT 5`, [since]).catch(() => []),
+      pg(`SELECT COUNT(*) as c FROM services WHERE created_at > ${pp(1)}`, [since]).catch(() => ({ c: 0 })),
+      pgA(`SELECT a.id, a.name, COUNT(o.id) as orders, SUM(o.amount) as volume FROM orders o JOIN agents a ON a.id = o.seller_id WHERE o.created_at > ${pp(1)} AND o.status = 'completed' GROUP BY a.id, a.name ORDER BY orders DESC LIMIT 5`, [since]).catch(() => []),
+    ]);
+
+    res.json({
+      period_days: days,
+      period_start: since,
+      new_agents: parseInt(newAgents?.c || 0),
+      new_services: parseInt(newServices?.c || 0),
+      orders: {
+        total: parseInt(newOrders?.total || 0),
+        completed: parseInt(newOrders?.completed || 0),
+        volume_usdc: parseFloat(parseFloat(newOrders?.volume || 0).toFixed(2)),
+      },
+      top_categories: topCategories.map(r => ({
+        category: r.category,
+        order_count: parseInt(r.order_count),
+        volume_usdc: parseFloat(parseFloat(r.volume || 0).toFixed(2)),
+      })),
+      top_sellers: topSellers.map(r => ({
+        agent_id: r.id,
+        name: r.name,
+        completed_orders: parseInt(r.orders),
+        volume_usdc: parseFloat(parseFloat(r.volume || 0).toFixed(2)),
+      })),
+      generated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(503).json({ error: e.message });
+  }
+});
+
 // GET /api/v1/pricing — machine-readable fee schedule, no auth required
 app.get('/api/v1/pricing', (req, res) => {
   res.json({

@@ -2025,6 +2025,88 @@ router.post('/me/blocklist', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/portfolio — public work portfolio.
+// Shows completed orders for this seller with service name, category, delivery preview, and rating.
+// No auth required. Useful for buyers evaluating new sellers before placing orders.
+// Max 20 most recent completed orders with review data.
+router.get('/:id/portfolio', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, description, reputation_score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const limit = Math.min(parseInt(req.query.limit) || 12, 20);
+    const category = req.query.category;
+
+    let query = `
+      SELECT o.id as order_id, o.amount, o.completed_at, o.requirements,
+             s.name as service_name, s.category, s.description as service_description,
+             d.content as delivery_content,
+             r.rating, r.comment as review_comment, r.created_at as review_at,
+             b.name as buyer_name
+      FROM orders o
+      LEFT JOIN services s ON s.id = o.service_id
+      LEFT JOIN deliveries d ON d.order_id = o.id
+      LEFT JOIN reviews r ON r.order_id = o.id
+      LEFT JOIN agents b ON b.id = o.buyer_id
+      WHERE o.seller_id = ${p(1)} AND o.status = 'completed'
+    `;
+    const params = [agent.id];
+    let idx = 2;
+
+    if (category) {
+      query += ` AND s.category = ${p(idx++)}`;
+      params.push(category);
+    }
+
+    query += ` ORDER BY o.completed_at DESC LIMIT ${p(idx++)}`;
+    params.push(limit);
+
+    const orders = await dbAll(query, params);
+
+    const portfolio = orders.map(o => {
+      // Truncate delivery content to a short preview (150 chars)
+      let deliveryPreview = null;
+      if (o.delivery_content) {
+        const content = typeof o.delivery_content === 'string' ? o.delivery_content : JSON.stringify(o.delivery_content);
+        deliveryPreview = content.length > 150 ? content.slice(0, 147) + '...' : content;
+      }
+
+      return {
+        order_id: o.order_id,
+        service_name: o.service_name || 'Custom Work',
+        category: o.category || 'general',
+        amount: parseFloat(o.amount),
+        completed_at: o.completed_at,
+        delivery_preview: deliveryPreview,
+        review: o.rating ? {
+          rating: o.rating,
+          comment: o.review_comment || null,
+          by: o.buyer_name || 'anonymous',
+          reviewed_at: o.review_at,
+        } : null,
+      };
+    });
+
+    const avgRating = portfolio.filter(p => p.review).length > 0
+      ? parseFloat((portfolio.filter(p => p.review).reduce((sum, p) => sum + p.review.rating, 0) / portfolio.filter(p => p.review).length).toFixed(2))
+      : null;
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      reputation_score: agent.reputation_score,
+      portfolio_count: portfolio.length,
+      avg_rating: avgRating,
+      category_filter: category || null,
+      portfolio,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id/reliability — time-decay weighted reliability score.
 // Public, no auth required. Weights recent performance (last 30 days) 3x more than older history.
 // More accurate than reputation_score for current performance assessment.
