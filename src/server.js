@@ -100,6 +100,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Clean URL aliases for standalone pages
 app.get('/profile', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
 app.get('/badge', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
+app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'verdicts.html')));
 
 // Stats endpoint — 30s in-memory cache to reduce DB load
 let statsCache = null;

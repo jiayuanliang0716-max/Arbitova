@@ -7,6 +7,7 @@
  * to use Arbitova's N=3 AI arbitration as a service.
  *
  * POST /api/v1/arbitrate/external
+ * GET  /api/v1/arbitrate/verdicts  (public)
  */
 
 const express = require('express');
@@ -14,6 +15,10 @@ const { v4: uuidv4 } = require('uuid');
 const { requireApiKey } = require('../middleware/auth');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
+const { dbAll, dbGet } = require('../db/helpers');
+
+const isPostgres = !!process.env.DATABASE_URL;
+const p = (n) => isPostgres ? `$${n}` : '?';
 
 const router = express.Router();
 
@@ -229,6 +234,135 @@ router.post('/batch', requireApiKey, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+/**
+ * GET /api/v1/arbitrate/verdicts
+ *
+ * Public feed of anonymized AI arbitration verdicts.
+ * No auth required — this is a transparency / trust-building page.
+ *
+ * Query params:
+ *   limit   int   max cases to return (default 50, max 200)
+ *   winner  str   filter: 'buyer' | 'seller'
+ *   page    int   pagination (0-indexed)
+ */
+router.get('/verdicts', async (req, res, next) => {
+  try {
+    const limit  = Math.min(parseInt(req.query.limit)  || 50, 200);
+    const offset = (parseInt(req.query.page) || 0) * limit;
+    const winner = req.query.winner; // optional filter
+
+    // Pull AI-arbitrated disputes (resolution starts with [AI Arbitration)
+    let query = `
+      SELECT
+        d.id          AS dispute_id,
+        d.reason      AS dispute_reason,
+        d.resolution,
+        d.created_at  AS raised_at,
+        d.resolved_at,
+        o.amount,
+        o.requirements,
+        s.name        AS service_name,
+        s.category
+      FROM disputes d
+      JOIN orders o ON o.id = d.order_id
+      LEFT JOIN services s ON s.id = o.service_id
+      WHERE d.status = 'resolved'
+        AND d.resolution LIKE '%[AI Arbitration%'
+    `;
+    const params = [];
+
+    if (winner === 'buyer' || winner === 'seller') {
+      query += ` AND d.resolution LIKE ${p(params.length + 1)}`;
+      params.push(`%winner: ${winner}%`);
+    }
+
+    query += ` ORDER BY d.resolved_at DESC LIMIT ${p(params.length + 1)} OFFSET ${p(params.length + 2)}`;
+    params.push(limit, offset);
+
+    const rows = await dbAll(query, params);
+
+    // Parse stored resolution string back into structured fields
+    // Format: "[AI Arbitration N=3 | votes: buyer(82%), seller(74%) | avg confidence: 82%] reasoning..."
+    const verdicts = rows.map((row, idx) => {
+      const res_str = row.resolution || '';
+
+      // Extract winner from resolution
+      let caseWinner = null;
+      if (res_str.includes('winner: buyer'))  caseWinner = 'buyer';
+      if (res_str.includes('winner: seller')) caseWinner = 'seller';
+
+      // Extract confidence
+      let confidence = null;
+      const confMatch = res_str.match(/avg confidence:\s*(\d+)%/);
+      if (confMatch) confidence = parseInt(confMatch[1]) / 100;
+
+      // Extract votes summary
+      let votes = [];
+      const votesMatch = res_str.match(/votes:\s*([^\]]+)/);
+      if (votesMatch) {
+        votes = votesMatch[1].split(',').map(v => v.trim()).filter(Boolean);
+      }
+
+      // Extract reasoning (everything after the closing bracket)
+      let reasoning = '';
+      const reasoningMatch = res_str.match(/\]\s*(.+)$/s);
+      if (reasoningMatch) reasoning = reasoningMatch[1].trim().slice(0, 400);
+
+      // Anonymize amount into a range
+      const amount = parseFloat(row.amount || 0);
+      let amount_range = '$0–$1';
+      if (amount >= 50)  amount_range = '$50+';
+      else if (amount >= 10) amount_range = '$10–$50';
+      else if (amount >= 5)  amount_range = '$5–$10';
+      else if (amount >= 1)  amount_range = '$1–$5';
+
+      // Classify dispute type from reason text
+      const reason_lower = (row.dispute_reason || '').toLowerCase();
+      let dispute_type = 'general';
+      if (reason_lower.includes('incomplete') || reason_lower.includes('partial'))  dispute_type = 'incomplete_delivery';
+      else if (reason_lower.includes('format') || reason_lower.includes('csv') || reason_lower.includes('json')) dispute_type = 'format_mismatch';
+      else if (reason_lower.includes('late') || reason_lower.includes('deadline')) dispute_type = 'deadline_violation';
+      else if (reason_lower.includes('quality') || reason_lower.includes('superficial')) dispute_type = 'quality_dispute';
+      else if (reason_lower.includes('section') || reason_lower.includes('missing')) dispute_type = 'missing_sections';
+      else if (reason_lower.includes('refund') || reason_lower.includes('no actual')) dispute_type = 'no_delivery';
+      else if (reason_lower.includes('wrong') || reason_lower.includes('reverse') || reason_lower.includes('entirely')) dispute_type = 'spec_mismatch';
+      else if (reason_lower.includes('architecture') || reason_lower.includes('expected')) dispute_type = 'scope_dispute';
+
+      return {
+        case_number:   offset + idx + 1,
+        dispute_type,
+        winner:        caseWinner,
+        confidence,
+        votes,
+        reasoning,
+        amount_range,
+        service_category: row.category || 'general',
+        raised_at:     row.raised_at,
+        resolved_at:   row.resolved_at,
+      };
+    });
+
+    // Aggregate stats
+    const totalQuery = `
+      SELECT COUNT(*) AS total,
+        SUM(CASE WHEN resolution LIKE '%winner: buyer%' THEN 1 ELSE 0 END)  AS buyer_wins,
+        SUM(CASE WHEN resolution LIKE '%winner: seller%' THEN 1 ELSE 0 END) AS seller_wins
+      FROM disputes
+      WHERE status = 'resolved' AND resolution LIKE '%[AI Arbitration%'
+    `;
+    const stats = await dbGet(totalQuery, []).catch(() => ({ total: 0, buyer_wins: 0, seller_wins: 0 }));
+
+    res.json({
+      total:       parseInt(stats.total || 0),
+      buyer_wins:  parseInt(stats.buyer_wins || 0),
+      seller_wins: parseInt(stats.seller_wins || 0),
+      page:        parseInt(req.query.page) || 0,
+      limit,
+      verdicts,
+    });
+  } catch (err) { next(err); }
 });
 
 module.exports = router;
