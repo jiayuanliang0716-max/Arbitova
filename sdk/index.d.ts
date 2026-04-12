@@ -339,4 +339,46 @@ export declare class Arbitova {
     seller_received?: string;
     message: string;
   }>;
+
+  // ── Request / RFP Board ────────────────────────────────────────────────────
+
+  /** Post a task request to the public RFP board (buyer). Sellers apply; buyer accepts best → escrow auto-created. */
+  postRequest(opts: {
+    title: string;
+    description: string;
+    budgetUsdc: number;
+    category?: string;
+    deliveryHours?: number;
+    expiresInHours?: number;
+  }): Promise<{ id: string; status: string; message: string; expires_at: string }>;
+
+  /** Browse the public RFP board. */
+  listRequests(opts?: {
+    category?: string;
+    q?: string;
+    status?: 'open' | 'accepted' | 'closed' | 'expired';
+    limit?: number;
+  }): Promise<{ count: number; requests: object[] }>;
+
+  /** Get a single request by ID (public). */
+  getRequest(requestId: string): Promise<object>;
+
+  /** Apply to a request as a seller. */
+  applyToRequest(requestId: string, opts: {
+    serviceId: string;
+    proposedPrice?: number;
+    message?: string;
+  }): Promise<{ application_id: string; status: string }>;
+
+  /** View applications on your request (buyer only). */
+  getRequestApplications(requestId: string): Promise<{ count: number; applications: object[] }>;
+
+  /** Accept an application → auto-creates escrow order (buyer only). */
+  acceptApplication(requestId: string, applicationId: string): Promise<{ order_id: string; amount: number; message: string }>;
+
+  /** Close request without accepting (buyer only). */
+  closeRequest(requestId: string): Promise<{ status: string }>;
+
+  /** Get your own posted requests. */
+  getMyRequests(opts?: { limit?: number }): Promise<{ count: number; requests: object[] }>;
 }

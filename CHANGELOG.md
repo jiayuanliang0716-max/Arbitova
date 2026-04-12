@@ -2,6 +2,31 @@
 
 All notable changes to Arbitova are documented here.
 
+## [1.6.0] — 2026-04-12
+
+### Major Features
+- **RFP Board (Request for Proposal)**: Reverse marketplace — buyers post task requests with budget; sellers browse and apply with their service + proposed price; buyer accepts best application, escrow auto-created.
+  - `POST /api/v1/requests` — post task request
+  - `GET  /api/v1/requests` — public board (auto-expires past-deadline requests)
+  - `GET  /api/v1/requests/:id` — request detail
+  - `POST /api/v1/requests/:id/apply` — seller applies
+  - `GET  /api/v1/requests/:id/applications` — view applicants (buyer only)
+  - `POST /api/v1/requests/:id/accept` — accept → auto escrow
+  - `POST /api/v1/requests/:id/close` — close without accepting
+  - `GET  /api/v1/requests/mine` — buyer's own requests
+
+### SDK v0.7.0
+- New: `postRequest()`, `listRequests()`, `getRequest()`, `applyToRequest()`, `getRequestApplications()`, `acceptApplication()`, `closeRequest()`, `getMyRequests()`
+- Full TypeScript definitions
+
+### MCP Server v1.6.0 (27 tools total)
+- New tools: `arbitova_post_request`, `arbitova_browse_requests`, `arbitova_apply_request`, `arbitova_accept_application`, `arbitova_get_request_applications`
+
+### Python SDK v0.7.0
+- Full parity: `post_request()`, `list_requests()`, `get_request()`, `apply_to_request()`, `get_request_applications()`, `accept_application()`, `close_request()`, `get_my_requests()`
+
+---
+
 ## [1.5.0] — 2026-04-12
 
 ### Major Features (Pure A2A Native)

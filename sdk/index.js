@@ -352,6 +352,94 @@ class Arbitova {
     });
   }
 
+  // ── Request / RFP Board ────────────────────────────────────────────────────
+
+  /**
+   * Post a task request to the public RFP board (buyer).
+   * Sellers can apply; buyer then accepts the best application → escrow auto-created.
+   * @param {object} opts
+   * @param {string}  opts.title           - Short title of the task
+   * @param {string}  opts.description     - Full description / requirements
+   * @param {number}  opts.budgetUsdc      - Maximum budget in USDC
+   * @param {string}  [opts.category]      - Service category (coding, writing, etc.)
+   * @param {number}  [opts.deliveryHours] - Expected delivery window (hours)
+   * @param {number}  [opts.expiresInHours] - How long the request stays open (default 72h, max 720h)
+   */
+  async postRequest({ title, description, budgetUsdc, category, deliveryHours, expiresInHours } = {}) {
+    return this._request('POST', '/requests', {
+      title,
+      description,
+      budget_usdc: budgetUsdc,
+      ...(category       ? { category }        : {}),
+      ...(deliveryHours  ? { delivery_hours: deliveryHours }  : {}),
+      ...(expiresInHours ? { expires_in_hours: expiresInHours } : {}),
+    });
+  }
+
+  /**
+   * Browse the public RFP board (seller).
+   * @param {object} [opts]
+   * @param {string} [opts.category] - Filter by category
+   * @param {string} [opts.q]        - Keyword search
+   * @param {string} [opts.status]   - 'open' (default) | 'accepted' | 'closed' | 'expired'
+   * @param {number} [opts.limit]    - Max results (default 20)
+   */
+  async listRequests({ category, q, status, limit } = {}) {
+    const qs = new URLSearchParams();
+    if (category) qs.set('category', category);
+    if (q)        qs.set('q', q);
+    if (status)   qs.set('status', status);
+    if (limit)    qs.set('limit', limit);
+    const s = qs.toString();
+    return this._request('GET', `/requests${s ? `?${s}` : ''}`);
+  }
+
+  /** Get a single request by ID (public). */
+  async getRequest(requestId) {
+    return this._request('GET', `/requests/${requestId}`);
+  }
+
+  /**
+   * Apply to a request as a seller.
+   * @param {string} requestId    - Request to apply to
+   * @param {object} opts
+   * @param {string} opts.serviceId      - Your service to offer
+   * @param {number} [opts.proposedPrice] - Custom price (default: service price)
+   * @param {string} [opts.message]       - Cover message
+   */
+  async applyToRequest(requestId, { serviceId, proposedPrice, message } = {}) {
+    return this._request('POST', `/requests/${requestId}/apply`, {
+      service_id: serviceId,
+      ...(proposedPrice !== undefined ? { proposed_price: proposedPrice } : {}),
+      ...(message ? { message } : {}),
+    });
+  }
+
+  /** View applications on your request (buyer only). */
+  async getRequestApplications(requestId) {
+    return this._request('GET', `/requests/${requestId}/applications`);
+  }
+
+  /**
+   * Accept a seller's application on your request (buyer only).
+   * Automatically creates an escrow order.
+   * @param {string} requestId
+   * @param {string} applicationId
+   */
+  async acceptApplication(requestId, applicationId) {
+    return this._request('POST', `/requests/${requestId}/accept`, { application_id: applicationId });
+  }
+
+  /** Close a request without accepting any application (buyer only). */
+  async closeRequest(requestId) {
+    return this._request('POST', `/requests/${requestId}/close`);
+  }
+
+  /** Get your own posted requests (buyer). */
+  async getMyRequests({ limit } = {}) {
+    return this._request('GET', `/requests/mine${limit ? `?limit=${limit}` : ''}`);
+  }
+
   /** Extend the deadline of an active order (buyer only). */
   async extendDeadline(txId, hours) {
     return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });

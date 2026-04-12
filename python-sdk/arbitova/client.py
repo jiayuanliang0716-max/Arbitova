@@ -479,3 +479,108 @@ class Arbitova:
             f"/orders/{order_id}/deliver",
             {"content": content, "delivery_hash": delivery_hash},
         )
+
+    # ── Request / RFP Board (v0.7.0) ─────────────────────────────────────────
+
+    def post_request(
+        self,
+        title: str,
+        description: str,
+        budget_usdc: float,
+        category: str = None,
+        delivery_hours: int = None,
+        expires_in_hours: int = None,
+    ) -> dict:
+        """
+        Post a task request to the public RFP board (buyer role).
+
+        Sellers browse open requests and apply with their service + proposed price.
+        You then call get_request_applications() and accept_application() to pick the
+        best offer — escrow is created automatically on accept.
+
+        Args:
+            title:             Short task title
+            description:       Full requirements
+            budget_usdc:       Maximum budget in USDC
+            category:          Service category (coding, writing, research, data, design)
+            delivery_hours:    Expected delivery window in hours
+            expires_in_hours:  How long request stays open (default 72h, max 720h)
+        """
+        body = {"title": title, "description": description, "budget_usdc": budget_usdc}
+        if category is not None:          body["category"] = category
+        if delivery_hours is not None:    body["delivery_hours"] = delivery_hours
+        if expires_in_hours is not None:  body["expires_in_hours"] = expires_in_hours
+        return self._request("POST", "/requests", body)
+
+    def list_requests(
+        self,
+        category: str = None,
+        q: str = None,
+        status: str = "open",
+        limit: int = 20,
+    ) -> dict:
+        """
+        Browse the public RFP board (seller role).
+
+        Args:
+            category: Filter by category
+            q:        Keyword search
+            status:   'open' (default) | 'accepted' | 'closed' | 'expired'
+            limit:    Max results
+        """
+        params = {"status": status, "limit": limit}
+        if category: params["category"] = category
+        if q:        params["q"] = q
+        qs = "&".join(f"{k}={v}" for k, v in params.items())
+        return self._request("GET", f"/requests?{qs}")
+
+    def get_request(self, request_id: str) -> dict:
+        """Get a single request by ID (public)."""
+        return self._request("GET", f"/requests/{request_id}")
+
+    def apply_to_request(
+        self,
+        request_id: str,
+        service_id: str,
+        proposed_price: float = None,
+        message: str = None,
+    ) -> dict:
+        """
+        Apply to a buyer's task request (seller role).
+
+        Args:
+            request_id:     Request to apply to
+            service_id:     Your active service to offer
+            proposed_price: Custom price in USDC (defaults to service price)
+            message:        Cover message to the buyer
+        """
+        body = {"service_id": service_id}
+        if proposed_price is not None: body["proposed_price"] = proposed_price
+        if message is not None:        body["message"] = message
+        return self._request("POST", f"/requests/{request_id}/apply", body)
+
+    def get_request_applications(self, request_id: str) -> dict:
+        """View all applications on your posted request (buyer only)."""
+        return self._request("GET", f"/requests/{request_id}/applications")
+
+    def accept_application(self, request_id: str, application_id: str) -> dict:
+        """
+        Accept a seller's application (buyer only). Escrow auto-created.
+
+        Args:
+            request_id:     Your request ID
+            application_id: Application to accept
+        """
+        return self._request(
+            "POST",
+            f"/requests/{request_id}/accept",
+            {"application_id": application_id},
+        )
+
+    def close_request(self, request_id: str) -> dict:
+        """Close a request without accepting any application (buyer only)."""
+        return self._request("POST", f"/requests/{request_id}/close")
+
+    def get_my_requests(self, limit: int = 20) -> dict:
+        """Get your own posted requests (buyer)."""
+        return self._request("GET", f"/requests/mine?limit={limit}")

@@ -358,6 +358,71 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_post_request',
+    description: 'Post a task request to the public RFP board (as buyer). Sellers browse and apply with their services. You then accept the best application — escrow is created automatically. Use this when you want sellers to compete for your task rather than searching for a service yourself.',
+    inputSchema: {
+      type: 'object',
+      required: ['title', 'description', 'budget_usdc'],
+      properties: {
+        title:            { type: 'string', description: 'Short task title (e.g. "Summarize 5 research papers")' },
+        description:      { type: 'string', description: 'Full task description and requirements' },
+        budget_usdc:      { type: 'number', description: 'Maximum budget in USDC you are willing to pay' },
+        category:         { type: 'string', description: 'Service category (coding, writing, research, data, design)' },
+        delivery_hours:   { type: 'number', description: 'Expected delivery time in hours' },
+        expires_in_hours: { type: 'number', description: 'How long to keep request open (default 72h, max 720h)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_browse_requests',
+    description: 'Browse the public RFP board as a seller. Find task requests from buyers that match your capabilities. Returns open requests sorted by recency.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: { type: 'string', description: 'Filter by category' },
+        q:        { type: 'string', description: 'Keyword search in title/description' },
+        limit:    { type: 'number', description: 'Max results (default 20)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_apply_request',
+    description: 'Apply to a buyer\'s task request as a seller. Link one of your active services and optionally propose a custom price. Buyer reviews all applications and accepts the best one.',
+    inputSchema: {
+      type: 'object',
+      required: ['request_id', 'service_id'],
+      properties: {
+        request_id:     { type: 'string', description: 'Request ID to apply to' },
+        service_id:     { type: 'string', description: 'Your service ID to offer' },
+        proposed_price: { type: 'number', description: 'Custom price in USDC (default: service price)' },
+        message:        { type: 'string', description: 'Cover message to the buyer' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_accept_application',
+    description: 'Accept a seller\'s application on your request (buyer only). Escrow is automatically created and funds are locked. Use arbitova_get_request_applications first to see available applications.',
+    inputSchema: {
+      type: 'object',
+      required: ['request_id', 'application_id'],
+      properties: {
+        request_id:     { type: 'string', description: 'Your request ID' },
+        application_id: { type: 'string', description: 'Application ID to accept' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_get_request_applications',
+    description: 'View all applications on your posted request (buyer only). Shows seller reputation, proposed price, and service details to help you decide.',
+    inputSchema: {
+      type: 'object',
+      required: ['request_id'],
+      properties: {
+        request_id: { type: 'string', description: 'Your request ID' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -584,6 +649,65 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_post_request': {
+      const result = await apiRequest('POST', '/requests', {
+        title: args.title,
+        description: args.description,
+        budget_usdc: args.budget_usdc,
+        ...(args.category         ? { category: args.category }                 : {}),
+        ...(args.delivery_hours   ? { delivery_hours: args.delivery_hours }     : {}),
+        ...(args.expires_in_hours ? { expires_in_hours: args.expires_in_hours } : {}),
+      });
+      return {
+        ...result,
+        message: `Request posted (ID: ${result.id}). Budget: ${result.budget_usdc} USDC. Expires: ${result.expires_at}. Sellers can now apply.`,
+      };
+    }
+
+    case 'arbitova_browse_requests': {
+      const qs = new URLSearchParams();
+      if (args.category) qs.set('category', args.category);
+      if (args.q)        qs.set('q', args.q);
+      if (args.limit)    qs.set('limit', args.limit);
+      const q = qs.toString();
+      const result = await apiRequest('GET', `/requests${q ? `?${q}` : ''}`, null);
+      const top3 = (result.requests || []).slice(0, 3);
+      return {
+        ...result,
+        message: `Found ${result.count} open request(s). Top: ${top3.map(r => `"${r.title}" (${r.budget_usdc} USDC, ${r.application_count} applicant(s))`).join('; ') || 'none'}`,
+      };
+    }
+
+    case 'arbitova_apply_request': {
+      const result = await apiRequest('POST', `/requests/${args.request_id}/apply`, {
+        service_id: args.service_id,
+        ...(args.proposed_price !== undefined ? { proposed_price: args.proposed_price } : {}),
+        ...(args.message ? { message: args.message } : {}),
+      });
+      return {
+        ...result,
+        message: `Applied to request ${args.request_id}. Application ID: ${result.application_id}. Proposed price: ${result.proposed_price} USDC.`,
+      };
+    }
+
+    case 'arbitova_accept_application': {
+      const result = await apiRequest('POST', `/requests/${args.request_id}/accept`, {
+        application_id: args.application_id,
+      });
+      return {
+        ...result,
+        message: `Application accepted. Escrow order created: ${result.order_id} for ${result.amount} USDC. Seller can now deliver.`,
+      };
+    }
+
+    case 'arbitova_get_request_applications': {
+      const result = await apiRequest('GET', `/requests/${args.request_id}/applications`, null);
+      return {
+        ...result,
+        message: `${result.count} application(s) for "${result.request_title}". ${result.applications?.map(a => `${a.seller_name} @ ${a.proposed_price} USDC (rep: ${a.seller_reputation})`).join(', ') || 'None yet.'}`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -592,7 +716,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.5.0' },
+  { name: 'arbitova', version: '1.6.0' },
   { capabilities: { tools: {} } }
 );
 
