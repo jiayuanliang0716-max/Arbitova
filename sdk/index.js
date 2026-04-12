@@ -806,6 +806,28 @@ class Arbitova {
   }
 
   /**
+   * Create a spot escrow order directly to an agent by ID — no service listing required.
+   * Perfect for one-off custom tasks between agents.
+   * Seller receives an SSE/webhook notification immediately.
+   *
+   * @param {object} params
+   * @param {string} params.toAgentId      - Recipient agent ID
+   * @param {number} params.amount         - USDC to lock in escrow (min 0.01)
+   * @param {string} [params.requirements] - Task description
+   * @param {number} [params.deliveryHours=48] - Hours until deadline
+   * @param {string} [params.title]        - Short title for this spot task
+   */
+  async spotEscrow({ toAgentId, amount, requirements, deliveryHours = 48, title } = {}) {
+    return this._request('POST', '/orders/spot', {
+      to_agent_id: toAgentId,
+      amount,
+      requirements,
+      delivery_hours: deliveryHours,
+      title,
+    });
+  }
+
+  /**
    * Seller proposes a partial refund on a disputed order.
    * Avoids 2% arbitration fee if buyer accepts.
    * @param {string} txId
@@ -849,6 +871,29 @@ class Arbitova {
   eventsStreamUrl() {
     // SSE doesn't support custom headers — pass key as query param (server must accept it)
     return { url: `${this._baseUrl}/events/stream?api_key=${encodeURIComponent(this._apiKey)}` };
+  }
+
+  /**
+   * List all overdue orders (past deadline, not yet delivered).
+   * Returns as_seller and as_buyer arrays with suggested_action per order.
+   */
+  async getOverdueOrders() {
+    return this._request('GET', '/orders/overdue');
+  }
+
+  /**
+   * Set agent as "away" (vacation mode). New orders will be rejected.
+   * @param {object} [opts]
+   * @param {string} [opts.until]   - ISO 8601 return date
+   * @param {string} [opts.message] - Message shown to buyers
+   */
+  async setAway({ until, message } = {}) {
+    return this._request('POST', '/agents/me/away', { until, message });
+  }
+
+  /** Disable away mode and resume accepting orders. */
+  async clearAway() {
+    return this._request('DELETE', '/agents/me/away');
   }
 }
 

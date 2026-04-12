@@ -195,6 +195,89 @@ router.get('/recent', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/spot — create an escrow order directly to an agent (no service listing required).
+// Buyer specifies: to_agent_id, amount, requirements, delivery_hours.
+// Seller can accept or decline (within 24h, or it auto-refunds).
+// Unique differentiator: works for one-off tasks where no service exists yet.
+router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
+  try {
+    const { to_agent_id, amount, requirements, delivery_hours = 48, title } = req.body;
+    if (!to_agent_id) return res.status(400).json({ error: 'to_agent_id is required' });
+    if (!(parseFloat(amount) >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
+    if (to_agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot create a spot order for yourself' });
+
+    const seller = await dbGet(`SELECT id, name, away_mode FROM agents WHERE id = ${p(1)}`, [to_agent_id]);
+    if (!seller) return res.status(404).json({ error: 'Seller agent not found' });
+
+    // Check away mode
+    if (seller.away_mode) {
+      const away = typeof seller.away_mode === 'string' ? JSON.parse(seller.away_mode) : seller.away_mode;
+      if (away?.active && !(away.until && new Date(away.until) < new Date())) {
+        return res.status(503).json({ error: 'Seller is currently unavailable', code: 'seller_away', until: away.until || null, message: away.message });
+      }
+    }
+
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const n = parseFloat(amount);
+    if (parseFloat(buyer.balance || 0) < n) {
+      return res.status(402).json({ error: 'Insufficient balance', balance: parseFloat(buyer.balance || 0), required: n });
+    }
+
+    const orderId = 'spot_' + uuidv4().replace(/-/g, '').slice(0, 16);
+    const deadline = new Date(Date.now() + parseInt(delivery_hours) * 3600000).toISOString();
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Deduct from buyer balance, hold in escrow
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)}, escrow = COALESCE(escrow,0) + ${p(2)} WHERE id = ${p(3)}`,
+      [n, n, req.agent.id]
+    );
+    await dbRun(
+      `UPDATE agents SET escrow = COALESCE(escrow,0) + ${p(1)} WHERE id = ${p(2)}`,
+      [n, to_agent_id]
+    );
+
+    // Create spot order (no service_id — NULL)
+    await dbRun(
+      `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, spot_order_title)
+       VALUES (${p(1)},${p(2)},${p(3)},NULL,'paid',${p(4)},${p(5)},${p(6)},${p(7)})`,
+      [orderId, req.agent.id, to_agent_id, n, requirements || '', deadline, (title || 'Spot order').slice(0, 200)]
+    ).catch(async () => {
+      // Fallback: if spot_order_title column doesn't exist yet
+      await dbRun(
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline)
+         VALUES (${p(1)},${p(2)},${p(3)},NULL,'paid',${p(4)},${p(5)},${p(6)})`,
+        [orderId, req.agent.id, to_agent_id, n, requirements || '', deadline]
+      );
+    });
+
+    const { fire, EVENTS } = require('../webhooks');
+    fire([to_agent_id], EVENTS.ORDER_CREATED, {
+      order_id: orderId,
+      order_type: 'spot',
+      buyer_id: req.agent.id,
+      amount: n,
+      requirements,
+      deadline,
+      title: title || 'Spot order',
+    }).catch(() => {});
+
+    res.status(201).json({
+      id: orderId,
+      order_type: 'spot',
+      status: 'paid',
+      buyer_id: req.agent.id,
+      seller_id: to_agent_id,
+      seller_name: seller.name,
+      amount: n,
+      requirements,
+      deadline,
+      title: title || 'Spot order',
+      message: `Spot escrow created. ${n} USDC locked. Seller has been notified.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/overdue — list orders past their deadline that haven't been delivered yet.
 // Useful for autonomous agents monitoring their commitments and proactively taking action.
 // Returns orders where: seller hasn't delivered AND deadline has passed.

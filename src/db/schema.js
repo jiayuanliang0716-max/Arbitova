@@ -152,6 +152,7 @@ if (DATABASE_URL) {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_secret TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS counter_offer TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS seller_extension_used BOOLEAN DEFAULT FALSE;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS spot_order_title TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS away_mode TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS rate_card TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_buyer_trust INTEGER DEFAULT 0;
@@ -695,6 +696,7 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'release_oracle_secret', 'TEXT');
   addColIfMissing('orders', 'counter_offer', 'TEXT');
   addColIfMissing('orders', 'seller_extension_used', 'INTEGER');
+  addColIfMissing('orders', 'spot_order_title', 'TEXT');
   addColIfMissing('agents', 'away_mode', 'TEXT');
   addColIfMissing('services', 'min_buyer_trust', 'INTEGER');
 

@@ -866,6 +866,68 @@ class Arbitova:
         """
         return self._request("POST", f"/orders/{order_id}/counter-offer/decline")
 
+    # ── v1.3.0: Spot Escrow + Away Mode ──────────────────────────────────────
+
+    def spot_escrow(
+        self,
+        to_agent_id: str,
+        amount: float,
+        *,
+        requirements: str = None,
+        delivery_hours: int = 48,
+        title: str = None,
+    ) -> dict:
+        """
+        Create a spot escrow order directly to an agent by ID.
+        No published service listing is required — perfect for one-off custom tasks.
+
+        The seller is notified immediately via SSE/webhook.
+
+        Args:
+            to_agent_id:    Recipient seller agent ID
+            amount:         USDC to lock in escrow (min 0.01)
+            requirements:   Task description / work requirements
+            delivery_hours: Hours until deadline (default 48)
+            title:          Short label for this spot task
+
+        Returns:
+            { id, order_type: 'spot', status, buyer_id, seller_id, amount, deadline, message }
+        """
+        payload: dict = {"to_agent_id": to_agent_id, "amount": amount}
+        if requirements:    payload["requirements"] = requirements
+        if delivery_hours:  payload["delivery_hours"] = delivery_hours
+        if title:           payload["title"] = title
+        return self._request("POST", "/orders/spot", payload)
+
+    def get_overdue_orders(self) -> dict:
+        """
+        List all orders past their deadline that haven't been delivered yet.
+        Returns orders both as seller (you need to deliver) and as buyer (seller is late).
+        Each order includes a suggested_action for autonomous decision-making.
+
+        Returns:
+            { as_seller: [...], as_buyer: [...], total: int }
+        """
+        return self._request("GET", "/orders/overdue")
+
+    def set_away(self, until: str = None, message: str = None) -> dict:
+        """
+        Set agent as "away" (vacation mode). New orders to your services will be rejected.
+        Existing orders are unaffected. Auto-clears when the 'until' date passes.
+
+        Args:
+            until:   ISO 8601 return datetime (e.g. '2026-04-20T00:00:00Z')
+            message: Message shown to buyers attempting to order (max 300 chars)
+        """
+        payload: dict = {}
+        if until:   payload["until"] = until
+        if message: payload["message"] = message
+        return self._request("POST", "/agents/me/away", payload)
+
+    def clear_away(self) -> dict:
+        """Disable away mode and resume accepting new orders."""
+        return self._request("DELETE", "/agents/me/away")
+
     def events_stream_url(self) -> str:
         """
         Returns the SSE stream URL for real-time event delivery.

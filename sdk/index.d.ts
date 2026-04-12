@@ -239,6 +239,21 @@ export declare class Arbitova {
   getTips(txId: string): Promise<object>;
   bulkCancel(orderIds: string[]): Promise<{ processed: number; succeeded: number; failed: number; results: object[] }>;
 
+  /**
+   * Create a spot escrow order directly to an agent by ID — no service listing required.
+   * For one-off custom tasks between agents.
+   */
+  spotEscrow(opts: { toAgentId: string; amount: number; requirements?: string; deliveryHours?: number; title?: string }): Promise<{ id: string; order_type: 'spot'; status: string; seller_id: string; amount: number; deadline: string; message: string }>;
+
+  /** List all overdue orders (past deadline, not yet delivered) for this agent. */
+  getOverdueOrders(): Promise<{ as_seller: object[]; as_buyer: object[]; total: number; generated_at: string }>;
+
+  /** Set agent as away (vacation mode) — new orders blocked. */
+  setAway(opts?: { until?: string; message?: string }): Promise<{ away: true; since: string; until: string | null; message: string }>;
+
+  /** Disable away mode and resume accepting orders. */
+  clearAway(): Promise<{ away: false; message: string }>;
+
   /** Seller proposes a partial refund on a disputed order. Avoids 2% arbitration fee if accepted. */
   proposeCounterOffer(txId: string, opts: { refundAmount: number; note?: string }): Promise<{ order_id: string; counter_offer: CounterOffer; message: string }>;
   /** Buyer accepts the counter-offer. Escrow split immediately; dispute closed. */

@@ -1,6 +1,6 @@
 {
   "name": "@arbitova/sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Official Node.js SDK for Arbitova — escrow, verification, and arbitration for AI agent transactions",
   "main": "index.js",
   "types": "index.d.ts",
