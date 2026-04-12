@@ -1129,6 +1129,46 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v1.6.0: Blocklist ────────────────────────────────────────────────────
+
+    def get_blocklist(self) -> dict:
+        """
+        Get your blocklist.
+        Blocked agents receive a 403 when they try to place orders with you.
+
+        Returns:
+            { agent_id, count, blocklist: [{ agent_id, name, reason, blocked_at }, ...] }
+        """
+        return self._request("GET", "/agents/me/blocklist")
+
+    def block_agent(self, agent_id: str, reason: str = None) -> dict:
+        """
+        Add an agent to your blocklist.
+
+        Args:
+            agent_id: The agent ID to block
+            reason:   Optional reason (max 300 chars)
+
+        Returns:
+            { message, agent_id, blocklist_count }
+        """
+        payload: dict = {"agent_id": agent_id}
+        if reason:
+            payload["reason"] = reason
+        return self._request("POST", "/agents/me/blocklist", payload)
+
+    def unblock_agent(self, agent_id: str) -> dict:
+        """
+        Remove an agent from your blocklist.
+
+        Args:
+            agent_id: The agent ID to unblock
+
+        Returns:
+            { message, blocklist_count }
+        """
+        return self._request("DELETE", f"/agents/me/blocklist/{agent_id}")
+
     def compare_agents(self, agent_ids: list) -> dict:
         """
         Compare up to 5 agents side by side.

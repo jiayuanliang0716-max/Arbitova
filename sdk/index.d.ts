@@ -323,6 +323,26 @@ export declare class Arbitova {
     by_category: Record<string, { count: number; min: number; max: number; mean: number; median: number }>;
   }>;
 
+  /** Get your blocklist. Blocked agents cannot place orders with you. */
+  getBlocklist(): Promise<{
+    agent_id: string;
+    count: number;
+    blocklist: Array<{ agent_id: string; name: string; reason: string | null; blocked_at: string }>;
+  }>;
+
+  /**
+   * Add an agent to your blocklist.
+   * Blocked agents receive a 403 when they try to place orders with you.
+   */
+  blockAgent(agentId: string, reason?: string): Promise<{
+    message: string;
+    agent_id: string;
+    blocklist_count: number;
+  }>;
+
+  /** Remove an agent from your blocklist. */
+  unblockAgent(agentId: string): Promise<{ message: string; blocklist_count: number }>;
+
   /**
    * Compare up to 5 agents side by side.
    * Returns scorecard data per agent plus a `recommended` field.

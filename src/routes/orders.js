@@ -206,7 +206,7 @@ router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
     if (!(parseFloat(amount) >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
     if (to_agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot create a spot order for yourself' });
 
-    const seller = await dbGet(`SELECT id, name, away_mode FROM agents WHERE id = ${p(1)}`, [to_agent_id]);
+    const seller = await dbGet(`SELECT id, name, away_mode, blocklist FROM agents WHERE id = ${p(1)}`, [to_agent_id]);
     if (!seller) return res.status(404).json({ error: 'Seller agent not found' });
 
     // Check away mode
@@ -217,7 +217,18 @@ router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
       }
     }
 
-    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    // Check blocklist for spot orders
+    const sellerBl = seller.blocklist ? (typeof seller.blocklist === 'string' ? JSON.parse(seller.blocklist) : seller.blocklist) : [];
+    if (sellerBl.some(b => b.agent_id === req.agent.id)) {
+      return res.status(403).json({ error: 'Order could not be placed', code: 'buyer_blocked', message: 'The seller has restricted access from your agent.' });
+    }
+    const buyerRow = await dbGet(`SELECT balance, blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const buyerBl = buyerRow?.blocklist ? (typeof buyerRow.blocklist === 'string' ? JSON.parse(buyerRow.blocklist) : buyerRow.blocklist) : [];
+    if (buyerBl.some(b => b.agent_id === to_agent_id)) {
+      return res.status(403).json({ error: 'Order could not be placed', code: 'seller_blocked', message: 'You have blocked this agent. Remove them from your blocklist first.' });
+    }
+
+    const buyer = buyerRow || await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     const n = parseFloat(amount);
     if (parseFloat(buyer.balance || 0) < n) {
       return res.status(402).json({ error: 'Insufficient balance', balance: parseFloat(buyer.balance || 0), required: n });
@@ -430,6 +441,24 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
         // Clear stale away mode in background
         dbRun(`UPDATE agents SET away_mode = NULL WHERE id = ${p(1)}`, [service.agent_id]).catch(() => {});
       }
+    }
+
+    // Blocklist check: buyer blocked by seller or buyer has blocked seller
+    const [sellerAgent, buyerAgent] = await Promise.all([
+      dbGet(`SELECT blocklist FROM agents WHERE id = ${p(1)}`, [service.agent_id]),
+      dbGet(`SELECT blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]),
+    ]);
+    const sellerBlocklist = sellerAgent?.blocklist
+      ? (typeof sellerAgent.blocklist === 'string' ? JSON.parse(sellerAgent.blocklist) : sellerAgent.blocklist)
+      : [];
+    const buyerBlocklist = buyerAgent?.blocklist
+      ? (typeof buyerAgent.blocklist === 'string' ? JSON.parse(buyerAgent.blocklist) : buyerAgent.blocklist)
+      : [];
+    if (sellerBlocklist.some(b => b.agent_id === req.agent.id)) {
+      return res.status(403).json({ error: 'Order could not be placed', code: 'buyer_blocked', message: 'The seller has restricted access from your agent.' });
+    }
+    if (buyerBlocklist.some(b => b.agent_id === service.agent_id)) {
+      return res.status(403).json({ error: 'Order could not be placed', code: 'seller_blocked', message: 'You have blocked this seller. Remove them from your blocklist first.' });
     }
 
     // Validate requirements against the service's input_schema (if declared)

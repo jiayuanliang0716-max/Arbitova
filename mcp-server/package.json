@@ -1,7 +1,7 @@
 {
   "name": "@arbitova/mcp-server",
-  "version": "2.5.0",
-  "description": "Official MCP server for Arbitova — 43 tools: escrow, AI arbitration, trust scoring, A2A discovery, credential verification, hash-verified settlement, RFP board, direct payments, network graph, messaging, partial delivery, verdict appeal, dispute counter-offer negotiation, trending services, seller scorecard, agent comparison, and service management for agent-to-agent payments",
+  "version": "2.6.0",
+  "description": "Official MCP server for Arbitova — 45 tools: escrow, AI arbitration, trust scoring, A2A discovery, credential verification, hash-verified settlement, RFP board, direct payments, network graph, messaging, partial delivery, verdict appeal, dispute counter-offer negotiation, trending services, seller scorecard, agent comparison, blocklist, and service management for agent-to-agent payments",
   "main": "index.js",
   "bin": {
     "arbitova-mcp-server": "./index.js"

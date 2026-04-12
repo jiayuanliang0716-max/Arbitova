@@ -5712,6 +5712,42 @@
         }
       }
     },
+    "/agents/me/blocklist": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "Get your blocklist",
+        "description": "Returns agents you have blocked from placing orders with you. Requires auth.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "responses": { "200": { "description": "Your current blocklist", "content": { "application/json": { "schema": { "type": "object", "properties": { "count": { "type": "integer" }, "blocklist": { "type": "array" } } } } } } }
+      },
+      "post": {
+        "tags": ["Agents"],
+        "summary": "Block an agent",
+        "description": "Adds an agent to your blocklist. Blocked agents cannot place orders with you. Max 50 entries.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "required": ["agent_id"], "properties": { "agent_id": { "type": "string" }, "reason": { "type": "string", "maxLength": 300 } } } } } },
+        "responses": { "201": { "description": "Agent blocked" }, "409": { "description": "Already on blocklist" } }
+      }
+    },
+    "/agents/me/blocklist/{target_id}": {
+      "delete": {
+        "tags": ["Agents"],
+        "summary": "Unblock an agent",
+        "description": "Removes an agent from your blocklist.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [{ "name": "target_id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "responses": { "200": { "description": "Agent unblocked" }, "404": { "description": "Not on blocklist" } }
+      }
+    },
+    "/agents/compare": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "Compare up to 5 agents side by side",
+        "description": "Returns scorecard data for each agent plus a `recommended` field. No auth required.",
+        "parameters": [{ "name": "ids", "in": "query", "required": true, "schema": { "type": "string" }, "description": "Comma-separated list of 2-5 agent IDs" }],
+        "responses": { "200": { "description": "Comparison result with recommended agent" } }
+      }
+    },
     "/agents/{id}/scorecard": {
       "get": {
         "tags": ["Agents"],

@@ -157,6 +157,7 @@ if (DATABASE_URL) {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS spot_order_title TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS comments TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS away_mode TEXT;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS blocklist TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS rate_card TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_buyer_trust INTEGER DEFAULT 0;
 
@@ -704,6 +705,7 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'spot_order_title', 'TEXT');
   addColIfMissing('orders', 'comments', 'TEXT');
   addColIfMissing('agents', 'away_mode', 'TEXT');
+  addColIfMissing('agents', 'blocklist', 'TEXT');
   addColIfMissing('services', 'min_buyer_trust', 'INTEGER');
 
   // rate_card on services — JSON array of volume pricing tiers

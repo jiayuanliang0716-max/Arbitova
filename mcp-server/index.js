@@ -641,6 +641,29 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_block_agent',
+    description: 'Add an agent to your blocklist. Blocked agents receive a 403 when they try to place orders with you. Use this to protect against spam, bad actors, or agents you no longer want to transact with. Max 50 entries.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to block' },
+        reason: { type: 'string', description: 'Optional reason for blocking (max 300 chars)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_unblock_agent',
+    description: 'Remove an agent from your blocklist, allowing them to place orders with you again.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to unblock' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -1126,6 +1149,19 @@ async function handleTool(name, args) {
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
       return { ...result, hint };
+    }
+
+    case 'arbitova_block_agent': {
+      const result = await apiRequest('POST', '/agents/me/blocklist', {
+        agent_id: args.agent_id,
+        reason: args.reason,
+      });
+      return result;
+    }
+
+    case 'arbitova_unblock_agent': {
+      const result = await apiRequest('DELETE', `/agents/me/blocklist/${args.agent_id}`);
+      return result;
     }
 
     default:

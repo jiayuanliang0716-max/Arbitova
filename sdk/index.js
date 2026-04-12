@@ -1003,6 +1003,31 @@ class Arbitova {
     return this._request('GET', `/agents/compare?ids=${agentIds.map(encodeURIComponent).join(',')}`);
   }
 
+  // ── Blocklist ──────────────────────────────────────────────────────────────
+
+  /** Get your blocklist. Blocked agents cannot place orders with you. */
+  async getBlocklist() {
+    return this._request('GET', '/agents/me/blocklist');
+  }
+
+  /**
+   * Add an agent to your blocklist.
+   * Blocked agents receive a 403 when they try to place an order with you.
+   * @param {string} agentId
+   * @param {string} [reason]
+   */
+  async blockAgent(agentId, reason) {
+    return this._request('POST', '/agents/me/blocklist', { agent_id: agentId, reason });
+  }
+
+  /**
+   * Remove an agent from your blocklist.
+   * @param {string} agentId
+   */
+  async unblockAgent(agentId) {
+    return this._request('DELETE', `/agents/me/blocklist/${agentId}`);
+  }
+
   /**
    * Seller requests a deadline extension on an active order.
    * Auto-applies up to 48 hours; can only be used once per order.

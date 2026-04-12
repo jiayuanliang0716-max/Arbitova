@@ -1971,4 +1971,75 @@ router.get('/compare', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── Blocklist ─────────────────────────────────────────────────────────────────
+// Agents can block specific counterparties from placing orders.
+// Blocklist is a JSON array of { agent_id, name, reason, blocked_at } objects stored in agents.blocklist.
+
+// GET /agents/me/blocklist — return current blocklist
+router.get('/me/blocklist', requireApiKey, async (req, res, next) => {
+  try {
+    const agent = await dbGet(`SELECT blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const blocklist = agent?.blocklist
+      ? (typeof agent.blocklist === 'string' ? JSON.parse(agent.blocklist) : agent.blocklist)
+      : [];
+    res.json({ agent_id: req.agent.id, count: blocklist.length, blocklist });
+  } catch (err) { next(err); }
+});
+
+// POST /agents/me/blocklist — add an agent to the blocklist
+router.post('/me/blocklist', requireApiKey, async (req, res, next) => {
+  try {
+    const { agent_id, reason } = req.body;
+    if (!agent_id) return res.status(400).json({ error: 'agent_id is required' });
+    if (agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot block yourself' });
+
+    // Verify the target agent exists
+    const target = await dbGet(`SELECT id, name FROM agents WHERE id = ${p(1)}`, [agent_id]);
+    if (!target) return res.status(404).json({ error: 'Agent not found' });
+
+    const agentRow = await dbGet(`SELECT blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const blocklist = agentRow?.blocklist
+      ? (typeof agentRow.blocklist === 'string' ? JSON.parse(agentRow.blocklist) : agentRow.blocklist)
+      : [];
+
+    if (blocklist.some(b => b.agent_id === agent_id)) {
+      return res.status(409).json({ error: 'Agent is already on your blocklist', agent_id });
+    }
+    if (blocklist.length >= 50) {
+      return res.status(400).json({ error: 'Blocklist limit reached (50). Remove an entry first.' });
+    }
+
+    blocklist.push({
+      agent_id: target.id,
+      name: target.name,
+      reason: reason || null,
+      blocked_at: new Date().toISOString(),
+    });
+
+    await dbRun(`UPDATE agents SET blocklist = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(blocklist), req.agent.id]);
+    res.status(201).json({
+      message: `${target.name} added to blocklist.`,
+      agent_id: target.id,
+      blocklist_count: blocklist.length,
+    });
+  } catch (err) { next(err); }
+});
+
+// DELETE /agents/me/blocklist/:targetId — remove an agent from the blocklist
+router.delete('/me/blocklist/:targetId', requireApiKey, async (req, res, next) => {
+  try {
+    const agentRow = await dbGet(`SELECT blocklist FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const blocklist = agentRow?.blocklist
+      ? (typeof agentRow.blocklist === 'string' ? JSON.parse(agentRow.blocklist) : agentRow.blocklist)
+      : [];
+
+    const idx = blocklist.findIndex(b => b.agent_id === req.params.targetId);
+    if (idx === -1) return res.status(404).json({ error: 'Agent not found on blocklist' });
+
+    blocklist.splice(idx, 1);
+    await dbRun(`UPDATE agents SET blocklist = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(blocklist), req.agent.id]);
+    res.json({ message: 'Agent removed from blocklist.', blocklist_count: blocklist.length });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
