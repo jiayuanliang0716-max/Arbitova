@@ -2581,7 +2581,7 @@ router.post('/batch-status', requireApiKey, async (req, res, next) => {
     // Fetch all in one query using IN clause
     const placeholders = order_ids.map((_, i) => p(i + 1)).join(', ');
     const rows = await dbAll(
-      `SELECT id, status, buyer_id, seller_id, amount_usdc, escrow_amount, created_at, updated_at
+      `SELECT id, status, buyer_id, seller_id, amount, created_at, updated_at
        FROM orders WHERE id IN (${placeholders})`,
       order_ids
     );
@@ -2601,8 +2601,7 @@ router.post('/batch-status', requireApiKey, async (req, res, next) => {
         accessible: true,
         status: row.status,
         role: row.buyer_id === req.agent.id ? 'buyer' : 'seller',
-        amount_usdc: parseFloat(row.amount_usdc),
-        escrow_amount: parseFloat(row.escrow_amount || 0),
+        amount_usdc: parseFloat(row.amount || 0),
         created_at: row.created_at,
         updated_at: row.updated_at,
       };
@@ -2628,7 +2627,7 @@ router.get('/at-risk', requireApiKey, async (req, res, next) => {
     const threshold = new Date(now.getTime() + hoursAhead * 3600 * 1000).toISOString();
 
     const rows = await dbAll(
-      `SELECT o.id, o.status, o.buyer_id, o.seller_id, o.amount_usdc,
+      `SELECT o.id, o.status, o.buyer_id, o.seller_id, o.amount,
               o.deadline, o.service_id, o.created_at,
               s.title AS service_title, s.category,
               ab.name AS buyer_name, as2.name AS seller_name
@@ -2657,7 +2656,7 @@ router.get('/at-risk', requireApiKey, async (req, res, next) => {
         role: row.buyer_id === req.agent.id ? 'buyer' : 'seller',
         service_title: row.service_title || row.id,
         category: row.category,
-        amount_usdc: parseFloat(row.amount_usdc),
+        amount_usdc: parseFloat(row.amount || 0),
         deadline: row.deadline,
         hours_remaining: hoursLeft,
         minutes_remaining: minutesLeft,
