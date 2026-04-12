@@ -195,6 +195,76 @@ router.get('/recent', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /orders/overdue — list orders past their deadline that haven't been delivered yet.
+// Useful for autonomous agents monitoring their commitments and proactively taking action.
+// Returns orders where: seller hasn't delivered AND deadline has passed.
+router.get('/overdue', requireApiKey, async (req, res, next) => {
+  try {
+    const id = req.agent.id;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Orders where I'm the seller and past deadline
+    const asSellerRows = await dbAll(
+      `SELECT o.id, o.amount, o.requirements, o.deadline, o.status, o.created_at,
+              b.name as buyer_name, o.buyer_id,
+              s.name as service_name
+       FROM orders o
+       LEFT JOIN agents b ON b.id = o.buyer_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.seller_id = ${p(1)}
+         AND o.status = 'paid'
+         AND o.deadline IS NOT NULL
+         AND o.deadline < ${now}
+       ORDER BY o.deadline ASC
+       LIMIT 50`,
+      [id]
+    );
+
+    // Orders where I'm the buyer and seller is overdue
+    const asBuyerRows = await dbAll(
+      `SELECT o.id, o.amount, o.requirements, o.deadline, o.status, o.created_at,
+              s2.name as seller_name, o.seller_id,
+              s.name as service_name
+       FROM orders o
+       LEFT JOIN agents s2 ON s2.id = o.seller_id
+       LEFT JOIN services s ON s.id = o.service_id
+       WHERE o.buyer_id = ${p(1)}
+         AND o.status = 'paid'
+         AND o.deadline IS NOT NULL
+         AND o.deadline < ${now}
+       ORDER BY o.deadline ASC
+       LIMIT 50`,
+      [id]
+    );
+
+    const formatOverdue = (rows, role) => rows.map(r => {
+      const deadlineMs = new Date(r.deadline).getTime();
+      const overdueHours = Math.round((Date.now() - deadlineMs) / 3600000);
+      return {
+        order_id: r.id,
+        role,
+        service: r.service_name,
+        amount: parseFloat(r.amount),
+        deadline: r.deadline,
+        overdue_hours: overdueHours,
+        ...(role === 'seller'
+          ? { buyer_id: r.buyer_id, buyer_name: r.buyer_name }
+          : { seller_id: r.seller_id, seller_name: r.seller_name }),
+        suggested_action: role === 'seller'
+          ? overdueHours < 24 ? 'deliver_now or request_deadline_extension' : 'deliver_now or expect_dispute'
+          : 'wait_24h_then_dispute or contact_seller',
+      };
+    });
+
+    res.json({
+      as_seller: formatOverdue(asSellerRows, 'seller'),
+      as_buyer: formatOverdue(asBuyerRows, 'buyer'),
+      total: asSellerRows.length + asBuyerRows.length,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/stats — summary counts + volume for the authenticated agent
 router.get('/stats', requireApiKey, async (req, res, next) => {
   try {
@@ -257,6 +327,27 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
     const service = await dbGet(`SELECT * FROM services WHERE id = ${p(1)} AND ${activeCheck}`, [service_id]);
     if (!service) return res.status(404).json({ error: 'Service not found or inactive' });
     if (service.agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot purchase your own service' });
+
+    // Enforce seller away mode — reject new orders if seller is on vacation
+    const seller = await dbGet(`SELECT id, away_mode FROM agents WHERE id = ${p(1)}`, [service.agent_id]);
+    if (seller?.away_mode) {
+      const away = typeof seller.away_mode === 'string' ? JSON.parse(seller.away_mode) : seller.away_mode;
+      if (away?.active) {
+        // Auto-clear if past the "until" date
+        const isExpired = away.until && new Date(away.until) < new Date();
+        if (!isExpired) {
+          return res.status(503).json({
+            error: 'Seller is currently unavailable',
+            code: 'seller_away',
+            until: away.until || null,
+            message: away.message || 'This seller is temporarily unavailable.',
+            suggestion: 'Try again later or find an alternative service.',
+          });
+        }
+        // Clear stale away mode in background
+        dbRun(`UPDATE agents SET away_mode = NULL WHERE id = ${p(1)}`, [service.agent_id]).catch(() => {});
+      }
+    }
 
     // Validate requirements against the service's input_schema (if declared)
     if (service.input_schema) {

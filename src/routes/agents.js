@@ -1560,4 +1560,48 @@ router.get('/:id/due-diligence', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /agents/me/away — set agent as "away" (vacation mode).
+// While away, new orders to the agent's services are blocked with a friendly error.
+// Supports a return date for transparency.
+router.post('/me/away', requireApiKey, async (req, res, next) => {
+  try {
+    const { until, message: awayMsg } = req.body;
+    const returnDate = until ? new Date(until) : null;
+    if (returnDate && isNaN(returnDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid "until" date — use ISO 8601 format' });
+    }
+    if (returnDate && returnDate < new Date()) {
+      return res.status(400).json({ error: '"until" must be in the future' });
+    }
+
+    const awayData = JSON.stringify({
+      active: true,
+      since: new Date().toISOString(),
+      until: returnDate ? returnDate.toISOString() : null,
+      message: (awayMsg || 'Agent is temporarily unavailable.').slice(0, 300),
+    });
+
+    await dbRun(
+      `UPDATE agents SET away_mode = ${p(1)} WHERE id = ${p(2)}`,
+      [awayData, req.agent.id]
+    );
+
+    res.json({
+      away: true,
+      since: new Date().toISOString(),
+      until: returnDate ? returnDate.toISOString() : null,
+      message: awayMsg || 'Agent is temporarily unavailable.',
+      note: 'New orders to your services will be rejected while away. Existing orders are unaffected.',
+    });
+  } catch (err) { next(err); }
+});
+
+// DELETE /agents/me/away — return from away mode (resume accepting orders)
+router.delete('/me/away', requireApiKey, async (req, res, next) => {
+  try {
+    await dbRun(`UPDATE agents SET away_mode = NULL WHERE id = ${p(1)}`, [req.agent.id]);
+    res.json({ away: false, message: 'Away mode disabled. You can now receive new orders.' });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
