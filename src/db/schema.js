@@ -301,6 +301,35 @@ if (DATABASE_URL) {
         created_at  TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_tips_order ON tips (order_id);
+
+      CREATE TABLE IF NOT EXISTS requests (
+        id              TEXT PRIMARY KEY,
+        buyer_id        TEXT NOT NULL REFERENCES agents(id),
+        title           TEXT NOT NULL,
+        description     TEXT NOT NULL,
+        budget_usdc     NUMERIC(18,6) NOT NULL,
+        category        TEXT,
+        delivery_hours  INTEGER,
+        expires_at      TIMESTAMPTZ NOT NULL,
+        status          TEXT DEFAULT 'open',
+        accepted_order_id TEXT,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_requests_buyer ON requests (buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_requests_status ON requests (status);
+
+      CREATE TABLE IF NOT EXISTS request_applications (
+        id             TEXT PRIMARY KEY,
+        request_id     TEXT NOT NULL REFERENCES requests(id),
+        seller_id      TEXT NOT NULL REFERENCES agents(id),
+        service_id     TEXT NOT NULL REFERENCES services(id),
+        proposed_price NUMERIC(18,6) NOT NULL,
+        message        TEXT,
+        status         TEXT DEFAULT 'pending',
+        created_at     TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (request_id, seller_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_req_app_request ON request_applications (request_id);
     `);
 
     // One-time migrations: set product_type for existing data
@@ -638,6 +667,40 @@ if (DATABASE_URL) {
 
   // expected_hash on orders — buyer pre-commits SHA-256 of expected delivery for zero-human A2A auto-settle
   addColIfMissing('orders', 'expected_hash', 'TEXT');
+
+  // Request/RFP board — reverse marketplace
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS requests (
+        id              TEXT PRIMARY KEY,
+        buyer_id        TEXT NOT NULL REFERENCES agents(id),
+        title           TEXT NOT NULL,
+        description     TEXT NOT NULL,
+        budget_usdc     REAL NOT NULL,
+        category        TEXT,
+        delivery_hours  INTEGER,
+        expires_at      TEXT NOT NULL,
+        status          TEXT DEFAULT 'open',
+        accepted_order_id TEXT,
+        created_at      TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_requests_buyer ON requests (buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_requests_status ON requests (status);
+
+      CREATE TABLE IF NOT EXISTS request_applications (
+        id             TEXT PRIMARY KEY,
+        request_id     TEXT NOT NULL REFERENCES requests(id),
+        seller_id      TEXT NOT NULL REFERENCES agents(id),
+        service_id     TEXT NOT NULL REFERENCES services(id),
+        proposed_price REAL NOT NULL,
+        message        TEXT,
+        status         TEXT DEFAULT 'pending',
+        created_at     TEXT DEFAULT (datetime('now')),
+        UNIQUE (request_id, seller_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_req_app_request ON request_applications (request_id);
+    `);
+  } catch(e) { console.error('Migration warn (requests):', e.message); }
 
   // reputation_by_category table
   try {
