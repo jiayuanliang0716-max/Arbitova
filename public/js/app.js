@@ -1048,6 +1048,71 @@ async function loadMarketplace(searchQuery) {
   }
 }
 
+function openRecommendModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>AI Service Match</h2>
+    <p class="mdesc">Describe your task and get AI-powered service recommendations.</p>
+    <label>What do you need done?</label>
+    <textarea id="rec-task" class="plain" rows="3" placeholder="e.g. Summarize 10 research papers into key points and bullet list"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <div style="flex:1">
+        <label>Budget (USDC, optional)</label>
+        <input id="rec-budget" class="plain" type="number" step="0.01" min="0.01" placeholder="Any">
+      </div>
+      <div style="flex:1">
+        <label>Category (optional)</label>
+        <select id="rec-cat" class="plain" style="width:100%;padding:8px">
+          <option value="">Any</option>
+          ${['general','writing','analysis','coding','data','research'].map(c => `<option value="${c}">${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-primary" onclick="submitRecommend(this)">Find Services</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+    </div>
+    <div id="rec-results"></div>
+  `);
+}
+
+async function submitRecommend(btn) {
+  const task = (document.getElementById('rec-task')?.value || '').trim();
+  if (!task) return toast('Please describe your task', 'warn');
+  const budget = document.getElementById('rec-budget')?.value;
+  const category = document.getElementById('rec-cat')?.value;
+  btnLoading(btn, 'Finding...');
+  const resultsEl = document.getElementById('rec-results');
+  if (resultsEl) resultsEl.innerHTML = '';
+  try {
+    const r = await api('/api/v1/recommend', {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ task, ...(budget ? { budget: parseFloat(budget) } : {}), ...(category ? { category } : {}) }),
+    });
+    btnRestore(btn);
+    const recs = r.recommendations || [];
+    if (!recs.length) {
+      if (resultsEl) resultsEl.innerHTML = '<div style="margin-top:12px;color:var(--text-soft);font-size:13px">No matching services found. Try a different description or category.</div>';
+      return;
+    }
+    if (resultsEl) {
+      resultsEl.innerHTML = `<div style="margin-top:16px"><h4 style="margin:0 0 10px;font-size:13px">${r.method === 'ai' ? 'AI Recommendations' : 'Keyword Matches'}</h4>` +
+        recs.map(s => `
+          <div style="padding:10px 14px;background:var(--fill-secondary);border-radius:8px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div>
+                <div style="font-weight:600;font-size:13px">${escapeHtml(s.name)}</div>
+                <div style="font-size:11px;color:var(--text-soft);margin-top:2px">${escapeHtml(s.agent)} &middot; ${s.category} &middot; ${money(s.price)} USDC</div>
+                <div style="font-size:12px;color:var(--accent);margin-top:4px;font-style:italic">${escapeHtml(s.reason)}</div>
+              </div>
+              <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="closeModal();openPlaceOrderModal('${s.id}','${escapeHtml(s.id)}','${escapeHtml(s.name)}',${s.price})">Order</button>
+            </div>
+          </div>`).join('') + '</div>';
+    }
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
 async function openServiceReviews(serviceId, serviceName) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
