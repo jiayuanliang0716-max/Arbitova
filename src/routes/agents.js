@@ -893,4 +893,90 @@ router.get('/:id/services', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/trust-score — composite trust score (0-100) combining rep, completion, dispute rate, rating, age
+router.get('/:id/trust-score', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const [orderStats, avgRating, reviewCount] = await Promise.all([
+      dbGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed
+         FROM orders WHERE seller_id = ${p(1)}`,
+        [req.params.id]
+      ),
+      dbGet(
+        `SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE seller_id = ${p(1)}`,
+        [req.params.id]
+      ).catch(() => null),
+      dbGet(
+        `SELECT COUNT(*) as count FROM reviews WHERE seller_id = ${p(1)}`,
+        [req.params.id]
+      ).catch(() => ({ count: 0 })),
+    ]);
+
+    const total = parseInt(orderStats?.total || 0);
+    const completed = parseInt(orderStats?.completed || 0);
+    const disputed = parseInt(orderStats?.disputed || 0);
+    const completionRate = total > 0 ? completed / total : 0;
+    const disputeRate = total > 0 ? disputed / total : 0;
+    const repScore = parseInt(agent.reputation_score);
+    const avgRatingVal = parseFloat(avgRating?.avg_rating || 0);
+    const numReviews = parseInt(avgRating?.count || 0);
+
+    // Account age bonus (days since registration, capped at 30 days → 10pts)
+    const ageMs = Date.now() - new Date(agent.created_at).getTime();
+    const ageDays = Math.min(ageMs / 86400000, 30);
+
+    // Composite score components (out of 100):
+    // reputation (0-200 raw → normalized to 0-30), completion rate (0-25), dispute penalty (0-20),
+    // avg rating (0-25), account age (0-10), review volume bonus (0-10)
+    const repComponent = Math.min(Math.max(repScore, 0) / 200 * 30, 30);
+    const completionComponent = completionRate * 25;
+    const disputePenalty = Math.min(disputeRate * 40, 20);
+    const ratingComponent = numReviews > 0 ? (avgRatingVal / 5) * 25 : 12.5; // neutral if no reviews
+    const ageComponent = (ageDays / 30) * 10;
+    const reviewBonus = Math.min(numReviews * 0.5, 10);
+
+    const rawScore = repComponent + completionComponent - disputePenalty + ratingComponent + ageComponent + reviewBonus;
+    const score = Math.min(Math.max(Math.round(rawScore), 0), 100);
+
+    let level, level_desc;
+    if (score >= 90)      { level = 'Elite';   level_desc = 'Exceptional track record — highly trusted'; }
+    else if (score >= 70) { level = 'Trusted'; level_desc = 'Consistent performance — safe to transact'; }
+    else if (score >= 45) { level = 'Rising';  level_desc = 'Building reputation — proceed with normal caution'; }
+    else                  { level = 'New';     level_desc = 'Limited history — standard caution advised'; }
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      trust_score: score,
+      level,
+      level_desc,
+      signals: {
+        reputation_score: repScore,
+        total_orders_as_seller: total,
+        completion_rate: parseFloat((completionRate * 100).toFixed(1)),
+        dispute_rate: parseFloat((disputeRate * 100).toFixed(1)),
+        avg_rating: numReviews > 0 ? parseFloat(avgRatingVal.toFixed(2)) : null,
+        review_count: numReviews,
+        account_age_days: Math.floor(ageDays),
+      },
+      components: {
+        reputation: parseFloat(repComponent.toFixed(1)),
+        completion: parseFloat(completionComponent.toFixed(1)),
+        dispute_penalty: parseFloat(disputePenalty.toFixed(1)),
+        rating: parseFloat(ratingComponent.toFixed(1)),
+        age: parseFloat(ageComponent.toFixed(1)),
+        review_bonus: parseFloat(reviewBonus.toFixed(1)),
+      },
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
