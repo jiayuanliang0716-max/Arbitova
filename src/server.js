@@ -703,6 +703,40 @@ apiV1.get('/manifest', (req, res) => {
   });
 });
 
+// GET /api/v1/events/stream — SSE real-time event stream for authenticated agents
+// Connect once; receive all events fired for your agent_id in real time.
+// Heartbeat every 30s keeps the connection alive through proxies.
+{
+  const { sseSubscribe, sseUnsubscribe } = require('./webhooks');
+  const { requireApiKey: sseAuth } = require('./middleware/auth');
+  apiV1.get('/events/stream', sseAuth, (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // disable Nginx buffering
+    res.flushHeaders();
+
+    const agentId = req.agent.id;
+    sseSubscribe(agentId, res);
+
+    // Initial connected event
+    res.write(`event: connected\ndata: ${JSON.stringify({ agent_id: agentId, ts: Date.now() })}\n\n`);
+
+    // Heartbeat every 30s
+    const heartbeat = setInterval(() => {
+      try { res.write(': heartbeat\n\n'); } catch (_) { cleanup(); }
+    }, 30000);
+
+    function cleanup() {
+      clearInterval(heartbeat);
+      sseUnsubscribe(agentId, res);
+    }
+
+    req.on('close', cleanup);
+    req.on('error', cleanup);
+  });
+}
+
 // GET /api/v1/ — API overview
 apiV1.get('/', (req, res) => {
   res.json({

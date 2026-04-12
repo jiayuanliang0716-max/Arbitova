@@ -128,6 +128,10 @@ async function fire(agentIds, event, data) {
   const ids = (Array.isArray(agentIds) ? agentIds : [agentIds]).filter(Boolean);
   if (!ids.length) return;
 
+  // Push to any active SSE connections immediately (zero-latency)
+  // This runs synchronously before the async webhook delivery loop
+  try { ssePush(ids, event, data); } catch (_) {}
+
   try {
     const isPostgres = !!process.env.DATABASE_URL;
     const p = (n) => isPostgres ? `$${n}` : '?';
@@ -153,4 +157,34 @@ async function fire(agentIds, event, data) {
   }
 }
 
-module.exports = { fire, EVENTS, sign };
+// ── SSE (Server-Sent Events) connection registry ────────────────────────────
+// In-memory map: agentId → Set<res> (Express response objects with SSE headers)
+// Connections are cleaned up when the client disconnects.
+const sseConnections = new Map();
+
+function sseSubscribe(agentId, res) {
+  if (!sseConnections.has(agentId)) sseConnections.set(agentId, new Set());
+  sseConnections.get(agentId).add(res);
+}
+
+function sseUnsubscribe(agentId, res) {
+  const conns = sseConnections.get(agentId);
+  if (conns) {
+    conns.delete(res);
+    if (conns.size === 0) sseConnections.delete(agentId);
+  }
+}
+
+function ssePush(agentIds, event, data) {
+  const ids = Array.isArray(agentIds) ? agentIds : [agentIds];
+  for (const id of ids) {
+    const conns = sseConnections.get(id);
+    if (!conns || conns.size === 0) continue;
+    const payload = `event: ${event}\ndata: ${JSON.stringify({ event, data, ts: Date.now() })}\n\n`;
+    for (const res of conns) {
+      try { res.write(payload); } catch (_) { sseUnsubscribe(id, res); }
+    }
+  }
+}
+
+module.exports = { fire, EVENTS, sign, sseSubscribe, sseUnsubscribe, ssePush };
