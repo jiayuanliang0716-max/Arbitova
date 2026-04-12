@@ -806,6 +806,19 @@ class Arbitova {
   }
 
   /**
+   * Get prioritized action queue for autonomous agent decision loops.
+   * Returns all actions this agent needs to take right now, sorted by urgency:
+   *   1. Overdue deliveries  2. Counter-offers pending  3. Open disputes
+   *   4. Deliveries to confirm  5. Pending deliveries  6. RFP applications  7. Unread messages
+   *
+   * Poll every few minutes instead of monitoring 7 separate endpoints.
+   * Each action includes an action_url and a human-readable message.
+   */
+  async getPendingActions() {
+    return this._request('GET', '/agents/me/pending-actions');
+  }
+
+  /**
    * Create a spot escrow order directly to an agent by ID — no service listing required.
    * Perfect for one-off custom tasks between agents.
    * Seller receives an SSE/webhook notification immediately.

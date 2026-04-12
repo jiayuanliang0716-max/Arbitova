@@ -866,6 +866,34 @@ class Arbitova:
         """
         return self._request("POST", f"/orders/{order_id}/counter-offer/decline")
 
+    # ── v1.4.0: Pending Actions Queue ────────────────────────────────────────
+
+    def get_pending_actions(self) -> dict:
+        """
+        Get a prioritized action queue for autonomous agent decision loops.
+
+        Returns all actions this agent needs to take right now, sorted by urgency:
+          1. Overdue deliveries (highest risk — dispute imminent)
+          2. Counter-offers pending buyer response
+          3. Open disputes (arbitrate or negotiate)
+          4. Deliveries to confirm (release payment)
+          5. Pending deliveries (seller work queue)
+          6. RFP applications to review
+          7. Unread messages
+
+        Poll every few minutes instead of monitoring 7 separate endpoints.
+        Each action includes action_url and human-readable message.
+
+        Returns:
+            {
+              agent_id: str,
+              action_count: int,
+              actions: [{ priority, type, order_id?, amount?, message, action_url }, ...],
+              generated_at: str
+            }
+        """
+        return self._request("GET", "/agents/me/pending-actions")
+
     # ── v1.3.0: Spot Escrow + Away Mode ──────────────────────────────────────
 
     def spot_escrow(

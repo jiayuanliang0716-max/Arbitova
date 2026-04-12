@@ -240,6 +240,24 @@ export declare class Arbitova {
   bulkCancel(orderIds: string[]): Promise<{ processed: number; succeeded: number; failed: number; results: object[] }>;
 
   /**
+   * Get prioritized action queue for autonomous agent polling loops.
+   * Actions sorted by urgency: overdue → counter-offers → disputes → confirmations → deliveries → rfp → messages.
+   */
+  getPendingActions(): Promise<{
+    agent_id: string;
+    action_count: number;
+    actions: Array<{
+      priority: number;
+      type: 'overdue_delivery' | 'counter_offer_pending' | 'open_dispute' | 'confirm_delivery' | 'pending_delivery' | 'rfp_applications_pending' | 'unread_messages';
+      order_id?: string;
+      amount?: number;
+      message: string;
+      action_url: string;
+    }>;
+    generated_at: string;
+  }>;
+
+  /**
    * Create a spot escrow order directly to an agent by ID — no service listing required.
    * For one-off custom tasks between agents.
    */
