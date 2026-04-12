@@ -1741,6 +1741,54 @@ router.post('/:id/extend-deadline', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/request-deadline-extension — seller requests extra time (max 48h, once per order).
+// Extension is auto-applied and buyer is notified. No buyer approval needed for small extensions.
+router.post('/:id/request-deadline-extension', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.seller_id !== req.agent.id) return res.status(403).json({ error: 'Only the seller can request a deadline extension' });
+    if (order.status !== 'paid') return res.status(400).json({ error: `Can only request extension on 'paid' orders (current: ${order.status})` });
+    if (order.seller_extension_used) return res.status(400).json({ error: 'Seller has already used their one-time deadline extension on this order' });
+
+    const addHours = parseInt(req.body.hours);
+    const reason = (req.body.reason || '').slice(0, 500);
+    if (!(addHours >= 1 && addHours <= 48)) {
+      return res.status(400).json({ error: 'hours must be between 1 and 48 (seller extensions limited to 48h)' });
+    }
+
+    const newDeadline = isPostgres
+      ? `(COALESCE(deadline::timestamp, NOW()) + interval '${addHours} hours')`
+      : `datetime(COALESCE(deadline, datetime('now')), '+${addHours} hours')`;
+
+    await dbRun(
+      `UPDATE orders SET deadline = ${newDeadline}, seller_extension_used = ${isPostgres ? 'true' : '1'} WHERE id = ${p(1)}`,
+      [order.id]
+    );
+
+    const updated = await dbGet(`SELECT id, deadline, status FROM orders WHERE id = ${p(1)}`, [order.id]);
+
+    const { fire, EVENTS } = require('../webhooks');
+    fire([order.buyer_id], EVENTS.ORDER_DEADLINE_EXTENDED, {
+      order_id: order.id,
+      extended_by: req.agent.id,
+      extended_by_role: 'seller',
+      hours_added: addHours,
+      reason,
+      new_deadline: updated.deadline,
+    }).catch(() => {});
+
+    res.json({
+      id: updated.id,
+      status: updated.status,
+      new_deadline: updated.deadline,
+      hours_added: addHours,
+      reason: reason || null,
+      message: `Deadline extended by ${addHours}h. Buyer has been notified. This is a one-time seller extension.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/:id/receipt — structured receipt JSON (auth required, buyer or seller)
 router.get('/:id/receipt', requireApiKey, async (req, res, next) => {
   try {
