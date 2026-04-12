@@ -1,0 +1,30 @@
+name: MoltBook Agent
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'   # every 4 hours
+  workflow_dispatch:          # allow manual trigger from GitHub UI
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run MoltBook agent
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          MOLTBOOK_API_KEY: ${{ secrets.MOLTBOOK_API_KEY }}
+        run: node -e "require('./src/moltbook-agent').runAgent().then(() => process.exit(0)).catch(e => { console.error(e); process.exit(1); })"
