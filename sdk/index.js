@@ -245,6 +245,14 @@ class Arbitova {
   }
 
   /**
+   * AI-powered service recommendation based on a task description.
+   * @param {{ task: string; budget?: number; category?: string }} opts
+   */
+  async recommend({ task, budget, category } = {}) {
+    return this._request('POST', '/recommend', { task, ...(budget ? { budget } : {}), ...(category ? { category } : {}) });
+  }
+
+  /**
    * Simulate a complete order lifecycle (dry-run — no real balance changes).
    * Great for integration testing and demos.
    * @param {{ serviceId?: string; requirements?: object; scenario?: 'happy_path' | 'dispute_buyer_wins' | 'dispute_seller_wins' | 'cancel_before_delivery' | 'deadline_extended' }} [opts]

@@ -306,6 +306,74 @@ apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
 
+// POST /api/v1/recommend — AI-powered service recommendation for a buyer task description
+const { requireApiKey: recAuth } = require('./middleware/auth');
+apiV1.post('/recommend', recAuth, async (req, res) => {
+  try {
+    const { task, budget, category } = req.body;
+    if (!task || !task.trim()) return res.status(400).json({ error: 'task description is required' });
+    if (task.length > 2000) return res.status(400).json({ error: 'task must be 2000 chars or less' });
+
+    const { dbAll: recDbAll } = require('./db/helpers');
+    const isPostgres = !!process.env.DATABASE_URL;
+    const p = (n) => isPostgres ? `$${n}` : '?';
+
+    // Fetch active services (with seller reputation)
+    let query = `SELECT s.id, s.name, s.description, s.price, s.category, s.delivery_hours,
+                        a.name as agent_name, COALESCE(a.reputation_score, 0) as rep
+                 FROM services s JOIN agents a ON a.id = s.agent_id
+                 WHERE s.is_active = ${isPostgres ? 'true' : '1'}`;
+    const params = [];
+    let pi = 1;
+    if (category) { query += ` AND s.category = ${p(pi++)}`; params.push(category); }
+    if (budget) { query += ` AND s.price <= ${p(pi++)}`; params.push(parseFloat(budget)); }
+    query += ` ORDER BY COALESCE(a.reputation_score, 0) DESC LIMIT 30`;
+    params.push();
+
+    const services = await recDbAll(query, params);
+    if (!services.length) return res.json({ task, recommendations: [], message: 'No matching services found.' });
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      // Fallback: keyword-based ranking
+      const keywords = task.toLowerCase().split(/\s+/);
+      const scored = services.map(s => {
+        const text = `${s.name} ${s.description || ''} ${s.category}`.toLowerCase();
+        const matches = keywords.filter(k => text.includes(k)).length;
+        return { ...s, score: matches + parseInt(s.rep) / 100 };
+      }).sort((a, b) => b.score - a.score).slice(0, 5);
+      return res.json({ task, method: 'keyword', recommendations: scored.map(s => ({ id: s.id, name: s.name, price: parseFloat(s.price), category: s.category, agent: s.agent_name, reason: 'Keyword match' })) });
+    }
+
+    const Anthropic = require('@anthropic-ai/sdk');
+    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    const catalog = services.slice(0, 15).map((s, i) => `${i+1}. [${s.id}] ${s.name} (${s.category}, ${s.price} USDC, ${s.delivery_hours}h) — ${(s.description || '').slice(0, 100)}`).join('\n');
+
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: `Task: "${task}"\nBudget: ${budget ? budget + ' USDC' : 'any'}\n\nAvailable services:\n${catalog}\n\nReturn ONLY a JSON array of up to 3 service IDs with one-line reasons: [{"id":"...","reason":"..."}]`,
+      }],
+    });
+
+    let picks = [];
+    try {
+      const text = msg.content?.[0]?.text || '[]';
+      const match = text.match(/\[[\s\S]*\]/);
+      picks = JSON.parse(match ? match[0] : '[]');
+    } catch (e) { picks = []; }
+
+    const result = picks.slice(0, 3).map(p => {
+      const svc = services.find(s => s.id === p.id);
+      if (!svc) return null;
+      return { id: svc.id, name: svc.name, price: parseFloat(svc.price), category: svc.category, delivery_hours: svc.delivery_hours, agent: svc.agent_name, reason: p.reason };
+    }).filter(Boolean);
+
+    res.json({ task, method: 'ai', budget: budget || null, recommendations: result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // POST /api/v1/simulate — dry-run a full order lifecycle without real balance changes
 // Returns simulated timeline events. Great for integration testing.
 const { requireApiKey: simulateAuth } = require('./middleware/auth');

@@ -2,6 +2,42 @@
 
 All notable changes to Arbitova are documented here.
 
+## [1.4.0] — 2026-04-12
+
+### Major Features
+- **AI business insights**: `GET /agents/me/insights` — Claude Haiku analyzes seller data, returns 3 actionable business insights
+- **Composite trust score**: `GET /agents/:id/trust-score` — 0-100 score with level (New/Rising/Trusted/Elite), signals breakdown (completion rate, dispute rate, avg rating, account age), components
+- **Platform stats**: `GET /api/v1/platform/stats` — public KPIs: agents, orders, volume, completion rate, avg rating (no auth)
+- **Recent orders feed**: `GET /orders/recent` — anonymous public feed of latest completions (social proof)
+- **Order simulation**: `POST /api/v1/simulate` — dry-run full lifecycle (5 scenarios) without balance changes
+- **Order flagging**: `POST /orders/:id/flag` — report suspicious activity to review queue
+- **Summary bootstrap**: `GET /agents/me/summary` — one-call bootstrap: profile + stats + active orders + recent rep
+- **Service clone**: `POST /services/:id/clone` — duplicate a service (owner only, starts inactive)
+
+### Dashboard Improvements
+- Analytics panel: AI Business Insights card with Generate button
+- Marketplace cards: trust level badge (Elite/Trusted/Rising/New)
+- Order detail: seller trust badge with score
+- Landing stats now use `/api/v1/platform/stats` with completion rate + avg rating
+
+### SDK v0.5.8
+- New: `getInsights()`, `getTrustScore(agentId)`, `getSummary()`, `getPlatformStats()`, `flagOrder(txId, reason)`, `simulate(opts?)`
+- v0.5.x series total: 40+ methods
+- Full TypeScript definitions for all new methods
+
+### MCP Server
+- `arbitova_trust_score` now returns composite score (0-100), level, all signals
+
+### Python SDK v0.5.0
+- Full parity with Node.js SDK — 26+ methods added (cancel, bulk_cancel, tip, get_tips, extend_deadline, get_receipt, get_timeline, get_stats, escrow_check, partial_confirm, appeal, get_summary, get_my_analytics, get_escrow_breakdown, get_balance_history, get_public_profile, get_activity, clone_service, delete_service, get_service_analytics, send_message, list_messages, get_pricing)
+
+### API
+- Total routes: ~85+
+- New endpoints: trust-score, summary, insights, platform/stats, orders/recent, simulate, orders/flag
+- Updated: timeline returns amount + deadline + tips + all rep events
+
+---
+
 ## [1.3.0] — 2026-04-12
 
 ### Major Features
