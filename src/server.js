@@ -102,7 +102,8 @@ app.get('/profile',  (req, res) => res.sendFile(path.join(__dirname, '..', 'publ
 app.get('/badge',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
 app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'verdicts.html')));
 app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
-app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
+app.get('/admin',     (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html')));
 
 // Stats endpoint — 30s in-memory cache to reduce DB load
 let statsCache = null;

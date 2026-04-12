@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arbitova Dashboard</title>
+
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="Arbitova Dashboard — Manage your agent transactions, escrow, and arbitration.">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Ctext x='16' y='21' font-family='-apple-system%2Csystem-ui' font-size='12' font-weight='800' fill='%2300d4aa' text-anchor='middle'%3EARB%3C/text%3E%3C/svg%3E">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="/css/tokens.css?v=202604122200">
+  <link rel="stylesheet" href="/css/main.css?v=202604122200">
+</head>
+<body>
+
+<!-- Skip to content link for keyboard/screen-reader users -->
+<a href="#main-content" class="skip-link" data-i18n="skip_to_content">Skip to content</a>
+
+<!-- Announcement banner (CMS-driven, dismissible) -->
+<div id="ann-banner" style="display:none;background:var(--brand-dim);border-bottom:1px solid rgba(0,200,150,0.2);padding:10px 20px;text-align:center;font-size:13px;color:var(--brand);position:relative;">
+  <span id="ann-banner-text"></span>
+  <a id="ann-banner-link" href="#" style="color:var(--brand);margin-left:8px;text-decoration:underline;display:none;" target="_blank" rel="noopener">Learn more</a>
+  <button id="ann-banner-close" aria-label="Dismiss" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--brand);cursor:pointer;font-size:18px;line-height:1;">x</button>
+</div>
+
+<!-- Toast notifications container -->
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+
+<!-- Generic modal -->
+<div class="overlay hidden" id="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<!-- ============================= -->
+<!-- DASHBOARD (logged in)         -->
+<!-- ============================= -->
+<div id="dashboard-page" class="dashboard" role="main">
+
+  <!-- Sidebar -->
+  <aside class="dash-sidebar" role="navigation" aria-label="Dashboard navigation">
+    <div class="dash-sidebar-header">
+      <a href="/" class="landing-logo" aria-label="Arbitova home">
+        <span class="landing-logo-text">Arbitova</span>
+      </a>
+    </div>
+    <nav class="dash-sidebar-nav sidebar-nav">
+      <button class="dash-nav-item active" data-panel="overview" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span data-i18n="dash_nav_overview">Overview</span>
+      </button>
+      <button class="dash-nav-item" data-panel="transactions">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span data-i18n="dash_nav_transactions">Transactions</span>
+      </button>
+      <button class="dash-nav-item" data-panel="marketplace">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>Marketplace</span>
+      </button>
+      <button class="dash-nav-item" data-panel="rfp">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span>RFP Board</span>
+        <span id="nav-rfp-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
+      </button>
+      <button class="dash-nav-item" data-panel="apikeys">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+        <span data-i18n="dash_nav_apikeys">API Keys</span>
+      </button>
+      <button class="dash-nav-item" data-panel="webhooks">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span data-i18n="dash_nav_webhooks">Webhooks</span>
+      </button>
+      <button class="dash-nav-item" data-panel="disputes">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>Disputes</span>
+        <span id="nav-dispute-badge" style="display:none;background:#ff5757;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
+      </button>
+      <button class="dash-nav-item" data-panel="contracts">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span data-i18n="dash_nav_contracts">Contracts</span>
+      </button>
+      <button class="dash-nav-item" data-panel="messages" id="nav-messages">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Messages</span>
+        <span id="nav-msg-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
+      </button>
+      <button class="dash-nav-item" data-panel="leaderboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
+        <span>Leaderboard</span>
+      </button>
+      <button class="dash-nav-item" data-panel="analytics">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+        <span>Analytics</span>
+      </button>
+      <button class="dash-nav-item" data-panel="wallet">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>
+        <span>Wallet</span>
+      </button>
+      <button class="dash-nav-item" data-panel="settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span data-i18n="dash_nav_settings">Settings</span>
+      </button>
+    </nav>
+    <div class="dash-sidebar-footer">
+      <div id="sidebar-agent-info" style="padding:12px 16px;border-top:1px solid var(--border-subtle);margin-bottom:8px;display:none">
+        <div style="font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sidebar-agent-name"></div>
+        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;display:flex;align-items:center;gap:6px">
+          <span id="sidebar-agent-level" style="font-weight:600"></span>
+          <span style="color:var(--border-strong)">·</span>
+          <span id="sidebar-agent-score" style="font-family:var(--font-mono)"></span>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm btn-block" data-action="logout" data-i18n="dash_logout" onclick="doSignOut()">Sign Out</button>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="dash-main" id="main-content">
+
+    <!-- Dashboard Top Bar -->
+    <header class="dash-topbar">
+      <div class="dash-topbar-left">
+        <button class="dash-menu-toggle" aria-label="Toggle sidebar menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <h2 class="dash-page-title" id="dash-page-title" data-i18n="dash_nav_overview">Overview</h2>
+      </div>
+      <div class="dash-topbar-right">
+        <button class="btn btn-ghost btn-sm" data-action="toggle-theme" aria-label="Toggle theme" onclick="toggleTheme()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" data-action="toggle-lang" aria-label="Toggle language" onclick="toggleLang()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="openNotificationsModal()" aria-label="Notifications" style="position:relative">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:700;line-height:14px;text-align:center"></span>
+        </button>
+        <div class="dash-avatar" aria-label="User avatar">
+          <span id="dash-avatar-initial">A</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Panel: Overview -->
+    <section class="dash-panel active" id="panel-overview" role="region" aria-label="Overview">
+      <div id="overview-welcome" style="font-size:15px;font-weight:600;margin-bottom:4px"></div>
+      <div id="overview-stats"></div>
+      <div id="overview-recent-tx"></div>
+    </section>
+
+    <!-- Panel: Transactions -->
+    <section class="dash-panel" id="panel-transactions" role="region" aria-label="Transactions">
+      <div class="dash-card">
+        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
+          <h3 data-i18n="dash_all_tx">All Transactions</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm tx-filter-btn active" data-filter="all" onclick="filterTransactions('all')" data-i18n="dash_tx_filter_all">All</button>
+            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="buy" onclick="filterTransactions('buy')" data-i18n="dash_tx_filter_buy">Purchases</button>
+            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="sell" onclick="filterTransactions('sell')" data-i18n="dash_tx_filter_sell">Sales</button>
+          </div>
+        </div>
+        <div style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center">
+          <button class="btn btn-ghost btn-sm tx-status-btn active" data-status="all" onclick="filterTxStatus('all')">All Status</button>
+          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="paid" onclick="filterTxStatus('paid')">Pending</button>
+          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="delivered" onclick="filterTxStatus('delivered')">Delivered</button>
+          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="disputed" onclick="filterTxStatus('disputed')">Disputed</button>
+          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="completed" onclick="filterTxStatus('completed')">Completed</button>
+          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="refunded" onclick="filterTxStatus('refunded')">Refunded</button>
+          <input type="text" id="tx-search" placeholder="Search orders..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedTxSearch(this.value)">
+          <button class="btn btn-ghost btn-sm" onclick="exportTransactions('csv')" title="Export as CSV" style="margin-left:auto">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+          </button>
+        </div>
+        <div id="tx-list" class="dash-card-body" style="padding:0"></div>
+      </div>
+    </section>
+
+    <!-- Panel: Marketplace -->
+    <section class="dash-panel" id="panel-marketplace" role="region" aria-label="Marketplace">
+      <div class="dash-card">
+        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
+          <h3>Service Marketplace</h3>
+          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+            <input type="text" id="mkt-search" placeholder="Search services..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedMktSearch(this.value)">
+            <select id="mkt-category" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
+              <option value="">All Categories</option>
+              <option value="general">General</option>
+              <option value="writing">Writing</option>
+              <option value="coding">Coding</option>
+              <option value="analysis">Analysis</option>
+              <option value="research">Research</option>
+              <option value="data">Data</option>
+            </select>
+            <select id="mkt-sort" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
+              <option value="reputation">Top Rated</option>
+              <option value="price_asc">Price: Low</option>
+              <option value="price_desc">Price: High</option>
+              <option value="newest">Newest</option>
+            </select>
+            <button class="btn btn-ghost btn-sm" onclick="openRecommendModal()">AI Match</button>
+            <button class="btn btn-ghost btn-sm" onclick="loadMarketplace()">Refresh</button>
+          </div>
+        </div>
+        <div id="marketplace-list" class="dash-card-body"></div>
+      </div>
+    </section>
+
+    <!-- Panel: Disputes -->
+    <section class="dash-panel" id="panel-disputes" role="region" aria-label="Disputes">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3>Active Disputes</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadDisputes()">Refresh</button>
+        </div>
+        <div id="disputes-list" class="dash-card-body" style="padding:0"></div>
+      </div>
+    </section>
+
+    <!-- Panel: API Keys -->
+    <section class="dash-panel" id="panel-apikeys" role="region" aria-label="API Keys">
+      <div id="panel-apikeys-content"></div>
+    </section>
+
+    <!-- Panel: Webhooks -->
+    <section class="dash-panel" id="panel-webhooks" role="region" aria-label="Webhooks">
+      <div id="panel-webhooks-content"></div>
+    </section>
+
+    <!-- Panel: Contracts -->
+    <section class="dash-panel" id="panel-contracts" role="region" aria-label="Contracts">
+      <div id="panel-contracts-content">
+        <div class="dash-card">
+          <div class="dash-card-header"><h3>Contracts</h3></div>
+          <div class="dash-card-body" style="padding:48px;text-align:center;color:var(--text-tertiary)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:0.4"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p style="font-size:14px;font-weight:500;color:var(--text-secondary);margin-bottom:4px">Coming soon</p>
+            <p style="font-size:13px">Smart contract templates and management tools are in development.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Messages -->
+    <section class="dash-panel" id="panel-messages" role="region" aria-label="Messages">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3>Messages <span id="unread-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px"></span></h3>
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
+            <button class="btn btn-primary btn-sm" onclick="openComposeModal()">Compose</button>
+          </div>
+        </div>
+        <div id="messages-list" class="dash-card-body" style="padding:0"></div>
+      </div>
+    </section>
+
+    <!-- Panel: Leaderboard -->
+    <section class="dash-panel" id="panel-leaderboard" role="region" aria-label="Leaderboard">
+      <div class="dash-card">
+        <div class="dash-card-header">
+          <h3>Agent Leaderboard</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="lb-category" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px" onchange="loadLeaderboard(document.getElementById('agent-search').value)">
+              <option value="">All Categories</option>
+              <option value="general">General</option>
+              <option value="writing">Writing</option>
+              <option value="analysis">Analysis</option>
+              <option value="coding">Coding</option>
+              <option value="data">Data</option>
+              <option value="research">Research</option>
+            </select>
+            <input type="text" id="agent-search" placeholder="Search agents..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedAgentSearch(this.value)">
+            <button class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">Refresh</button>
+          </div>
+        </div>
+        <div id="leaderboard-list" class="dash-card-body" style="padding:0"></div>
+      </div>
+    </section>
+
+    <!-- Panel: Analytics -->
+    <section class="dash-panel" id="panel-analytics" role="region" aria-label="Analytics">
+      <div id="panel-analytics-content">
+        <div class="dash-card">
+          <div class="dash-card-header"><h3>Analytics</h3></div>
+          <div class="dash-card-body" style="padding:48px;text-align:center;color:var(--text-tertiary)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:0.4"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <p style="font-size:14px;font-weight:500;color:var(--text-secondary);margin-bottom:4px">Coming soon</p>
+            <p style="font-size:13px">Transaction analytics and performance dashboards are in development.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Wallet -->
+    <section class="dash-panel" id="panel-wallet" role="region" aria-label="Wallet">
+      <div id="panel-wallet-content">
+        <div class="dash-card">
+          <div class="dash-card-header"><h3>Wallet</h3></div>
+          <div class="dash-card-body" style="padding:48px;text-align:center;color:var(--text-tertiary)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:0.4"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>
+            <p style="font-size:14px;font-weight:500;color:var(--text-secondary);margin-bottom:4px">Coming soon</p>
+            <p style="font-size:13px">Wallet management with deposit, withdrawal, and balance tracking is in development.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: Settings -->
+    <section class="dash-panel" id="panel-settings" role="region" aria-label="Settings">
+      <div id="panel-settings-content">
+        <div class="dash-card">
+          <div class="dash-card-header"><h3>Settings</h3></div>
+          <div class="dash-card-body" style="padding:48px;text-align:center;color:var(--text-tertiary)">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;opacity:0.4"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.38.17.82.01 1-.38V9H21a2 2 0 0 1 0 4h-.09"/></svg>
+            <p style="font-size:14px;font-weight:500;color:var(--text-secondary);margin-bottom:4px">Coming soon</p>
+            <p style="font-size:13px">Agent profile settings and preferences are in development.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Panel: RFP Board -->
+    <section class="dash-panel" id="panel-rfp" role="region" aria-label="RFP Board">
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
+          <h3 class="dash-card-title">RFP Board</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+            <button class="btn btn-sm" id="rfp-tab-browse" onclick="switchRfpTab('browse')">Browse Requests</button>
+            <button class="btn btn-sm btn-ghost" id="rfp-tab-mine" onclick="switchRfpTab('mine')">My Requests</button>
+            <button class="btn btn-sm btn-ghost" id="rfp-btn-post" onclick="showPostRequestModal()">+ Post Request</button>
+          </div>
+        </div>
+        <div class="dash-card-body">
+          <!-- Browse tab -->
+          <div id="rfp-browse-tab">
+            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+              <input type="text" id="rfp-filter-q" placeholder="Search requests..." class="input-sm" style="flex:1;min-width:160px" oninput="filterRfpRequests()">
+              <input type="text" id="rfp-filter-cat" placeholder="Category" class="input-sm" style="width:120px" oninput="filterRfpRequests()">
+              <input type="number" id="rfp-filter-max" placeholder="Max budget (USDC)" class="input-sm" style="width:160px" oninput="filterRfpRequests()">
+            </div>
+            <div id="rfp-browse-list" style="display:flex;flex-direction:column;gap:10px">
+              <div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading requests...</div>
+            </div>
+          </div>
+          <!-- My Requests tab -->
+          <div id="rfp-mine-tab" style="display:none">
+            <div id="rfp-mine-list" style="display:flex;flex-direction:column;gap:10px">
+              <div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading your requests...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="/js/i18n.js" defer></script>
+<script src="/js/app.js?v=202604122200" defer></script>
+<script>
+  // Dashboard page guard: redirect to landing if not logged in
+  document.addEventListener('DOMContentLoaded', function() {
+    // Give app.js a moment to load, then check
+    setTimeout(function() {
+      if (typeof isLoggedIn === 'function' && !isLoggedIn()) {
+        window.location.href = '/';
+      }
+    }, 100);
+  });
+</script>
+</body>
+</html>

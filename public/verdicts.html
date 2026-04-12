@@ -451,24 +451,41 @@
       return `<span class="vote-chip vote-${w}">${escHtml(vt)}</span>`;
     }).join('');
 
+    const confNum = v.confidence !== null ? Math.round(v.confidence * 100) : null;
+    const confBarClass = confNum >= 80 ? 'conf-high' : confNum >= 60 ? 'conf-mid' : 'conf-low';
+
     document.getElementById('modalContent').innerHTML = `
       <div class="modal-section">
-        <label>Case #${v.case_number} &nbsp;·&nbsp; ${escHtml(label)}</label>
+        <label>Case #${v.case_number}</label>
         <p>
           <span class="verdict-badge verdict-${winner}" style="margin-right:8px">
             ${winner === 'buyer' ? 'Buyer wins' : winner === 'seller' ? 'Seller wins' : 'Unknown'}
           </span>
-          Confidence: <strong>${conf}</strong> &nbsp;·&nbsp; Amount: ${escHtml(v.amount_range || '—')}
+          <span class="dispute-type" style="margin-right:8px">${escHtml(label)}</span>
         </p>
+      </div>
+      <div class="modal-section">
+        <label>Confidence</label>
+        ${confNum !== null ? `
+          <div class="confidence-bar-wrap" style="margin-top:4px">
+            <div class="confidence-bar" style="width:120px"><div class="confidence-fill ${confBarClass}" style="width:${confNum}%"></div></div>
+            <span class="confidence-pct" style="font-size:14px;font-weight:600">${confNum}%</span>
+          </div>` : '<p>--</p>'}
       </div>
       ${votes ? `<div class="modal-section"><label>Panel Votes</label><div class="votes-list">${votes}</div></div>` : ''}
       <div class="modal-section">
         <label>Reasoning</label>
         <p>${escHtml(v.reasoning || '—')}</p>
       </div>
-      <div class="modal-section">
-        <label>Resolved</label>
-        <p>${v.resolved_at ? new Date(v.resolved_at).toLocaleString() : '—'}</p>
+      <div class="modal-section" style="display:flex;gap:24px">
+        <div>
+          <label>Resolved</label>
+          <p>${v.resolved_at ? new Date(v.resolved_at).toLocaleString() : '—'}</p>
+        </div>
+        <div>
+          <label>Amount</label>
+          <p>${escHtml(v.amount_range || '—')}</p>
+        </div>
       </div>
     `;
     document.getElementById('modalOverlay').classList.add('open');
