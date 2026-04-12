@@ -1393,4 +1393,8 @@ router.get('/:id/trust-score', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/credentials — public credential list (no auth)
+const { getPublicCredentials } = require('./credentials');
+router.get('/:id/credentials', getPublicCredentials);
+
 module.exports = router;

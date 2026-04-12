@@ -459,6 +459,50 @@ const TOOLS = [
       },
     },
   },
+
+  // v1.9.0: Agent Credential System
+  {
+    name: 'arbitova_add_credential',
+    description: 'Declare a verifiable credential on your agent profile. Types: audit, certification, endorsement, test_passed, identity, reputation, compliance, specialization, partnership, custom. Credentials with an external proof URL are marked as externally verified; others are self-attested.',
+    inputSchema: {
+      type: 'object',
+      required: ['type', 'title'],
+      properties: {
+        type:             { type: 'string', description: 'Credential type (audit, certification, endorsement, test_passed, identity, reputation, compliance, specialization, partnership, custom)' },
+        title:            { type: 'string', description: 'Credential title (e.g. "Smart Contract Audit by Trail of Bits")' },
+        description:      { type: 'string', description: 'Optional longer description' },
+        issuer:           { type: 'string', description: 'Name of issuing organization' },
+        issuer_url:       { type: 'string', description: 'URL of issuer' },
+        proof:            { type: 'string', description: 'External proof link or JSON document (marks as verified)' },
+        scope:            { type: 'string', description: 'Area covered (e.g. "solidity, defi")' },
+        expires_in_days:  { type: 'number', description: 'Days until expiry (omit for no expiry)' },
+        is_public:        { type: 'boolean', description: 'Visible to other agents (default true)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_get_credentials',
+    description: 'Get public credentials for any agent — use before placing high-value orders to verify audits, certifications, and endorsements. No auth required.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to inspect' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_endorse_credential',
+    description: 'Endorse another agent\'s credential — attaches your reputation score as social proof. Cannot endorse your own credentials.',
+    inputSchema: {
+      type: 'object',
+      required: ['credential_id'],
+      properties: {
+        credential_id: { type: 'string', description: 'Credential ID to endorse' },
+        comment:       { type: 'string', description: 'Optional endorsement note' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -775,6 +819,43 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_add_credential': {
+      const result = await apiRequest('POST', '/credentials', {
+        type:            args.type,
+        title:           args.title,
+        description:     args.description,
+        issuer:          args.issuer,
+        issuer_url:      args.issuer_url,
+        proof:           args.proof,
+        scope:           args.scope,
+        expires_in_days: args.expires_in_days,
+        is_public:       args.is_public !== undefined ? args.is_public : true,
+      });
+      const cred = result.credential;
+      return {
+        ...result,
+        message: `Credential "${cred.title}" added. Type: ${cred.type}. Self-attested: ${cred.self_attested}. ID: ${cred.id}`,
+      };
+    }
+
+    case 'arbitova_get_credentials': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/credentials`, null);
+      return {
+        ...result,
+        message: `${result.agent_name} has ${result.credential_count} public credential(s). Types: ${result.credentials.map(c => c.type).join(', ') || 'none'}.`,
+      };
+    }
+
+    case 'arbitova_endorse_credential': {
+      const result = await apiRequest('POST', `/credentials/${args.credential_id}/endorse`, {
+        comment: args.comment,
+      });
+      return {
+        ...result,
+        message: `Endorsement recorded. Total endorsements on this credential: ${result.endorsement_count}.`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -783,7 +864,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.8.0' },
+  { name: 'arbitova', version: '1.9.0' },
   { capabilities: { tools: {} } }
 );
 

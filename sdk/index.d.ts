@@ -429,4 +429,58 @@ export declare class Arbitova {
     bought_from: Array<{ agent_id: string; name: string; reputation_score: number; total_orders: number; completed_orders: number; completion_rate: number; total_usdc: number }>;
     sold_to: Array<{ agent_id: string; name: string; reputation_score: number; total_orders: number; completed_orders: number; completion_rate: number; total_usdc: number }>;
   }>;
+
+  // v1.0.0: Agent Credential System
+  addCredential(opts: {
+    type: 'audit' | 'certification' | 'endorsement' | 'test_passed' | 'identity' | 'reputation' | 'compliance' | 'specialization' | 'partnership' | 'custom';
+    title: string;
+    description?: string;
+    issuer?: string;
+    issuerUrl?: string;
+    proof?: string;
+    scope?: string;
+    expiresInDays?: number;
+    isPublic?: boolean;
+  }): Promise<{ credential: Credential }>;
+
+  listCredentials(): Promise<{ credentials: Credential[] }>;
+
+  getCredentials(agentId: string): Promise<{
+    agent_id: string;
+    agent_name: string;
+    reputation_score: number;
+    credential_count: number;
+    credentials: Credential[];
+    expired_count: number;
+  }>;
+
+  endorseCredential(credentialId: string, comment?: string): Promise<{
+    credential_id: string;
+    endorsement_count: number;
+  }>;
+
+  removeCredential(credentialId: string): Promise<{ deleted: string }>;
+}
+
+export interface Credential {
+  id: string;
+  agent_id: string;
+  type: string;
+  title: string;
+  description?: string;
+  issuer?: string;
+  issuer_url?: string;
+  scope?: string;
+  expires_at?: string;
+  self_attested: boolean;
+  is_public: boolean;
+  endorsement_count: number;
+  endorsements: Array<{
+    endorser_id: string;
+    endorser_name: string;
+    endorser_reputation: number;
+    comment?: string;
+    endorsed_at: string;
+  }>;
+  created_at: string;
 }

@@ -331,6 +331,23 @@ if (DATABASE_URL) {
         UNIQUE (request_id, seller_id)
       );
       CREATE INDEX IF NOT EXISTS idx_req_app_request ON request_applications (request_id);
+
+      CREATE TABLE IF NOT EXISTS agent_credentials (
+        id           TEXT PRIMARY KEY,
+        agent_id     TEXT NOT NULL REFERENCES agents(id),
+        type         TEXT NOT NULL,
+        title        TEXT NOT NULL,
+        description  TEXT,
+        issuer       TEXT,
+        issuer_url   TEXT,
+        proof        TEXT,
+        scope        TEXT,
+        expires_at   TIMESTAMPTZ,
+        self_attested BOOLEAN DEFAULT TRUE,
+        is_public    BOOLEAN DEFAULT TRUE,
+        created_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_credentials_agent ON agent_credentials (agent_id);
     `);
 
     // One-time migrations: set product_type for existing data
@@ -705,6 +722,28 @@ if (DATABASE_URL) {
       CREATE INDEX IF NOT EXISTS idx_req_app_request ON request_applications (request_id);
     `);
   } catch(e) { console.error('Migration warn (requests):', e.message); }
+
+  // agent_credentials table
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS agent_credentials (
+        id            TEXT PRIMARY KEY,
+        agent_id      TEXT NOT NULL REFERENCES agents(id),
+        type          TEXT NOT NULL,
+        title         TEXT NOT NULL,
+        description   TEXT,
+        issuer        TEXT,
+        issuer_url    TEXT,
+        proof         TEXT,
+        scope         TEXT,
+        expires_at    TEXT,
+        self_attested INTEGER DEFAULT 1,
+        is_public     INTEGER DEFAULT 1,
+        created_at    TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_credentials_agent ON agent_credentials (agent_id);
+    `);
+  } catch(e) { console.error('Migration warn (credentials):', e.message); }
 
   // reputation_by_category table
   try {

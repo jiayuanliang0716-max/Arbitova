@@ -650,3 +650,85 @@ class Arbitova:
             limit:    Max nodes per direction (default 20, max 50)
         """
         return self._request("GET", f"/agents/{agent_id}/network?limit={limit}")
+
+    # ── v1.0.0: Agent Credential System ──────────────────────────────────────
+
+    def add_credential(
+        self,
+        type: str,
+        title: str,
+        *,
+        description: str = None,
+        issuer: str = None,
+        issuer_url: str = None,
+        proof: str = None,
+        scope: str = None,
+        expires_in_days: int = None,
+        is_public: bool = True,
+    ) -> dict:
+        """
+        Declare a verifiable credential on your agent profile.
+
+        Supported types: audit, certification, endorsement, test_passed,
+        identity, reputation, compliance, specialization, partnership, custom.
+
+        Credentials with a `proof` field (external URL or JSON document) are
+        marked as externally verified. Others are self-attested.
+
+        Args:
+            type:            Credential category
+            title:           Human-readable credential title
+            description:     Optional longer description
+            issuer:          Name of issuing org (e.g. 'Trail of Bits')
+            issuer_url:      URL of issuer
+            proof:           External proof link or JSON document
+            scope:           Area covered (e.g. 'solidity, defi')
+            expires_in_days: Days until expiry (None = no expiry)
+            is_public:       Whether visible to other agents (default True)
+
+        Returns:
+            {"credential": {...}}
+        """
+        payload = {"type": type, "title": title, "is_public": is_public}
+        if description:     payload["description"] = description
+        if issuer:          payload["issuer"] = issuer
+        if issuer_url:      payload["issuer_url"] = issuer_url
+        if proof:           payload["proof"] = proof
+        if scope:           payload["scope"] = scope
+        if expires_in_days: payload["expires_in_days"] = expires_in_days
+        return self._request("POST", "/credentials", payload)
+
+    def list_credentials(self) -> dict:
+        """List your own credentials (includes private ones)."""
+        return self._request("GET", "/credentials")
+
+    def get_credentials(self, agent_id: str) -> dict:
+        """
+        Get public credentials for any agent (no auth required).
+
+        Use before placing high-value orders to verify an agent's claimed
+        audits, certifications, and endorsements.
+
+        Args:
+            agent_id: Agent to inspect
+        """
+        return self._request("GET", f"/agents/{agent_id}/credentials")
+
+    def endorse_credential(self, credential_id: str, comment: str = None) -> dict:
+        """
+        Endorse another agent's credential.
+
+        Your reputation score is attached to the endorsement as social proof.
+        Cannot endorse your own credentials.
+
+        Args:
+            credential_id: Credential to endorse
+            comment:       Optional endorsement note
+        """
+        payload = {}
+        if comment: payload["comment"] = comment
+        return self._request("POST", f"/credentials/{credential_id}/endorse", payload)
+
+    def remove_credential(self, credential_id: str) -> dict:
+        """Remove a credential from your profile."""
+        return self._request("DELETE", f"/credentials/{credential_id}")

@@ -500,6 +500,62 @@ class Arbitova {
     return this._request('GET', `/agents/${agentId}/network${qs}`);
   }
 
+  // ── v1.0.0: Agent Credential System ──────────────────────────────────────
+
+  /**
+   * Declare a verifiable credential on your agent profile.
+   * Types: audit, certification, endorsement, test_passed, identity, reputation, compliance, specialization, partnership, custom
+   * @param {object} params
+   * @param {string} params.type
+   * @param {string} params.title
+   * @param {string} [params.description]
+   * @param {string} [params.issuer]       - Name of the issuing organization
+   * @param {string} [params.issuerUrl]    - URL of issuer
+   * @param {string} [params.proof]        - External proof link/JSON (marks as verified, not self-attested)
+   * @param {string} [params.scope]        - Area covered (e.g. 'solidity, defi')
+   * @param {number} [params.expiresInDays]
+   * @param {boolean}[params.isPublic]     - default true
+   */
+  async addCredential({ type, title, description, issuer, issuerUrl, proof, scope, expiresInDays, isPublic = true }) {
+    return this._request('POST', '/credentials', {
+      type, title, description, issuer,
+      issuer_url: issuerUrl, proof, scope,
+      expires_in_days: expiresInDays,
+      is_public: isPublic
+    });
+  }
+
+  /** List your own credentials (includes private ones). */
+  async listCredentials() {
+    return this._request('GET', '/credentials');
+  }
+
+  /**
+   * Get public credentials for any agent.
+   * Use before placing high-value orders to verify audits, certifications, and endorsements.
+   * @param {string} agentId
+   */
+  async getCredentials(agentId) {
+    return this._request('GET', `/agents/${agentId}/credentials`);
+  }
+
+  /**
+   * Endorse another agent's credential — attaches your reputation score as social proof.
+   * @param {string} credentialId
+   * @param {string} [comment]
+   */
+  async endorseCredential(credentialId, comment) {
+    return this._request('POST', `/credentials/${credentialId}/endorse`, { comment });
+  }
+
+  /**
+   * Remove a credential from your profile.
+   * @param {string} credentialId
+   */
+  async removeCredential(credentialId) {
+    return this._request('DELETE', `/credentials/${credentialId}`);
+  }
+
   /** Extend the deadline of an active order (buyer only). */
   async extendDeadline(txId, hours) {
     return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });

@@ -26,6 +26,7 @@ const apiKeyRoutes = require('./routes/apikeys');
 const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const arbitrationRoutes = require('./routes/arbitration');
 const requestRoutes = require('./routes/requests');
+const credentialRoutes = require('./routes/credentials');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -307,6 +308,7 @@ apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
 apiV1.use('/requests', requestRoutes);
+apiV1.use('/credentials', credentialRoutes);
 
 // POST /api/v1/recommend — AI-powered service recommendation for a buyer task description
 const { requireApiKey: recAuth } = require('./middleware/auth');
