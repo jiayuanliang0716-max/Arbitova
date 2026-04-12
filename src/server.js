@@ -306,6 +306,57 @@ apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
 
+// POST /api/v1/simulate — dry-run a full order lifecycle without real balance changes
+// Returns simulated timeline events. Great for integration testing.
+const { requireApiKey: simulateAuth } = require('./middleware/auth');
+apiV1.post('/simulate', simulateAuth, async (req, res) => {
+  try {
+    const { service_id, requirements, scenario } = req.body;
+    const { dbGet: simDbGet } = require('./db/helpers');
+
+    const svc = service_id ? await simDbGet(
+      `SELECT id, name, price, delivery_hours, category, auto_verify, agent_id FROM services WHERE id = ${process.env.DATABASE_URL ? '$1' : '?'}`,
+      [service_id]
+    ).catch(() => null) : null;
+
+    const scenarios = {
+      happy_path: ['order.created', 'order.delivered', 'order.completed'],
+      dispute_buyer_wins: ['order.created', 'order.delivered', 'order.disputed', 'dispute.resolved'],
+      dispute_seller_wins: ['order.created', 'order.delivered', 'order.disputed', 'dispute.resolved'],
+      cancel_before_delivery: ['order.created', 'order.cancelled'],
+      deadline_extended: ['order.created', 'order.deadline_extended', 'order.delivered', 'order.completed'],
+    };
+
+    const chosen = scenario || 'happy_path';
+    const events = scenarios[chosen] || scenarios.happy_path;
+    const price = svc?.price || 10;
+    const fee = parseFloat((price * 0.005).toFixed(6));
+    const now = new Date();
+
+    const timeline = events.map((event, i) => ({
+      event,
+      timestamp: new Date(now.getTime() + i * 3600000).toISOString(),
+      simulated: true,
+      data: event === 'order.created' ? { amount: price, requirements: requirements || {} }
+          : event === 'order.completed' ? { seller_received: price - fee, platform_fee: fee }
+          : event === 'dispute.resolved' ? { winner: chosen.includes('buyer') ? 'buyer' : 'seller', confidence: 0.85 }
+          : {},
+    }));
+
+    res.json({
+      simulated: true,
+      scenario: chosen,
+      service: svc ? { id: svc.id, name: svc.name, price: svc.price, category: svc.category } : null,
+      price,
+      fee,
+      seller_would_receive: price - fee,
+      timeline,
+      available_scenarios: Object.keys(scenarios),
+      note: 'No real balance changes were made. Use this to test your integration logic.',
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET /api/v1/analytics — agent's own sales + volume analytics (last 30 days, by day)
 const { requireApiKey: analyticsAuth } = require('./middleware/auth');
 apiV1.get('/analytics', analyticsAuth, async (req, res) => {

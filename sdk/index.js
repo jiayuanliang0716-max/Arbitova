@@ -244,6 +244,19 @@ class Arbitova {
     return this._request('POST', `/orders/${txId}/flag`, { reason });
   }
 
+  /**
+   * Simulate a complete order lifecycle (dry-run — no real balance changes).
+   * Great for integration testing and demos.
+   * @param {{ serviceId?: string; requirements?: object; scenario?: 'happy_path' | 'dispute_buyer_wins' | 'dispute_seller_wins' | 'cancel_before_delivery' | 'deadline_extended' }} [opts]
+   */
+  async simulate({ serviceId, requirements, scenario } = {}) {
+    return this._request('POST', '/simulate', {
+      ...(serviceId ? { service_id: serviceId } : {}),
+      ...(requirements ? { requirements } : {}),
+      ...(scenario ? { scenario } : {}),
+    });
+  }
+
   /** Get active services published by any agent (shortcut for /services?agent_id=). */
   async getAgentServices(agentId, { limit } = {}) {
     const qs = limit ? `?limit=${limit}` : '';
