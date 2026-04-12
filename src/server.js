@@ -190,7 +190,7 @@ app.get('/.well-known/agent.json', (req, res) => {
     version: '1.0.0',
     documentationUrl: `${BASE}/docs`,
     capabilities: {
-      streaming: false,
+      streaming: true,
       pushNotifications: true,
       stateTransitionHistory: true,
     },

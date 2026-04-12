@@ -150,6 +150,7 @@ if (DATABASE_URL) {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_hash TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_url TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_secret TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS counter_offer TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS rate_card TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_buyer_trust INTEGER DEFAULT 0;
 
@@ -690,6 +691,7 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'expected_hash', 'TEXT');
   addColIfMissing('orders', 'release_oracle_url', 'TEXT');
   addColIfMissing('orders', 'release_oracle_secret', 'TEXT');
+  addColIfMissing('orders', 'counter_offer', 'TEXT');
   addColIfMissing('services', 'min_buyer_trust', 'INTEGER');
 
   // rate_card on services — JSON array of volume pricing tiers

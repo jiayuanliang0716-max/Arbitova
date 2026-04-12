@@ -1798,4 +1798,142 @@ router.get('/:id/receipt', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /orders/:id/counter-offer — seller proposes a partial refund on a disputed order.
+// Buyer can accept (partial refund + close) or decline (dispute stays open for arbitration).
+// Only one active counter-offer per order at a time.
+router.post('/:id/counter-offer', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.seller_id !== req.agent.id) return res.status(403).json({ error: 'Only the seller can propose a counter-offer' });
+    if (order.status !== 'disputed') return res.status(400).json({ error: 'Counter-offers can only be made on disputed orders' });
+
+    const refundAmount = parseFloat(req.body.refund_amount);
+    const note = (req.body.note || '').slice(0, 500);
+    if (!(refundAmount >= 0.01)) return res.status(400).json({ error: 'refund_amount must be at least 0.01 USDC' });
+    if (refundAmount >= parseFloat(order.amount)) return res.status(400).json({ error: 'refund_amount must be less than the order total. For a full refund, cancel the order instead.' });
+
+    const offer = {
+      status: 'pending',
+      refund_amount: refundAmount,
+      seller_keeps: parseFloat((order.amount - refundAmount).toFixed(6)),
+      note,
+      proposed_by: req.agent.id,
+      proposed_at: new Date().toISOString(),
+    };
+
+    // Store as JSON in the dispute's resolution field (or order's metadata)
+    await dbRun(
+      `UPDATE orders SET counter_offer = ${p(1)} WHERE id = ${p(2)}`,
+      [JSON.stringify(offer), order.id]
+    );
+
+    const { fire, EVENTS } = require('../webhooks');
+    fire([order.buyer_id], EVENTS.MESSAGE_RECEIVED, {
+      type: 'counter_offer',
+      order_id: order.id,
+      refund_amount: refundAmount,
+      seller_keeps: offer.seller_keeps,
+      note,
+    }).catch(() => {});
+
+    res.json({
+      order_id: order.id,
+      counter_offer: offer,
+      message: `Counter-offer proposed: buyer receives ${refundAmount} USDC, seller keeps ${offer.seller_keeps} USDC. Awaiting buyer acceptance.`,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/counter-offer/accept — buyer accepts the seller's counter-offer.
+// Partial refund issued immediately; order closes as 'resolved'.
+router.post('/:id/counter-offer/accept', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can accept a counter-offer' });
+    if (order.status !== 'disputed') return res.status(400).json({ error: 'No active counter-offer on this order' });
+
+    const offer = order.counter_offer
+      ? (typeof order.counter_offer === 'string' ? JSON.parse(order.counter_offer) : order.counter_offer)
+      : null;
+    if (!offer || offer.status !== 'pending') return res.status(400).json({ error: 'No pending counter-offer on this order' });
+
+    const refundAmount = parseFloat(offer.refund_amount);
+    const sellerKeeps = parseFloat(offer.seller_keeps);
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    // Release escrow: buyer gets refund_amount, seller gets seller_keeps
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(2)} WHERE id = ${p(3)}`,
+      [refundAmount, parseFloat(order.amount), order.buyer_id]
+    );
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)}, escrow = GREATEST(COALESCE(escrow,0) - ${p(2)}, 0) WHERE id = ${p(3)}`,
+      [sellerKeeps, parseFloat(order.amount), order.seller_id]
+    );
+
+    offer.status = 'accepted';
+    offer.accepted_at = new Date().toISOString();
+
+    await dbRun(
+      `UPDATE orders SET status = 'completed', counter_offer = ${p(1)}, completed_at = ${now} WHERE id = ${p(2)}`,
+      [JSON.stringify(offer), order.id]
+    );
+
+    // Close any open dispute
+    await dbRun(
+      `UPDATE disputes SET status = 'resolved', resolution = 'Counter-offer accepted', resolved_at = ${now} WHERE order_id = ${p(1)} AND status = 'open'`,
+      [order.id]
+    ).catch(() => {});
+
+    const { fire, EVENTS } = require('../webhooks');
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+      order_id: order.id,
+      resolution: 'counter_offer_accepted',
+      buyer_received: refundAmount,
+      seller_received: sellerKeeps,
+    }).catch(() => {});
+
+    res.json({
+      order_id: order.id,
+      status: 'completed',
+      resolution: 'counter_offer_accepted',
+      buyer_received: refundAmount,
+      seller_received: sellerKeeps,
+      message: `Counter-offer accepted. Dispute closed. ${refundAmount} USDC returned to buyer, ${sellerKeeps} USDC released to seller.`,
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/counter-offer/decline — buyer declines; dispute stays open.
+router.post('/:id/counter-offer/decline', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can decline a counter-offer' });
+    if (order.status !== 'disputed') return res.status(400).json({ error: 'No active counter-offer on this order' });
+
+    const offer = order.counter_offer
+      ? (typeof order.counter_offer === 'string' ? JSON.parse(order.counter_offer) : order.counter_offer)
+      : null;
+    if (!offer || offer.status !== 'pending') return res.status(400).json({ error: 'No pending counter-offer on this order' });
+
+    offer.status = 'declined';
+    offer.declined_at = new Date().toISOString();
+
+    await dbRun(
+      `UPDATE orders SET counter_offer = ${p(1)} WHERE id = ${p(2)}`,
+      [JSON.stringify(offer), order.id]
+    );
+
+    res.json({
+      order_id: order.id,
+      status: 'disputed',
+      counter_offer: 'declined',
+      message: 'Counter-offer declined. The dispute remains open. You may proceed to AI arbitration.',
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

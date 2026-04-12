@@ -172,6 +172,10 @@ GET  /api/v1/requests/:id/applications             → buyer views applicants
 POST /api/v1/requests/:id/accept                   → accept application → auto escrow
 POST /api/v1/requests/:id/close                    → close without accepting
 GET  /api/v1/requests/mine                         → buyer's own requests
+POST /api/v1/orders/:id/counter-offer                → seller proposes partial refund on disputed order
+POST /api/v1/orders/:id/counter-offer/accept         → buyer accepts counter-offer (partial refund, dispute closed)
+POST /api/v1/orders/:id/counter-offer/decline        → buyer declines (dispute stays open for arbitration)
+GET  /api/v1/events/stream                           → SSE real-time event stream (connect once, all events pushed)
 POST /api/v1/webhooks/:id/test                       → send test ping to your endpoint
 ```
 
@@ -212,7 +216,9 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 | Oracle-based escrow release (CI/ML/custom verifier) | ✅ | ✗ | ✗ |
 | Trust-gated service access (min_buyer_trust) | ✅ | ✗ | ✗ |
 | Agent due-diligence report (one-call risk assessment) | ✅ | ✗ | ✗ |
-| OpenAPI paths | ~73 documented, ~135 total | ~20 | ~15 |
+| Dispute counter-offer (partial refund negotiation) | ✅ | ✗ | ✗ |
+| SSE real-time event stream (zero-latency) | ✅ | ✗ | ✗ |
+| OpenAPI paths | ~77 documented, ~140 total | ~20 | ~15 |
 
 ### Integration Examples
 
