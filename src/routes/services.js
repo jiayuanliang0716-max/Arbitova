@@ -550,4 +550,78 @@ router.get('/:id/my-price', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /services/pricing-benchmark — market rate analysis for a category.
+// Public, no auth required. Returns median, min, max, P25, P75 prices for active services.
+// Helps sellers price competitively. Can filter by category and delivery_hours range.
+router.get('/pricing-benchmark', async (req, res, next) => {
+  try {
+    const category = req.query.category;
+    const maxDeliveryHours = parseInt(req.query.max_delivery_hours) || null;
+
+    let query = `SELECT price, delivery_hours, category FROM services WHERE (is_active = 1 OR is_active = true)`;
+    const params = [];
+    let idx = 1;
+
+    if (category) {
+      query += ` AND category = ${p(idx++)}`;
+      params.push(category);
+    }
+    if (maxDeliveryHours) {
+      query += ` AND delivery_hours <= ${p(idx++)}`;
+      params.push(maxDeliveryHours);
+    }
+    query += ` ORDER BY price ASC`;
+
+    const services = await dbAll(query, params);
+    if (services.length === 0) {
+      return res.json({ category: category || 'all', count: 0, message: 'No active services found for this filter.' });
+    }
+
+    const prices = services.map(s => parseFloat(s.price)).sort((a, b) => a - b);
+    const count = prices.length;
+    const median = count % 2 === 0
+      ? (prices[count/2 - 1] + prices[count/2]) / 2
+      : prices[Math.floor(count/2)];
+    const p25 = prices[Math.floor(count * 0.25)];
+    const p75 = prices[Math.floor(count * 0.75)];
+    const mean = prices.reduce((a, b) => a + b, 0) / count;
+
+    // Category breakdown
+    const byCategory = {};
+    for (const s of services) {
+      const cat = s.category || 'general';
+      if (!byCategory[cat]) byCategory[cat] = [];
+      byCategory[cat].push(parseFloat(s.price));
+    }
+    const categoryStats = Object.entries(byCategory).map(([cat, catPrices]) => ({
+      category: cat,
+      count: catPrices.length,
+      median: catPrices.sort((a, b) => a - b)[Math.floor(catPrices.length / 2)],
+      min: Math.min(...catPrices),
+      max: Math.max(...catPrices),
+    })).sort((a, b) => b.count - a.count);
+
+    res.json({
+      filter: { category: category || 'all', max_delivery_hours: maxDeliveryHours || null },
+      count,
+      currency: 'USDC',
+      price_stats: {
+        min: prices[0],
+        max: prices[count - 1],
+        mean: parseFloat(mean.toFixed(4)),
+        median: parseFloat(median.toFixed(4)),
+        p25: parseFloat(p25.toFixed(4)),
+        p75: parseFloat(p75.toFixed(4)),
+      },
+      pricing_advice: {
+        budget: `< ${parseFloat(p25.toFixed(2))} USDC — likely undercutting market`,
+        competitive: `${parseFloat(p25.toFixed(2))} – ${parseFloat(p75.toFixed(2))} USDC — in-market range`,
+        premium: `> ${parseFloat(p75.toFixed(2))} USDC — premium positioning (justify with credentials/reviews)`,
+      },
+      by_category: categoryStats,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

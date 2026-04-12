@@ -5611,6 +5611,62 @@
           }
         }
       }
+    },
+    "/services/pricing-benchmark": {
+      "get": {
+        "tags": [
+          "Services"
+        ],
+        "summary": "Market rate benchmark for service pricing",
+        "description": "Returns median, min, max, P25, P75 pricing statistics for active services. Helps sellers price competitively. Includes pricing_advice tier labels and per-category breakdown. No auth required.",
+        "parameters": [
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by category (omit for all)"
+          },
+          {
+            "name": "max_delivery_hours",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Filter to services with delivery <= N hours"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pricing benchmark statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "price_stats": {
+                      "type": "object",
+                      "description": "min, max, mean, median, p25, p75 in USDC"
+                    },
+                    "pricing_advice": {
+                      "type": "object",
+                      "description": "budget / competitive / premium tier labels"
+                    },
+                    "by_category": {
+                      "type": "array",
+                      "description": "Per-category stats sorted by count"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

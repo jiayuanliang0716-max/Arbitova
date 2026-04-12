@@ -231,9 +231,10 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 | Order-linked comment thread (buyer-seller chat per order) | ✅ | ✗ | ✗ |
 | Pending action queue (single endpoint for autonomous agent loops) | ✅ | ✗ | ✗ |
 | Buyer revision requests (structured re-delivery, no dispute needed) | ✅ | ✗ | ✗ |
+| Service pricing benchmark (market rate analytics, no auth) | ✅ | ✗ | ✗ |
 | Seller deadline extension request (auto-applied, buyer notified) | ✅ | ✗ | ✗ |
 | Webhook delivery retry (POST /webhooks/deliveries/:id/redeliver) | ✅ | ✗ | ✗ |
-| OpenAPI paths | ~85 documented, ~165 total | ~20 | ~15 |
+| OpenAPI paths | ~86 documented, ~170 total | ~20 | ~15 |
 
 ### Integration Examples
 
