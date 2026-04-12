@@ -500,6 +500,7 @@ function showLanding() {
   if (landing) landing.style.display = '';
   if (dashboard) dashboard.style.display = 'none';
   loadLandingStats();
+  startStatsAutoRefresh();
 }
 
 let _unreadPollTimer = null;
@@ -546,27 +547,67 @@ function showDashboard() {
   pollUnreadCount();
 }
 
-async function loadLandingStats() {
-  function setStat(id, val) {
-    const e = document.getElementById(id);
-    if (!e) return;
-    e.textContent = val;
-    e.classList.remove('loaded');
-    void e.offsetWidth;
-    e.classList.add('loaded');
+function animateCount(el, target, prefix, suffix, duration) {
+  if (!el) return;
+  const start = parseInt(el.dataset.current || '0', 10) || 0;
+  if (start === target) return;
+  const startTime = performance.now();
+  function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+  function tick(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const value = Math.floor(start + (target - start) * easeOut(progress));
+    el.textContent = (prefix || '') + value.toLocaleString() + (suffix || '');
+    if (progress < 1) requestAnimationFrame(tick);
+    else { el.dataset.current = target; }
   }
+  requestAnimationFrame(tick);
+}
+
+async function loadLandingStats() {
   try {
-    // Try new platform stats endpoint first, fall back to legacy
     const s = await api('/api/v1/platform/stats').catch(() => api('/api/stats'));
-    setStat('ls-agents', s.agents_registered || s.agents || 0);
-    setStat('ls-orders', s.orders_completed || s.completed_orders || 0);
-    setStat('ls-volume', money(s.total_volume_usdc || s.total_volume || 0));
-    setStat('ls-uptime', '99.9%');
-    // Show completion rate if element exists
-    if (document.getElementById('ls-completion')) setStat('ls-completion', (s.completion_rate || 0) + '%');
-    if (document.getElementById('ls-rating') && s.avg_rating) setStat('ls-rating', parseFloat(s.avg_rating).toFixed(1) + ' / 5');
+    const agents = s.agents_registered || s.agents || 0;
+    const orders = s.orders_completed || s.completed_orders || 0;
+    const volume = s.total_volume_usdc || s.total_volume || 0;
+
+    animateCount(document.getElementById('ls-agents'), agents, '', '', 900);
+    animateCount(document.getElementById('ls-orders'), orders, '', '', 900);
+
+    // Volume: animate as integer, display with $ prefix
+    const volEl = document.getElementById('ls-volume');
+    if (volEl) {
+      const prev = parseInt(volEl.dataset.current || '0', 10);
+      const startTime = performance.now();
+      function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+      (function tick(now) {
+        const p = Math.min((now - startTime) / 900, 1);
+        const v = Math.floor(prev + (volume - prev) * easeOut(p));
+        volEl.textContent = money(v);
+        if (p < 1) requestAnimationFrame(tick);
+        else volEl.dataset.current = volume;
+      })(performance.now());
+    }
+
+    const uptimeEl = document.getElementById('ls-uptime');
+    if (uptimeEl) uptimeEl.textContent = '99.9%';
+
+    if (document.getElementById('ls-completion')) {
+      const el = document.getElementById('ls-completion');
+      animateCount(el, Math.round(s.completion_rate || 0), '', '%', 900);
+    }
   } catch (e) { console.error('Stats load error:', e); }
   loadLandingLeaderboard();
+  loadLandingVerdicts();
+}
+
+// Auto-refresh stats every 30 seconds
+let _statsInterval;
+function startStatsAutoRefresh() {
+  if (_statsInterval) return;
+  _statsInterval = setInterval(() => {
+    if (!isLoggedIn()) loadLandingStats();
+  }, 30000);
 }
 
 async function loadLandingLeaderboard() {
@@ -587,6 +628,37 @@ async function loadLandingLeaderboard() {
       </div>`;
     }).join('');
   } catch (e) { /* silently skip if leaderboard unavailable */ }
+}
+
+async function loadLandingVerdicts() {
+  const el = document.getElementById('landing-verdicts-feed');
+  if (!el) return;
+  try {
+    const data = await fetch(API + '/api/v1/arbitrate/verdicts?limit=5').then(r => r.json());
+    const verdicts = data.verdicts || [];
+    if (!verdicts.length) { el.style.display = 'none'; return; }
+    const LABELS = {
+      incomplete_delivery:'Incomplete Delivery', format_mismatch:'Format Mismatch',
+      deadline_violation:'Deadline Violation', quality_dispute:'Quality Dispute',
+      missing_sections:'Missing Sections', no_delivery:'No Delivery',
+      spec_mismatch:'Spec Mismatch', scope_dispute:'Scope Dispute', general:'General'
+    };
+    el.innerHTML = verdicts.map(v => {
+      const winner = v.winner || 'unknown';
+      const conf = v.confidence ? Math.round(v.confidence * 100) : null;
+      const label = LABELS[v.dispute_type] || v.dispute_type || 'Dispute';
+      const date = v.resolved_at ? new Date(v.resolved_at).toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '';
+      const winColor = winner === 'buyer' ? 'var(--success)' : winner === 'seller' ? 'var(--warning)' : 'var(--text-secondary)';
+      const winLabel = winner === 'buyer' ? 'Buyer wins' : winner === 'seller' ? 'Seller wins' : 'Unknown';
+      return `<div class="lv-row">
+        <span class="lv-case">#${v.case_number}</span>
+        <span class="lv-type">${escapeHtml(label)}</span>
+        <span class="lv-winner" style="color:${winColor}">${winLabel}</span>
+        ${conf ? `<span class="lv-conf">${conf}%</span>` : ''}
+        <span class="lv-date">${date}</span>
+      </div>`;
+    }).join('');
+  } catch (e) { /* skip */ }
 }
 
 // ================= Auth: Register =================

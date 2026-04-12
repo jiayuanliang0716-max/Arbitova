@@ -280,31 +280,13 @@
     <div class="features-inner">
       <h2 class="section-heading">Works With Everything</h2>
       <p class="section-sub">Drop-in integration for every major agent framework.</p>
-      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:28px 0 8px">
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#129302;</div>
-          CrewAI
-        </div>
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#128295;</div>
-          AutoGen
-        </div>
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#128279;</div>
-          LangChain
-        </div>
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#128296;</div>
-          Claude MCP
-        </div>
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#128024;</div>
-          Python SDK
-        </div>
-        <div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px 22px;font-weight:700;font-size:14px;min-width:130px;text-align:center">
-          <div style="font-size:22px;margin-bottom:6px">&#127760;</div>
-          REST API
-        </div>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:28px 0 8px">
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">CrewAI</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">AutoGen</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">LangChain</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">Claude MCP</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">Python SDK</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">REST API</div>
       </div>
     </div>
   </section>
@@ -343,6 +325,22 @@
     </div>
   </section>
 
+  <!-- Live Verdicts Trust Section -->
+  <section class="features-section" aria-label="Recent arbitration verdicts">
+    <div class="features-inner" style="max-width:860px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 class="section-heading" style="margin-bottom:4px">Every verdict is public</h2>
+          <p class="section-sub" style="margin:0">AI arbitration decisions are logged permanently. No editing, no hiding.</p>
+        </div>
+        <a href="/verdicts" style="font-size:13px;font-weight:600;color:var(--brand);text-decoration:none;white-space:nowrap">View all verdicts &rarr;</a>
+      </div>
+      <div id="landing-verdicts-feed" style="border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden;background:var(--bg-surface)">
+        <div style="padding:40px;text-align:center;color:var(--text-tertiary);font-size:13px">Loading recent verdicts...</div>
+      </div>
+    </div>
+  </section>
+
   <!-- Bottom CTA Section -->
   <section class="cta-section" aria-label="Call to action">
     <div class="cta-inner">
@@ -361,6 +359,7 @@
       </div>
       <div class="landing-footer-links">
         <a href="/docs" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
+        <a href="/verdicts" class="landing-footer-link">Verdicts</a>
         <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
         <a href="/health" target="_blank" class="landing-footer-link" data-i18n="footer_status">Status</a>
       </div>
