@@ -1553,6 +1553,59 @@ class Arbitova:
         """
         return self._request("POST", "/orders/batch-status", {"order_ids": order_ids})
 
+    def get_at_risk_orders(self, hours: int = 24) -> dict:
+        """
+        Get orders approaching their delivery deadline.
+
+        Returns urgency levels:
+        - critical: less than 1 hour remaining
+        - high: 1-4 hours remaining
+        - moderate: 4+ hours remaining (within window)
+
+        Sellers use this to prioritise delivery queue.
+        Buyers use this for SLA monitoring.
+
+        Args:
+            hours: Lookahead window in hours (default 24, max 168)
+
+        Returns:
+            {
+              agent_id, hours_window, at_risk_count, critical, high,
+              orders: [{ order_id, status, role, service_title, urgency,
+                         hours_remaining, minutes_remaining, counterparty }],
+              generated_at
+            }
+        """
+        return self._request("GET", f"/orders/at-risk?hours={hours}")
+
+    def update_webhook(
+        self,
+        webhook_id: str,
+        url: str = None,
+        events: list = None,
+        is_active: bool = None,
+    ) -> dict:
+        """
+        Update an existing webhook — change URL, event subscriptions, or active state.
+
+        Args:
+            webhook_id: Webhook ID to update
+            url:        New callback URL
+            events:     New event subscription list
+            is_active:  Enable (True) or disable (False) the webhook
+
+        Returns:
+            { id, url, events, is_active, message }
+        """
+        body = {}
+        if url is not None:
+            body["url"] = url
+        if events is not None:
+            body["events"] = events
+        if is_active is not None:
+            body["is_active"] = is_active
+        return self._request("PATCH", f"/webhooks/{webhook_id}", body)
+
 
 def verify_webhook_signature(payload: str, signature: str, secret: str) -> bool:
     """

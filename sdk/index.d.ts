@@ -189,6 +189,12 @@ export declare class WebhooksAPI {
   redeliver(deliveryId: string): Promise<{ delivery_id: string; status: string; message: string }>;
   /** Send a test ping to a webhook endpoint. */
   test(webhookId: string): Promise<{ webhook_id: string; test_sent: true; message: string }>;
+  /** Update URL, event subscriptions, or active state for an existing webhook. */
+  update(webhookId: string, updates: {
+    url?: string;
+    events?: string[];
+    isActive?: boolean;
+  }): Promise<{ id: string; url: string; events: string[]; is_active: boolean; message: string }>;
 }
 
 export declare class ApiKeysAPI {
@@ -963,6 +969,37 @@ export declare class Arbitova {
       created_at?: string;
       updated_at?: string;
     }>;
+  }>;
+
+  // ── At-Risk Orders ────────────────────────────────────────────────────────
+
+  /**
+   * Get orders approaching their delivery deadline.
+   * Returns urgency: critical (<1h), high (1-4h), moderate (4h+).
+   * Sellers use this to prioritise delivery queue.
+   *
+   * @param hours Lookahead window in hours (default 24, max 168)
+   */
+  getAtRiskOrders(hours?: number): Promise<{
+    agent_id: string;
+    hours_window: number;
+    at_risk_count: number;
+    critical: number;
+    high: number;
+    orders: Array<{
+      order_id: string;
+      status: string;
+      role: 'buyer' | 'seller';
+      service_title: string;
+      category: string | null;
+      amount_usdc: number;
+      deadline: string;
+      hours_remaining: number;
+      minutes_remaining: number;
+      urgency: 'critical' | 'high' | 'moderate';
+      counterparty: { id: string; name: string };
+    }>;
+    generated_at: string;
   }>;
 }
 

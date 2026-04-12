@@ -87,6 +87,59 @@ router.get('/', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── PATCH /api/v1/webhooks/:id ────────────────────────────────────────────────
+// Update a webhook's URL, event subscriptions, or active status.
+router.patch('/:id', requireApiKey, async (req, res, next) => {
+  try {
+    const wh = await dbGet(
+      `SELECT id, url, events, is_active FROM webhooks WHERE id = ${p(1)} AND agent_id = ${p(2)}`,
+      [req.params.id, req.agent.id]
+    );
+    if (!wh) return res.status(404).json({ error: 'Webhook not found' });
+
+    const { url, events, is_active } = req.body;
+    const updates = {};
+
+    if (url !== undefined) {
+      try { new URL(url); } catch {
+        return res.status(400).json({ error: 'url must be a valid URL' });
+      }
+      updates.url = url;
+    }
+
+    if (events !== undefined) {
+      if (!Array.isArray(events) || events.length === 0) {
+        return res.status(400).json({ error: 'events must be a non-empty array' });
+      }
+      const invalid = events.filter(e => !VALID_EVENTS.includes(e));
+      if (invalid.length) {
+        return res.status(400).json({ error: `Invalid event types: ${invalid.join(', ')}`, valid_events: VALID_EVENTS });
+      }
+      updates.events = JSON.stringify(events);
+    }
+
+    if (is_active !== undefined) {
+      updates.is_active = is_active ? 1 : 0;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'No updatable fields provided (url, events, is_active)' });
+    }
+
+    const setClauses = Object.keys(updates).map((k, i) => `${k} = ${p(i + 1)}`).join(', ');
+    const values = [...Object.values(updates), req.params.id];
+    await dbRun(`UPDATE webhooks SET ${setClauses} WHERE id = ${p(values.length)}`, values);
+
+    const updated = await dbGet(`SELECT id, url, events, is_active, created_at FROM webhooks WHERE id = ${p(1)}`, [req.params.id]);
+    res.json({
+      ...updated,
+      events: typeof updated.events === 'string' ? JSON.parse(updated.events) : updated.events,
+      is_active: !!updated.is_active,
+      message: 'Webhook updated.',
+    });
+  } catch (err) { next(err); }
+});
+
 // ── DELETE /api/v1/webhooks/:id ───────────────────────────────────────────────
 // Remove a webhook.
 router.delete('/:id', requireApiKey, async (req, res, next) => {

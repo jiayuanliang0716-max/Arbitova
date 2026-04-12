@@ -2617,4 +2617,67 @@ router.post('/batch-status', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── GET /orders/at-risk — orders approaching their deadline ──────────────────
+// Returns active orders where the deadline is within the next N hours.
+// Seller agents use this to prioritise delivery queue.
+// Buyer agents use this to monitor SLA adherence.
+router.get('/at-risk', requireApiKey, async (req, res, next) => {
+  try {
+    const hoursAhead = Math.min(parseInt(req.query.hours) || 24, 168); // max 7 days
+    const now = new Date();
+    const threshold = new Date(now.getTime() + hoursAhead * 3600 * 1000).toISOString();
+
+    const rows = await dbAll(
+      `SELECT o.id, o.status, o.buyer_id, o.seller_id, o.amount_usdc,
+              o.deadline, o.service_id, o.created_at,
+              s.title AS service_title, s.category,
+              ab.name AS buyer_name, as2.name AS seller_name
+       FROM orders o
+       LEFT JOIN services s ON o.service_id = s.id
+       LEFT JOIN agents ab ON o.buyer_id = ab.id
+       LEFT JOIN agents as2 ON o.seller_id = as2.id
+       WHERE o.status IN ('in_progress', 'pending')
+         AND o.deadline IS NOT NULL
+         AND o.deadline <= ${p(1)}
+         AND o.deadline >= ${p(2)}
+         AND (o.buyer_id = ${p(3)} OR o.seller_id = ${p(4)})
+       ORDER BY o.deadline ASC
+       LIMIT 50`,
+      [threshold, now.toISOString(), req.agent.id, req.agent.id]
+    );
+
+    const results = rows.map(row => {
+      const deadline = new Date(row.deadline);
+      const minutesLeft = Math.floor((deadline - now) / 60000);
+      const hoursLeft = parseFloat((minutesLeft / 60).toFixed(1));
+      const urgency = minutesLeft <= 60 ? 'critical' : minutesLeft <= 240 ? 'high' : 'moderate';
+      return {
+        order_id: row.id,
+        status: row.status,
+        role: row.buyer_id === req.agent.id ? 'buyer' : 'seller',
+        service_title: row.service_title || row.id,
+        category: row.category,
+        amount_usdc: parseFloat(row.amount_usdc),
+        deadline: row.deadline,
+        hours_remaining: hoursLeft,
+        minutes_remaining: minutesLeft,
+        urgency,
+        counterparty: row.buyer_id === req.agent.id
+          ? { id: row.seller_id, name: row.seller_name }
+          : { id: row.buyer_id, name: row.buyer_name },
+      };
+    });
+
+    res.json({
+      agent_id: req.agent.id,
+      hours_window: hoursAhead,
+      at_risk_count: results.length,
+      critical: results.filter(r => r.urgency === 'critical').length,
+      high: results.filter(r => r.urgency === 'high').length,
+      orders: results,
+      generated_at: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

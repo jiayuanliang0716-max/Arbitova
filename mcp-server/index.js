@@ -851,6 +851,30 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_at_risk_orders',
+    description: 'Get orders approaching their delivery deadline within the next N hours. Returns urgency levels (critical/high/moderate). Sellers use this to prioritise their queue; buyers use it for SLA monitoring.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        hours: { type: 'number', description: 'Lookahead window in hours (default 24, max 168)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_update_webhook',
+    description: 'Update an existing webhook — change the URL, update the event subscription list, or enable/disable it.',
+    inputSchema: {
+      type: 'object',
+      required: ['webhook_id'],
+      properties: {
+        webhook_id: { type: 'string', description: 'Webhook ID to update' },
+        url:        { type: 'string', description: 'New callback URL' },
+        events:     { type: 'array', items: { type: 'string' }, description: 'New event subscription list' },
+        is_active:  { type: 'boolean', description: 'Enable or disable the webhook' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -1457,6 +1481,16 @@ async function handleTool(name, args) {
       return apiRequest('POST', '/orders/batch-status', { order_ids: args.order_ids });
     }
 
+    case 'arbitova_at_risk_orders': {
+      const qs = args.hours ? `?hours=${args.hours}` : '';
+      return apiRequest('GET', `/orders/at-risk${qs}`);
+    }
+
+    case 'arbitova_update_webhook': {
+      const { webhook_id, ...body } = args;
+      return apiRequest('PATCH', `/webhooks/${webhook_id}`, body);
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -1465,7 +1499,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '3.2.0' },
+  { name: 'arbitova', version: '3.3.0' },
   { capabilities: { tools: {} } }
 );
 

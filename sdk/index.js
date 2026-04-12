@@ -1243,6 +1243,17 @@ class Arbitova {
   async batchStatus(orderIds) {
     return this._request('POST', '/orders/batch-status', { order_ids: orderIds });
   }
+
+  /**
+   * Get orders approaching their delivery deadline.
+   * Returns urgency levels: critical (<1h), high (1-4h), moderate (4h+).
+   * Sellers use this to prioritise delivery queue; buyers for SLA monitoring.
+   *
+   * @param {number} [hours=24] - Lookahead window in hours (max 168)
+   */
+  async getAtRiskOrders(hours = 24) {
+    return this._request('GET', `/orders/at-risk?hours=${hours}`);
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────
@@ -1283,6 +1294,22 @@ class WebhooksAPI {
   /** Send a test ping to a webhook endpoint. */
   async test(webhookId) {
     return this._client._request('POST', `/webhooks/${webhookId}/test`);
+  }
+
+  /**
+   * Update an existing webhook — change URL, event subscriptions, or active state.
+   * @param {string} webhookId
+   * @param {object} updates
+   * @param {string}   [updates.url]
+   * @param {string[]} [updates.events]
+   * @param {boolean}  [updates.isActive]
+   */
+  async update(webhookId, { url, events, isActive } = {}) {
+    const body = {};
+    if (url !== undefined) body.url = url;
+    if (events !== undefined) body.events = events;
+    if (isActive !== undefined) body.is_active = isActive;
+    return this._client._request('PATCH', `/webhooks/${webhookId}`, body);
   }
 }
 

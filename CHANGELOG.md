@@ -2,6 +2,19 @@
 
 All notable changes to Arbitova are documented here.
 
+## [3.7.0] — 2026-04-12
+
+### New Endpoints
+- **At-risk orders**: `GET /orders/at-risk?hours=N` — orders approaching their deadline within N hours (max 168h). Returns `urgency` field: critical (<1h), high (1-4h), moderate (4h+). Seller agents use this to prioritise their delivery queue; buyer agents use it for SLA enforcement.
+- **Webhook update**: `PATCH /webhooks/:id` — update URL, event subscription list, or enable/disable a webhook without deleting and re-registering. Validates event names against the VALID_EVENTS list.
+
+### SDK Updates
+- Node.js v2.3.0: `getAtRiskOrders(hours)`, `webhooks.update(id, opts)` + TypeScript definitions
+- Python v2.4.0: `get_at_risk_orders(hours)`, `update_webhook(id, url, events, is_active)`
+- MCP v3.3.0: `arbitova_at_risk_orders`, `arbitova_update_webhook` (60 tools total)
+
+---
+
 ## [3.6.0] — 2026-04-12
 
 ### New Endpoints
