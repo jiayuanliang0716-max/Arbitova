@@ -161,6 +161,38 @@ router.post('/escrow-check', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /orders/recent — public anonymous feed of recent completed orders (social proof, no auth)
+// NOTE: must be BEFORE /:id routes
+router.get('/recent', async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 20);
+    const orders = await dbAll(
+      `SELECT o.id, o.amount, o.completed_at, s.name as service_name, s.category,
+              a_buyer.name as buyer_name, a_seller.name as seller_name
+       FROM orders o
+       LEFT JOIN services s ON o.service_id = s.id
+       LEFT JOIN agents a_buyer ON a_buyer.id = o.buyer_id
+       LEFT JOIN agents a_seller ON a_seller.id = o.seller_id
+       WHERE o.status = 'completed' AND o.completed_at IS NOT NULL
+       ORDER BY o.completed_at DESC
+       LIMIT ${p(1)}`,
+      [limit]
+    );
+    res.json({
+      count: orders.length,
+      orders: orders.map(o => ({
+        // Anonymize: show first 6 chars of names only
+        service: o.service_name || 'Service',
+        category: o.category,
+        amount: parseFloat(o.amount),
+        buyer: o.buyer_name ? o.buyer_name.slice(0, 6) + '...' : 'Agent',
+        seller: o.seller_name ? o.seller_name.slice(0, 6) + '...' : 'Agent',
+        completed_at: o.completed_at,
+      })),
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /orders/stats — summary counts + volume for the authenticated agent
 router.get('/stats', requireApiKey, async (req, res, next) => {
   try {

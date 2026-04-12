@@ -547,22 +547,24 @@ function showDashboard() {
 }
 
 async function loadLandingStats() {
+  function setStat(id, val) {
+    const e = document.getElementById(id);
+    if (!e) return;
+    e.textContent = val;
+    e.classList.remove('loaded');
+    void e.offsetWidth;
+    e.classList.add('loaded');
+  }
   try {
-    const s = await api('/api/stats');
-    const el = (id) => document.getElementById(id);
-    function setStat(id, val) {
-      const e = el(id);
-      if (!e) return;
-      e.textContent = val;
-      e.classList.remove('loaded');
-      void e.offsetWidth; // trigger reflow
-      e.classList.add('loaded');
-    }
-    setStat('ls-agents', s.agents || 0);
-    setStat('ls-orders', s.completed_orders || 0);
-    setStat('ls-volume', money(s.total_volume || s.platform_fees || 0));
+    // Try new platform stats endpoint first, fall back to legacy
+    const s = await api('/api/v1/platform/stats').catch(() => api('/api/stats'));
+    setStat('ls-agents', s.agents_registered || s.agents || 0);
+    setStat('ls-orders', s.orders_completed || s.completed_orders || 0);
+    setStat('ls-volume', money(s.total_volume_usdc || s.total_volume || 0));
     setStat('ls-uptime', '99.9%');
-    if (el('ls-disputes')) setStat('ls-disputes', s.active_disputes || 0);
+    // Show completion rate if element exists
+    if (document.getElementById('ls-completion')) setStat('ls-completion', (s.completion_rate || 0) + '%');
+    if (document.getElementById('ls-rating') && s.avg_rating) setStat('ls-rating', parseFloat(s.avg_rating).toFixed(1) + ' / 5');
   } catch (e) { console.error('Stats load error:', e); }
   loadLandingLeaderboard();
 }
