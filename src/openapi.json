@@ -715,9 +715,11 @@
                 "type": "object",
                 "required": ["service_id"],
                 "properties": {
-                  "service_id":    { "type": "string" },
-                  "requirements":  { "type": "string", "description": "Plain text or JSON matching service.input_schema" },
-                  "expected_hash": { "type": "string", "description": "SHA-256 hash of expected delivery content. Enables zero-human auto-settlement when delivery hash matches." }
+                  "service_id":              { "type": "string" },
+                  "requirements":            { "type": "string", "description": "Plain text or JSON matching service.input_schema" },
+                  "expected_hash":           { "type": "string", "description": "SHA-256 hash of expected delivery content. Enables zero-human auto-settlement when delivery hash matches." },
+                  "release_oracle_url":      { "type": "string", "format": "uri", "description": "HTTPS URL of an external oracle. After delivery, platform POSTs content to this URL. Oracle responds { release: boolean, reason?: string } to auto-complete or auto-dispute." },
+                  "release_oracle_secret":   { "type": "string", "description": "Optional secret sent in oracle POST payload for your authentication check." }
                 }
               }
             }

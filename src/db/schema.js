@@ -148,6 +148,8 @@ if (DATABASE_URL) {
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_id TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS parent_order_id TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_hash TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_url TEXT;
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_secret TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS rate_card TEXT;
 
       CREATE TABLE IF NOT EXISTS order_bundles (
@@ -685,6 +687,8 @@ if (DATABASE_URL) {
 
   // expected_hash on orders — buyer pre-commits SHA-256 of expected delivery for zero-human A2A auto-settle
   addColIfMissing('orders', 'expected_hash', 'TEXT');
+  addColIfMissing('orders', 'release_oracle_url', 'TEXT');
+  addColIfMissing('orders', 'release_oracle_secret', 'TEXT');
 
   // rate_card on services — JSON array of volume pricing tiers
   addColIfMissing('services', 'rate_card', 'TEXT');

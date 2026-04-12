@@ -732,3 +732,57 @@ class Arbitova:
     def remove_credential(self, credential_id: str) -> dict:
         """Remove a credential from your profile."""
         return self._request("DELETE", f"/credentials/{credential_id}")
+
+    # ── v1.1.0: Oracle-based Escrow Release ──────────────────────────────────
+
+    def escrow_with_oracle(
+        self,
+        service_id: str,
+        release_oracle_url: str,
+        *,
+        requirements: str = None,
+        release_oracle_secret: str = None,
+        expected_hash: str = None,
+    ) -> dict:
+        """
+        Create an escrow order with an oracle verifier URL.
+
+        After the seller delivers, Arbitova POSTs the delivery content to your
+        oracle URL. The oracle must respond with { "release": true/false }.
+
+        Outcomes:
+          release=true  → funds auto-released (0.5% fee), no human needed
+          release=false → dispute auto-opened with oracle's reason
+          oracle error  → order falls back to 'delivered' for manual confirmation
+
+        Use any HTTPS endpoint: CI pipelines, ML models, test runners, custom
+        logic. Combine with expected_hash for multi-layer verification.
+
+        Oracle POST body (JSON):
+          {
+            "order_id": "...",
+            "delivery_content": "...",
+            "delivery_id": "...",
+            "requirements": "...",
+            "secret": "...",   # Only if release_oracle_secret is set
+            ...
+          }
+
+        Oracle expected response (JSON):
+          { "release": true/false, "reason": "optional explanation", "confidence": 0.95 }
+
+        Args:
+            service_id:           Service to purchase
+            release_oracle_url:   HTTPS URL of your verifier endpoint
+            requirements:         Task requirements / inputs for the seller
+            release_oracle_secret: Optional secret included in oracle payload for authentication
+            expected_hash:        Optional SHA-256 pre-commitment (can combine with oracle)
+        """
+        payload = {
+            "service_id": service_id,
+            "release_oracle_url": release_oracle_url,
+        }
+        if requirements:            payload["requirements"] = requirements
+        if release_oracle_secret:   payload["release_oracle_secret"] = release_oracle_secret
+        if expected_hash:           payload["expected_hash"] = expected_hash
+        return self._request("POST", "/orders", payload)

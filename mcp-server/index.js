@@ -460,6 +460,23 @@ const TOOLS = [
     },
   },
 
+  // v2.0.0: Oracle-based Escrow Release
+  {
+    name: 'arbitova_create_oracle_escrow',
+    description: 'Create an escrow order with an external oracle verifier URL. After seller delivers, Arbitova POSTs the delivery to your oracle; oracle responds { release: true/false }. release=true → auto-complete (0.5% fee), release=false → auto-dispute, oracle error → manual confirm fallback. Use CI pipelines, ML models, test runners, or any HTTPS endpoint as your verifier.',
+    inputSchema: {
+      type: 'object',
+      required: ['service_id', 'release_oracle_url'],
+      properties: {
+        service_id:            { type: 'string', description: 'Service to purchase' },
+        requirements:          { type: 'string', description: 'Task requirements for the seller' },
+        release_oracle_url:    { type: 'string', description: 'HTTPS URL of your oracle/verifier endpoint' },
+        release_oracle_secret: { type: 'string', description: 'Optional secret included in oracle payload for authentication' },
+        expected_hash:         { type: 'string', description: 'Optional SHA-256 pre-commitment hash (can combine with oracle)' },
+      },
+    },
+  },
+
   // v1.9.0: Agent Credential System
   {
     name: 'arbitova_add_credential',
@@ -819,6 +836,24 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_create_oracle_escrow': {
+      const order = await apiRequest('POST', '/orders', {
+        service_id:            args.service_id,
+        requirements:          args.requirements,
+        release_oracle_url:    args.release_oracle_url,
+        release_oracle_secret: args.release_oracle_secret,
+        expected_hash:         args.expected_hash,
+      });
+      return {
+        order_id: order.id,
+        status: order.status,
+        amount: order.amount,
+        deadline: order.deadline,
+        oracle_url: args.release_oracle_url,
+        message: `Oracle escrow created. Order ID: ${order.id}. After delivery, oracle at ${args.release_oracle_url} will auto-release or auto-dispute.`,
+      };
+    }
+
     case 'arbitova_add_credential': {
       const result = await apiRequest('POST', '/credentials', {
         type:            args.type,
@@ -864,7 +899,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.9.0' },
+  { name: 'arbitova', version: '2.0.0' },
   { capabilities: { tools: {} } }
 );
 

@@ -338,6 +338,32 @@ class Arbitova {
   }
 
   /**
+   * Create an escrow order with an oracle verifier URL.
+   * After delivery, platform POSTs the delivery to the oracle URL.
+   * Oracle must respond { release: true/false, reason?: string }.
+   * release=true  → funds auto-released (0.5% fee)
+   * release=false → dispute auto-opened with oracle's reason
+   * Oracle error or timeout → order stays as 'delivered' for manual confirm
+   *
+   * Use any HTTPS endpoint: CI pipelines, ML models, test runners, custom verifiers.
+   * @param {object} opts
+   * @param {string} opts.serviceId
+   * @param {string} [opts.requirements]
+   * @param {string} opts.releaseOracleUrl    - HTTPS URL that will verify the delivery
+   * @param {string} [opts.releaseOracleSecret] - Optional secret sent in oracle payload for auth
+   * @param {string} [opts.expectedHash]      - Can combine with oracle: oracle is primary, hash is fallback check
+   */
+  async escrowWithOracle({ serviceId, requirements, releaseOracleUrl, releaseOracleSecret, expectedHash }) {
+    return this._request('POST', '/orders', {
+      service_id: serviceId,
+      requirements,
+      release_oracle_url: releaseOracleUrl,
+      release_oracle_secret: releaseOracleSecret,
+      expected_hash: expectedHash,
+    });
+  }
+
+  /**
    * Deliver with a hash for auto-settlement.
    * If delivery_hash matches the order's expected_hash, funds release immediately.
    * @param {string} txId

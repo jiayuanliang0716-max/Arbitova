@@ -242,8 +242,15 @@ router.get('/stats', requireApiKey, async (req, res, next) => {
 // POST /orders
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
-    const { service_id, requirements, expected_hash } = req.body;
+    const { service_id, requirements, expected_hash, release_oracle_url, release_oracle_secret } = req.body;
     if (!service_id) return res.status(400).json({ error: 'service_id is required' });
+
+    // Validate oracle URL if provided
+    if (release_oracle_url) {
+      try { new URL(release_oracle_url); } catch (_) {
+        return res.status(400).json({ error: 'release_oracle_url must be a valid URL' });
+      }
+    }
 
     const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
     const service = await dbGet(`SELECT * FROM services WHERE id = ${p(1)} AND ${activeCheck}`, [service_id]);
@@ -287,8 +294,8 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
         : dbRun(`UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`, [service.price, service.price, req.agent.id]);
 
       await (tx?.run || dbRun)(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
-        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null]
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash, release_oracle_url, release_oracle_secret) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)})`,
+        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null, release_oracle_url || null, release_oracle_secret || null]
       );
     });
 
@@ -702,6 +709,100 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       });
     }
 
+    // Oracle-based escrow release: buyer pre-configured an external verifier URL.
+    // Platform calls it with the delivery content; oracle returns { release: true/false }.
+    // release=true  → auto-complete (same as hash_verified path, 0.5% fee)
+    // release=false → auto-open dispute with oracle's reason
+    // oracle error/timeout → fall through to normal 'delivered' flow (buyer confirms manually)
+    if (order.release_oracle_url) {
+      let oracleResult = null;
+      const oracleTimeout = 10000; // 10 second timeout
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), oracleTimeout);
+        const payload = {
+          order_id: order.id,
+          service_id: order.service_id,
+          requirements: order.requirements,
+          delivery_content: content,
+          delivery_id: deliveryId,
+          seller_id: order.seller_id,
+          buyer_id: order.buyer_id,
+          amount: order.amount,
+        };
+        if (order.release_oracle_secret) {
+          payload.secret = order.release_oracle_secret;
+        }
+        const resp = await fetch(order.release_oracle_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'User-Agent': 'Arbitova-Oracle/1.0' },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (resp.ok) oracleResult = await resp.json();
+      } catch (oracleErr) {
+        console.warn(`[oracle] ${order.id}: oracle call failed (${oracleErr.message}), falling through to manual confirm`);
+      }
+
+      if (oracleResult && typeof oracleResult.release === 'boolean') {
+        if (oracleResult.release === true) {
+          // Oracle approved — auto-complete escrow
+          const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
+          const sellerReceives = parseFloat(order.amount) - fee;
+          const now = isPostgres ? 'NOW()' : "datetime('now')";
+          await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
+          await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+          await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+          try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'oracle_verified_completion', order.id); } catch (_) {}
+          fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
+            order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'oracle',
+            oracle_url: order.release_oracle_url, oracle_confidence: oracleResult.confidence,
+          });
+          fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
+            order_id: order.id, amount: order.amount,
+            platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
+            oracle_verified: true,
+          });
+          return res.json({
+            delivery_id: deliveryId,
+            order_id: order.id,
+            status: 'completed',
+            oracle_verified: true,
+            oracle_confidence: oracleResult.confidence || null,
+            oracle_reason: oracleResult.reason || null,
+            platform_fee: fee.toFixed(4),
+            seller_received: sellerReceives.toFixed(4),
+            message: 'Oracle approved delivery. Funds released automatically.',
+          });
+        } else {
+          // Oracle rejected — auto-open dispute
+          const disputeId = uuidv4();
+          await dbRun(
+            `INSERT INTO disputes (id, order_id, reason) VALUES (${p(1)},${p(2)},${p(3)})`,
+            [disputeId, order.id, `Oracle rejected delivery: ${oracleResult.reason || 'No reason provided'}`]
+          );
+          await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
+          fire([order.buyer_id, order.seller_id], EVENTS.DISPUTE_OPENED, {
+            order_id: order.id, dispute_id: disputeId,
+            reason: `Oracle rejected: ${oracleResult.reason || ''}`,
+            auto_disputed: true, method: 'oracle',
+          });
+          return res.status(422).json({
+            delivery_id: deliveryId,
+            order_id: order.id,
+            status: 'disputed',
+            oracle_verified: false,
+            oracle_reason: oracleResult.reason || 'Delivery rejected by oracle',
+            dispute_id: disputeId,
+            code: 'oracle_rejected',
+            message: 'Oracle rejected delivery. Dispute opened automatically.',
+          });
+        }
+      }
+      // Oracle call failed or returned unexpected format — fall through to manual confirm
+    }
+
     await dbRun(`UPDATE orders SET status = 'delivered' WHERE id = ${p(1)}`, [order.id]);
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DELIVERED, {
@@ -714,6 +815,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       order_id: order.id,
       status: 'delivered',
       auto_verified: hasContract && verification.ok ? 'eligible_but_manual' : false,
+      oracle_pending: !!order.release_oracle_url,
       message: 'Delivery submitted. Buyer has 24 hours to confirm or dispute.'
     });
   } catch (err) { next(err); }

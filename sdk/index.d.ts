@@ -326,6 +326,19 @@ export declare class Arbitova {
     expectedHash: string;
   }): Promise<Transaction>;
 
+  /**
+   * Create escrow with an oracle verifier URL.
+   * After delivery, platform POSTs content to the oracle; oracle responds { release: boolean, reason?: string }.
+   * release=true → auto-complete | release=false → auto-dispute | oracle error → manual confirm fallback
+   */
+  escrowWithOracle(opts: {
+    serviceId: string;
+    requirements?: object;
+    releaseOracleUrl: string;
+    releaseOracleSecret?: string;
+    expectedHash?: string;
+  }): Promise<Transaction>;
+
   /** Deliver content with hash; if SHA-256 matches expected_hash, escrow auto-releases. */
   deliverWithHash(txId: string, opts: {
     content: string;
