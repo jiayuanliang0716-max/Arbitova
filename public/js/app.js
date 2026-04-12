@@ -2450,7 +2450,10 @@ async function openOrderDetail(orderId) {
 
     // Fetch counterpart's public profile for display
     const counterpartId = isBuyer ? r.seller_id : r.buyer_id;
-    const counterpartProfile = await api('/api/v1/agents/' + counterpartId + '/public-profile').catch(() => null);
+    const [counterpartProfile, counterpartTrust] = await Promise.all([
+      api('/api/v1/agents/' + counterpartId + '/public-profile').catch(() => null),
+      api('/api/v1/agents/' + counterpartId + '/trust-score').catch(() => null),
+    ]);
 
     // Build timeline from API data if available, else fallback to status-based steps
     const eventLabel = {
@@ -2517,6 +2520,7 @@ async function openOrderDetail(orderId) {
             ${!isBuyer ? `<b>You</b>` : `<b>${escapeHtml(counterpartProfile?.name || (r.seller_id?.slice(0, 12) + '...'))}</b>`}
             ${isBuyer && counterpartProfile ? ` &middot; <a href="/profile?id=${r.seller_id}" target="_blank" style="color:var(--accent);font-size:11px">profile</a>` : ''}
             ${isBuyer && counterpartProfile ? ` &middot; Rep: ${counterpartProfile.reputation_score}` : ''}
+            ${isBuyer && counterpartTrust ? ` &middot; <span style="font-size:11px;padding:1px 5px;border-radius:3px;background:${counterpartTrust.level==='Elite'?'var(--accent)':counterpartTrust.level==='Trusted'?'rgba(0,212,170,0.15)':'var(--fill-secondary)'};color:${counterpartTrust.level==='Elite'||counterpartTrust.level==='Trusted'?'var(--accent)':'var(--text-soft)'}">${counterpartTrust.level} ${counterpartTrust.trust_score}</span>` : ''}
           </div>
           ${r.service_name ? `<div>Service: <b>${escapeHtml(r.service_name)}</b></div>` : ''}
           ${r.deadline ? `<div>Deadline: ${relativeTime(r.deadline)}</div>` : ''}

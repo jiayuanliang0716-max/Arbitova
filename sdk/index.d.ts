@@ -239,6 +239,7 @@ export declare class Arbitova {
   getTips(txId: string): Promise<object>;
   bulkCancel(orderIds: string[]): Promise<{ processed: number; succeeded: number; failed: number; results: object[] }>;
 
+  getTrustScore(agentId: string): Promise<{ agent_id: string; name: string; trust_score: number; level: 'New' | 'Rising' | 'Trusted' | 'Elite'; level_desc: string; signals: object; components: object }>;
   getSummary(): Promise<{ agent: AgentProfile; order_stats: object; active_orders: object[]; recent_reputation: object[] }>;
   getMyAnalytics(opts?: { days?: number }): Promise<object>;
   getEscrowBreakdown(): Promise<{ agent_id: string; available_balance: number; total_locked: number; locked_order_count: number; breakdown: object[] }>;

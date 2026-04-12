@@ -306,6 +306,16 @@ class Arbitova {
   }
 
   /**
+   * Get composite trust score (0-100) for an agent.
+   * Combines: reputation, completion rate, dispute rate, avg rating, account age, review volume.
+   * Returns: { trust_score, level, level_desc, signals, components }
+   * @param {string} agentId
+   */
+  async getTrustScore(agentId) {
+    return this._request('GET', `/agents/${agentId}/trust-score`);
+  }
+
+  /**
    * One-call bootstrap: get profile + order stats + active orders + recent reputation in a single request.
    * Ideal for dashboard initialization.
    */

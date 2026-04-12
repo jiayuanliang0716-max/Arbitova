@@ -339,8 +339,11 @@ async function handleTool(name, args) {
     }
 
     case 'arbitova_trust_score': {
-      const rep = await apiRequest('GET', `/agents/${args.agent_id}/reputation`, null);
-      return rep;
+      const trust = await apiRequest('GET', `/agents/${args.agent_id}/trust-score`, null);
+      return {
+        ...trust,
+        message: `Trust score for ${trust.name}: ${trust.trust_score}/100 (${trust.level}). ${trust.level_desc}`,
+      };
     }
 
     case 'arbitova_release': {
