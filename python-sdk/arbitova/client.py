@@ -369,3 +369,113 @@ class Arbitova:
     def delete_webhook(self, webhook_id: str) -> dict:
         """Delete a webhook."""
         return self._request("DELETE", f"/webhooks/{webhook_id}")
+
+    # ── A2A Discovery (v0.6.0) ────────────────────────────────────────────────
+
+    def discover(
+        self,
+        capability: str = None,
+        category: str = None,
+        max_price: float = None,
+        min_trust: int = None,
+        sort: str = None,
+        limit: int = None,
+    ) -> dict:
+        """
+        Discover agents and services by capability, trust score, and price.
+        The primary A2A counterparty discovery endpoint — no auth required.
+
+        Args:
+            capability: Natural language task description or keyword
+            category:   Service category (e.g. 'coding', 'writing', 'research')
+            max_price:  Maximum price in USDC
+            min_trust:  Minimum trust score 0-100 (70 = Trusted+, 90 = Elite only)
+            sort:       'trust' (default) | 'price' | 'reputation'
+            limit:      Max results (default 10, max 50)
+        """
+        params = {}
+        if capability is not None: params["capability"] = capability
+        if category is not None:   params["category"] = category
+        if max_price is not None:  params["max_price"] = max_price
+        if min_trust is not None:  params["min_trust"] = min_trust
+        if sort is not None:       params["sort"] = sort
+        if limit is not None:      params["limit"] = limit
+        qs = "&".join(f"{k}={v}" for k, v in params.items())
+        return self._request("GET", f"/agents/discover{'?' + qs if qs else ''}")
+
+    def get_capabilities(self, agent_id: str) -> dict:
+        """
+        Get machine-readable capability declaration for an agent.
+        Returns all active services with input_schema for automated task routing.
+        """
+        return self._request("GET", f"/agents/{agent_id}/capabilities")
+
+    def get_reputation_history(
+        self,
+        agent_id: str,
+        page: int = None,
+        limit: int = None,
+        reason: str = None,
+    ) -> dict:
+        """
+        Get paginated reputation event history for any agent.
+        Use to audit counterparty track record before transacting.
+
+        Args:
+            agent_id: Agent to query
+            page:     Page number (default 1)
+            limit:    Items per page (default 20, max 100)
+            reason:   Filter by event reason (e.g. 'order_completed', 'dispute_lost')
+        """
+        params = {}
+        if page is not None:   params["page"] = page
+        if limit is not None:  params["limit"] = limit
+        if reason is not None: params["reason"] = reason
+        qs = "&".join(f"{k}={v}" for k, v in params.items())
+        return self._request("GET", f"/agents/{agent_id}/reputation-history{'?' + qs if qs else ''}")
+
+    def escrow_with_hash(
+        self,
+        service_id: str,
+        expected_hash: str,
+        requirements=None,
+    ) -> dict:
+        """
+        Place an order with a pre-committed SHA-256 hash for zero-human auto-settlement.
+
+        When the seller delivers content whose SHA-256 equals delivery_hash == expected_hash,
+        escrow releases automatically — no buyer confirmation needed.
+
+        Args:
+            service_id:    Service to purchase
+            expected_hash: SHA-256 hex of the expected delivery content
+            requirements:  Optional requirements dict/string
+        """
+        body = {"service_id": service_id, "expected_hash": expected_hash}
+        if requirements is not None:
+            body["requirements"] = requirements
+        return self._request("POST", "/orders", body)
+
+    def deliver_with_hash(
+        self,
+        order_id: str,
+        content: str,
+        delivery_hash: str,
+    ) -> dict:
+        """
+        Deliver content with a hash for automatic settlement.
+
+        If SHA-256(content) == delivery_hash == order.expected_hash,
+        escrow releases immediately with no further confirmation.
+
+        Example:
+            import hashlib
+            content = json.dumps(result)
+            h = hashlib.sha256(content.encode()).hexdigest()
+            client.deliver_with_hash(order_id, content, h)
+        """
+        return self._request(
+            "POST",
+            f"/orders/{order_id}/deliver",
+            {"content": content, "delivery_hash": delivery_hash},
+        )
