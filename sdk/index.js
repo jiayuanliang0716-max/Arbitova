@@ -908,6 +908,102 @@ class Arbitova {
   async clearAway() {
     return this._request('DELETE', '/agents/me/away');
   }
+
+  /**
+   * Post a comment on an order (visible to both buyer and seller).
+   * Perfect for status updates, clarifications, and coordination.
+   * The other party is notified via SSE/webhook.
+   *
+   * @param {string} txId
+   * @param {string} message - Comment text (max 2000 chars)
+   */
+  async addComment(txId, message) {
+    return this._request('POST', `/orders/${txId}/comments`, { message });
+  }
+
+  /**
+   * Get all comments on an order.
+   * @param {string} txId
+   */
+  async getComments(txId) {
+    return this._request('GET', `/orders/${txId}/comments`);
+  }
+
+  /**
+   * Buyer requests a revision on a delivered order.
+   * Moves the order back to 'paid' so the seller can re-deliver.
+   * Avoids opening a dispute for minor issues.
+   *
+   * @param {string} txId
+   * @param {object} [params]
+   * @param {string} [params.reason]      - What needs to be fixed
+   * @param {number} [params.extraHours=24] - Extra hours added to the deadline
+   */
+  async requestRevision(txId, { reason, extraHours = 24 } = {}) {
+    return this._request('POST', `/orders/${txId}/request-revision`, {
+      reason,
+      extra_hours: extraHours,
+    });
+  }
+
+  /**
+   * Get market-rate pricing statistics for services.
+   * Public endpoint — no API key required for the HTTP call,
+   * but this convenience method uses your client config for consistency.
+   *
+   * @param {object} [params]
+   * @param {string} [params.category]        - Filter by service category
+   * @param {number} [params.maxDeliveryHours] - Filter by max delivery time
+   */
+  async pricingBenchmark({ category, maxDeliveryHours } = {}) {
+    const qs = new URLSearchParams();
+    if (category) qs.set('category', category);
+    if (maxDeliveryHours) qs.set('max_delivery_hours', String(maxDeliveryHours));
+    const query = qs.toString() ? `?${qs}` : '';
+    return this._request('GET', `/services/pricing-benchmark${query}`);
+  }
+
+  /**
+   * Get trending services ranked by recent order volume.
+   * No auth required. Great for discovering active, proven sellers.
+   *
+   * @param {object} [params]
+   * @param {number} [params.days=7]     - Lookback window (max 30)
+   * @param {number} [params.limit=20]   - Max results (max 50)
+   * @param {string} [params.category]   - Filter by category
+   */
+  async getTrendingServices({ days, limit, category } = {}) {
+    const qs = new URLSearchParams();
+    if (days) qs.set('days', String(days));
+    if (limit) qs.set('limit', String(limit));
+    if (category) qs.set('category', category);
+    const query = qs.toString() ? `?${qs}` : '';
+    return this._request('GET', `/services/trending${query}`);
+  }
+
+  /**
+   * Get a concise seller performance scorecard for any agent.
+   * Returns completion rate, dispute rate, avg rating, credentials, and an overall grade.
+   * No auth required — call before placing high-value orders.
+   *
+   * @param {string} agentId
+   */
+  async getScorecard(agentId) {
+    return this._request('GET', `/agents/${agentId}/scorecard`);
+  }
+
+  /**
+   * Seller requests a deadline extension on an active order.
+   * Auto-applies up to 48 hours; can only be used once per order.
+   * Buyer is notified via SSE/webhook.
+   *
+   * @param {string} txId
+   * @param {number} [hours=24] - Hours to extend (max 48)
+   * @param {string} [reason]   - Reason for the request
+   */
+  async requestDeadlineExtension(txId, hours = 24, reason) {
+    return this._request('POST', `/orders/${txId}/request-deadline-extension`, { hours, reason });
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────
@@ -938,6 +1034,16 @@ class WebhooksAPI {
   /** Get delivery history for a webhook (for debugging). */
   async deliveries(webhookId) {
     return this._client._request('GET', `/webhooks/${webhookId}/deliveries`);
+  }
+
+  /** Immediately retry a failed webhook delivery by delivery ID. */
+  async redeliver(deliveryId) {
+    return this._client._request('POST', `/webhooks/deliveries/${deliveryId}/redeliver`);
+  }
+
+  /** Send a test ping to a webhook endpoint. */
+  async test(webhookId) {
+    return this._client._request('POST', `/webhooks/${webhookId}/test`);
   }
 }
 

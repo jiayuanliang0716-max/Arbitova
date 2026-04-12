@@ -185,6 +185,10 @@ export declare class WebhooksAPI {
   list(): Promise<Webhook[]>;
   delete(webhookId: string): Promise<void>;
   deliveries(webhookId: string): Promise<WebhookDelivery[]>;
+  /** Immediately retry a failed webhook delivery by delivery ID. */
+  redeliver(deliveryId: string): Promise<{ delivery_id: string; status: string; message: string }>;
+  /** Send a test ping to a webhook endpoint. */
+  test(webhookId: string): Promise<{ webhook_id: string; test_sent: true; message: string }>;
 }
 
 export declare class ApiKeysAPI {
@@ -271,6 +275,105 @@ export declare class Arbitova {
 
   /** Disable away mode and resume accepting orders. */
   clearAway(): Promise<{ away: false; message: string }>;
+
+  /** Seller requests a deadline extension (auto-applied up to 48h, once per order). */
+  requestDeadlineExtension(txId: string, hours?: number, reason?: string): Promise<{
+    order_id: string;
+    new_deadline: string;
+    extended_hours: number;
+    message: string;
+  }>;
+
+  /**
+   * Buyer requests a revision on a delivered order.
+   * Moves order back to 'paid'; seller notified via SSE/webhook.
+   * Avoids opening a dispute for minor issues.
+   */
+  requestRevision(txId: string, opts?: { reason?: string; extraHours?: number }): Promise<{
+    order_id: string;
+    status: 'paid';
+    revision_count: number;
+    new_deadline: string;
+    message: string;
+  }>;
+
+  /** Post a comment on an order (buyer or seller). Other party is notified. */
+  addComment(txId: string, message: string): Promise<{
+    order_id: string;
+    comment: { author_id: string; author_name: string; message: string; created_at: string };
+    total_comments: number;
+  }>;
+
+  /** Get all comments on an order. */
+  getComments(txId: string): Promise<{
+    order_id: string;
+    count: number;
+    comments: Array<{ author_id: string; author_name: string; message: string; created_at: string }>;
+  }>;
+
+  /**
+   * Get market-rate pricing statistics for services.
+   * Public — no auth required for HTTP call.
+   */
+  pricingBenchmark(opts?: { category?: string; maxDeliveryHours?: number }): Promise<{
+    filters: object;
+    service_count: number;
+    pricing: { min: number; max: number; mean: number; median: number; p25: number; p75: number };
+    pricing_advice: Array<{ label: string; price: number; description: string }>;
+    by_category: Record<string, { count: number; min: number; max: number; mean: number; median: number }>;
+  }>;
+
+  /**
+   * Get services trending by recent order volume.
+   * No auth required.
+   */
+  getTrendingServices(opts?: { days?: number; limit?: number; category?: string }): Promise<{
+    period_days: number;
+    category: string | null;
+    count: number;
+    generated_at: string;
+    services: Array<{
+      rank: number;
+      id: string;
+      name: string;
+      description: string;
+      price: number;
+      delivery_hours: number;
+      category: string;
+      agent: { id: string; name: string; reputation_score: number };
+      recent_orders: number;
+      recent_volume_usdc: number;
+    }>;
+  }>;
+
+  /**
+   * Get a concise seller performance scorecard.
+   * No auth required — call before placing high-value orders.
+   */
+  getScorecard(agentId: string): Promise<{
+    agent_id: string;
+    name: string;
+    trust: { score: number; level: 'New' | 'Rising' | 'Trusted' | 'Elite' };
+    grade: 'A' | 'B' | 'C' | 'D';
+    performance: {
+      total_orders: number;
+      completed_orders: number;
+      completion_rate: number | null;
+      dispute_rate: number | null;
+      total_volume_usdc: number;
+    };
+    reviews: { count: number; avg_rating: number | null };
+    credentials: { total: number; verified: number };
+    top_service: {
+      name: string;
+      price: number;
+      category: string;
+      delivery_hours: number;
+      completed_orders: number;
+    } | null;
+    member_since: string;
+    generated_at: string;
+  }>;
 
   /** Seller proposes a partial refund on a disputed order. Avoids 2% arbitration fee if accepted. */
   proposeCounterOffer(txId: string, opts: { refundAmount: number; note?: string }): Promise<{ order_id: string; counter_offer: CounterOffer; message: string }>;

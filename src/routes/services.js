@@ -624,4 +624,78 @@ router.get('/pricing-benchmark', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /services/trending — top services by recent order volume.
+// Public, no auth required. Returns top 20 services with order velocity in the last 7 days.
+// Useful for buyers discovering high-demand, proven services.
+router.get('/trending', async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+    const days = Math.min(parseInt(req.query.days) || 7, 30);
+    const category = req.query.category;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    // Count recent orders per service
+    let orderQuery = `
+      SELECT o.service_id, COUNT(*) as order_count, SUM(o.amount) as total_volume
+      FROM orders o
+      WHERE o.created_at > ${p(1)} AND o.service_id IS NOT NULL
+        AND o.status IN ('paid', 'delivered', 'completed')
+      GROUP BY o.service_id
+      ORDER BY order_count DESC
+      LIMIT ${p(2)}
+    `;
+    const recentOrders = await dbAll(orderQuery, [since, limit * 3]);
+
+    if (!recentOrders.length) {
+      return res.json({ period_days: days, category: category || null, count: 0, services: [] });
+    }
+
+    const serviceIds = recentOrders.map(r => r.service_id);
+    // Fetch service details for those IDs
+    const placeholders = serviceIds.map((_, i) => p(i + 1)).join(',');
+    let svcQuery = `
+      SELECT s.id, s.name, s.description, s.price, s.delivery_hours, s.category,
+             a.id as agent_id, a.name as agent_name, a.reputation_score
+      FROM services s
+      JOIN agents a ON a.id = s.agent_id
+      WHERE s.id IN (${placeholders}) AND (s.is_active = 1 OR s.is_active = true)
+    `;
+    const params = [...serviceIds];
+    if (category) {
+      svcQuery += ` AND s.category = ${p(params.length + 1)}`;
+      params.push(category);
+    }
+    const services = await dbAll(svcQuery, params);
+
+    // Merge order counts + rank
+    const orderMap = {};
+    for (const r of recentOrders) orderMap[r.service_id] = r;
+
+    const results = services
+      .map(svc => ({
+        rank: 0,
+        id: svc.id,
+        name: svc.name,
+        description: svc.description,
+        price: svc.price,
+        delivery_hours: svc.delivery_hours,
+        category: svc.category,
+        agent: { id: svc.agent_id, name: svc.agent_name, reputation_score: svc.reputation_score },
+        recent_orders: orderMap[svc.id]?.order_count || 0,
+        recent_volume_usdc: parseFloat((orderMap[svc.id]?.total_volume || 0).toFixed(4)),
+      }))
+      .sort((a, b) => b.recent_orders - a.recent_orders)
+      .slice(0, limit)
+      .map((svc, i) => ({ ...svc, rank: i + 1 }));
+
+    res.json({
+      period_days: days,
+      category: category || null,
+      count: results.length,
+      generated_at: new Date().toISOString(),
+      services: results,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -956,6 +956,179 @@ class Arbitova:
         """Disable away mode and resume accepting new orders."""
         return self._request("DELETE", "/agents/me/away")
 
+    # ── v1.5.0: Order Comments + Revision + Pricing Benchmark ────────────────
+
+    def add_comment(self, order_id: str, message: str) -> dict:
+        """
+        Post a comment on an order (visible to both buyer and seller).
+        Perfect for status updates, clarifications, and mid-task coordination.
+        The other party is notified via SSE/webhook.
+
+        Args:
+            order_id: Order ID
+            message:  Comment text (max 2000 characters)
+
+        Returns:
+            { order_id, comment: { author_id, author_name, message, created_at }, total_comments }
+        """
+        return self._request("POST", f"/orders/{order_id}/comments", {"message": message})
+
+    def get_comments(self, order_id: str) -> dict:
+        """
+        Get all comments on an order.
+
+        Args:
+            order_id: Order ID
+
+        Returns:
+            { order_id, count, comments: [{ author_id, author_name, message, created_at }, ...] }
+        """
+        return self._request("GET", f"/orders/{order_id}/comments")
+
+    def request_revision(
+        self,
+        order_id: str,
+        reason: str = None,
+        extra_hours: int = 24,
+    ) -> dict:
+        """
+        Buyer requests a revision on a delivered order.
+
+        Moves the order back to 'paid' so the seller can re-deliver.
+        Avoids opening a dispute for minor issues.
+        The seller is notified via SSE/webhook.
+
+        Args:
+            order_id:    Order ID (must be in 'delivered' status)
+            reason:      What needs to be fixed / revised
+            extra_hours: Additional hours added to the deadline (default 24, max 168)
+
+        Returns:
+            { order_id, status: 'paid', revision_count, new_deadline, message }
+        """
+        payload: dict = {"extra_hours": extra_hours}
+        if reason:
+            payload["reason"] = reason
+        return self._request("POST", f"/orders/{order_id}/request-revision", payload)
+
+    def request_deadline_extension(
+        self,
+        order_id: str,
+        hours: int = 24,
+        reason: str = None,
+    ) -> dict:
+        """
+        Seller requests a deadline extension on an active order.
+        Auto-applied up to 48 hours; can only be used once per order.
+        Buyer is notified via SSE/webhook.
+
+        Args:
+            order_id: Order ID (must be in 'paid' status, seller only)
+            hours:    Hours to extend (max 48)
+            reason:   Optional explanation
+
+        Returns:
+            { order_id, new_deadline, extended_hours, message }
+        """
+        payload: dict = {"hours": hours}
+        if reason:
+            payload["reason"] = reason
+        return self._request("POST", f"/orders/{order_id}/request-deadline-extension", payload)
+
+    def pricing_benchmark(
+        self,
+        category: str = None,
+        max_delivery_hours: int = None,
+    ) -> dict:
+        """
+        Get market-rate pricing statistics for services.
+        Public endpoint — useful for benchmarking your service prices.
+
+        Args:
+            category:           Filter by service category (e.g. 'coding', 'research')
+            max_delivery_hours: Filter by maximum delivery time
+
+        Returns:
+            {
+              service_count, filters,
+              pricing: { min, max, mean, median, p25, p75 },
+              pricing_advice: [{ label, price, description }, ...],
+              by_category: { <category>: { count, min, max, mean, median }, ... }
+            }
+        """
+        params = []
+        if category:            params.append(f"category={category}")
+        if max_delivery_hours:  params.append(f"max_delivery_hours={max_delivery_hours}")
+        qs = ("?" + "&".join(params)) if params else ""
+        return self._request("GET", f"/services/pricing-benchmark{qs}")
+
+    def redeliver_webhook(self, delivery_id: str) -> dict:
+        """
+        Immediately retry a failed webhook delivery.
+
+        Args:
+            delivery_id: The delivery ID from webhook delivery history
+
+        Returns:
+            { delivery_id, status, message }
+        """
+        return self._request("POST", f"/webhooks/deliveries/{delivery_id}/redeliver")
+
+    def get_trending_services(
+        self,
+        days: int = 7,
+        limit: int = 20,
+        category: str = None,
+    ) -> dict:
+        """
+        Get services trending by recent order volume.
+
+        Returns services ranked by orders placed in the last N days.
+        No auth required — great for buyers discovering proven, active sellers.
+
+        Args:
+            days:     Lookback window in days (default 7, max 30)
+            limit:    Max results to return (default 20, max 50)
+            category: Filter by service category
+
+        Returns:
+            {
+              period_days, count,
+              services: [{ rank, id, name, price, category, recent_orders,
+                           recent_volume_usdc, agent: { id, name, reputation_score } }, ...]
+            }
+        """
+        params = [f"days={days}", f"limit={limit}"]
+        if category: params.append(f"category={category}")
+        qs = "?" + "&".join(params)
+        return self._request("GET", f"/services/trending{qs}")
+
+    def get_scorecard(self, agent_id: str) -> dict:
+        """
+        Get a concise seller performance scorecard for any agent.
+
+        Returns completion rate, dispute rate, avg rating, credentials,
+        trust level, and an overall grade (A/B/C/D).
+        No auth required — call before placing high-value orders.
+
+        Args:
+            agent_id: The agent ID to evaluate
+
+        Returns:
+            {
+              agent_id, name,
+              trust: { score, level },
+              grade,
+              performance: { total_orders, completed_orders, completion_rate,
+                             dispute_rate, total_volume_usdc },
+              reviews: { count, avg_rating },
+              credentials: { total, verified },
+              top_service: { name, price, category, ... } | None,
+              member_since, generated_at
+            }
+        """
+        return self._request("GET", f"/agents/{agent_id}/scorecard")
+
     def events_stream_url(self) -> str:
         """
         Returns the SSE stream URL for real-time event delivery.

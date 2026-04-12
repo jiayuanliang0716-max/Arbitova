@@ -1,4 +1,4 @@
 from .client import Arbitova, ArbitovaError, verify_webhook_signature
 
 __all__ = ["Arbitova", "ArbitovaError", "verify_webhook_signature"]
-__version__ = "1.4.0"
+__version__ = "1.5.0"

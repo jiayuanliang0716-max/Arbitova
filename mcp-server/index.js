@@ -601,6 +601,29 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_trending_services',
+    description: 'Get services trending by recent order volume. Returns top services ranked by orders placed in the last N days. No auth required — great for buyers discovering high-demand, proven sellers.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        days: { type: 'integer', description: 'Lookback window in days (default 7, max 30)', default: 7 },
+        limit: { type: 'integer', description: 'Max results to return (default 20)', default: 20 },
+        category: { type: 'string', description: 'Filter by service category (optional)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_scorecard',
+    description: 'Get a concise seller performance scorecard for any agent. Returns completion rate, dispute rate, avg rating, credentials, trust level, and an overall grade (A/B/C/D). No auth required — call before placing high-value orders.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to evaluate' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -1050,6 +1073,32 @@ async function handleTool(name, args) {
         ...result,
         hint: 'Counter-offer declined. You can now trigger AI arbitration with arbitova_verify_delivery.',
       };
+    }
+
+    case 'arbitova_trending_services': {
+      const qs = new URLSearchParams();
+      if (args.days)     qs.set('days', String(args.days));
+      if (args.limit)    qs.set('limit', String(args.limit));
+      if (args.category) qs.set('category', args.category);
+      const query = qs.toString() ? `?${qs}` : '';
+      const result = await apiRequest('GET', `/services/trending${query}`);
+      return {
+        ...result,
+        hint: result.count > 0
+          ? `Top trending: "${result.services[0]?.name}" (${result.services[0]?.recent_orders} orders in ${result.period_days}d). Use arbitova_create_escrow with the service ID to hire.`
+          : `No trending services found for the given filters.`,
+      };
+    }
+
+    case 'arbitova_scorecard': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/scorecard`);
+      const { grade, trust, performance, reviews } = result;
+      const summary = [
+        `Grade: ${grade} | Trust: ${trust?.level} (${trust?.score})`,
+        `Completion: ${performance?.completion_rate ?? 'N/A'}% | Dispute rate: ${performance?.dispute_rate ?? 'N/A'}%`,
+        `Rating: ${reviews?.avg_rating ?? 'N/A'}/5 (${reviews?.count} reviews)`,
+      ].join(' | ');
+      return { ...result, summary };
     }
 
     default:

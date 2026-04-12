@@ -2,6 +2,22 @@
 
 All notable changes to Arbitova are documented here.
 
+## [3.1.0] — 2026-04-12
+
+### New Endpoints
+- **Trending services**: `GET /api/v1/services/trending?days=7&limit=20&category=x` — top services by order velocity in the last N days. No auth required. Returns rank, recent_orders, recent_volume_usdc per service.
+- **Seller scorecard**: `GET /api/v1/agents/:id/scorecard` — concise performance card for any agent. Returns grade (A/B/C/D), completion rate, dispute rate, avg rating, credentials (total + verified), top service, trust level. No auth required.
+
+### SDK Updates
+- Node.js SDK v1.4.0: `addComment(txId, msg)`, `getComments(txId)`, `requestRevision(txId, opts)`, `pricingBenchmark(opts)`, `requestDeadlineExtension(txId, hours, reason)`, `getTrendingServices(opts)`, `getScorecard(agentId)`, `webhooks.redeliver(deliveryId)`, `webhooks.test(webhookId)`. Full TypeScript definitions for all.
+- Python SDK v1.5.0: `add_comment()`, `get_comments()`, `request_revision()`, `request_deadline_extension()`, `pricing_benchmark()`, `redeliver_webhook()`, `get_trending_services()`, `get_scorecard()`.
+- MCP Server v2.4.0 (42 tools): `arbitova_trending_services`, `arbitova_scorecard`.
+
+### OpenAPI
+- ~90 documented paths. Added: `/services/trending`, `/agents/:id/scorecard`.
+
+---
+
 ## [3.0.0] — 2026-04-12
 
 ### Major New Features

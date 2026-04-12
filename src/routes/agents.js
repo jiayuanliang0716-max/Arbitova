@@ -1782,4 +1782,99 @@ router.delete('/me/away', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/scorecard — concise seller performance card.
+// Public, no auth required. Returns completion rate, avg rating, dispute rate, credentials, top service.
+// Designed for buyers to quickly vet a seller before placing a high-value order.
+router.get('/:id/scorecard', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const [orderStats, reviewStats, credStats, topService] = await Promise.all([
+      dbGet(
+        `SELECT
+           COUNT(*) as total,
+           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+           SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed,
+           SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as volume
+         FROM orders WHERE seller_id = ${p(1)}`,
+        [agent.id]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as review_count, AVG(rating) as avg_rating
+         FROM reviews WHERE seller_id = ${p(1)}`,
+        [agent.id]
+      ),
+      dbGet(
+        `SELECT COUNT(*) as total,
+           SUM(CASE WHEN self_attested = 0 OR self_attested = false THEN 1 ELSE 0 END) as verified
+         FROM credentials WHERE agent_id = ${p(1)} AND (expires_at IS NULL OR expires_at > ${p(2)})`,
+        [agent.id, new Date().toISOString()]
+      ),
+      dbGet(
+        `SELECT s.name, s.price, s.category, s.delivery_hours,
+           COUNT(o.id) as order_count
+         FROM services s
+         LEFT JOIN orders o ON o.service_id = s.id AND o.status = 'completed'
+         WHERE s.agent_id = ${p(1)} AND (s.is_active = 1 OR s.is_active = true)
+         GROUP BY s.id
+         ORDER BY order_count DESC
+         LIMIT 1`,
+        [agent.id]
+      ),
+    ]);
+
+    const total = parseInt(orderStats?.total) || 0;
+    const completed = parseInt(orderStats?.completed) || 0;
+    const disputed = parseInt(orderStats?.disputed) || 0;
+    const volume = parseFloat(orderStats?.volume) || 0;
+    const completionRate = total > 0 ? parseFloat((completed / total * 100).toFixed(1)) : null;
+    const disputeRate = total > 0 ? parseFloat((disputed / total * 100).toFixed(1)) : null;
+    const avgRating = reviewStats?.avg_rating ? parseFloat(parseFloat(reviewStats.avg_rating).toFixed(2)) : null;
+    const reviewCount = parseInt(reviewStats?.review_count) || 0;
+    const credTotal = parseInt(credStats?.total) || 0;
+    const credVerified = parseInt(credStats?.verified) || 0;
+
+    const score = agent.reputation_score || 0;
+    const trustLevel = score >= 80 ? 'Elite' : score >= 60 ? 'Trusted' : score >= 40 ? 'Rising' : 'New';
+
+    let grade = 'C';
+    if (completionRate !== null && completionRate >= 90 && avgRating !== null && avgRating >= 4.0 && score >= 60) {
+      grade = 'A';
+    } else if (completionRate !== null && completionRate >= 75 && score >= 40) {
+      grade = 'B';
+    } else if (completionRate !== null && completionRate < 50) {
+      grade = 'D';
+    }
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      trust: { score, level: trustLevel },
+      grade,
+      performance: {
+        total_orders: total,
+        completed_orders: completed,
+        completion_rate: completionRate,
+        dispute_rate: disputeRate,
+        total_volume_usdc: parseFloat(volume.toFixed(4)),
+      },
+      reviews: { count: reviewCount, avg_rating: avgRating },
+      credentials: { total: credTotal, verified: credVerified },
+      top_service: topService ? {
+        name: topService.name,
+        price: topService.price,
+        category: topService.category,
+        delivery_hours: topService.delivery_hours,
+        completed_orders: parseInt(topService.order_count) || 0,
+      } : null,
+      member_since: agent.created_at,
+      generated_at: new Date().toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -5667,6 +5667,83 @@
           }
         }
       }
+    },
+    "/services/trending": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "Trending services by recent order volume",
+        "description": "Returns top services ranked by order velocity in the last N days. Useful for buyers discovering high-demand, proven services. No auth required.",
+        "parameters": [
+          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 7, "maximum": 30 }, "description": "Lookback window in days (default 7, max 30)" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 50 }, "description": "Max services to return" },
+          { "name": "category", "in": "query", "schema": { "type": "string" }, "description": "Filter by category" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trending service list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "period_days": { "type": "integer" },
+                    "count": { "type": "integer" },
+                    "services": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "rank": { "type": "integer" },
+                          "id": { "type": "string" },
+                          "name": { "type": "string" },
+                          "price": { "type": "number" },
+                          "category": { "type": "string" },
+                          "recent_orders": { "type": "integer" },
+                          "recent_volume_usdc": { "type": "number" },
+                          "agent": { "type": "object" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agents/{id}/scorecard": {
+      "get": {
+        "tags": ["Agents"],
+        "summary": "Concise seller performance scorecard",
+        "description": "Returns completion rate, dispute rate, avg rating, credentials, trust level, and overall grade for any agent. No auth required. Designed for buyers to vet sellers before high-value orders.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agent scorecard",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "agent_id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "trust": { "type": "object", "description": "{ score, level }" },
+                    "grade": { "type": "string", "enum": ["A", "B", "C", "D"] },
+                    "performance": { "type": "object", "description": "completion_rate, dispute_rate, total_volume_usdc" },
+                    "reviews": { "type": "object", "description": "count, avg_rating" },
+                    "credentials": { "type": "object", "description": "total, verified" },
+                    "top_service": { "type": "object", "nullable": true },
+                    "member_since": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
