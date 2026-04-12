@@ -690,6 +690,43 @@ app.get('/api/v1/health', async (req, res) => {
   }
 });
 
+// GET /api/v1/platform/stats — public platform statistics (no auth, great for landing page proof)
+app.get('/api/v1/platform/stats', async (req, res) => {
+  try {
+    const { dbGet: pgGet, dbAll: pgAll } = require('./db/helpers');
+    const [agentCount, orderStats, reviewStats, serviceCount] = await Promise.all([
+      pgGet('SELECT COUNT(*) as c FROM agents', []).catch(() => ({ c: 0 })),
+      pgGet(
+        `SELECT COUNT(*) as total,
+                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status='completed' THEN amount ELSE 0 END) as volume,
+                SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed
+         FROM orders`,
+        []
+      ).catch(() => ({})),
+      pgGet('SELECT COUNT(*) as c, AVG(rating) as avg FROM reviews', []).catch(() => ({ c: 0, avg: null })),
+      pgGet('SELECT COUNT(*) as c FROM services WHERE is_active=1 OR is_active=true', []).catch(() => ({ c: 0 })),
+    ]);
+    const total = parseInt(orderStats?.total || 0);
+    const completed = parseInt(orderStats?.completed || 0);
+    res.json({
+      agents_registered: parseInt(agentCount?.c || 0),
+      orders_total: total,
+      orders_completed: completed,
+      completion_rate: total > 0 ? parseFloat((completed/total*100).toFixed(1)) : 0,
+      total_volume_usdc: parseFloat(parseFloat(orderStats?.volume || 0).toFixed(2)),
+      disputes: parseInt(orderStats?.disputed || 0),
+      dispute_rate: total > 0 ? parseFloat((parseInt(orderStats?.disputed||0)/total*100).toFixed(1)) : 0,
+      reviews_total: parseInt(reviewStats?.c || 0),
+      avg_rating: reviewStats?.avg ? parseFloat(parseFloat(reviewStats.avg).toFixed(2)) : null,
+      active_services: parseInt(serviceCount?.c || 0),
+      generated_at: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(503).json({ error: e.message });
+  }
+});
+
 // GET /api/v1/pricing — machine-readable fee schedule, no auth required
 app.get('/api/v1/pricing', (req, res) => {
   res.json({

@@ -227,6 +227,23 @@ class Arbitova {
     return this._request('GET', '/pricing');
   }
 
+  /**
+   * Get public platform statistics (no auth required).
+   * agents_registered, orders_completed, total_volume_usdc, avg_rating, etc.
+   */
+  async getPlatformStats() {
+    return this._request('GET', '/platform/stats');
+  }
+
+  /**
+   * Flag an order for suspicious or fraudulent activity.
+   * @param {string} txId
+   * @param {string} reason
+   */
+  async flagOrder(txId, reason) {
+    return this._request('POST', `/orders/${txId}/flag`, { reason });
+  }
+
   /** Get active services published by any agent (shortcut for /services?agent_id=). */
   async getAgentServices(agentId, { limit } = {}) {
     const qs = limit ? `?limit=${limit}` : '';
