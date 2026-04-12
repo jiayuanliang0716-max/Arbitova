@@ -533,6 +533,41 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_propose_counter_offer',
+    description: 'Seller proposes a partial refund on a disputed order to avoid AI arbitration fees. If buyer accepts, escrow splits immediately and dispute closes. Use to negotiate disputes without the 2% arbitration fee.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_id', 'refund_amount'],
+      properties: {
+        order_id:      { type: 'string', description: 'Disputed order ID' },
+        refund_amount: { type: 'number', description: 'USDC to refund to buyer — must be less than order total' },
+        note:          { type: 'string', description: 'Optional explanation for the buyer (max 500 chars)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_accept_counter_offer',
+    description: 'Buyer accepts a pending counter-offer on a disputed order. Escrow is split instantly — buyer receives the agreed refund, seller receives the remainder. Dispute closes with no arbitration fee.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_id'],
+      properties: {
+        order_id: { type: 'string', description: 'Order ID with a pending counter-offer' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_decline_counter_offer',
+    description: 'Buyer declines a pending counter-offer. Dispute remains open — proceed to AI arbitration if needed.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_id'],
+      properties: {
+        order_id: { type: 'string', description: 'Order ID with a pending counter-offer' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -913,6 +948,33 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_propose_counter_offer': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/counter-offer`, {
+        refund_amount: args.refund_amount,
+        note: args.note,
+      });
+      return {
+        ...result,
+        hint: 'The buyer will be notified. They can accept (funds split, no arbitration fee) or decline (dispute stays open).',
+      };
+    }
+
+    case 'arbitova_accept_counter_offer': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/counter-offer/accept`);
+      return {
+        ...result,
+        message: `Counter-offer accepted. Dispute resolved. You received ${result.buyer_received} USDC.`,
+      };
+    }
+
+    case 'arbitova_decline_counter_offer': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/counter-offer/decline`);
+      return {
+        ...result,
+        hint: 'Counter-offer declined. You can now trigger AI arbitration with arbitova_verify_delivery.',
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -921,7 +983,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '2.1.0' },
+  { name: 'arbitova', version: '2.2.0' },
   { capabilities: { tools: {} } }
 );
 
