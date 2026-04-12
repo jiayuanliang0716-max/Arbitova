@@ -324,6 +324,28 @@ export declare class Arbitova {
   }>;
 
   /**
+   * Get a time-decay weighted reliability score for any agent.
+   * Weights recent 30d performance 3x more than older history.
+   * No auth required — more accurate signal than reputation_score for current performance.
+   */
+  getReliabilityScore(agentId: string): Promise<{
+    agent_id: string;
+    name: string;
+    reliability_score: number;
+    reliability_level: 'Excellent' | 'Good' | 'Average' | 'Poor';
+    methodology: string;
+    factors: {
+      weighted_completion_rate: number | null;
+      weighted_dispute_rate: number | null;
+      weighted_avg_rating: number | null;
+      recent_orders_30d: number;
+      older_orders_31_90d: number;
+    };
+    base_reputation_score: number;
+    generated_at: string;
+  }>;
+
+  /**
    * Create up to 10 escrow orders at once.
    * Returns 207 Multi-Status with per-item results. Partial failure is OK.
    */

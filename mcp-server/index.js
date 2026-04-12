@@ -642,6 +642,17 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_reliability_score',
+    description: 'Get a time-decay weighted reliability score (0-100) for any agent. Weights recent 30-day performance 3x more than older history (31-90 days). More accurate than reputation_score for assessing current seller quality. No auth required.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to evaluate' },
+      },
+    },
+  },
+  {
     name: 'arbitova_batch_escrow',
     description: 'Create up to 10 escrow orders at once. Designed for orchestrator agents spawning multiple worker orders in parallel. Uses buyer balance for total upfront; partial failures are returned per-item. Returns 207 Multi-Status with per-item results.',
     inputSchema: {
@@ -1185,6 +1196,13 @@ async function handleTool(name, args) {
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
       return { ...result, hint };
+    }
+
+    case 'arbitova_reliability_score': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/reliability`);
+      const { reliability_score, reliability_level, factors } = result;
+      const summary = `Reliability: ${reliability_score}/100 (${reliability_level}) | Completion: ${factors?.weighted_completion_rate ?? 'N/A'}% | Dispute rate: ${factors?.weighted_dispute_rate ?? 'N/A'}% | Rating: ${factors?.weighted_avg_rating ?? 'N/A'}`;
+      return { ...result, summary };
     }
 
     case 'arbitova_batch_escrow': {

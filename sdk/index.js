@@ -1003,6 +1003,18 @@ class Arbitova {
     return this._request('GET', `/agents/compare?ids=${agentIds.map(encodeURIComponent).join(',')}`);
   }
 
+  /**
+   * Get a time-decay weighted reliability score for an agent.
+   * Weights recent (30d) performance 3x more than older history.
+   * More accurate than reputation_score for current performance assessment.
+   * No auth required.
+   *
+   * @param {string} agentId
+   */
+  async getReliabilityScore(agentId) {
+    return this._request('GET', `/agents/${agentId}/reliability`);
+  }
+
   // ── Batch Order Creation ──────────────────────────────────────────────────
 
   /**

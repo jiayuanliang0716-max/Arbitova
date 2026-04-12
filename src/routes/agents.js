@@ -2025,6 +2025,108 @@ router.post('/me/blocklist', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/reliability — time-decay weighted reliability score.
+// Public, no auth required. Weights recent performance (last 30 days) 3x more than older history.
+// More accurate than reputation_score for current performance assessment.
+router.get('/:id/reliability', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, reputation_score, created_at FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const now = new Date();
+    const recent30 = new Date(now.getTime() - 30 * 24 * 3600000).toISOString();
+    const older90 = new Date(now.getTime() - 90 * 24 * 3600000).toISOString();
+
+    const [recentOrders, olderOrders, recentReviews, olderReviews] = await Promise.all([
+      // Last 30 days
+      dbGet(
+        `SELECT COUNT(*) as total,
+           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+           SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed
+         FROM orders WHERE seller_id = ${p(1)} AND created_at > ${p(2)}`,
+        [agent.id, recent30]
+      ),
+      // 31-90 days ago
+      dbGet(
+        `SELECT COUNT(*) as total,
+           SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
+           SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed
+         FROM orders WHERE seller_id = ${p(1)} AND created_at BETWEEN ${p(2)} AND ${p(3)}`,
+        [agent.id, older90, recent30]
+      ),
+      // Recent reviews
+      dbGet(
+        `SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews
+         WHERE seller_id = ${p(1)} AND created_at > ${p(2)}`,
+        [agent.id, recent30]
+      ),
+      // Older reviews
+      dbGet(
+        `SELECT AVG(rating) as avg_rating FROM reviews
+         WHERE seller_id = ${p(1)} AND created_at BETWEEN ${p(2)} AND ${p(3)}`,
+        [agent.id, older90, recent30]
+      ),
+    ]);
+
+    // Time-decay weighting: recent = 3x, older = 1x
+    const recTotal = parseInt(recentOrders?.total) || 0;
+    const recCompleted = parseInt(recentOrders?.completed) || 0;
+    const recDisputed = parseInt(recentOrders?.disputed) || 0;
+    const oldTotal = parseInt(olderOrders?.total) || 0;
+    const oldCompleted = parseInt(olderOrders?.completed) || 0;
+    const oldDisputed = parseInt(olderOrders?.disputed) || 0;
+
+    const weightedTotal = recTotal * 3 + oldTotal;
+    const weightedCompleted = recCompleted * 3 + oldCompleted;
+    const weightedDisputed = recDisputed * 3 + oldDisputed;
+
+    const completionRate = weightedTotal > 0 ? parseFloat((weightedCompleted / weightedTotal * 100).toFixed(1)) : null;
+    const disputeRate = weightedTotal > 0 ? parseFloat((weightedDisputed / weightedTotal * 100).toFixed(1)) : null;
+
+    // Rating score (weighted)
+    const recRating = recentReviews?.avg_rating ? parseFloat(parseFloat(recentReviews.avg_rating).toFixed(2)) : null;
+    const oldRating = olderReviews?.avg_rating ? parseFloat(parseFloat(olderReviews.avg_rating).toFixed(2)) : null;
+    let weightedRating = null;
+    if (recRating !== null && oldRating !== null) {
+      weightedRating = parseFloat(((recRating * 3 + oldRating) / 4).toFixed(2));
+    } else if (recRating !== null) {
+      weightedRating = recRating;
+    } else if (oldRating !== null) {
+      weightedRating = oldRating;
+    }
+
+    // Composite reliability score (0-100)
+    let reliability = 50; // baseline
+    if (completionRate !== null) reliability = completionRate * 0.5;
+    if (disputeRate !== null) reliability -= disputeRate * 0.3;
+    if (weightedRating !== null) reliability += (weightedRating / 5) * 20;
+    if (recTotal >= 3) reliability += 5; // bonus for recent activity
+    reliability = Math.max(0, Math.min(100, parseFloat(reliability.toFixed(1))));
+
+    const level = reliability >= 85 ? 'Excellent' : reliability >= 70 ? 'Good' : reliability >= 50 ? 'Average' : 'Poor';
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      reliability_score: reliability,
+      reliability_level: level,
+      methodology: 'time_decay_30d_3x_weight',
+      factors: {
+        weighted_completion_rate: completionRate,
+        weighted_dispute_rate: disputeRate,
+        weighted_avg_rating: weightedRating,
+        recent_orders_30d: recTotal,
+        older_orders_31_90d: oldTotal,
+      },
+      base_reputation_score: agent.reputation_score,
+      generated_at: now.toISOString(),
+    });
+  } catch (err) { next(err); }
+});
+
 // DELETE /agents/me/blocklist/:targetId — remove an agent from the blocklist
 router.delete('/me/blocklist/:targetId', requireApiKey, async (req, res, next) => {
   try {

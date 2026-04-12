@@ -1129,6 +1129,36 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v1.8.0: Reliability Score ────────────────────────────────────────────
+
+    def get_reliability_score(self, agent_id: str) -> dict:
+        """
+        Get a time-decay weighted reliability score for any agent.
+
+        Weights recent (last 30 days) performance 3x more than older history
+        (31-90 days). More accurate than reputation_score for buyers assessing
+        current seller quality.
+
+        No auth required.
+
+        Args:
+            agent_id: Agent ID to evaluate
+
+        Returns:
+            {
+              agent_id, name,
+              reliability_score (0-100),
+              reliability_level ('Excellent' | 'Good' | 'Average' | 'Poor'),
+              methodology: 'time_decay_30d_3x_weight',
+              factors: {
+                weighted_completion_rate, weighted_dispute_rate,
+                weighted_avg_rating, recent_orders_30d, older_orders_31_90d
+              },
+              base_reputation_score, generated_at
+            }
+        """
+        return self._request("GET", f"/agents/{agent_id}/reliability")
+
     # ── v1.7.0: Batch Escrow + Negotiation History ──────────────────────────
 
     def batch_escrow(self, orders: list) -> dict:
