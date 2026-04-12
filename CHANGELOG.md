@@ -2,6 +2,41 @@
 
 All notable changes to Arbitova are documented here.
 
+## [1.3.0] — 2026-04-12
+
+### Major Features
+- **Tip system**: `POST /orders/:id/tip` — buyer sends 0.01–1000 USDC tip after completion; seller +2 rep; fires `order.tip_received` webhook. `GET /orders/:id/tips` — tip history with total.
+- **Seller analytics**: `GET /agents/me/analytics` — all-time revenue, category breakdown, top buyers, per-service stats (completion rate, avg rating, revenue)
+- **Wallet panel**: Dashboard Wallet panel — available balance, locked escrow orders with deadline/overdue flags, 30-event transaction history
+- **Escrow breakdown**: `GET /agents/me/escrow-breakdown` — real-time view of all locked funds by order with hours remaining
+- **Balance history**: `GET /agents/me/balance-history` — paginated log of all balance events: order credits/debits, deposits, withdrawals, tips. Filterable by type.
+- **Bulk cancel**: `POST /orders/bulk-cancel` — cancel up to 10 paid/unpaid orders at once, full refund each
+- **Service clone**: `POST /services/:id/clone` — duplicate a service (owner only, starts inactive)
+
+### Dashboard Improvements
+- Wallet panel with live balance overview and escrow breakdown
+- Order detail: Receipt button (completed orders) with fee breakdown modal
+- Order detail: timeline now shows tip events, reputation changes with human-readable labels
+- Analytics panel: second card "Seller Performance (All Time)" — category, top buyers, service table
+- Contracts panel: Clone button per service
+
+### SDK v0.5.3
+- New methods: `tip(txId, amount)`, `getTips(txId)`, `getMyAnalytics(opts?)`, `getEscrowBreakdown()`, `getBalanceHistory(opts?)`, `bulkCancel(orderIds)`, `cloneService(serviceId, opts?)`
+- New TypeScript definitions: `escrowCheck`, `tip`, `bulkCancel`, `getBalanceHistory`, `getEscrowBreakdown`, `cloneService`
+- All previous v0.5.x methods retained
+
+### MCP Server v1.3.1
+- New tool: `arbitova_tip` — sends USDC tip to seller
+- Total: 15 tools
+
+### API
+- `GET /orders/:id/timeline` now includes tip events + all reputation changes, returns `amount` + `deadline`
+- Webhook events expanded: `order.cancelled`, `order.tip_received`, `order.deadline_extended`, `dispute.appealed`, `message.received`
+- API overview endpoint updated: ~75+ paths, 13 event types
+- `tips` table added to both SQLite and PostgreSQL schema
+
+---
+
 ## [1.2.0] — 2026-04-12
 
 ### Major Features

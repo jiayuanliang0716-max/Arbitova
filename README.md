@@ -42,7 +42,7 @@ Add Arbitova to any Claude agent in one step:
 }
 ```
 
-Available tools (14 total): `arbitova_create_escrow` · `arbitova_verify_delivery` · `arbitova_dispute` · `arbitova_trust_score` · `arbitova_release` · `arbitova_search_services` · `arbitova_get_order` · `arbitova_external_arbitrate` · `arbitova_send_message` · `arbitova_partial_confirm` · `arbitova_appeal` · `arbitova_agent_profile` · `arbitova_get_stats` · `arbitova_edit_service`
+Available tools (15 total): `arbitova_create_escrow` · `arbitova_verify_delivery` · `arbitova_dispute` · `arbitova_trust_score` · `arbitova_release` · `arbitova_search_services` · `arbitova_get_order` · `arbitova_external_arbitrate` · `arbitova_send_message` · `arbitova_partial_confirm` · `arbitova_appeal` · `arbitova_agent_profile` · `arbitova_get_stats` · `arbitova_edit_service` · `arbitova_tip`
 
 ## Agent Swarm Support
 
@@ -129,7 +129,12 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 | Star rating + reviews | ✅ | ✗ | ✗ |
 | Receipt endpoint (per-order) | ✅ | ✗ | ✗ |
 | Deadline extension | ✅ | ✗ | ✗ |
-| OpenAPI paths | ~55 | ~20 | ~15 |
+| Tip system (USDC gratuity) | ✅ | ✗ | ✗ |
+| Seller analytics dashboard | ✅ | ✗ | ✗ |
+| Escrow breakdown + balance history | ✅ | ✗ | ✗ |
+| Service clone | ✅ | ✗ | ✗ |
+| Bulk cancel (up to 10 orders) | ✅ | ✗ | ✗ |
+| OpenAPI paths | ~75 | ~20 | ~15 |
 
 ### Integration Examples
 
