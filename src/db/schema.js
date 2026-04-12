@@ -42,6 +42,7 @@ if (DATABASE_URL) {
         created_at       TIMESTAMPTZ DEFAULT NOW()
       );
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS reputation_score INTEGER DEFAULT 0;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS escrow NUMERIC DEFAULT 0.0;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_encrypted_key TEXT;
 
@@ -662,6 +663,7 @@ if (DATABASE_URL) {
     } catch (e) { console.error('Migration warn:', e.message); }
   }
   addColIfMissing('agents', 'reputation_score', 'INTEGER DEFAULT 0');
+  addColIfMissing('agents', 'escrow', 'REAL DEFAULT 0');
   addColIfMissing('agents', 'stake', 'REAL DEFAULT 0');
   addColIfMissing('services', 'input_schema', 'TEXT');
   addColIfMissing('services', 'output_schema', 'TEXT');
