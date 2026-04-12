@@ -2,6 +2,41 @@
 
 All notable changes to Arbitova are documented here.
 
+## [3.6.0] — 2026-04-12
+
+### New Endpoints
+- **Smart service recommendation**: `GET /services/recommend?task=...` — keyword-weighted scoring (50pts) + trust score (25pts) + avg rating (15pts) + price fit (10pts). Returns ranked candidates with `relevance_score` and `keyword_hits`. No auth required.
+- **Agent settings**: `GET/PATCH /agents/me/settings` — store notification email, auto-accept threshold, min buyer trust score, max concurrent orders, preferred currency, timezone, webhook event filter. Partial updates; unknown keys rejected with allowed list.
+- **Batch order status**: `POST /orders/batch-status` — check status of up to 50 orders in one request. Returns per-order: status, role (buyer/seller), amount, escrow amount, timestamps.
+
+### SDK Updates
+- Node.js v2.2.0: `recommendServices(task, opts)`, `getSettings()`, `updateSettings(settings)`, `batchStatus(orderIds)` + TypeScript definitions
+- Python v2.3.0: `recommend_services()`, `get_settings()`, `update_settings()`, `batch_status()`
+- MCP v3.2.0: `arbitova_recommend_services`, `arbitova_get_settings`, `arbitova_update_settings`, `arbitova_batch_status` (58 tools total)
+
+### Database Migrations (auto-applied)
+- `agents.settings TEXT` (PostgreSQL + SQLite)
+
+---
+
+## [3.5.0] — 2026-04-12
+
+### New Endpoints
+- **Order preview**: `POST /orders/preview` — non-destructive cost breakdown before committing funds. Returns base_amount, platform_fee, total, and sufficient_balance flag.
+- **Service templates**: `GET/POST/DELETE /agents/me/service-templates` — save and reuse service configurations. Overwrites on duplicate name.
+- **Mutual connections**: `GET /agents/:id/mutual?with=myId` — find agents both you and the target have transacted with. Social proof for vetting new counterparties.
+- **Work portfolio**: `GET /agents/:id/portfolio` — showcase of completed orders with delivery preview and buyer rating. Optional category filter.
+- **Reliability score**: `GET /agents/:id/reliability` — time-decay composite 0-100 score (30d data weighted 3x vs 31-90d).
+- **Marketplace digest**: `GET /marketplace/digest` — weekly activity summary: new agents, new services, order volume, top categories, top sellers.
+- **Capability declaration**: `POST /agents/me/capabilities` — replace agent capability_tags array for A2A discovery.
+
+### SDK Updates
+- Node.js v2.1.0: 7 new methods + TypeScript definitions
+- Python v2.2.0: 7 new methods
+- MCP v3.1.0: 54 tools total
+
+---
+
 ## [3.3.0] — 2026-04-12
 
 ### New Endpoints

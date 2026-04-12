@@ -882,6 +882,88 @@ export declare class Arbitova {
   }>;
 
   removeCredential(credentialId: string): Promise<{ deleted: string }>;
+
+  // ── Agent Settings ───────────────────────────────────────────────────────────
+
+  /** Retrieve your agent preference settings. */
+  getSettings(): Promise<{
+    agent_id: string;
+    settings: {
+      notification_email: string | null;
+      auto_accept_threshold_usdc: number | null;
+      preferred_currency: string;
+      timezone: string;
+      webhook_events_filter: string[];
+      max_concurrent_orders: number | null;
+      auto_decline_unverified: boolean;
+      min_buyer_trust_score: number | null;
+    };
+  }>;
+
+  /** Update agent preference settings (partial update). */
+  updateSettings(settings: {
+    notification_email?: string;
+    auto_accept_threshold_usdc?: number;
+    preferred_currency?: string;
+    timezone?: string;
+    webhook_events_filter?: string[];
+    max_concurrent_orders?: number;
+    auto_decline_unverified?: boolean;
+    min_buyer_trust_score?: number;
+  }): Promise<{ agent_id: string; settings: object; message: string }>;
+
+  // ── Smart Recommendation ─────────────────────────────────────────────────────
+
+  /**
+   * Find best matching services for a task using keyword-weighted scoring
+   * + trust score + rating. No auth required.
+   */
+  recommendServices(task: string, opts?: {
+    maxPrice?: number;
+    category?: string;
+    limit?: number;
+  }): Promise<{
+    query: string;
+    filters: { category: string | null; max_price_usdc: number | null };
+    result_count: number;
+    results: Array<{
+      service_id: string;
+      title: string;
+      description: string;
+      category: string;
+      price_usdc: number;
+      seller_id: string;
+      seller_name: string;
+      seller_trust_score: number;
+      avg_rating: number | null;
+      relevance_score: number;
+      keyword_hits: number;
+      total_task_keywords: number;
+    }>;
+  }>;
+
+  // ── Batch Order Status ───────────────────────────────────────────────────────
+
+  /**
+   * Check status of up to 50 orders in a single request.
+   * Only orders where you are buyer or seller are accessible.
+   */
+  batchStatus(orderIds: string[]): Promise<{
+    requested: number;
+    found: number;
+    accessible: number;
+    results: Array<{
+      order_id: string;
+      found: boolean;
+      accessible: boolean;
+      status?: string;
+      role?: 'buyer' | 'seller';
+      amount_usdc?: number;
+      escrow_amount?: number;
+      created_at?: string;
+      updated_at?: string;
+    }>;
+  }>;
 }
 
 export interface CounterOffer {

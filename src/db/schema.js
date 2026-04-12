@@ -160,6 +160,7 @@ if (DATABASE_URL) {
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS blocklist TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS capability_tags TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS service_templates TEXT;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS settings TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS rate_card TEXT;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_buyer_trust INTEGER DEFAULT 0;
 
@@ -710,6 +711,7 @@ if (DATABASE_URL) {
   addColIfMissing('agents', 'blocklist', 'TEXT');
   addColIfMissing('agents', 'capability_tags', 'TEXT');
   addColIfMissing('agents', 'service_templates', 'TEXT');
+  addColIfMissing('agents', 'settings', 'TEXT');
   addColIfMissing('services', 'min_buyer_trust', 'INTEGER');
 
   // rate_card on services — JSON array of volume pricing tiers

@@ -2379,4 +2379,61 @@ router.delete('/me/blocklist/:targetId', requireApiKey, async (req, res, next) =
   } catch (err) { next(err); }
 });
 
+// ── GET /agents/me/settings — retrieve agent preference settings ───────────────
+router.get('/me/settings', requireApiKey, async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT settings FROM agents WHERE id = ${p(1)}`,
+      [req.agent.id]
+    );
+    const settings = agent?.settings
+      ? (typeof agent.settings === 'string' ? JSON.parse(agent.settings) : agent.settings)
+      : {};
+
+    const defaults = {
+      notification_email: null,
+      auto_accept_threshold_usdc: null,
+      preferred_currency: 'USDC',
+      timezone: 'UTC',
+      webhook_events_filter: ['*'],
+      max_concurrent_orders: null,
+      auto_decline_unverified: false,
+      min_buyer_trust_score: null,
+    };
+
+    res.json({ agent_id: req.agent.id, settings: { ...defaults, ...settings } });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /agents/me/settings — update agent preference settings ──────────────
+const ALLOWED_SETTINGS = new Set([
+  'notification_email', 'auto_accept_threshold_usdc', 'preferred_currency',
+  'timezone', 'webhook_events_filter', 'max_concurrent_orders',
+  'auto_decline_unverified', 'min_buyer_trust_score',
+]);
+
+router.patch('/me/settings', requireApiKey, async (req, res, next) => {
+  try {
+    const updates = req.body;
+    if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Request body must be a settings object' });
+    }
+
+    const unknown = Object.keys(updates).filter(k => !ALLOWED_SETTINGS.has(k));
+    if (unknown.length) {
+      return res.status(400).json({ error: `Unknown settings keys: ${unknown.join(', ')}`, allowed: [...ALLOWED_SETTINGS] });
+    }
+
+    const agent = await dbGet(`SELECT settings FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const current = agent?.settings
+      ? (typeof agent.settings === 'string' ? JSON.parse(agent.settings) : agent.settings)
+      : {};
+
+    const merged = { ...current, ...updates };
+    await dbRun(`UPDATE agents SET settings = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(merged), req.agent.id]);
+
+    res.json({ agent_id: req.agent.id, settings: merged, message: 'Settings updated.' });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

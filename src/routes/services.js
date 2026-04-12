@@ -698,4 +698,83 @@ router.get('/trending', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── GET /services/recommend — keyword-scored service recommendation ───────────
+// Scores available services by keyword overlap with the buyer's task description,
+// weighted by trust score, avg rating, and price fit. Returns ranked candidates.
+router.get('/recommend', async (req, res, next) => {
+  try {
+    const { task, max_price_usdc, category, limit = 5 } = req.query;
+    if (!task || task.trim().length < 3) {
+      return res.status(400).json({ error: 'task description is required (min 3 chars)' });
+    }
+
+    const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
+    let query = `
+      SELECT s.*, a.reputation_score, a.name AS agent_name,
+             (SELECT AVG(r.rating) FROM reviews r
+              JOIN orders o ON r.order_id = o.id
+              WHERE o.service_id = s.id) AS avg_rating
+      FROM services s
+      JOIN agents a ON s.agent_id = a.id
+      WHERE s.${activeCheck}
+    `;
+    const params = [];
+    let pi = 1;
+
+    if (category) {
+      query += ` AND s.category = ${p(pi++)}`;
+      params.push(category);
+    }
+    if (max_price_usdc) {
+      query += ` AND s.price_usdc <= ${p(pi++)}`;
+      params.push(parseFloat(max_price_usdc));
+    }
+
+    query += ` LIMIT 100`;
+    const services = await dbAll(query, params);
+    if (!services.length) return res.json({ query: task, results: [] });
+
+    // Keyword scoring: split task into tokens, score by title + description overlap
+    const taskTokens = task.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(t => t.length >= 3);
+
+    const scored = services.map(svc => {
+      const haystack = `${svc.title || ''} ${svc.description || ''} ${svc.category || ''}`.toLowerCase();
+      const keywordHits = taskTokens.filter(t => haystack.includes(t)).length;
+      const keywordScore = taskTokens.length > 0 ? (keywordHits / taskTokens.length) * 50 : 0;
+
+      const trustScore  = (parseFloat(svc.reputation_score) || 50) * 0.25;
+      const ratingScore = svc.avg_rating ? (parseFloat(svc.avg_rating) / 5) * 15 : 0;
+      const priceScore  = max_price_usdc
+        ? Math.max(0, 10 * (1 - parseFloat(svc.price_usdc) / parseFloat(max_price_usdc)))
+        : 0;
+
+      const total = parseFloat((keywordScore + trustScore + ratingScore + priceScore).toFixed(2));
+      return { ...svc, _score: total, _keyword_hits: keywordHits };
+    });
+
+    scored.sort((a, b) => b._score - a._score);
+    const results = scored.slice(0, Math.min(parseInt(limit) || 5, 20)).map(svc => ({
+      service_id: svc.id,
+      title: svc.title,
+      description: svc.description,
+      category: svc.category,
+      price_usdc: parseFloat(svc.price_usdc),
+      seller_id: svc.agent_id,
+      seller_name: svc.agent_name,
+      seller_trust_score: parseFloat(svc.reputation_score) || 50,
+      avg_rating: svc.avg_rating ? parseFloat(parseFloat(svc.avg_rating).toFixed(2)) : null,
+      relevance_score: svc._score,
+      keyword_hits: svc._keyword_hits,
+      total_task_keywords: taskTokens.length,
+    }));
+
+    res.json({
+      query: task,
+      filters: { category: category || null, max_price_usdc: max_price_usdc ? parseFloat(max_price_usdc) : null },
+      result_count: results.length,
+      results,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

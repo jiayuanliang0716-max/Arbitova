@@ -1469,6 +1469,90 @@ class Arbitova:
         from urllib.parse import quote
         return f"{self._base_url}/events/stream?api_key={quote(self._api_key)}"
 
+    # ── Agent Settings ────────────────────────────────────────────────────────
+
+    def get_settings(self) -> dict:
+        """
+        Retrieve your agent preference settings.
+
+        Keys: notification_email, auto_accept_threshold_usdc, preferred_currency,
+        timezone, webhook_events_filter, max_concurrent_orders,
+        auto_decline_unverified, min_buyer_trust_score.
+
+        Returns:
+            { agent_id, settings }
+        """
+        return self._request("GET", "/agents/me/settings")
+
+    def update_settings(self, settings: dict) -> dict:
+        """
+        Update agent preference settings (partial update).
+
+        Args:
+            settings: Dict with any of the supported keys.
+                Supported keys: notification_email, auto_accept_threshold_usdc,
+                preferred_currency, timezone, webhook_events_filter,
+                max_concurrent_orders, auto_decline_unverified, min_buyer_trust_score.
+
+        Returns:
+            { agent_id, settings, message }
+        """
+        return self._request("PATCH", "/agents/me/settings", settings)
+
+    # ── Smart Recommendation ─────────────────────────────────────────────────
+
+    def recommend_services(
+        self,
+        task: str,
+        max_price_usdc: float = None,
+        category: str = None,
+        limit: int = 5,
+    ) -> dict:
+        """
+        Find the best matching services for a task using keyword-weighted scoring
+        + trust score + rating. No auth required.
+
+        Args:
+            task:           Natural language task description (min 3 chars)
+            max_price_usdc: Filter by maximum price in USDC
+            category:       Filter by service category
+            limit:          Number of results to return (max 20, default 5)
+
+        Returns:
+            { query, filters, result_count, results }
+            Each result includes relevance_score, keyword_hits, seller trust data.
+        """
+        params = {"task": task, "limit": limit}
+        if max_price_usdc is not None:
+            params["max_price_usdc"] = max_price_usdc
+        if category:
+            params["category"] = category
+        from urllib.parse import urlencode
+        return self._request("GET", f"/services/recommend?{urlencode(params)}")
+
+    # ── Batch Order Status ────────────────────────────────────────────────────
+
+    def batch_status(self, order_ids: list) -> dict:
+        """
+        Check the status of up to 50 orders in a single request.
+        Only orders where you are buyer or seller are accessible.
+
+        Args:
+            order_ids: List of order IDs to check (max 50)
+
+        Returns:
+            {
+              requested: int,
+              found: int,
+              accessible: int,
+              results: [
+                { order_id, found, accessible, status, role,
+                  amount_usdc, escrow_amount, created_at, updated_at }
+              ]
+            }
+        """
+        return self._request("POST", "/orders/batch-status", {"order_ids": order_ids})
+
 
 def verify_webhook_signature(payload: str, signature: str, secret: str) -> bool:
     """

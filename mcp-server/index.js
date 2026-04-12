@@ -790,6 +790,67 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_recommend_services',
+    description: 'Find the best matching services for a task description using keyword-score + trust-weighted ranking. Returns ranked candidates with relevance scores.',
+    inputSchema: {
+      type: 'object',
+      required: ['task'],
+      properties: {
+        task:            { type: 'string', description: 'Natural language description of what you need' },
+        max_price_usdc:  { type: 'number', description: 'Maximum price you are willing to pay in USDC' },
+        category:        { type: 'string', description: 'Filter by service category' },
+        limit:           { type: 'number', description: 'Number of results to return (default 5, max 20)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_get_settings',
+    description: 'Retrieve your agent preference settings: notification email, auto-accept threshold, trusted agent rules, webhook filter, and more.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'arbitova_update_settings',
+    description: 'Update agent preference settings. Supported keys: notification_email, auto_accept_threshold_usdc, preferred_currency, timezone, webhook_events_filter, max_concurrent_orders, auto_decline_unverified, min_buyer_trust_score.',
+    inputSchema: {
+      type: 'object',
+      required: ['settings'],
+      properties: {
+        settings: {
+          type: 'object',
+          description: 'Partial settings object — only the keys you want to change',
+          properties: {
+            notification_email:         { type: 'string' },
+            auto_accept_threshold_usdc: { type: 'number' },
+            preferred_currency:         { type: 'string' },
+            timezone:                   { type: 'string' },
+            webhook_events_filter:      { type: 'array', items: { type: 'string' } },
+            max_concurrent_orders:      { type: 'number' },
+            auto_decline_unverified:    { type: 'boolean' },
+            min_buyer_trust_score:      { type: 'number' },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'arbitova_batch_status',
+    description: 'Check the status of up to 50 orders in a single request. Returns per-order status, role (buyer/seller), amount, and timestamps.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_ids'],
+      properties: {
+        order_ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Array of order IDs to check (max 50)',
+        },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -1376,6 +1437,26 @@ async function handleTool(name, args) {
       return result;
     }
 
+    case 'arbitova_recommend_services': {
+      const qs = new URLSearchParams({ task: args.task });
+      if (args.max_price_usdc) qs.set('max_price_usdc', args.max_price_usdc);
+      if (args.category) qs.set('category', args.category);
+      if (args.limit) qs.set('limit', args.limit);
+      return apiRequest('GET', `/services/recommend?${qs}`);
+    }
+
+    case 'arbitova_get_settings': {
+      return apiRequest('GET', '/agents/me/settings');
+    }
+
+    case 'arbitova_update_settings': {
+      return apiRequest('PATCH', '/agents/me/settings', args.settings);
+    }
+
+    case 'arbitova_batch_status': {
+      return apiRequest('POST', '/orders/batch-status', { order_ids: args.order_ids });
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -1384,7 +1465,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '2.3.0' },
+  { name: 'arbitova', version: '3.2.0' },
   { capabilities: { tools: {} } }
 );
 

@@ -2565,4 +2565,56 @@ router.get('/:id/comments', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── POST /orders/batch-status — check status of multiple orders at once ────────
+// Accepts an array of order IDs and returns status for each in one request.
+// Only returns orders where the caller is buyer or seller (silently skips others).
+router.post('/batch-status', requireApiKey, async (req, res, next) => {
+  try {
+    const { order_ids } = req.body;
+    if (!Array.isArray(order_ids) || order_ids.length === 0) {
+      return res.status(400).json({ error: 'order_ids must be a non-empty array' });
+    }
+    if (order_ids.length > 50) {
+      return res.status(400).json({ error: 'Maximum 50 order IDs per request' });
+    }
+
+    // Fetch all in one query using IN clause
+    const placeholders = order_ids.map((_, i) => p(i + 1)).join(', ');
+    const rows = await dbAll(
+      `SELECT id, status, buyer_id, seller_id, amount_usdc, escrow_amount, created_at, updated_at
+       FROM orders WHERE id IN (${placeholders})`,
+      order_ids
+    );
+
+    const visible = rows.filter(r => r.buyer_id === req.agent.id || r.seller_id === req.agent.id);
+    const visibleIds = new Set(visible.map(r => r.id));
+
+    const results = order_ids.map(oid => {
+      if (!visibleIds.has(oid)) {
+        const found = rows.find(r => r.id === oid);
+        return { order_id: oid, found: !!found, accessible: false };
+      }
+      const row = visible.find(r => r.id === oid);
+      return {
+        order_id: oid,
+        found: true,
+        accessible: true,
+        status: row.status,
+        role: row.buyer_id === req.agent.id ? 'buyer' : 'seller',
+        amount_usdc: parseFloat(row.amount_usdc),
+        escrow_amount: parseFloat(row.escrow_amount || 0),
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      };
+    });
+
+    res.json({
+      requested: order_ids.length,
+      found: rows.length,
+      accessible: visible.length,
+      results,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

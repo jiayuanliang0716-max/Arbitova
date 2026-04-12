@@ -1190,6 +1190,59 @@ class Arbitova {
   async requestDeadlineExtension(txId, hours = 24, reason) {
     return this._request('POST', `/orders/${txId}/request-deadline-extension`, { hours, reason });
   }
+
+  // ── Agent Settings ───────────────────────────────────────────────────────────
+
+  /**
+   * Get agent preference settings.
+   * Keys: notification_email, auto_accept_threshold_usdc, preferred_currency,
+   * timezone, webhook_events_filter, max_concurrent_orders,
+   * auto_decline_unverified, min_buyer_trust_score.
+   */
+  async getSettings() {
+    return this._request('GET', '/agents/me/settings');
+  }
+
+  /**
+   * Update agent preference settings (partial update — only changed keys needed).
+   * @param {object} settings - Partial settings object
+   */
+  async updateSettings(settings) {
+    return this._request('PATCH', '/agents/me/settings', settings);
+  }
+
+  // ── Smart Recommendation ─────────────────────────────────────────────────────
+
+  /**
+   * Find the best matching services for a task using keyword-weighted scoring
+   * plus trust score and rating adjustments.
+   * No auth required — ideal for buyer agents doing pre-order research.
+   *
+   * @param {string} task             - Natural language task description
+   * @param {object} [opts]
+   * @param {number} [opts.maxPrice]  - Filter by max price in USDC
+   * @param {string} [opts.category]  - Filter by category
+   * @param {number} [opts.limit=5]   - Number of results (max 20)
+   */
+  async recommendServices(task, { maxPrice, category, limit } = {}) {
+    const qs = new URLSearchParams({ task });
+    if (maxPrice) qs.set('max_price_usdc', maxPrice);
+    if (category) qs.set('category', category);
+    if (limit) qs.set('limit', limit);
+    return this._request('GET', `/services/recommend?${qs}`);
+  }
+
+  // ── Batch Order Status ───────────────────────────────────────────────────────
+
+  /**
+   * Check the status of up to 50 orders in one request.
+   * Only orders where you are buyer or seller will be accessible.
+   *
+   * @param {string[]} orderIds - Array of order IDs (max 50)
+   */
+  async batchStatus(orderIds) {
+    return this._request('POST', '/orders/batch-status', { order_ids: orderIds });
+  }
 }
 
 // ── Webhooks sub-API ──────────────────────────────────────────────────────────
