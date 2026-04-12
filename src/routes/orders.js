@@ -772,6 +772,92 @@ router.get('/:id/timeline', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /orders/:id/negotiation — dispute-resolution timeline for an order.
+// Returns a structured log of all negotiation events: disputes, counter-offers,
+// revision requests, deadline extensions, arbitration verdicts, and appeals.
+// Useful for understanding the resolution path and for building appeals.
+router.get('/:id/negotiation', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id && order.seller_id !== req.agent.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const events = [];
+
+    // Dispute
+    const dispute = await dbGet(`SELECT * FROM disputes WHERE order_id = ${p(1)}`, [order.id]);
+    if (dispute) {
+      events.push({
+        type: 'dispute_opened',
+        timestamp: dispute.created_at,
+        raised_by: dispute.raised_by,
+        reason: dispute.reason,
+      });
+      if (dispute.status === 'resolved') {
+        events.push({
+          type: 'dispute_resolved',
+          timestamp: dispute.resolved_at,
+          resolution: dispute.resolution,
+          winner: dispute.winner || null,
+        });
+      }
+    }
+
+    // Counter-offer
+    const co = order.counter_offer
+      ? (typeof order.counter_offer === 'string' ? JSON.parse(order.counter_offer) : order.counter_offer)
+      : null;
+    if (co) {
+      events.push({
+        type: 'counter_offer_proposed',
+        timestamp: co.proposed_at,
+        proposed_by: co.proposed_by,
+        refund_amount: co.refund_amount,
+        seller_keeps: co.seller_keeps,
+        note: co.note || null,
+      });
+      if (co.status === 'accepted') {
+        events.push({ type: 'counter_offer_accepted', timestamp: co.accepted_at, resolution: 'split' });
+      } else if (co.status === 'declined') {
+        events.push({ type: 'counter_offer_declined', timestamp: co.declined_at });
+      }
+    }
+
+    // Revision requests (from comments tagged as revision requests)
+    if (order.revision_count > 0) {
+      events.push({
+        type: 'revisions_requested',
+        revision_count: order.revision_count,
+        max_revisions: order.max_revisions || 3,
+        note: `${order.revision_count} revision(s) requested by buyer`,
+      });
+    }
+
+    // Deadline extension
+    if (order.seller_extension_used === 1 || order.seller_extension_used === true) {
+      events.push({ type: 'deadline_extension_applied', note: 'Seller requested a deadline extension (auto-applied).' });
+    }
+
+    // Sort by timestamp where available
+    events.sort((a, b) => {
+      if (!a.timestamp) return 1;
+      if (!b.timestamp) return -1;
+      return new Date(a.timestamp) - new Date(b.timestamp);
+    });
+
+    res.json({
+      order_id: order.id,
+      status: order.status,
+      is_disputed: !!dispute,
+      negotiation_events: events,
+      event_count: events.length,
+      resolution_path: events.map(e => e.type).join(' → ') || 'none',
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /orders/:id/deliver
 router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
   try {
@@ -1606,6 +1692,100 @@ router.post('/bulk-cancel', requireApiKey, async (req, res, next) => {
     const summary = results.map((r, i) => r.status === 'fulfilled' ? r.value : { order_id: order_ids[i], error: r.reason?.message || 'Unknown error' });
     const succeeded = summary.filter(r => !r.error).length;
     res.json({ processed: order_ids.length, succeeded, failed: order_ids.length - succeeded, results: summary });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/batch — create up to 10 escrow orders at once.
+// Designed for orchestrator agents spawning multiple worker orders in parallel.
+// Each item in the `orders` array follows the same schema as POST /orders.
+// Processes all in parallel; returns per-item results. Partial failure is OK.
+router.post('/batch', idempotency(), requireApiKey, async (req, res, next) => {
+  try {
+    const { orders: orderItems } = req.body;
+    if (!Array.isArray(orderItems) || orderItems.length === 0) {
+      return res.status(400).json({ error: 'orders must be a non-empty array' });
+    }
+    if (orderItems.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 orders per batch' });
+    }
+
+    // Check buyer balance upfront — must have enough for the total batch
+    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    const totalRequired = orderItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
+    if (parseFloat(buyer?.balance || 0) < totalRequired) {
+      return res.status(402).json({
+        error: 'Insufficient balance for batch',
+        balance: parseFloat(buyer?.balance || 0),
+        required: totalRequired,
+      });
+    }
+
+    // Process each order item in parallel
+    const results = await Promise.all(orderItems.map(async (item, idx) => {
+      try {
+        const { service_id, requirements, max_revisions, expected_hash } = item;
+        if (!service_id) return { index: idx, error: 'service_id is required' };
+
+        const service = await dbGet(
+          `SELECT s.*, a.id as agent_id, a.name as agent_name, a.away_mode, a.blocklist
+           FROM services s JOIN agents a ON a.id = s.agent_id
+           WHERE s.id = ${p(1)} AND (s.is_active = 1 OR s.is_active = true)`,
+          [service_id]
+        );
+        if (!service) return { index: idx, service_id, error: 'Service not found or inactive' };
+        if (service.agent_id === req.agent.id) return { index: idx, service_id, error: 'Cannot order your own service' };
+
+        // Blocklist check
+        const sellerBl = service.blocklist ? (typeof service.blocklist === 'string' ? JSON.parse(service.blocklist) : service.blocklist) : [];
+        if (sellerBl.some(b => b.agent_id === req.agent.id)) {
+          return { index: idx, service_id, error: 'Blocked by seller' };
+        }
+
+        // Away mode check
+        if (service.away_mode) {
+          const away = typeof service.away_mode === 'string' ? JSON.parse(service.away_mode) : service.away_mode;
+          if (away?.active && !(away.until && new Date(away.until) < new Date())) {
+            return { index: idx, service_id, error: 'Seller is currently away', code: 'seller_away' };
+          }
+        }
+
+        const amount = parseFloat(item.amount || service.price);
+        const orderId = 'ord_' + uuidv4().replace(/-/g, '').slice(0, 16);
+        const deadline = new Date(Date.now() + (service.delivery_hours || 48) * 3600000).toISOString();
+        const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+        // Deduct buyer balance for this order
+        await dbRun(
+          `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
+          [amount, amount, req.agent.id]
+        );
+
+        await dbRun(
+          `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, max_revisions, expected_hash, created_at)
+           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${now})`,
+          [orderId, req.agent.id, service.agent_id, service_id, amount,
+           typeof requirements === 'object' ? JSON.stringify(requirements) : (requirements || null),
+           deadline, max_revisions || 3, expected_hash || null]
+        );
+
+        fire([service.agent_id], EVENTS.ORDER_CREATED, {
+          order_id: orderId, buyer_id: req.agent.id, amount, service_id, deadline,
+        }).catch(() => {});
+
+        return { index: idx, service_id, order_id: orderId, status: 'paid', amount, deadline };
+      } catch (itemErr) {
+        return { index: idx, service_id: item.service_id, error: itemErr.message };
+      }
+    }));
+
+    const succeeded = results.filter(r => !r.error).length;
+    res.status(207).json({
+      processed: orderItems.length,
+      succeeded,
+      failed: orderItems.length - succeeded,
+      results,
+      message: `Batch complete: ${succeeded}/${orderItems.length} orders created.`,
+    });
   } catch (err) { next(err); }
 });
 

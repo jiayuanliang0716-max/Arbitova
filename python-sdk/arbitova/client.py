@@ -1129,6 +1129,53 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v1.7.0: Batch Escrow + Negotiation History ──────────────────────────
+
+    def batch_escrow(self, orders: list) -> dict:
+        """
+        Create up to 10 escrow orders at once.
+
+        Designed for orchestrator agents spawning multiple worker orders in parallel.
+        Uses your balance for the total batch amount upfront. Partial failures are OK —
+        the response includes per-item results.
+
+        Args:
+            orders: List of order dicts. Each dict accepts:
+                service_id (required), requirements, amount, max_revisions, expected_hash
+
+        Returns:
+            {
+              processed, succeeded, failed,
+              results: [{ index, service_id, order_id, status, amount, deadline } | { index, error }, ...],
+              message
+            }
+        """
+        if not isinstance(orders, list) or len(orders) == 0:
+            raise ValueError("orders must be a non-empty list")
+        if len(orders) > 10:
+            raise ValueError("Maximum 10 orders per batch")
+        return self._request("POST", "/orders/batch", {"orders": orders})
+
+    def get_negotiation_history(self, order_id: str) -> dict:
+        """
+        Get the dispute-resolution timeline for an order.
+
+        Returns a structured log of disputes, counter-offers, revision requests,
+        deadline extensions, and arbitration verdicts in chronological order.
+        Useful for building appeals or understanding the negotiation path.
+
+        Args:
+            order_id: Order ID
+
+        Returns:
+            {
+              order_id, status, is_disputed,
+              negotiation_events: [{ type, timestamp, ... }, ...],
+              resolution_path: "dispute_opened → counter_offer_proposed → ..."
+            }
+        """
+        return self._request("GET", f"/orders/{order_id}/negotiation")
+
     # ── v1.6.0: Blocklist ────────────────────────────────────────────────────
 
     def get_blocklist(self) -> dict:

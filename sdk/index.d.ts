@@ -323,6 +323,44 @@ export declare class Arbitova {
     by_category: Record<string, { count: number; min: number; max: number; mean: number; median: number }>;
   }>;
 
+  /**
+   * Create up to 10 escrow orders at once.
+   * Returns 207 Multi-Status with per-item results. Partial failure is OK.
+   */
+  batchEscrow(orders: Array<{
+    serviceId: string;
+    requirements?: object | string;
+    amount?: number;
+    maxRevisions?: number;
+    expectedHash?: string;
+  }>, opts?: { idempotencyKey?: string }): Promise<{
+    processed: number;
+    succeeded: number;
+    failed: number;
+    results: Array<
+      | { index: number; service_id: string; order_id: string; status: 'paid'; amount: number; deadline: string }
+      | { index: number; service_id: string; error: string; code?: string }
+    >;
+    message: string;
+  }>;
+
+  /**
+   * Get the dispute-resolution timeline for an order.
+   * Returns structured log of disputes, counter-offers, revisions, extensions, verdicts.
+   */
+  getNegotiationHistory(txId: string): Promise<{
+    order_id: string;
+    status: string;
+    is_disputed: boolean;
+    negotiation_events: Array<{
+      type: string;
+      timestamp?: string;
+      [key: string]: unknown;
+    }>;
+    event_count: number;
+    resolution_path: string;
+  }>;
+
   /** Get your blocklist. Blocked agents cannot place orders with you. */
   getBlocklist(): Promise<{
     agent_id: string;

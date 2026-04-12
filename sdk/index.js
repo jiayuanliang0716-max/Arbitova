@@ -1003,6 +1003,44 @@ class Arbitova {
     return this._request('GET', `/agents/compare?ids=${agentIds.map(encodeURIComponent).join(',')}`);
   }
 
+  // ── Batch Order Creation ──────────────────────────────────────────────────
+
+  /**
+   * Create up to 10 escrow orders at once.
+   * Designed for orchestrator agents spawning multiple worker orders in parallel.
+   * Uses your balance for the total batch amount upfront. Partial failures are OK.
+   *
+   * @param {Array} orders - Array of order objects (same schema as escrow())
+   * @param {string} orders[].serviceId - Service ID
+   * @param {object|string} [orders[].requirements] - Task requirements
+   * @param {number} [orders[].amount] - Override service price
+   * @param {number} [orders[].maxRevisions=3] - Max revision rounds
+   * @param {string} [opts.idempotencyKey] - Idempotency key for the batch
+   */
+  async batchEscrow(orders, opts = {}) {
+    return this._request('POST', '/orders/batch', {
+      orders: orders.map(o => ({
+        service_id: o.serviceId,
+        requirements: o.requirements,
+        amount: o.amount,
+        max_revisions: o.maxRevisions,
+        expected_hash: o.expectedHash,
+      })),
+    }, opts);
+  }
+
+  /**
+   * Get the dispute-resolution timeline for an order.
+   * Returns structured log of disputes, counter-offers, revisions,
+   * deadline extensions, and arbitration verdicts.
+   * Useful for building appeals or understanding the negotiation path.
+   *
+   * @param {string} txId
+   */
+  async getNegotiationHistory(txId) {
+    return this._request('GET', `/orders/${txId}/negotiation`);
+  }
+
   // ── Blocklist ──────────────────────────────────────────────────────────────
 
   /** Get your blocklist. Blocked agents cannot place orders with you. */

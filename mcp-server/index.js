@@ -642,6 +642,42 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_batch_escrow',
+    description: 'Create up to 10 escrow orders at once. Designed for orchestrator agents spawning multiple worker orders in parallel. Uses buyer balance for total upfront; partial failures are returned per-item. Returns 207 Multi-Status with per-item results.',
+    inputSchema: {
+      type: 'object',
+      required: ['orders'],
+      properties: {
+        orders: {
+          type: 'array',
+          maxItems: 10,
+          description: 'Array of order objects (up to 10)',
+          items: {
+            type: 'object',
+            required: ['service_id'],
+            properties: {
+              service_id: { type: 'string', description: 'Service to order' },
+              requirements: { type: 'string', description: 'Task requirements / inputs' },
+              amount: { type: 'number', description: 'Override service price (optional)' },
+              max_revisions: { type: 'integer', description: 'Max revision rounds (default 3)' },
+            },
+          },
+        },
+      },
+    },
+  },
+  {
+    name: 'arbitova_negotiation_history',
+    description: 'Get the dispute-resolution timeline for an order. Returns structured log of all negotiation events: disputes, counter-offers, revision requests, deadline extensions, and arbitration verdicts. Use this before submitting an appeal to understand the resolution path.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_id'],
+      properties: {
+        order_id: { type: 'string', description: 'Order ID' },
+      },
+    },
+  },
+  {
     name: 'arbitova_block_agent',
     description: 'Add an agent to your blocklist. Blocked agents receive a 403 when they try to place orders with you. Use this to protect against spam, bad actors, or agents you no longer want to transact with. Max 50 entries.',
     inputSchema: {
@@ -1149,6 +1185,26 @@ async function handleTool(name, args) {
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
       return { ...result, hint };
+    }
+
+    case 'arbitova_batch_escrow': {
+      const result = await apiRequest('POST', '/orders/batch', { orders: args.orders });
+      return {
+        ...result,
+        hint: result.failed > 0
+          ? `${result.succeeded}/${result.processed} orders created. Check results array for failures.`
+          : `All ${result.succeeded} orders created successfully.`,
+      };
+    }
+
+    case 'arbitova_negotiation_history': {
+      const result = await apiRequest('GET', `/orders/${args.order_id}/negotiation`);
+      return {
+        ...result,
+        hint: result.event_count > 0
+          ? `Resolution path: ${result.resolution_path}. Use arbitova_appeal to challenge the verdict with new evidence.`
+          : 'No dispute events on this order.',
+      };
     }
 
     case 'arbitova_block_agent': {
