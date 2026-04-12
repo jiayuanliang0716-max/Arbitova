@@ -534,6 +534,39 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_spot_escrow',
+    description: 'Create a spot escrow order directly to any agent by ID — no published service listing required. Perfect for one-off custom tasks. Seller is notified immediately. Funds locked in escrow until confirmed.',
+    inputSchema: {
+      type: 'object',
+      required: ['to_agent_id', 'amount'],
+      properties: {
+        to_agent_id:    { type: 'string', description: 'Seller agent ID to send the task to' },
+        amount:         { type: 'number', description: 'USDC to lock in escrow (min 0.01)' },
+        requirements:   { type: 'string', description: 'Task description / requirements' },
+        delivery_hours: { type: 'integer', default: 48, description: 'Hours until deadline (default 48)' },
+        title:          { type: 'string', description: 'Short label for this spot task' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_pending_actions',
+    description: 'Get a prioritized action queue for this agent — all actions that need to be taken right now. Returns overdue deliveries, counter-offers awaiting response, open disputes, deliveries to confirm, pending work, and unread messages. Use to drive autonomous agent decision loops.',
+    inputSchema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'arbitova_request_revision',
+    description: 'Buyer requests a revision on a delivered order — no dispute needed. Order moves back to pending delivery; seller re-delivers. Deadline extended. Limited to max_revisions rounds per order.',
+    inputSchema: {
+      type: 'object',
+      required: ['order_id', 'feedback'],
+      properties: {
+        order_id:    { type: 'string', description: 'Order ID with delivered status' },
+        feedback:    { type: 'string', description: 'What needs to be revised (shown to seller)' },
+        extra_hours: { type: 'integer', default: 24, description: 'Additional hours to add to the deadline' },
+      },
+    },
+  },
+  {
     name: 'arbitova_propose_counter_offer',
     description: 'Seller proposes a partial refund on a disputed order to avoid AI arbitration fees. If buyer accepts, escrow splits immediately and dispute closes. Use to negotiate disputes without the 2% arbitration fee.',
     inputSchema: {
@@ -948,6 +981,50 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_spot_escrow': {
+      const result = await apiRequest('POST', '/orders/spot', {
+        to_agent_id:    args.to_agent_id,
+        amount:         args.amount,
+        requirements:   args.requirements,
+        delivery_hours: args.delivery_hours,
+        title:          args.title,
+      });
+      return {
+        ...result,
+        hint: `Spot escrow created. Seller ${args.to_agent_id} has been notified. Use order ID ${result.id} to track delivery.`,
+      };
+    }
+
+    case 'arbitova_pending_actions': {
+      const result = await apiRequest('GET', '/agents/me/pending-actions');
+      if (result.action_count === 0) {
+        return { action_count: 0, message: 'No pending actions. All caught up!', generated_at: result.generated_at };
+      }
+      return {
+        action_count: result.action_count,
+        actions: result.actions.map(a => ({
+          priority: a.priority,
+          type: a.type,
+          message: a.message,
+          order_id: a.order_id || null,
+          action_url: a.action_url,
+        })),
+        top_action: result.actions[0],
+        generated_at: result.generated_at,
+      };
+    }
+
+    case 'arbitova_request_revision': {
+      const result = await apiRequest('POST', `/orders/${args.order_id}/request-revision`, {
+        feedback: args.feedback,
+        extra_hours: args.extra_hours || 24,
+      });
+      return {
+        ...result,
+        hint: `Revision ${result.revision_round}/${result.max_revisions} requested. ${result.revisions_remaining} revision(s) remaining. Seller has been notified.`,
+      };
+    }
+
     case 'arbitova_propose_counter_offer': {
       const result = await apiRequest('POST', `/orders/${args.order_id}/counter-offer`, {
         refund_amount: args.refund_amount,
@@ -983,7 +1060,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '2.2.0' },
+  { name: 'arbitova', version: '2.3.0' },
   { capabilities: { tools: {} } }
 );
 
