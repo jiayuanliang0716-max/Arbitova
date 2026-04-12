@@ -1,3 +1,3 @@
 User-agent: *
 Allow: /
-Sitemap: https://a2a-system.onrender.com/sitemap.xml
+Sitemap: https://arbitova.com/sitemap.xml

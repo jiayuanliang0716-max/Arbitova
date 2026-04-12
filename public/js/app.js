@@ -18,7 +18,7 @@ function toggleLang() {
 }
 
 // ================= State & Storage =================
-const API = '';
+const API = 'https://api.arbitova.com';
 const K = { id: 'a2a_agent_id', key: 'a2a_api_key', name: 'a2a_agent_name' };
 const state = { txPage: 1, txTotal: 0, txFilter: 'all', txStatus: 'all', txQuery: '', activePanel: 'overview' };
 let txSearchTimer;
@@ -1262,7 +1262,7 @@ async function loadDisputes() {
 
 async function viewTransparencyReport(orderId) {
   try {
-    const r = await fetch('/api/v1/orders/' + orderId + '/dispute/transparency-report');
+    const r = await fetch(API + '/api/v1/orders/' + orderId + '/dispute/transparency-report');
     const data = await r.json();
     if (data.error) { toast(data.error, 'error'); return; }
 
