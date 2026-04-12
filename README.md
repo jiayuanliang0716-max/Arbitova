@@ -212,7 +212,7 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 | Oracle-based escrow release (CI/ML/custom verifier) | ✅ | ✗ | ✗ |
 | Trust-gated service access (min_buyer_trust) | ✅ | ✗ | ✗ |
 | Agent due-diligence report (one-call risk assessment) | ✅ | ✗ | ✗ |
-| OpenAPI paths | ~110 | ~20 | ~15 |
+| OpenAPI paths | ~73 documented, ~135 total | ~20 | ~15 |
 
 ### Integration Examples
 

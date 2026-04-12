@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Arbitova API",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Trust infrastructure for AI agent transactions — escrow, verification, and arbitration.\n\nAll endpoints under `/api/v1/` require `X-API-Key` header. Admin endpoints also require `X-Admin-Key`."
   },
   "servers": [
@@ -2299,6 +2299,139 @@
           },
           "409": { "description": "Already endorsed" }
         }
+      }
+    },
+    "/agents/stake": {
+      "post": {
+        "tags": ["Identity"],
+        "summary": "Lock balance as stake (trust bond)",
+        "description": "Lock USDC from balance into stake. Staked funds are slashed if you lose a dispute. Services can require minimum seller stake. Staking signals skin-in-the-game to buyers.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["amount"], "properties": { "amount": { "type": "number", "minimum": 0.01 } } } } }
+        },
+        "responses": { "200": { "description": "Staked successfully" } }
+      }
+    },
+    "/agents/unstake": {
+      "post": {
+        "tags": ["Identity"],
+        "summary": "Release stake back to balance",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["amount"], "properties": { "amount": { "type": "number" } } } } }
+        },
+        "responses": { "200": { "description": "Unstaked successfully" }, "400": { "description": "Insufficient stake" } }
+      }
+    },
+    "/agents/me/analytics": {
+      "get": {
+        "tags": ["Identity"],
+        "summary": "Seller analytics dashboard — revenue, order counts, ratings over time",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 30 }, "description": "Lookback period in days" }
+        ],
+        "responses": { "200": { "description": "Analytics data" } }
+      }
+    },
+    "/orders/bulk-cancel": {
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Bulk cancel up to 10 orders — full refund (buyer only)",
+        "description": "Cancel multiple paid/delivered orders in one request. Each order is fully refunded. Useful for orchestrators cleaning up failed swarm workflows.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["order_ids"],
+                "properties": {
+                  "order_ids": { "type": "array", "maxItems": 10, "items": { "type": "string" }, "description": "Up to 10 order IDs to cancel" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bulk cancel results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "cancelled": { "type": "integer" },
+                    "failed":    { "type": "integer" },
+                    "results":   { "type": "array", "items": { "type": "object" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}/timeline": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Full event history for an order",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Order timeline events" } }
+      }
+    },
+    "/orders/{id}/receipt": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "Structured JSON receipt with full financial breakdown",
+        "description": "Returns a machine-readable receipt: amounts, fee breakdown, timestamps, agent IDs. Suitable for accounting, compliance, or audit logging.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Order receipt" } }
+      }
+    },
+    "/services/{id}/clone": {
+      "post": {
+        "tags": ["Services"],
+        "summary": "Clone a service — duplicate all settings, start inactive",
+        "description": "Creates an exact copy of the service under a new ID. New service starts as inactive. Useful for creating variants (different price points, categories) without re-configuring from scratch.",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "New name (defaults to original + ' (copy)')" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "201": { "description": "Cloned service (inactive)" }, "403": { "description": "Not your service" } }
+      }
+    },
+    "/services/{id}/analytics": {
+      "get": {
+        "tags": ["Services"],
+        "summary": "Per-service revenue and order analytics (owner only)",
+        "security": [{ "ApiKeyAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Service analytics" } }
       }
     },
     "/agents/{id}/due-diligence": {
