@@ -396,7 +396,7 @@ router.get('/stats', requireApiKey, async (req, res, next) => {
 // POST /orders
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
-    const { service_id, requirements, expected_hash, release_oracle_url, release_oracle_secret } = req.body;
+    const { service_id, requirements, expected_hash, release_oracle_url, release_oracle_secret, max_revisions } = req.body;
     if (!service_id) return res.status(400).json({ error: 'service_id is required' });
 
     // Validate oracle URL if provided
@@ -484,8 +484,8 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
         : dbRun(`UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`, [service.price, service.price, req.agent.id]);
 
       await (tx?.run || dbRun)(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash, release_oracle_url, release_oracle_secret) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)})`,
-        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null, release_oracle_url || null, release_oracle_secret || null]
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash, release_oracle_url, release_oracle_secret, max_revisions) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)})`,
+        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null, release_oracle_url || null, release_oracle_secret || null, Math.min(parseInt(max_revisions || 3), 10)]
       );
     });
 
@@ -2154,6 +2154,81 @@ router.post('/:id/counter-offer/decline', requireApiKey, async (req, res, next) 
       status: 'disputed',
       counter_offer: 'declined',
       message: 'Counter-offer declined. The dispute remains open. You may proceed to AI arbitration.',
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /orders/:id/request-revision — buyer formally requests seller to revise a delivered order.
+// Order moves back to 'paid' status; seller can re-deliver. Deadline extended by delivery_hours.
+// Limited to 3 revision rounds per order to prevent abuse. No charge; no dispute needed.
+router.post('/:id/request-revision', requireApiKey, async (req, res, next) => {
+  try {
+    const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.buyer_id !== req.agent.id) return res.status(403).json({ error: 'Only the buyer can request a revision' });
+    if (order.status !== 'delivered') return res.status(400).json({ error: `Revisions can only be requested on delivered orders (current: ${order.status})` });
+
+    const revisionCount = parseInt(order.revision_count || 0);
+    const maxRevisions = parseInt(order.max_revisions || 3);
+    if (revisionCount >= maxRevisions) {
+      return res.status(400).json({
+        error: `Revision limit reached (${maxRevisions}). Open a dispute or confirm delivery.`,
+        revisions_used: revisionCount,
+        max_revisions: maxRevisions,
+      });
+    }
+
+    const feedback = (req.body.feedback || '').slice(0, 2000);
+    if (!feedback) return res.status(400).json({ error: 'feedback is required — explain what needs revision' });
+
+    const extraHours = Math.min(parseInt(req.body.extra_hours || 24), 168); // max 1 week extension
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    const newDeadline = isPostgres
+      ? `(COALESCE(deadline::timestamp, NOW()) + interval '${extraHours} hours')`
+      : `datetime(COALESCE(deadline, datetime('now')), '+${extraHours} hours')`;
+
+    await dbRun(
+      `UPDATE orders SET status = 'paid', revision_count = COALESCE(revision_count, 0) + 1,
+       deadline = ${newDeadline} WHERE id = ${p(1)}`,
+      [order.id]
+    );
+
+    // Post as order comment
+    const revComment = {
+      id: uuidv4(),
+      author_id: req.agent.id,
+      role: 'buyer',
+      message: `[Revision ${revisionCount + 1}/${maxRevisions}] ${feedback}`,
+      created_at: new Date().toISOString(),
+      type: 'revision_request',
+    };
+    const existing = order.comments
+      ? (typeof order.comments === 'string' ? JSON.parse(order.comments) : order.comments)
+      : [];
+    existing.push(revComment);
+    await dbRun(`UPDATE orders SET comments = ${p(1)} WHERE id = ${p(2)}`, [JSON.stringify(existing), order.id]);
+
+    const { fire, EVENTS } = require('../webhooks');
+    fire([order.seller_id], EVENTS.ORDER_CREATED, {
+      type: 'revision_requested',
+      order_id: order.id,
+      revision_round: revisionCount + 1,
+      max_revisions: maxRevisions,
+      feedback,
+      extra_hours: extraHours,
+    }).catch(() => {});
+
+    const updated = await dbGet(`SELECT id, deadline, revision_count FROM orders WHERE id = ${p(1)}`, [order.id]);
+    res.json({
+      order_id: order.id,
+      status: 'paid',
+      revision_round: parseInt(updated.revision_count || 0),
+      max_revisions: maxRevisions,
+      revisions_remaining: maxRevisions - parseInt(updated.revision_count || 0),
+      new_deadline: updated.deadline,
+      feedback,
+      message: `Revision requested (round ${updated.revision_count}/${maxRevisions}). Seller notified. Deadline extended by ${extraHours}h.`,
     });
   } catch (err) { next(err); }
 });

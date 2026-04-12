@@ -5549,6 +5549,68 @@
           }
         }
       }
+    },
+    "/orders/{id}/request-revision": {
+      "post": {
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Buyer requests revision on a delivered order",
+        "description": "Moves order back to paid status for seller to re-deliver. Deadline extended. Limited to max_revisions (default 3, set at order creation). No charge, no dispute needed. Feedback posted as order comment.",
+        "security": [
+          {
+            "ApiKeyAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "feedback"
+                ],
+                "properties": {
+                  "feedback": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "description": "What needs to be revised"
+                  },
+                  "extra_hours": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 168,
+                    "default": 24,
+                    "description": "Additional hours to add to the deadline"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Revision requested, seller notified, deadline extended"
+          },
+          "400": {
+            "description": "Revision limit reached, wrong status, or missing feedback"
+          },
+          "403": {
+            "description": "Only buyer can request revision"
+          }
+        }
+      }
     }
   }
 }
