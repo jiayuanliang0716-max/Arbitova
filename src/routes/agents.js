@@ -1560,6 +1560,184 @@ router.get('/:id/due-diligence', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/me/pending-actions — single endpoint for autonomous agents to know what needs action right now.
+// Returns a prioritized action queue. Poll this every few minutes instead of monitoring each endpoint separately.
+router.get('/me/pending-actions', requireApiKey, async (req, res, next) => {
+  try {
+    const id = req.agent.id;
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    const p2 = p;
+
+    const [
+      pendingDeliveries,
+      pendingConfirmations,
+      openDisputes,
+      pendingCounterOffers,
+      overdueAsSeller,
+      openRfpApplications,
+      unreadMessages,
+    ] = await Promise.all([
+      // Orders I must deliver (I'm seller, status='paid', not overdue)
+      dbAll(
+        `SELECT id, amount, deadline, requirements FROM orders
+         WHERE seller_id = ${p(1)} AND status = 'paid'
+           AND (deadline IS NULL OR deadline >= ${now})
+         ORDER BY deadline ASC LIMIT 10`,
+        [id]
+      ),
+      // Deliveries I must confirm (I'm buyer, status='delivered')
+      dbAll(
+        `SELECT o.id, o.amount, o.deadline, a.name as seller_name
+         FROM orders o LEFT JOIN agents a ON a.id = o.seller_id
+         WHERE o.buyer_id = ${p(1)} AND o.status = 'delivered'
+         ORDER BY o.created_at ASC LIMIT 10`,
+        [id]
+      ),
+      // My orders in dispute
+      dbAll(
+        `SELECT o.id, o.amount, o.status,
+                CASE WHEN o.buyer_id = ${p(1)} THEN 'buyer' ELSE 'seller' END as my_role
+         FROM orders o
+         WHERE (o.buyer_id = ${p(2)} OR o.seller_id = ${p(3)}) AND o.status = 'disputed'
+         LIMIT 10`,
+        [id, id, id]
+      ),
+      // Counter-offers pending my response (I'm buyer, offer is pending)
+      dbAll(
+        `SELECT id, amount, counter_offer FROM orders
+         WHERE buyer_id = ${p(1)} AND status = 'disputed' AND counter_offer IS NOT NULL`,
+        [id]
+      ).then(rows => rows.filter(r => {
+        const c = r.counter_offer ? (typeof r.counter_offer === 'string' ? JSON.parse(r.counter_offer) : r.counter_offer) : null;
+        return c && c.status === 'pending';
+      })),
+      // Overdue: I'm seller and deadline passed
+      dbAll(
+        `SELECT id, amount, deadline FROM orders
+         WHERE seller_id = ${p(1)} AND status = 'paid'
+           AND deadline IS NOT NULL AND deadline < ${now}
+         ORDER BY deadline ASC LIMIT 10`,
+        [id]
+      ),
+      // RFP applications to review (I'm buyer, request has pending applications)
+      dbAll(
+        `SELECT r.id, r.title, COUNT(ra.id) as applicant_count
+         FROM requests r
+         LEFT JOIN request_applications ra ON ra.request_id = r.id AND ra.status = 'pending'
+         WHERE r.buyer_id = ${p(1)} AND r.status = 'open'
+         GROUP BY r.id, r.title
+         HAVING COUNT(ra.id) > 0
+         LIMIT 5`,
+        [id]
+      ).catch(() => []),
+      // Unread messages
+      dbAll(
+        `SELECT COUNT(*) as cnt FROM messages WHERE to_agent_id = ${p(1)} AND is_read = ${isPostgres ? 'false' : '0'}`,
+        [id]
+      ).catch(() => [{ cnt: 0 }]),
+    ]);
+
+    const actions = [];
+
+    for (const o of overdueAsSeller) {
+      const hrs = Math.round((Date.now() - new Date(o.deadline).getTime()) / 3600000);
+      actions.push({
+        priority: 1,
+        type: 'overdue_delivery',
+        order_id: o.id,
+        amount: parseFloat(o.amount),
+        overdue_hours: hrs,
+        message: `Deliver order ${o.id} — ${hrs}h overdue. Risk of dispute.`,
+        action_url: `/orders/${o.id}/deliver`,
+      });
+    }
+
+    for (const co of pendingCounterOffers) {
+      const c = typeof co.counter_offer === 'string' ? JSON.parse(co.counter_offer) : co.counter_offer;
+      actions.push({
+        priority: 2,
+        type: 'counter_offer_pending',
+        order_id: co.id,
+        refund_amount: c.refund_amount,
+        seller_keeps: c.seller_keeps,
+        note: c.note,
+        message: `Counter-offer awaiting your decision on order ${co.id}: accept ${c.refund_amount} USDC refund or decline and arbitrate.`,
+        action_url: `/orders/${co.id}/counter-offer/accept`,
+      });
+    }
+
+    for (const o of openDisputes) {
+      actions.push({
+        priority: 3,
+        type: 'open_dispute',
+        order_id: o.id,
+        amount: parseFloat(o.amount),
+        my_role: o.my_role,
+        message: `Order ${o.id} is disputed. Consider counter-offer or AI arbitration.`,
+        action_url: `/orders/${o.id}/auto-arbitrate`,
+      });
+    }
+
+    for (const o of pendingConfirmations) {
+      actions.push({
+        priority: 4,
+        type: 'confirm_delivery',
+        order_id: o.id,
+        amount: parseFloat(o.amount),
+        seller_name: o.seller_name,
+        message: `Delivery received for order ${o.id}. Confirm to release ${o.amount} USDC.`,
+        action_url: `/orders/${o.id}/confirm`,
+      });
+    }
+
+    for (const o of pendingDeliveries) {
+      const deadlineMs = o.deadline ? new Date(o.deadline).getTime() : null;
+      const hoursLeft = deadlineMs ? Math.round((deadlineMs - Date.now()) / 3600000) : null;
+      actions.push({
+        priority: 5,
+        type: 'pending_delivery',
+        order_id: o.id,
+        amount: parseFloat(o.amount),
+        hours_until_deadline: hoursLeft,
+        message: `Deliver order ${o.id}${hoursLeft !== null ? ` (${hoursLeft}h remaining)` : ''}.`,
+        action_url: `/orders/${o.id}/deliver`,
+      });
+    }
+
+    for (const r of openRfpApplications) {
+      actions.push({
+        priority: 6,
+        type: 'rfp_applications_pending',
+        request_id: r.id,
+        applicant_count: parseInt(r.applicant_count),
+        message: `${r.applicant_count} application(s) for your request "${r.title}". Review and accept one.`,
+        action_url: `/requests/${r.id}/applications`,
+      });
+    }
+
+    const unreadCount = parseInt(unreadMessages[0]?.cnt || 0);
+    if (unreadCount > 0) {
+      actions.push({
+        priority: 7,
+        type: 'unread_messages',
+        count: unreadCount,
+        message: `${unreadCount} unread message(s) in your inbox.`,
+        action_url: '/messages',
+      });
+    }
+
+    actions.sort((a, b) => a.priority - b.priority);
+
+    res.json({
+      agent_id: id,
+      action_count: actions.length,
+      actions,
+      generated_at: new Date().toISOString(),
+      note: 'Poll this endpoint to drive autonomous agent decision loops. Actions are sorted by urgency.',
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /agents/me/away — set agent as "away" (vacation mode).
 // While away, new orders to the agent's services are blocked with a friendly error.
 // Supports a return date for transparency.
