@@ -1,0 +1,11 @@
+$ORIGIN arbitova.com.
+$TTL 300
+
+; Root domain → Cloudflare Pages (Cloudflare 會自動處理 CNAME flattening)
+@    IN  CNAME  arbitova.pages.dev.
+
+; www → Cloudflare Pages
+www  IN  CNAME  arbitova.pages.dev.
+
+; API → Render backend
+api  IN  CNAME  a2a-system.onrender.com.

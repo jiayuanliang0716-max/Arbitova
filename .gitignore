@@ -4,6 +4,12 @@ data/
 *.db
 .memsearch/
 
+# Python build artifacts
+python-sdk/arbitova.egg-info/
+python-sdk/dist/
+python-sdk/__pycache__/
+*.pyc
+
 # Internal planning docs
 A2A-PAY-計畫書.md
 AUTONOMOUS_RULES.md
