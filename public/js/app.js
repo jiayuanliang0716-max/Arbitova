@@ -3305,6 +3305,37 @@ function toggleTheme() {
   }
 })();
 
+// ================= Announcement Banner =================
+(function initAnnouncementBanner() {
+  const banner  = document.getElementById('ann-banner');
+  const bannerTxt  = document.getElementById('ann-banner-text');
+  const bannerLink = document.getElementById('ann-banner-link');
+  const bannerClose = document.getElementById('ann-banner-close');
+  if (!banner) return;
+
+  fetch(API + '/api/v1/site-config')
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (!data) return;
+      const anns = data.announcements || [];
+      if (!anns.length) return;
+      const latest = anns[0];
+      const dismissKey = 'arb_ann_dismissed_' + latest.id;
+      if (localStorage.getItem(dismissKey)) return;
+      bannerTxt.textContent = latest.text;
+      if (latest.url) {
+        bannerLink.href = latest.url;
+        bannerLink.style.display = 'inline';
+      }
+      banner.style.display = 'block';
+      bannerClose.addEventListener('click', () => {
+        banner.style.display = 'none';
+        localStorage.setItem(dismissKey, '1');
+      });
+    })
+    .catch(() => {});
+})();
+
 // ================= Init =================
 applyTheme(localStorage.getItem('theme') || 'dark');
 applyTranslations();

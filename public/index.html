@@ -40,6 +40,13 @@
 <!-- Skip to content link for keyboard/screen-reader users -->
 <a href="#main-content" class="skip-link" data-i18n="skip_to_content">Skip to content</a>
 
+<!-- Announcement banner (CMS-driven, dismissible) -->
+<div id="ann-banner" style="display:none;background:var(--brand-dim);border-bottom:1px solid rgba(0,200,150,0.2);padding:10px 20px;text-align:center;font-size:13px;color:var(--brand);position:relative;">
+  <span id="ann-banner-text"></span>
+  <a id="ann-banner-link" href="#" style="color:var(--brand);margin-left:8px;text-decoration:underline;display:none;" target="_blank" rel="noopener">Learn more</a>
+  <button id="ann-banner-close" aria-label="Dismiss" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--brand);cursor:pointer;font-size:18px;line-height:1;">x</button>
+</div>
+
 <!-- Toast notifications container -->
 <div class="toasts" id="toasts" role="status" aria-live="polite"></div>
 
@@ -361,7 +368,7 @@
         <a href="/docs" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
         <a href="/verdicts" class="landing-footer-link">Verdicts</a>
         <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
-        <a href="/health" target="_blank" class="landing-footer-link" data-i18n="footer_status">Status</a>
+        <a href="/status" class="landing-footer-link">Status</a>
       </div>
     </div>
   </footer>

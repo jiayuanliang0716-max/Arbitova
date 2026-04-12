@@ -98,9 +98,11 @@ app.use((req, res, next) => {
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Clean URL aliases for standalone pages
-app.get('/profile', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
-app.get('/badge', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
+app.get('/profile',  (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
+app.get('/badge',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
 app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'verdicts.html')));
+app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
+app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 
 // Stats endpoint — 30s in-memory cache to reduce DB load
 let statsCache = null;
@@ -797,6 +799,26 @@ apiV1.get('/', (req, res) => {
     ],
   });
 });
+// ── Public site-config endpoint — no auth needed ──────────────────────────────
+// Returns active announcements and editable content keys for the frontend.
+apiV1.get('/site-config', async (req, res) => {
+  try {
+    const { dbAll: scAll } = require('./db/helpers');
+    const [configRows, announcementRows] = await Promise.all([
+      scAll('SELECT key, value FROM site_config ORDER BY key', []),
+      scAll("SELECT id, text, url, created_at FROM announcements WHERE active = TRUE ORDER BY created_at DESC LIMIT 5", []),
+    ]);
+    const config = {};
+    for (const r of configRows) {
+      config[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
+    }
+    res.json({ config, announcements: announcementRows });
+  } catch (err) {
+    // Table may not exist on first boot — return empty gracefully
+    res.json({ config: {}, announcements: [] });
+  }
+});
+
 app.use('/api/v1', apiV1);
 
 // Legacy routes — kept for backward compatibility with existing frontend

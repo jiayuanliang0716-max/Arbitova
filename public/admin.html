@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arbitova Admin</title>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/main.css">
+  <style>
+    body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; padding: 0; }
+
+    /* ── Auth Gate ──────────────────────────────────────────────────────── */
+    #auth-gate {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+    }
+    .auth-card {
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg); padding: 40px 48px; width: 360px;
+    }
+    .auth-card h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+    .auth-card p  { font-size: 13px; color: var(--text-secondary); margin: 0 0 28px; }
+    .auth-card input {
+      width: 100%; box-sizing: border-box; padding: 10px 14px;
+      background: var(--bg-base); border: 1px solid var(--border-default);
+      border-radius: var(--radius-md); color: var(--text-primary);
+      font-size: 14px; font-family: var(--font-mono); outline: none;
+      margin-bottom: 16px;
+    }
+    .auth-card input:focus { border-color: var(--brand); }
+    .auth-error { font-size: 13px; color: #f87171; margin-top: 8px; min-height: 18px; }
+
+    /* ── Shell ──────────────────────────────────────────────────────────── */
+    #admin-shell { display: none; min-height: 100vh; }
+
+    .admin-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 32px; height: 56px;
+      border-bottom: 1px solid var(--border-subtle);
+      background: var(--bg-base);
+      position: sticky; top: 0; z-index: 10;
+    }
+    .admin-header-brand { font-size: 15px; font-weight: 600; }
+    .admin-header-brand span { color: var(--brand); }
+    .admin-header-right { display: flex; align-items: center; gap: 12px; }
+    .admin-env-badge {
+      font-size: 11px; font-family: var(--font-mono); padding: 3px 8px;
+      border-radius: 4px; background: var(--brand-dim); color: var(--brand);
+    }
+    .admin-signout {
+      font-size: 13px; color: var(--text-secondary); cursor: pointer;
+      background: none; border: none; padding: 0;
+    }
+    .admin-signout:hover { color: var(--text-primary); }
+
+    .admin-body { display: flex; }
+
+    /* ── Sidebar ────────────────────────────────────────────────────────── */
+    .admin-sidebar {
+      width: 200px; min-height: calc(100vh - 56px);
+      border-right: 1px solid var(--border-subtle);
+      padding: 24px 0;
+      flex-shrink: 0;
+    }
+    .admin-nav-item {
+      display: block; padding: 10px 24px; font-size: 13px;
+      color: var(--text-secondary); cursor: pointer; border: none;
+      background: none; width: 100%; text-align: left;
+      transition: color 0.15s;
+    }
+    .admin-nav-item:hover { color: var(--text-primary); }
+    .admin-nav-item.active { color: var(--brand); background: var(--brand-dim); }
+
+    /* ── Main area ──────────────────────────────────────────────────────── */
+    .admin-main { flex: 1; padding: 32px 40px; max-width: 860px; }
+
+    .admin-section { display: none; }
+    .admin-section.active { display: block; }
+
+    .section-title {
+      font-size: 18px; font-weight: 600; margin: 0 0 4px;
+    }
+    .section-sub {
+      font-size: 13px; color: var(--text-secondary); margin: 0 0 28px;
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────────────── */
+    .admin-card {
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: var(--radius-lg); padding: 24px 28px; margin-bottom: 20px;
+    }
+    .admin-card h3 { font-size: 14px; font-weight: 600; margin: 0 0 16px; }
+
+    /* ── Form elements ──────────────────────────────────────────────────── */
+    label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; }
+    .field { margin-bottom: 18px; }
+    input[type="text"], input[type="url"], textarea {
+      width: 100%; box-sizing: border-box;
+      padding: 10px 14px; background: var(--bg-base);
+      border: 1px solid var(--border-default); border-radius: var(--radius-md);
+      color: var(--text-primary); font-size: 14px; font-family: var(--font-ui);
+      outline: none; resize: vertical;
+    }
+    input[type="text"]:focus, input[type="url"]:focus, textarea:focus {
+      border-color: var(--brand);
+    }
+    textarea { min-height: 80px; }
+
+    .btn-row { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+    .save-status { font-size: 12px; color: var(--brand); opacity: 0; transition: opacity 0.3s; }
+    .save-status.show { opacity: 1; }
+
+    /* ── Announcements list ─────────────────────────────────────────────── */
+    .ann-list { margin-top: 20px; }
+    .ann-row {
+      display: flex; align-items: flex-start; gap: 16px;
+      padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
+    }
+    .ann-row:last-child { border-bottom: none; }
+    .ann-row-body { flex: 1; }
+    .ann-text { font-size: 14px; margin-bottom: 4px; }
+    .ann-url  { font-size: 12px; color: var(--text-secondary); font-family: var(--font-mono); }
+    .ann-meta { font-size: 11px; color: var(--text-muted, var(--text-secondary)); margin-top: 4px; }
+    .ann-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .ann-badge {
+      font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      font-family: var(--font-mono);
+    }
+    .ann-badge.active   { background: var(--brand-dim); color: var(--brand); }
+    .ann-badge.inactive { background: var(--bg-base); color: var(--text-secondary); border: 1px solid var(--border-subtle); }
+
+    .btn-xs {
+      font-size: 12px; padding: 4px 10px; border-radius: var(--radius-sm);
+      border: 1px solid var(--border-default); background: none;
+      color: var(--text-secondary); cursor: pointer;
+    }
+    .btn-xs:hover { color: var(--text-primary); border-color: var(--border-default); }
+    .btn-xs.danger:hover { color: #f87171; border-color: #f87171; }
+
+    /* ── Stats grid ─────────────────────────────────────────────────────── */
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card {
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: var(--radius-md); padding: 20px 24px;
+    }
+    .stat-card .label { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .stat-card .value { font-size: 28px; font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
+
+    /* ── Toast ──────────────────────────────────────────────────────────── */
+    .admin-toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: var(--radius-md); padding: 12px 18px;
+      font-size: 13px; color: var(--text-primary);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      opacity: 0; transform: translateY(8px);
+      transition: opacity 0.2s, transform 0.2s;
+      pointer-events: none; z-index: 100;
+    }
+    .admin-toast.show { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+
+<!-- Auth Gate -->
+<div id="auth-gate">
+  <div class="auth-card">
+    <h1>Arbitova Admin</h1>
+    <p>Enter your admin key to continue.</p>
+    <input type="password" id="key-input" placeholder="ADMIN_KEY" autocomplete="off">
+    <button class="btn btn-primary" id="auth-btn" style="width:100%">Continue</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- Admin Shell -->
+<div id="admin-shell">
+  <header class="admin-header">
+    <div class="admin-header-brand">Arbitova <span>Admin</span></div>
+    <div class="admin-header-right">
+      <span class="admin-env-badge">CMS</span>
+      <button class="admin-signout" id="signout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <div class="admin-body">
+    <nav class="admin-sidebar">
+      <button class="admin-nav-item active" data-section="overview">Overview</button>
+      <button class="admin-nav-item" data-section="content">Content</button>
+      <button class="admin-nav-item" data-section="announcements">Announcements</button>
+    </nav>
+
+    <main class="admin-main">
+
+      <!-- Overview -->
+      <section class="admin-section active" id="section-overview">
+        <div class="section-title">Overview</div>
+        <div class="section-sub">Platform stats — refreshed live from the API.</div>
+        <div class="stats-grid" id="overview-stats">
+          <div class="stat-card"><div class="label">Agents</div><div class="value" id="st-agents">—</div></div>
+          <div class="stat-card"><div class="label">Services</div><div class="value" id="st-services">—</div></div>
+          <div class="stat-card"><div class="label">Completed orders</div><div class="value" id="st-orders">—</div></div>
+          <div class="stat-card"><div class="label">Active disputes</div><div class="value" id="st-disputes">—</div></div>
+          <div class="stat-card"><div class="label">Total volume</div><div class="value" id="st-volume">—</div></div>
+          <div class="stat-card"><div class="label">Platform fees</div><div class="value" id="st-fees">—</div></div>
+        </div>
+      </section>
+
+      <!-- Content Editor -->
+      <section class="admin-section" id="section-content">
+        <div class="section-title">Content</div>
+        <div class="section-sub">Edit homepage and landing page copy. Changes apply on next page load.</div>
+
+        <div class="admin-card">
+          <h3>Hero Section</h3>
+          <div class="field">
+            <label>Headline</label>
+            <input type="text" id="cfg-hero-headline" placeholder="Trust infrastructure for the agent economy.">
+          </div>
+          <div class="field">
+            <label>Sub-headline</label>
+            <textarea id="cfg-hero-sub" rows="2" placeholder="Escrow. Auto-verification. AI arbitration."></textarea>
+          </div>
+          <div class="field">
+            <label>CTA button text</label>
+            <input type="text" id="cfg-hero-cta" placeholder="Get started free">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="save-hero-btn">Save hero</button>
+            <span class="save-status" id="save-hero-status">Saved</span>
+          </div>
+        </div>
+
+        <div class="admin-card">
+          <h3>Pricing</h3>
+          <div class="field">
+            <label>Free tier description</label>
+            <input type="text" id="cfg-pricing-free" placeholder="Up to 100 orders/month, community support">
+          </div>
+          <div class="field">
+            <label>Pro tier price (USD/month)</label>
+            <input type="text" id="cfg-pricing-pro-price" placeholder="49">
+          </div>
+          <div class="field">
+            <label>Enterprise label</label>
+            <input type="text" id="cfg-pricing-enterprise" placeholder="Custom pricing — contact us">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="save-pricing-btn">Save pricing</button>
+            <span class="save-status" id="save-pricing-status">Saved</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Announcements -->
+      <section class="admin-section" id="section-announcements">
+        <div class="section-title">Announcements</div>
+        <div class="section-sub">Active announcements show as a top banner on the site. Syncs to Discord if webhook is configured.</div>
+
+        <div class="admin-card">
+          <h3>New announcement</h3>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="ann-text" rows="2" placeholder="Arbitova v1.2 is live — SDK update required for dispute endpoints."></textarea>
+          </div>
+          <div class="field">
+            <label>Link URL (optional)</label>
+            <input type="url" id="ann-url" placeholder="https://docs.arbitova.com/changelog">
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-primary" id="post-ann-btn">Publish</button>
+            <span class="save-status" id="post-ann-status">Published</span>
+          </div>
+        </div>
+
+        <div class="ann-list" id="ann-list">
+          <p style="font-size:13px;color:var(--text-secondary)">Loading...</p>
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<div class="admin-toast" id="admin-toast"></div>
+
+<script>
+const API = 'https://api.arbitova.com';
+let ADMIN_KEY = '';
+
+// ── Auth ────────────────────────────────────────────────────────────────────
+function tryAuth(key) {
+  return fetch(`${API}/api/v1/admin/dashboard`, {
+    headers: { 'X-Admin-Key': key }
+  }).then(r => r.ok);
+}
+
+document.getElementById('auth-btn').addEventListener('click', doAuth);
+document.getElementById('key-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doAuth();
+});
+
+async function doAuth() {
+  const key = document.getElementById('key-input').value.trim();
+  if (!key) return;
+  document.getElementById('auth-btn').textContent = 'Checking…';
+  document.getElementById('auth-error').textContent = '';
+  const ok = await tryAuth(key).catch(() => false);
+  if (ok) {
+    ADMIN_KEY = key;
+    sessionStorage.setItem('arb_admin_key', key);
+    document.getElementById('auth-gate').style.display = 'none';
+    document.getElementById('admin-shell').style.display = 'block';
+    init();
+  } else {
+    document.getElementById('auth-error').textContent = 'Invalid admin key.';
+    document.getElementById('auth-btn').textContent = 'Continue';
+  }
+}
+
+// Auto-restore session
+const saved = sessionStorage.getItem('arb_admin_key');
+if (saved) {
+  tryAuth(saved).then(ok => {
+    if (ok) {
+      ADMIN_KEY = saved;
+      document.getElementById('auth-gate').style.display = 'none';
+      document.getElementById('admin-shell').style.display = 'block';
+      init();
+    }
+  });
+}
+
+document.getElementById('signout-btn').addEventListener('click', () => {
+  sessionStorage.removeItem('arb_admin_key');
+  location.reload();
+});
+
+// ── Navigation ───────────────────────────────────────────────────────────────
+document.querySelectorAll('.admin-nav-item').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const sec = btn.dataset.section;
+    document.querySelectorAll('.admin-nav-item').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('section-' + sec).classList.add('active');
+    if (sec === 'announcements') loadAnnouncements();
+  });
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('admin-toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+function init() {
+  loadStats();
+  loadContent();
+}
+
+// ── Overview stats ─────────────────────────────────────────────────────────
+async function loadStats() {
+  const r = await fetch(`${API}/api/stats`).then(r => r.json()).catch(() => ({}));
+  document.getElementById('st-agents').textContent   = r.agents        ?? '—';
+  document.getElementById('st-services').textContent = r.services      ?? '—';
+  document.getElementById('st-orders').textContent   = r.completed_orders ?? '—';
+  document.getElementById('st-disputes').textContent = r.active_disputes  ?? '—';
+  document.getElementById('st-volume').textContent   = r.total_volume != null ? '$' + parseFloat(r.total_volume).toFixed(2)  : '—';
+  document.getElementById('st-fees').textContent     = r.platform_fees != null ? '$' + parseFloat(r.platform_fees).toFixed(2) : '—';
+}
+
+// ── Content ────────────────────────────────────────────────────────────────
+async function loadContent() {
+  const r = await fetch(`${API}/api/v1/site-config`).then(r => r.json()).catch(() => ({ config: {} }));
+  const c = r.config || {};
+  if (c.hero) {
+    document.getElementById('cfg-hero-headline').value = c.hero.headline || '';
+    document.getElementById('cfg-hero-sub').value      = c.hero.sub      || '';
+    document.getElementById('cfg-hero-cta').value      = c.hero.cta      || '';
+  }
+  if (c.pricing) {
+    document.getElementById('cfg-pricing-free').value        = c.pricing.free        || '';
+    document.getElementById('cfg-pricing-pro-price').value   = c.pricing.pro_price   || '';
+    document.getElementById('cfg-pricing-enterprise').value  = c.pricing.enterprise  || '';
+  }
+}
+
+async function saveConfig(payload, statusId) {
+  const r = await fetch(`${API}/api/v1/admin/site-config`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY },
+    body: JSON.stringify(payload)
+  });
+  if (r.ok) {
+    const el = document.getElementById(statusId);
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+    toast('Saved');
+  } else {
+    toast('Error saving');
+  }
+}
+
+document.getElementById('save-hero-btn').addEventListener('click', () => {
+  saveConfig({
+    hero: {
+      headline: document.getElementById('cfg-hero-headline').value,
+      sub:      document.getElementById('cfg-hero-sub').value,
+      cta:      document.getElementById('cfg-hero-cta').value,
+    }
+  }, 'save-hero-status');
+});
+
+document.getElementById('save-pricing-btn').addEventListener('click', () => {
+  saveConfig({
+    pricing: {
+      free:        document.getElementById('cfg-pricing-free').value,
+      pro_price:   document.getElementById('cfg-pricing-pro-price').value,
+      enterprise:  document.getElementById('cfg-pricing-enterprise').value,
+    }
+  }, 'save-pricing-status');
+});
+
+// ── Announcements ──────────────────────────────────────────────────────────
+async function loadAnnouncements() {
+  const r = await fetch(`${API}/api/v1/admin/announcements`, {
+    headers: { 'X-Admin-Key': ADMIN_KEY }
+  }).then(r => r.json()).catch(() => ({ announcements: [] }));
+
+  const list = document.getElementById('ann-list');
+  const anns = r.announcements || [];
+  if (!anns.length) { list.innerHTML = '<p style="font-size:13px;color:var(--text-secondary)">No announcements yet.</p>'; return; }
+
+  list.innerHTML = anns.map(a => `
+    <div class="ann-row" id="ann-${a.id}">
+      <div class="ann-row-body">
+        <div class="ann-text">${esc(a.text)}</div>
+        ${a.url ? `<div class="ann-url">${esc(a.url)}</div>` : ''}
+        <div class="ann-meta">${new Date(a.created_at).toLocaleString()}</div>
+      </div>
+      <div class="ann-actions">
+        <span class="ann-badge ${a.active ? 'active' : 'inactive'}">${a.active ? 'Live' : 'Hidden'}</span>
+        <button class="btn-xs" onclick="toggleAnn('${a.id}', ${!a.active})">${a.active ? 'Hide' : 'Show'}</button>
+        <button class="btn-xs danger" onclick="deleteAnn('${a.id}')">Delete</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function toggleAnn(id, active) {
+  await fetch(`${API}/api/v1/admin/announcements/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY },
+    body: JSON.stringify({ active })
+  });
+  loadAnnouncements();
+  toast(active ? 'Announcement shown' : 'Announcement hidden');
+}
+
+async function deleteAnn(id) {
+  if (!confirm('Delete this announcement?')) return;
+  await fetch(`${API}/api/v1/admin/announcements/${id}`, {
+    method: 'DELETE', headers: { 'X-Admin-Key': ADMIN_KEY }
+  });
+  loadAnnouncements();
+  toast('Deleted');
+}
+
+document.getElementById('post-ann-btn').addEventListener('click', async () => {
+  const text = document.getElementById('ann-text').value.trim();
+  const url  = document.getElementById('ann-url').value.trim();
+  if (!text) return;
+  const r = await fetch(`${API}/api/v1/admin/announcements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Key': ADMIN_KEY },
+    body: JSON.stringify({ text, url: url || undefined, active: true })
+  });
+  if (r.ok) {
+    document.getElementById('ann-text').value = '';
+    document.getElementById('ann-url').value  = '';
+    const el = document.getElementById('post-ann-status');
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2000);
+    toast('Announcement published');
+    loadAnnouncements();
+  } else {
+    toast('Error publishing');
+  }
+});
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
