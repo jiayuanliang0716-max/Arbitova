@@ -2453,14 +2453,33 @@ async function openOrderDetail(orderId) {
     const counterpartProfile = await api('/api/v1/agents/' + counterpartId + '/public-profile').catch(() => null);
 
     // Build timeline from API data if available, else fallback to status-based steps
+    const eventLabel = {
+      'order.created': 'Order placed',
+      'order.delivered': 'Delivery submitted',
+      'order.completed': 'Order completed — escrow released',
+      'order.refunded': 'Refunded to buyer',
+      'order.disputed': 'Dispute opened',
+      'order.cancelled': 'Order cancelled',
+      'order.tip_received': 'Tip sent to seller',
+      'order.deadline_extended': 'Deadline extended',
+      'dispute.resolved': 'Dispute resolved',
+      'reputation.updated': 'Reputation updated',
+    };
     let timelineHtml = '';
     if (tlData && tlData.timeline && tlData.timeline.length) {
-      timelineHtml = tlData.timeline.map(e => `
-        <li class="done" style="font-size:12px;padding:4px 0">
-          <span style="font-weight:600">${escapeHtml(e.event || e.status || '')}</span>
-          ${e.note ? `<span style="color:var(--text-soft)"> — ${escapeHtml(e.note)}</span>` : ''}
-          <span style="color:var(--text-soft);font-size:11px;margin-left:6px">${relativeTime(e.timestamp || e.created_at)}</span>
-        </li>`).join('');
+      timelineHtml = tlData.timeline.map(e => {
+        const label = eventLabel[e.event] || e.event;
+        let detail = '';
+        if (e.event === 'order.tip_received') detail = ` — ${money(e.data?.amount || 0)} USDC`;
+        else if (e.event === 'reputation.updated') detail = ` ${e.data?.delta >= 0 ? '+' : ''}${e.data?.delta} (${escapeHtml(e.data?.reason || '')})`;
+        else if (e.event === 'order.disputed') detail = e.data?.reason ? ` — ${escapeHtml(e.data.reason.slice(0, 60))}` : '';
+        else if (e.event === 'dispute.resolved') detail = e.data?.resolution ? ` — ${escapeHtml(e.data.resolution)}` : '';
+        return `
+          <li class="done" style="font-size:12px;padding:4px 0">
+            <span style="font-weight:600">${escapeHtml(label)}</span>${detail}
+            <span style="color:var(--text-soft);font-size:11px;margin-left:6px">${relativeTime(e.timestamp)}</span>
+          </li>`;
+      }).join('');
     } else {
       const steps = [
         { label: t('tx_detail_created'), done: true },
@@ -2519,8 +2538,31 @@ async function openOrderDetail(orderId) {
         ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openTipModal('${r.id}')">Send Tip</button>` : ''}
+        ${r.status === 'completed' ? `<button class="btn btn-ghost btn-sm" onclick="viewOrderReceipt('${r.id}')">Receipt</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
+      </div>
+    `);
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+async function viewOrderReceipt(orderId) {
+  try {
+    const r = await api('/api/v1/orders/' + orderId + '/receipt', { headers: authHeaders() });
+    modal(`
+      <button class="close" onclick="closeModal()">&times;</button>
+      <h2>Order Receipt</h2>
+      <div style="font-size:12px;color:var(--text-soft);margin-bottom:10px">${r.order_id || orderId}</div>
+      <div class="grid c2" style="gap:10px;margin-bottom:14px">
+        <div class="stat"><div class="n">${money(r.amount || 0)}</div><div class="l">Order Amount</div></div>
+        <div class="stat"><div class="n">${money(r.seller_received || 0)}</div><div class="l">Seller Received</div></div>
+        <div class="stat"><div class="n">${money(r.platform_fee || 0)}</div><div class="l">Platform Fee</div></div>
+        <div class="stat"><div class="n">${((r.fee_rate || 0.025) * 100).toFixed(1)}%</div><div class="l">Fee Rate</div></div>
+      </div>
+      ${r.completed_at ? `<div style="font-size:12px;color:var(--text-soft);margin-bottom:12px">Completed: ${new Date(r.completed_at).toLocaleString()}</div>` : ''}
+      <div class="code-block"><pre style="font-size:11px;white-space:pre-wrap">${escapeHtml(JSON.stringify(r, null, 2))}</pre></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn btn-ghost" onclick="closeModal()">Close</button>
       </div>
     `);
   } catch (e) { toast(friendlyError(e.message), 'error'); }

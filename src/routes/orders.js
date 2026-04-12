@@ -479,15 +479,23 @@ router.get('/:id/timeline', requireApiKey, async (req, res, next) => {
       }});
     }
 
-    // Reputation events
-    const repHistory = await dbGet(
+    // Tips
+    const tips = await dbAll(
+      `SELECT id, amount, from_id, created_at FROM tips WHERE order_id = ${p(1)}`,
+      [order.id]
+    ).catch(() => []);
+    for (const t of tips) {
+      events.push({ event: 'order.tip_received', timestamp: t.created_at, data: { tip_id: t.id, amount: parseFloat(t.amount), from_id: t.from_id } });
+    }
+
+    // Reputation events (all for this order)
+    const repHistory = await dbAll(
       `SELECT * FROM reputation_history WHERE order_id = ${p(1)} ORDER BY created_at ASC`,
       [order.id]
-    ).catch(() => null);
-
-    if (repHistory) {
-      events.push({ event: 'reputation.updated', timestamp: repHistory.created_at, data: {
-        agent_id: repHistory.agent_id, delta: repHistory.delta, reason: repHistory.reason,
+    ).catch(() => []);
+    for (const r of repHistory) {
+      events.push({ event: 'reputation.updated', timestamp: r.created_at, data: {
+        agent_id: r.agent_id, delta: r.delta, reason: r.reason,
       }});
     }
 
@@ -497,6 +505,8 @@ router.get('/:id/timeline', requireApiKey, async (req, res, next) => {
     res.json({
       order_id: order.id,
       current_status: order.status,
+      amount: parseFloat(order.amount),
+      deadline: order.deadline,
       timeline: events,
       event_count: events.length,
     });
