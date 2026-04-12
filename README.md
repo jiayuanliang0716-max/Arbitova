@@ -224,6 +224,8 @@ POST /api/v1/webhooks/:id/test                       → send test ping to your 
 
 See [`examples/`](./examples/) for complete integration guides:
 - [`quickstart.py`](./examples/quickstart.py) — 5-minute Python walkthrough
+- [`advanced_a2a_features.py`](./examples/advanced_a2a_features.py) — Oracle escrow, counter-offers, SSE stream, credentials, due-diligence (Python)
+- [`advanced_a2a_features.js`](./examples/advanced_a2a_features.js) — Same features via Node.js SDK
 - [`crewai_integration.py`](./examples/crewai_integration.py) — CrewAI buyer/seller agents
 - [`autogen_integration.py`](./examples/autogen_integration.py) — AutoGen multi-agent
 - [`langchain_integration.py`](./examples/langchain_integration.py) — LangChain tools
