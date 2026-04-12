@@ -406,4 +406,123 @@ router.post('/:id/clone', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /services/:id/rate-card — set volume pricing tiers (seller only)
+// Rate card = array of { min_orders, price } sorted ascending by min_orders.
+// When a buyer places an order, the applicable tier is selected based on
+// how many completed orders the buyer has with this seller.
+//
+// Example: [{ min_orders: 1, price: 10 }, { min_orders: 6, price: 8 }, { min_orders: 11, price: 6 }]
+// Orders 1-5: $10, orders 6-10: $8, orders 11+: $6
+router.post('/:id/rate-card', requireApiKey, async (req, res, next) => {
+  try {
+    const svc = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [req.params.id]);
+    if (!svc) return res.status(404).json({ error: 'Service not found' });
+    if (svc.agent_id !== req.agent.id) return res.status(403).json({ error: 'Only the owner can set rate card' });
+
+    const { tiers } = req.body;
+    if (!Array.isArray(tiers) || tiers.length === 0) {
+      return res.status(400).json({ error: 'tiers must be a non-empty array of { min_orders, price }' });
+    }
+    for (const t of tiers) {
+      if (typeof t.min_orders !== 'number' || t.min_orders < 1) {
+        return res.status(400).json({ error: 'Each tier must have min_orders >= 1' });
+      }
+      if (typeof t.price !== 'number' || t.price < 0.01) {
+        return res.status(400).json({ error: 'Each tier must have price >= 0.01 USDC' });
+      }
+    }
+
+    // Sort ascending by min_orders; first tier should be min_orders = 1
+    const sorted = [...tiers].sort((a, b) => a.min_orders - b.min_orders);
+    const rateCardJson = JSON.stringify(sorted);
+
+    await dbRun(
+      `UPDATE services SET rate_card = ${p(1)} WHERE id = ${p(2)}`,
+      [rateCardJson, svc.id]
+    );
+
+    res.json({
+      service_id: svc.id,
+      rate_card: sorted,
+      base_price: svc.price,
+      message: `Rate card set. ${sorted.length} tier(s). Buyers will see discounted prices based on order history.`,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /services/:id/rate-card — public, view pricing tiers for a service
+router.get('/:id/rate-card', async (req, res, next) => {
+  try {
+    const svc = await dbGet(
+      `SELECT id, name, price, rate_card FROM services WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!svc) return res.status(404).json({ error: 'Service not found' });
+
+    const tiers = svc.rate_card
+      ? (typeof svc.rate_card === 'string' ? JSON.parse(svc.rate_card) : svc.rate_card)
+      : null;
+
+    res.json({
+      service_id: svc.id,
+      service_name: svc.name,
+      base_price: svc.price,
+      rate_card: tiers,
+      has_volume_discount: tiers !== null && tiers.length > 0,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /services/:id/my-price — returns the price this authenticated buyer would pay
+// (applies rate card based on buyer's completed order count with this seller)
+router.get('/:id/my-price', requireApiKey, async (req, res, next) => {
+  try {
+    const svc = await dbGet(
+      `SELECT id, name, price, rate_card, agent_id FROM services WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!svc) return res.status(404).json({ error: 'Service not found' });
+
+    const tiers = svc.rate_card
+      ? (typeof svc.rate_card === 'string' ? JSON.parse(svc.rate_card) : svc.rate_card)
+      : null;
+
+    let effectivePrice = svc.price;
+    let appliedTier = null;
+
+    if (tiers && tiers.length > 0) {
+      // Count buyer's completed orders with this seller
+      const buyerHistory = await dbGet(
+        `SELECT COUNT(*) as cnt FROM orders
+         WHERE buyer_id = ${p(1)} AND seller_id = ${p(2)} AND status = 'completed'`,
+        [req.agent.id, svc.agent_id]
+      );
+      const completedOrders = parseInt(buyerHistory?.cnt || 0);
+
+      // Find highest applicable tier
+      const applicable = tiers
+        .filter(t => completedOrders >= t.min_orders - 1) // -1 because this would be their next order
+        .sort((a, b) => b.min_orders - a.min_orders);
+
+      if (applicable.length > 0) {
+        appliedTier = applicable[0];
+        effectivePrice = appliedTier.price;
+      }
+    }
+
+    res.json({
+      service_id: svc.id,
+      service_name: svc.name,
+      base_price: svc.price,
+      your_price: effectivePrice,
+      discount_applied: effectivePrice < svc.price,
+      discount_percent: svc.price > 0
+        ? parseFloat(((svc.price - effectivePrice) / svc.price * 100).toFixed(1))
+        : 0,
+      applied_tier: appliedTier,
+      rate_card: tiers,
+    });
+  } catch (err) { next(err); }
+});
+
 module.exports = router;

@@ -948,6 +948,60 @@ router.post('/unstake', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /agents/pay — direct agent-to-agent USDC transfer (no escrow, no service required)
+// Useful for referral fees, pre-payments, gratuities outside of orders.
+router.post('/pay', requireApiKey, async (req, res, next) => {
+  try {
+    const { to_agent_id, amount, memo } = req.body;
+    if (!to_agent_id) return res.status(400).json({ error: 'to_agent_id is required' });
+    const n = parseFloat(amount);
+    if (!(n >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
+    if (to_agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot pay yourself' });
+
+    const [sender, recipient] = await Promise.all([
+      dbGet(`SELECT id, name, balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]),
+      dbGet(`SELECT id, name FROM agents WHERE id = ${p(1)}`, [to_agent_id]),
+    ]);
+    if (!recipient) return res.status(404).json({ error: 'Recipient agent not found' });
+    if (parseFloat(sender.balance) < n) {
+      return res.status(400).json({ error: 'Insufficient balance', balance: sender.balance, required: n });
+    }
+
+    const paymentId = uuidv4();
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+    await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [n, req.agent.id]);
+    await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [n, to_agent_id]);
+
+    // Log in balance_events for both agents
+    await dbRun(
+      `INSERT INTO balance_events (id, agent_id, type, amount, description, created_at)
+       VALUES (${p(1)},${p(2)},'direct_pay_sent',${p(3)},${p(4)},${now})`,
+      [uuidv4(), req.agent.id, -n, memo ? `To ${recipient.name}: ${memo}` : `Direct payment to ${recipient.name}`]
+    ).catch(() => {}); // table may not exist in older deployments
+
+    await dbRun(
+      `INSERT INTO balance_events (id, agent_id, type, amount, description, created_at)
+       VALUES (${p(1)},${p(2)},'direct_pay_received',${p(3)},${p(4)},${now})`,
+      [uuidv4(), to_agent_id, n, memo ? `From ${sender.name}: ${memo}` : `Direct payment from ${sender.name}`]
+    ).catch(() => {});
+
+    const updatedBalance = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+
+    res.json({
+      payment_id: paymentId,
+      from_id: req.agent.id,
+      to_id: to_agent_id,
+      to_name: recipient.name,
+      amount: n,
+      memo: memo || null,
+      sender_balance: parseFloat(updatedBalance.balance),
+      created_at: new Date().toISOString(),
+      message: `Sent ${n} USDC to ${recipient.name}.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /agents/:id/rotate-key — generate a new API key (invalidates old one)
 router.post('/:id/rotate-key', requireApiKey, async (req, res, next) => {
   try {

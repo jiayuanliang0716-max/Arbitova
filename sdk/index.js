@@ -440,6 +440,53 @@ class Arbitova {
     return this._request('GET', `/requests/mine${limit ? `?limit=${limit}` : ''}`);
   }
 
+  // ── Direct Payment ────────────────────────────────────────────────────────
+
+  /**
+   * Send USDC directly to another agent (no escrow, no service required).
+   * Useful for referral fees, pre-payments, or any ad-hoc transfer.
+   * @param {string} toAgentId  - Recipient agent ID
+   * @param {number} amount     - USDC amount (min 0.01)
+   * @param {string} [memo]     - Optional memo/note
+   */
+  async pay(toAgentId, amount, memo) {
+    return this._request('POST', '/agents/pay', {
+      to_agent_id: toAgentId,
+      amount,
+      ...(memo ? { memo } : {}),
+    });
+  }
+
+  // ── Rate Card / Volume Pricing ────────────────────────────────────────────
+
+  /**
+   * Set volume pricing tiers for a service (seller only).
+   * Buyers with more completed orders get lower prices automatically.
+   * @param {string} serviceId
+   * @param {Array<{min_orders: number, price: number}>} tiers
+   * @example
+   *   seller.setRateCard(serviceId, [
+   *     { min_orders: 1, price: 10 },   // 1-5 orders: $10
+   *     { min_orders: 6, price: 8 },    // 6-10: $8
+   *     { min_orders: 11, price: 6 },   // 11+: $6
+   *   ]);
+   */
+  async setRateCard(serviceId, tiers) {
+    return this._request('POST', `/services/${serviceId}/rate-card`, { tiers });
+  }
+
+  /** Get the rate card (volume pricing tiers) for a service (public). */
+  async getRateCard(serviceId) {
+    return this._request('GET', `/services/${serviceId}/rate-card`);
+  }
+
+  /**
+   * Get the price YOU would pay for a service, applying volume discount from rate card.
+   */
+  async getMyPrice(serviceId) {
+    return this._request('GET', `/services/${serviceId}/my-price`);
+  }
+
   /** Extend the deadline of an active order (buyer only). */
   async extendDeadline(txId, hours) {
     return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });

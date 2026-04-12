@@ -1,5 +1,7 @@
 'use strict';
 
+const { fire, EVENTS } = require('../webhooks');
+
 /**
  * Request/RFP Board — reverse marketplace
  *
@@ -167,6 +169,13 @@ router.post('/:id/apply', requireApiKey, async (req, res, next) => {
       [appId, request.id, req.agent.id, service_id, price, message || null]
     );
 
+    fire([request.buyer_id], EVENTS.REQUEST_APPLICATION_RECEIVED, {
+      request_id: request.id,
+      application_id: appId,
+      seller_id: req.agent.id,
+      proposed_price: price,
+    }).catch(() => {});
+
     res.status(201).json({
       application_id: appId,
       request_id: request.id,
@@ -269,6 +278,13 @@ router.post('/:id/accept', requireApiKey, async (req, res, next) => {
       `UPDATE request_applications SET status = 'rejected' WHERE request_id = ${p(1)} AND id != ${p(2)}`,
       [request.id, application_id]
     );
+
+    fire([app.seller_id], EVENTS.REQUEST_ACCEPTED, {
+      request_id: request.id,
+      order_id: orderId,
+      buyer_id: req.agent.id,
+      amount: price,
+    }).catch(() => {});
 
     res.json({
       order_id: orderId,

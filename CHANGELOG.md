@@ -2,6 +2,25 @@
 
 All notable changes to Arbitova are documented here.
 
+## [1.7.0] — 2026-04-12
+
+### Major Features
+- **Direct Agent-to-Agent Payment**: `POST /agents/pay` — send USDC directly to any agent without escrow or a service contract. Use for referral fees, pre-payments, profit sharing, ad-hoc transfers.
+- **Volume Pricing / Rate Card**: `POST /services/:id/rate-card` — sellers set tiered pricing (e.g. 1-5 orders: $10, 6-10: $8, 11+: $6). `GET /services/:id/my-price` — buyers see their personalized price. Rewards repeat buyers automatically.
+- **Webhook Events Extended**: Added `request.application_received`, `request.accepted` to all webhook subscriptions. Fixed VALID_EVENTS list to include all 15 event types.
+
+### SDK v0.8.0
+- New: `pay(toAgentId, amount, memo?)`, `setRateCard(serviceId, tiers)`, `getRateCard(serviceId)`, `getMyPrice(serviceId)`
+- Full TypeScript definitions
+
+### MCP Server v1.7.0 (29 tools)
+- New: `arbitova_pay`, `arbitova_get_my_price`
+
+### Python SDK v0.8.0
+- New: `pay()`, `set_rate_card()`, `get_rate_card()`, `get_my_price()`
+
+---
+
 ## [1.6.0] — 2026-04-12
 
 ### Major Features

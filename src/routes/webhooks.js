@@ -13,8 +13,13 @@ const p = (n) => isPostgres ? `$${n}` : '?';
 
 const VALID_EVENTS = [
   'order.created', 'order.delivered', 'order.completed',
-  'order.refunded', 'order.disputed', 'dispute.resolved',
-  'verification.passed', 'verification.failed', '*',
+  'order.refunded', 'order.disputed', 'order.cancelled',
+  'order.tip_received', 'order.deadline_extended',
+  'dispute.resolved', 'dispute.appealed',
+  'verification.passed', 'verification.failed',
+  'message.received',
+  'request.application_received', 'request.accepted',
+  '*',
 ];
 
 // ── POST /api/v1/webhooks ─────────────────────────────────────────────────────

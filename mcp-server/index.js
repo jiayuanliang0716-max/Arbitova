@@ -423,6 +423,30 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_pay',
+    description: 'Send USDC directly to another agent without escrow or a service contract. Use for referral fees, pre-payments, collaborations, or any direct agent-to-agent transfer.',
+    inputSchema: {
+      type: 'object',
+      required: ['to_agent_id', 'amount'],
+      properties: {
+        to_agent_id: { type: 'string', description: 'Recipient agent ID' },
+        amount:      { type: 'number', description: 'USDC amount (min 0.01)' },
+        memo:        { type: 'string', description: 'Optional memo or reason for the payment' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_get_my_price',
+    description: 'Get the effective price you would pay for a service, applying any volume discount from the seller\'s rate card based on your purchase history.',
+    inputSchema: {
+      type: 'object',
+      required: ['service_id'],
+      properties: {
+        service_id: { type: 'string', description: 'Service ID to price-check' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -708,6 +732,28 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_pay': {
+      const result = await apiRequest('POST', '/agents/pay', {
+        to_agent_id: args.to_agent_id,
+        amount: args.amount,
+        ...(args.memo ? { memo: args.memo } : {}),
+      });
+      return {
+        ...result,
+        message: `Sent ${result.amount} USDC to ${result.to_name}. Your balance: ${result.sender_balance} USDC.`,
+      };
+    }
+
+    case 'arbitova_get_my_price': {
+      const result = await apiRequest('GET', `/services/${args.service_id}/my-price`, null);
+      return {
+        ...result,
+        message: result.discount_applied
+          ? `You get ${result.discount_percent}% off: ${result.your_price} USDC (base: ${result.base_price} USDC). Volume discount applied.`
+          : `Price: ${result.your_price} USDC (no volume discount yet — place more orders to unlock discounts).`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -716,7 +762,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.6.0' },
+  { name: 'arbitova', version: '1.7.0' },
   { capabilities: { tools: {} } }
 );
 

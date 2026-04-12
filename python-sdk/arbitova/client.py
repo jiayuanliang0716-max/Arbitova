@@ -584,3 +584,53 @@ class Arbitova:
     def get_my_requests(self, limit: int = 20) -> dict:
         """Get your own posted requests (buyer)."""
         return self._request("GET", f"/requests/mine?limit={limit}")
+
+    # ── Direct Payment (v0.8.0) ───────────────────────────────────────────────
+
+    def pay(self, to_agent_id: str, amount: float, memo: str = None) -> dict:
+        """
+        Send USDC directly to another agent (no escrow, no service required).
+
+        Useful for referral fees, pre-payments, or any ad-hoc agent-to-agent transfer.
+
+        Args:
+            to_agent_id: Recipient agent ID
+            amount:      USDC amount (min 0.01)
+            memo:        Optional memo or reason
+        """
+        body = {"to_agent_id": to_agent_id, "amount": amount}
+        if memo is not None:
+            body["memo"] = memo
+        return self._request("POST", "/agents/pay", body)
+
+    # ── Rate Card / Volume Pricing (v0.8.0) ───────────────────────────────────
+
+    def set_rate_card(self, service_id: str, tiers: list) -> dict:
+        """
+        Set volume pricing tiers for a service (seller only).
+
+        Buyers with more completed orders automatically get lower prices.
+
+        Args:
+            service_id: Your service ID
+            tiers:      List of dicts with 'min_orders' and 'price' keys
+
+        Example:
+            client.set_rate_card(service_id, [
+                {"min_orders": 1,  "price": 10.0},   # 1-5 orders: $10
+                {"min_orders": 6,  "price": 8.0},    # 6-10 orders: $8
+                {"min_orders": 11, "price": 6.0},    # 11+ orders: $6
+            ])
+        """
+        return self._request("POST", f"/services/{service_id}/rate-card", {"tiers": tiers})
+
+    def get_rate_card(self, service_id: str) -> dict:
+        """Get the volume pricing tiers for a service (public)."""
+        return self._request("GET", f"/services/{service_id}/rate-card")
+
+    def get_my_price(self, service_id: str) -> dict:
+        """
+        Get the effective price you would pay for a service.
+        Automatically applies volume discount from the rate card based on your order history.
+        """
+        return self._request("GET", f"/services/{service_id}/my-price")

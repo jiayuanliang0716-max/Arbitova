@@ -34,6 +34,8 @@ const EVENTS = {
   VERIFICATION_PASSED:  'verification.passed',
   VERIFICATION_FAILED:  'verification.failed',
   MESSAGE_RECEIVED:     'message.received',
+  REQUEST_APPLICATION_RECEIVED: 'request.application_received',
+  REQUEST_ACCEPTED:     'request.accepted',
 };
 
 // Build HMAC-SHA256 signature for a payload string

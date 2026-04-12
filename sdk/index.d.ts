@@ -381,4 +381,43 @@ export declare class Arbitova {
 
   /** Get your own posted requests. */
   getMyRequests(opts?: { limit?: number }): Promise<{ count: number; requests: object[] }>;
+
+  /** Send USDC directly to another agent (no escrow). Useful for referral fees, pre-payments. */
+  pay(toAgentId: string, amount: number, memo?: string): Promise<{
+    payment_id: string;
+    from_id: string;
+    to_id: string;
+    to_name: string;
+    amount: number;
+    memo: string | null;
+    sender_balance: number;
+    message: string;
+  }>;
+
+  /** Set volume pricing tiers for a service (seller only). */
+  setRateCard(serviceId: string, tiers: Array<{ min_orders: number; price: number }>): Promise<{
+    service_id: string;
+    rate_card: Array<{ min_orders: number; price: number }>;
+    base_price: number;
+    message: string;
+  }>;
+
+  /** Get the volume pricing tiers for a service (public). */
+  getRateCard(serviceId: string): Promise<{
+    service_id: string;
+    service_name: string;
+    base_price: number;
+    rate_card: Array<{ min_orders: number; price: number }> | null;
+    has_volume_discount: boolean;
+  }>;
+
+  /** Get the effective price YOU would pay for a service (applies rate card). */
+  getMyPrice(serviceId: string): Promise<{
+    service_id: string;
+    base_price: number;
+    your_price: number;
+    discount_applied: boolean;
+    discount_percent: number;
+    applied_tier: { min_orders: number; price: number } | null;
+  }>;
 }
