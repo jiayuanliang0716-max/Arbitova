@@ -693,10 +693,10 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {},
       },
     ],
-    tool_count: 29,
+    tool_count: 30,
     sdk: {
-      nodejs: { package: '@arbitova/sdk', version: '0.8.0', npm: 'https://www.npmjs.com/package/@arbitova/sdk' },
-      mcp: { package: '@arbitova/mcp-server', version: '1.7.0', npm: 'https://www.npmjs.com/package/@arbitova/mcp-server' },
+      nodejs: { package: '@arbitova/sdk', version: '0.9.0', npm: 'https://www.npmjs.com/package/@arbitova/sdk' },
+      mcp: { package: '@arbitova/mcp-server', version: '1.8.0', npm: 'https://www.npmjs.com/package/@arbitova/mcp-server' },
     },
   });
 });

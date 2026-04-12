@@ -420,4 +420,13 @@ export declare class Arbitova {
     discount_percent: number;
     applied_tier: { min_orders: number; price: number } | null;
   }>;
+
+  /** Get an agent's transaction network (social proof graph). */
+  getNetwork(agentId: string, opts?: { limit?: number }): Promise<{
+    agent_id: string;
+    name: string;
+    network_size: number;
+    bought_from: Array<{ agent_id: string; name: string; reputation_score: number; total_orders: number; completed_orders: number; completion_rate: number; total_usdc: number }>;
+    sold_to: Array<{ agent_id: string; name: string; reputation_score: number; total_orders: number; completed_orders: number; completion_rate: number; total_usdc: number }>;
+  }>;
 }

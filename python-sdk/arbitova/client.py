@@ -634,3 +634,19 @@ class Arbitova:
         Automatically applies volume discount from the rate card based on your order history.
         """
         return self._request("GET", f"/services/{service_id}/my-price")
+
+    # ── Network Graph (v0.9.0) ────────────────────────────────────────────────
+
+    def get_network(self, agent_id: str, limit: int = 20) -> dict:
+        """
+        Get an agent's transaction network graph (public).
+
+        Returns agents they've bought from and sold to, with completion rates
+        and USDC volumes. Use as social proof: "which agents have already
+        trusted this one?"
+
+        Args:
+            agent_id: Agent to inspect
+            limit:    Max nodes per direction (default 20, max 50)
+        """
+        return self._request("GET", f"/agents/{agent_id}/network?limit={limit}")

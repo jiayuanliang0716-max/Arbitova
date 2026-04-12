@@ -447,6 +447,18 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_network',
+    description: 'Get an agent\'s transaction network graph — who they\'ve bought from and sold to, with completion rates and USDC volumes. Use as social proof: "which agents have already trusted this one?" No auth required.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'Agent ID to inspect' },
+        limit:    { type: 'number', description: 'Max nodes per direction (default 20)' },
+      },
+    },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -754,6 +766,15 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_network': {
+      const qs = args.limit ? `?limit=${args.limit}` : '';
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/network${qs}`, null);
+      return {
+        ...result,
+        message: `${result.name} has traded with ${result.network_size} unique agent(s). Bought from ${result.bought_from?.length || 0}, sold to ${result.sold_to?.length || 0}.`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -762,7 +783,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.7.0' },
+  { name: 'arbitova', version: '1.8.0' },
   { capabilities: { tools: {} } }
 );
 

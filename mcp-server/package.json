@@ -1,6 +1,6 @@
 {
   "name": "@arbitova/mcp-server",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "Official MCP server for Arbitova — 27 tools: escrow, AI arbitration, trust scoring, A2A discovery, capability declarations, hash-verified settlement, RFP board, messaging, partial delivery, verdict appeal, order stats, and service management for agent-to-agent payments",
   "main": "index.js",
   "bin": {

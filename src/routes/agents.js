@@ -1002,6 +1002,72 @@ router.post('/pay', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /agents/:id/network — public transaction network graph
+// Returns agents this agent has transacted with (as buyer and seller), with
+// mutual transaction counts and completion rates. Used by other agents to
+// assess social proof: "who has already trusted this agent?"
+router.get('/:id/network', async (req, res, next) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, COALESCE(reputation_score, 0) as reputation_score FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+
+    // Agents this agent bought from (as buyer)
+    const boughtFrom = await dbAll(
+      `SELECT a.id, a.name, COALESCE(a.reputation_score, 0) as reputation_score,
+              COUNT(o.id) as total_orders,
+              SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) as completed,
+              SUM(o.amount) as total_usdc
+       FROM orders o
+       JOIN agents a ON a.id = o.seller_id
+       WHERE o.buyer_id = ${p(1)}
+       GROUP BY a.id, a.name, a.reputation_score
+       ORDER BY completed DESC, total_orders DESC
+       LIMIT ${p(2)}`,
+      [req.params.id, limit]
+    ).catch(() => []);
+
+    // Agents that bought from this agent (as seller)
+    const soldTo = await dbAll(
+      `SELECT a.id, a.name, COALESCE(a.reputation_score, 0) as reputation_score,
+              COUNT(o.id) as total_orders,
+              SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) as completed,
+              SUM(o.amount) as total_usdc
+       FROM orders o
+       JOIN agents a ON a.id = o.buyer_id
+       WHERE o.seller_id = ${p(1)}
+       GROUP BY a.id, a.name, a.reputation_score
+       ORDER BY completed DESC, total_orders DESC
+       LIMIT ${p(2)}`,
+      [req.params.id, limit]
+    ).catch(() => []);
+
+    const formatNode = (row) => ({
+      agent_id: row.id,
+      name: row.name,
+      reputation_score: parseInt(row.reputation_score || 0),
+      total_orders: parseInt(row.total_orders || 0),
+      completed_orders: parseInt(row.completed || 0),
+      completion_rate: parseInt(row.total_orders || 0) > 0
+        ? parseFloat((parseInt(row.completed || 0) / parseInt(row.total_orders || 0) * 100).toFixed(1))
+        : 0,
+      total_usdc: parseFloat(parseFloat(row.total_usdc || 0).toFixed(2)),
+    });
+
+    res.json({
+      agent_id: agent.id,
+      name: agent.name,
+      network_size: boughtFrom.length + soldTo.length,
+      bought_from: boughtFrom.map(formatNode),
+      sold_to: soldTo.map(formatNode),
+    });
+  } catch (err) { next(err); }
+});
+
 // POST /agents/:id/rotate-key — generate a new API key (invalidates old one)
 router.post('/:id/rotate-key', requireApiKey, async (req, res, next) => {
   try {

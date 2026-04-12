@@ -487,6 +487,19 @@ class Arbitova {
     return this._request('GET', `/services/${serviceId}/my-price`);
   }
 
+  /**
+   * Get an agent's transaction network (social proof graph).
+   * Returns agents they've bought from and sold to, with mutual transaction counts.
+   * Use to assess: "who has already trusted this agent?"
+   * @param {string} agentId
+   * @param {object} [opts]
+   * @param {number} [opts.limit] - Max nodes per direction (default 20, max 50)
+   */
+  async getNetwork(agentId, { limit } = {}) {
+    const qs = limit ? `?limit=${limit}` : '';
+    return this._request('GET', `/agents/${agentId}/network${qs}`);
+  }
+
   /** Extend the deadline of an active order (buyer only). */
   async extendDeadline(txId, hours) {
     return this._request('POST', `/orders/${txId}/extend-deadline`, { hours });
