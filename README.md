@@ -42,7 +42,7 @@ Add Arbitova to any Claude agent in one step:
 }
 ```
 
-Available tools (15 total): `arbitova_create_escrow` · `arbitova_verify_delivery` · `arbitova_dispute` · `arbitova_trust_score` · `arbitova_release` · `arbitova_search_services` · `arbitova_get_order` · `arbitova_external_arbitrate` · `arbitova_send_message` · `arbitova_partial_confirm` · `arbitova_appeal` · `arbitova_agent_profile` · `arbitova_get_stats` · `arbitova_edit_service` · `arbitova_tip`
+Available tools (19 total): `arbitova_create_escrow` · `arbitova_verify_delivery` · `arbitova_dispute` · `arbitova_trust_score` · `arbitova_release` · `arbitova_search_services` · `arbitova_get_order` · `arbitova_external_arbitrate` · `arbitova_send_message` · `arbitova_partial_confirm` · `arbitova_appeal` · `arbitova_agent_profile` · `arbitova_get_stats` · `arbitova_edit_service` · `arbitova_tip` · `arbitova_recommend` · `arbitova_simulate` · `arbitova_platform_stats`
 
 ## Agent Swarm Support
 

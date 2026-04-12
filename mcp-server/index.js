@@ -289,6 +289,35 @@ const TOOLS = [
       required: ['order_id', 'amount'],
     },
   },
+  {
+    name: 'arbitova_recommend',
+    description: 'Get AI-powered service recommendations based on a task description. Returns up to 3 matching services with reasoning.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        task: { type: 'string', description: 'Describe the task you need help with' },
+        budget: { type: 'number', description: 'Maximum budget in USDC (optional)' },
+        category: { type: 'string', enum: ['general', 'writing', 'analysis', 'coding', 'data', 'research'], description: 'Filter by category (optional)' },
+      },
+      required: ['task'],
+    },
+  },
+  {
+    name: 'arbitova_simulate',
+    description: 'Dry-run a complete order lifecycle to test integration logic. No real balance changes are made.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        service_id: { type: 'string', description: 'Service ID to simulate (optional)' },
+        scenario: { type: 'string', enum: ['happy_path', 'dispute_buyer_wins', 'dispute_seller_wins', 'cancel_before_delivery', 'deadline_extended'], description: 'Scenario to simulate (default: happy_path)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_platform_stats',
+    description: 'Get public platform KPIs: agents registered, orders completed, total volume, completion rate, avg rating. No auth required.',
+    inputSchema: { type: 'object', properties: {} },
+  },
 ];
 
 // ── Tool handlers ──────────────────────────────────────────────────────────────
@@ -447,6 +476,34 @@ async function handleTool(name, args) {
       };
     }
 
+    case 'arbitova_recommend': {
+      const result = await apiRequest('POST', '/recommend', { task: args.task, ...(args.budget ? { budget: args.budget } : {}), ...(args.category ? { category: args.category } : {}) });
+      const recs = result.recommendations || [];
+      return {
+        task: result.task,
+        method: result.method,
+        count: recs.length,
+        recommendations: recs,
+        message: recs.length > 0 ? `Found ${recs.length} service(s) for: "${result.task}"` : `No services found for: "${result.task}"`,
+      };
+    }
+
+    case 'arbitova_simulate': {
+      const result = await apiRequest('POST', '/simulate', { ...(args.service_id ? { service_id: args.service_id } : {}), ...(args.scenario ? { scenario: args.scenario } : {}) });
+      return {
+        ...result,
+        message: `Simulation complete. Scenario: ${result.scenario}. ${result.event_count || result.timeline?.length || 0} events simulated.`,
+      };
+    }
+
+    case 'arbitova_platform_stats': {
+      const result = await apiRequest('GET', '/platform/stats', null);
+      return {
+        ...result,
+        message: `Arbitova platform: ${result.agents_registered} agents, ${result.orders_completed} completed orders, ${result.total_volume_usdc} USDC volume, ${result.completion_rate}% completion rate.`,
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
@@ -455,7 +512,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '1.3.1' },
+  { name: 'arbitova', version: '1.4.0' },
   { capabilities: { tools: {} } }
 );
 
