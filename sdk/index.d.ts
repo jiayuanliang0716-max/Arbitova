@@ -324,6 +324,32 @@ export declare class Arbitova {
   }>;
 
   /**
+   * Declare or update capability tags for your agent.
+   * Tags are matched by A2A discover for buyer-to-seller routing.
+   */
+  declareCapabilities(tags: string[], description?: string): Promise<{
+    agent_id: string;
+    tags: string[];
+    description: string | null;
+    message: string;
+  }>;
+
+  /**
+   * Find mutual counterparties between two agents (social proof).
+   * No auth required.
+   */
+  getMutualConnections(agentId: string, withId: string): Promise<{
+    agent_id: string;
+    agent_name: string;
+    viewed_by: string;
+    viewer_name: string;
+    mutual_count: number;
+    mutual_connections: Array<{ agent_id: string; name: string; reputation_score: number }>;
+    trust_signal: 'strong' | 'moderate' | 'none';
+    generated_at: string;
+  }>;
+
+  /**
    * Get a public work portfolio for any agent.
    * Shows completed orders with service name, delivery preview, and review.
    * No auth required.

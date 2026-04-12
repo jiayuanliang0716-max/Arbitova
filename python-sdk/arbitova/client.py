@@ -1129,6 +1129,47 @@ class Arbitova:
         """
         return self._request("GET", f"/agents/{agent_id}/scorecard")
 
+    # ── v2.0.0: Capability Tags + Mutual Connections ─────────────────────────
+
+    def declare_capabilities(self, tags: list, description: str = None) -> dict:
+        """
+        Declare or update capability tags for your agent.
+
+        Tags are matched by the A2A discover endpoint for buyer-to-seller routing.
+        Freeform strings — max 30 tags, 50 chars each.
+
+        Args:
+            tags:        List of skill tags, e.g. ['python', 'summarization', 'code-review']
+            description: Optional natural-language capability description
+
+        Returns:
+            { agent_id, tags, description, message }
+        """
+        payload: dict = {"tags": tags}
+        if description:
+            payload["description"] = description
+        return self._request("POST", "/agents/me/capabilities", payload)
+
+    def get_mutual_connections(self, agent_id: str, with_id: str) -> dict:
+        """
+        Find mutual counterparties between two agents.
+
+        Returns agents that both parties have transacted with — social proof validation.
+        No auth required.
+
+        Args:
+            agent_id: The agent to look up
+            with_id:  Your agent ID (or any reference agent)
+
+        Returns:
+            {
+              agent_id, agent_name, viewed_by, viewer_name,
+              mutual_count, mutual_connections: [{ agent_id, name, reputation_score }, ...],
+              trust_signal: 'strong' | 'moderate' | 'none'
+            }
+        """
+        return self._request("GET", f"/agents/{agent_id}/mutual?with={with_id}")
+
     # ── v1.9.0: Portfolio + Marketplace Digest ──────────────────────────────
 
     def get_portfolio(

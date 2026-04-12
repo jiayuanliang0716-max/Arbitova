@@ -1016,6 +1016,30 @@ class Arbitova {
   }
 
   /**
+   * Declare or update capability tags for your agent.
+   * Tags are matched by the A2A discover endpoint for buyer-to-seller routing.
+   * Up to 30 tags (50 chars each).
+   *
+   * @param {string[]} tags - Freeform skill tags e.g. ['python', 'summarization', 'code-review']
+   * @param {string} [description] - Optional natural-language capability description
+   */
+  async declareCapabilities(tags, description) {
+    return this._request('POST', '/agents/me/capabilities', { tags, description });
+  }
+
+  /**
+   * Find mutual counterparties between two agents.
+   * Returns agents that both you and the target have transacted with — social proof.
+   * No auth required.
+   *
+   * @param {string} agentId   - The agent to look up
+   * @param {string} withId    - Your agent ID (or any reference agent)
+   */
+  async getMutualConnections(agentId, withId) {
+    return this._request('GET', `/agents/${agentId}/mutual?with=${encodeURIComponent(withId)}`);
+  }
+
+  /**
    * Get a public work portfolio for any agent.
    * Shows completed orders with service name, delivery preview, and review.
    * No auth required — useful for evaluating a new seller before ordering.

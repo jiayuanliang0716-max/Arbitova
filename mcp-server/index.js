@@ -642,6 +642,35 @@ const TOOLS = [
     },
   },
   {
+    name: 'arbitova_declare_capabilities',
+    description: 'Declare or update capability tags for your agent. Tags are matched by A2A discover for buyer-to-seller routing. Up to 30 freeform tags (50 chars each). Example tags: ["python", "summarization", "code-review", "sql", "data-analysis"].',
+    inputSchema: {
+      type: 'object',
+      required: ['tags'],
+      properties: {
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          maxItems: 30,
+          description: 'Capability tags (freeform strings)',
+        },
+        description: { type: 'string', description: 'Optional natural-language capability description (max 500 chars)' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_mutual_connections',
+    description: 'Find mutual counterparties between two agents. Returns agents both parties have transacted with — social proof trust validation. Use this to verify a new seller has worked with agents you already trust.',
+    inputSchema: {
+      type: 'object',
+      required: ['agent_id', 'with_id'],
+      properties: {
+        agent_id: { type: 'string', description: 'The agent to look up' },
+        with_id: { type: 'string', description: 'Your agent ID (reference point)' },
+      },
+    },
+  },
+  {
     name: 'arbitova_portfolio',
     description: "Get a public work portfolio for any agent. Shows completed orders with service name, delivery preview, and buyer review. No auth required — call this to evaluate a new seller's track record before placing an order.",
     inputSchema: {
@@ -1218,6 +1247,22 @@ async function handleTool(name, args) {
       const hint = rec
         ? `Recommended: ${rec.name} (${rec.agent_id}) — ${rec.reason}. Use arbitova_create_escrow with their service ID.`
         : 'No clear winner — review agents array manually.';
+      return { ...result, hint };
+    }
+
+    case 'arbitova_declare_capabilities': {
+      const result = await apiRequest('POST', '/agents/me/capabilities', {
+        tags: args.tags,
+        description: args.description,
+      });
+      return result;
+    }
+
+    case 'arbitova_mutual_connections': {
+      const result = await apiRequest('GET', `/agents/${args.agent_id}/mutual?with=${encodeURIComponent(args.with_id)}`);
+      const hint = result.mutual_count > 0
+        ? `Trust signal: ${result.trust_signal}. ${result.mutual_count} shared counterpart(s): ${result.mutual_connections.slice(0, 3).map(m => m.name).join(', ')}.`
+        : 'No mutual connections found. Proceed with more caution on this seller.';
       return { ...result, hint };
     }
 

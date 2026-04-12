@@ -776,12 +776,39 @@ router.get('/:id/reputation-history', async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /agents/me/capabilities — declare or update capability tags.
+// Agents can advertise skills beyond their formal service listings.
+// Used by the A2A discover endpoint to match buyers with the right agents.
+// Tags are freeform strings (max 30 tags, 50 chars each).
+router.post('/me/capabilities', requireApiKey, async (req, res, next) => {
+  try {
+    const { tags, description } = req.body;
+    if (!Array.isArray(tags)) return res.status(400).json({ error: 'tags must be an array of strings' });
+    if (tags.length > 30) return res.status(400).json({ error: 'Maximum 30 capability tags' });
+
+    const cleaned = tags.map(t => String(t).slice(0, 50).toLowerCase().trim()).filter(Boolean);
+    const unique = [...new Set(cleaned)];
+
+    await dbRun(
+      `UPDATE agents SET capability_tags = ${p(1)} WHERE id = ${p(2)}`,
+      [JSON.stringify({ tags: unique, description: description || null, updated_at: new Date().toISOString() }), req.agent.id]
+    );
+
+    res.json({
+      agent_id: req.agent.id,
+      tags: unique,
+      description: description || null,
+      message: `${unique.length} capability tags saved. These will be matched in A2A agent discovery.`,
+    });
+  } catch (err) { next(err); }
+});
+
 // GET /agents/:id/capabilities — machine-readable capability declaration (A2A discovery)
 // Returns all active services as structured capability objects with input schemas
 router.get('/:id/capabilities', async (req, res, next) => {
   try {
     const agent = await dbGet(
-      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score, created_at
+      `SELECT id, name, description, COALESCE(reputation_score, 0) as reputation_score, created_at, capability_tags
        FROM agents WHERE id = ${p(1)}`,
       [req.params.id]
     );
@@ -789,7 +816,7 @@ router.get('/:id/capabilities', async (req, res, next) => {
 
     const services = await dbAll(
       `SELECT id, name, description, price, delivery_hours, category, input_schema, auto_verify, status
-       FROM services WHERE agent_id = ${p(1)} AND status = 'active'
+       FROM services WHERE agent_id = ${p(1)} AND (is_active = 1 OR is_active = true)
        ORDER BY created_at DESC`,
       [req.params.id]
     );
@@ -809,6 +836,11 @@ router.get('/:id/capabilities', async (req, res, next) => {
 
     const categories = [...new Set(capabilities.map(c => c.category).filter(Boolean))];
 
+    // Parse capability tags (declared via POST /agents/me/capabilities)
+    const capTagsRaw = agent.capability_tags
+      ? (typeof agent.capability_tags === 'string' ? JSON.parse(agent.capability_tags) : agent.capability_tags)
+      : null;
+
     res.json({
       agent_id: agent.id,
       name: agent.name,
@@ -816,6 +848,8 @@ router.get('/:id/capabilities', async (req, res, next) => {
       reputation_score: parseInt(agent.reputation_score),
       active_services: capabilities.length,
       categories,
+      capability_tags: capTagsRaw?.tags || [],
+      capability_description: capTagsRaw?.description || null,
       capabilities,
       profile_url: `https://a2a-system.onrender.com/profile?id=${agent.id}`,
     });
@@ -2021,6 +2055,61 @@ router.post('/me/blocklist', requireApiKey, async (req, res, next) => {
       message: `${target.name} added to blocklist.`,
       agent_id: target.id,
       blocklist_count: blocklist.length,
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /agents/:id/mutual?with=myAgentId — agents both parties have transacted with.
+// Shows "social proof" connections: agents who you know and who also worked with this agent.
+// No auth required. Provides trust validation via common counterparties.
+router.get('/:id/mutual', async (req, res, next) => {
+  try {
+    const withId = req.query.with;
+    if (!withId) return res.status(400).json({ error: 'Query param ?with=yourAgentId is required' });
+
+    const [agent, viewer] = await Promise.all([
+      dbGet(`SELECT id, name FROM agents WHERE id = ${p(1)}`, [req.params.id]),
+      dbGet(`SELECT id, name FROM agents WHERE id = ${p(1)}`, [withId]),
+    ]);
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+    if (!viewer) return res.status(404).json({ error: 'Agent specified in ?with= not found' });
+
+    // Find agents that BOTH parties have transacted with (as buyer or seller)
+    const targetCounterparties = await dbAll(
+      `SELECT DISTINCT CASE WHEN buyer_id = ${p(1)} THEN seller_id ELSE buyer_id END as agent_id
+       FROM orders WHERE (buyer_id = ${p(2)} OR seller_id = ${p(3)}) AND status IN ('completed','paid','delivered')`,
+      [req.params.id, req.params.id, req.params.id]
+    );
+    const viewerCounterparties = await dbAll(
+      `SELECT DISTINCT CASE WHEN buyer_id = ${p(1)} THEN seller_id ELSE buyer_id END as agent_id
+       FROM orders WHERE (buyer_id = ${p(2)} OR seller_id = ${p(3)}) AND status IN ('completed','paid','delivered')`,
+      [withId, withId, withId]
+    );
+
+    const targetSet = new Set(targetCounterparties.map(r => r.agent_id));
+    const viewerSet = new Set(viewerCounterparties.map(r => r.agent_id));
+    // Mutual = in both sets, excluding the two agents themselves
+    const mutualIds = [...targetSet].filter(id => viewerSet.has(id) && id !== req.params.id && id !== withId);
+
+    let mutuals = [];
+    if (mutualIds.length > 0) {
+      const placeholders = mutualIds.slice(0, 20).map((_, i) => p(i + 1)).join(',');
+      const rows = await dbAll(
+        `SELECT id, name, reputation_score FROM agents WHERE id IN (${placeholders})`,
+        mutualIds.slice(0, 20)
+      );
+      mutuals = rows.map(r => ({ agent_id: r.id, name: r.name, reputation_score: r.reputation_score }));
+    }
+
+    res.json({
+      agent_id: req.params.id,
+      agent_name: agent.name,
+      viewed_by: withId,
+      viewer_name: viewer.name,
+      mutual_count: mutuals.length,
+      mutual_connections: mutuals,
+      trust_signal: mutuals.length >= 3 ? 'strong' : mutuals.length >= 1 ? 'moderate' : 'none',
+      generated_at: new Date().toISOString(),
     });
   } catch (err) { next(err); }
 });

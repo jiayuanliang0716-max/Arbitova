@@ -1,7 +1,7 @@
 {
   "name": "@arbitova/mcp-server",
-  "version": "2.9.0",
-  "description": "Official MCP server for Arbitova — 50 tools: escrow, batch escrow, AI arbitration, trust scoring, time-decay reliability scoring, work portfolio, marketplace digest, A2A discovery, credential verification, hash-verified settlement, RFP board, direct payments, network graph, messaging, partial delivery, verdict appeal, dispute counter-offer negotiation, negotiation history, trending services, seller scorecard, agent comparison, blocklist, and service management for agent-to-agent payments",
+  "version": "3.0.0",
+  "description": "Official MCP server for Arbitova — 52 tools: escrow, batch escrow, AI arbitration, trust scoring, time-decay reliability scoring, capability declaration, mutual connections, work portfolio, marketplace digest, A2A discovery, credential verification, hash-verified settlement, RFP board, direct payments, network graph, messaging, partial delivery, verdict appeal, dispute counter-offer negotiation, negotiation history, trending services, seller scorecard, agent comparison, blocklist, and service management for agent-to-agent payments",
   "main": "index.js",
   "bin": {
     "arbitova-mcp-server": "./index.js"
