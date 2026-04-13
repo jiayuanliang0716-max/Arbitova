@@ -379,6 +379,21 @@ if (DATABASE_URL) {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      CREATE TABLE IF NOT EXISTS posts (
+        id           TEXT PRIMARY KEY,
+        title        TEXT NOT NULL,
+        slug         TEXT NOT NULL UNIQUE,
+        content      TEXT NOT NULL,
+        excerpt      TEXT,
+        category     TEXT DEFAULT 'update',
+        author_name  TEXT DEFAULT 'Arbitova Team',
+        published    BOOLEAN DEFAULT TRUE,
+        created_at   TIMESTAMPTZ DEFAULT NOW(),
+        updated_at   TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts (slug);
+      CREATE INDEX IF NOT EXISTS idx_posts_published ON posts (published, created_at DESC);
     `);
 
     // One-time migrations: set product_type for existing data

@@ -1,5 +1,7 @@
 // ================= i18n =================
-let currentLang = localStorage.getItem('lang') || 'en';
+// Force English — platform is international, zh toggle removed
+localStorage.removeItem('lang');
+let currentLang = 'en';
 const LANG = {
   en: {
     // ── Brand ──

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blog — Arbitova</title>
+  <meta name="description" content="Updates, changelogs, and insights from the Arbitova team.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Ctext x='16' y='21' font-family='-apple-system%2Csystem-ui' font-size='12' font-weight='800' fill='%2300d4aa' text-anchor='middle'%3EARB%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/css/tokens.css?v=202604140001">
+  <link rel="stylesheet" href="/css/main.css?v=202604140001">
+  <style>
+    .blog-layout { max-width: 800px; margin: 0 auto; padding: 0 24px 80px; }
+    .blog-hero { padding: 80px 0 48px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 48px; }
+    .blog-hero h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 12px; }
+    .blog-hero p { color: var(--text-secondary); font-size: 1.1rem; }
+    .post-card { padding: 28px 0; border-bottom: 1px solid var(--border-subtle); }
+    .post-card:last-child { border-bottom: none; }
+    .post-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .post-category { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; background: var(--brand-dim); color: var(--brand); }
+    .post-date { font-size: 12px; color: var(--text-tertiary); }
+    .post-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; color: var(--text-primary); text-decoration: none; display: block; }
+    .post-title:hover { color: var(--brand); }
+    .post-excerpt { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.7; margin-bottom: 14px; }
+    .post-read { font-size: 13px; color: var(--brand); text-decoration: none; font-weight: 600; }
+    .post-read:hover { text-decoration: underline; }
+    .post-full { display: none; }
+    .post-full.active { display: block; }
+    .post-full-body { font-size: 1rem; line-height: 1.8; color: var(--text-secondary); margin-top: 24px; }
+    .post-full-body h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 32px 0 12px; }
+    .post-full-body h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin: 24px 0 8px; }
+    .post-full-body p { margin-bottom: 16px; }
+    .post-full-body code { background: var(--bg-raised); border: 1px solid var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-size: 0.875em; color: var(--brand); }
+    .post-full-body pre { background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 16px 0; }
+    .post-full-body ul { padding-left: 24px; margin-bottom: 16px; }
+    .post-full-body li { margin-bottom: 6px; }
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); text-decoration: none; margin-bottom: 32px; cursor: pointer; background: none; border: none; padding: 0; }
+    .back-btn:hover { color: var(--brand); }
+    .empty-blog { text-align: center; padding: 60px 0; color: var(--text-tertiary); }
+    .admin-bar { background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 8px; padding: 14px 16px; margin-bottom: 32px; display: none; align-items: center; justify-content: space-between; gap: 12px; }
+    .admin-bar.show { display: flex; }
+    .write-form { background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 12px; padding: 24px; margin-bottom: 32px; display: none; }
+    .write-form.show { display: block; }
+    .write-form input, .write-form select, .write-form textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border-default);
+      border-radius: 6px; background: var(--bg-base); color: var(--text-primary);
+      font-size: 14px; font-family: inherit; margin-bottom: 12px; box-sizing: border-box;
+    }
+    .write-form textarea { min-height: 200px; resize: vertical; }
+    .write-form label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<nav class="landing-nav" style="position:sticky;top:0;z-index:100;background:var(--bg-base);border-bottom:1px solid var(--border-subtle)">
+  <div class="landing-nav-inner">
+    <div class="landing-nav-left">
+      <a href="/" class="landing-logo"><span class="landing-logo-text">Arbitova</span></a>
+      <div class="landing-nav-links">
+        <a href="/docs" class="landing-nav-link">Docs</a>
+        <a href="/blog" class="landing-nav-link" style="color:var(--brand)">Blog</a>
+        <a href="/verdicts" class="landing-nav-link">Verdicts</a>
+      </div>
+    </div>
+    <div class="landing-nav-right">
+      <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none">Back to Home</a>
+    </div>
+  </div>
+</nav>
+
+<div class="blog-layout" id="blog-layout">
+
+  <!-- Admin bar (only shows with admin key) -->
+  <div class="admin-bar" id="admin-bar">
+    <span style="font-size:13px;font-weight:600;color:var(--brand)">Admin Mode</span>
+    <button class="btn btn-primary btn-sm" onclick="toggleWriteForm()">+ Write Post</button>
+  </div>
+
+  <!-- Write/Edit Form -->
+  <div class="write-form" id="write-form">
+    <h3 style="margin:0 0 20px;font-size:1.1rem">New Post</h3>
+    <label>Title</label>
+    <input type="text" id="wf-title" placeholder="Post title...">
+    <div class="form-row">
+      <div>
+        <label>Category</label>
+        <select id="wf-category">
+          <option value="update">Update</option>
+          <option value="changelog">Changelog</option>
+          <option value="guide">Guide</option>
+          <option value="announcement">Announcement</option>
+        </select>
+      </div>
+      <div>
+        <label>Author</label>
+        <input type="text" id="wf-author" value="Arbitova Team">
+      </div>
+    </div>
+    <label>Excerpt (1-2 sentences)</label>
+    <input type="text" id="wf-excerpt" placeholder="Brief summary shown in the list...">
+    <label>Content (Markdown supported)</label>
+    <textarea id="wf-content" placeholder="Write your post content here...&#10;&#10;## Heading&#10;&#10;Paragraph text..."></textarea>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="submitPost()">Publish Post</button>
+      <button class="btn btn-ghost" onclick="toggleWriteForm()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Blog list view -->
+  <div id="blog-list">
+    <div class="blog-hero">
+      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--brand);margin-bottom:12px">Arbitova Blog</div>
+      <h1>Updates & Insights</h1>
+      <p>Platform changelogs, developer guides, and news from the Arbitova team.</p>
+    </div>
+    <div id="posts-container">
+      <div class="empty-blog">Loading posts...</div>
+    </div>
+  </div>
+
+  <!-- Single post view -->
+  <div id="post-view" style="display:none;padding-top:40px">
+    <button class="back-btn" onclick="showList()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      All Posts
+    </button>
+    <div id="post-content"></div>
+  </div>
+
+</div>
+
+<script>
+const API = 'https://api.arbitova.com';
+const adminKey = new URLSearchParams(location.search).get('admin') || localStorage.getItem('arb_admin_key');
+
+if (adminKey) {
+  localStorage.setItem('arb_admin_key', adminKey);
+  document.getElementById('admin-bar').classList.add('show');
+}
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 80);
+}
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function categoryColor(c) {
+  const colors = {
+    changelog: '#3b82f6', update: '#00C896', guide: '#f59e0b', announcement: '#8b5cf6'
+  };
+  return colors[c] || '#00C896';
+}
+
+let allPosts = [];
+
+async function loadPosts() {
+  const container = document.getElementById('posts-container');
+  try {
+    const r = await fetch(API + '/api/v1/posts?limit=50').then(r => r.json());
+    allPosts = r.posts || [];
+    if (!allPosts.length) {
+      container.innerHTML = '<div class="empty-blog"><p style="font-size:1.1rem;font-weight:600">No posts yet.</p><p>Check back soon for updates.</p></div>';
+      return;
+    }
+    container.innerHTML = allPosts.map(p => `
+      <div class="post-card">
+        <div class="post-meta">
+          <span class="post-category" style="background:${categoryColor(p.category)}22;color:${categoryColor(p.category)}">${p.category}</span>
+          <span class="post-date">${formatDate(p.created_at)}</span>
+          <span class="post-date">by ${p.author_name}</span>
+          ${adminKey ? `<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:11px" onclick="deletePost('${p.id}')">Delete</button>` : ''}
+        </div>
+        <a class="post-title" onclick="openPost('${p.slug}')" href="#">${escHtml(p.title)}</a>
+        <p class="post-excerpt">${escHtml(p.excerpt || '')}</p>
+        <a class="post-read" onclick="openPost('${p.slug}')" href="#">Read more →</a>
+      </div>
+    `).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="empty-blog">Failed to load posts. Please try again later.</div>';
+  }
+}
+
+async function openPost(slug) {
+  const container = document.getElementById('post-content');
+  document.getElementById('blog-list').style.display = 'none';
+  document.getElementById('post-view').style.display = 'block';
+  container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-tertiary)">Loading...</div>';
+  window.scrollTo(0, 0);
+  try {
+    const p = await fetch(API + '/api/v1/posts/' + slug).then(r => r.json());
+    if (p.error) { container.innerHTML = '<p>Post not found.</p>'; return; }
+    container.innerHTML = `
+      <div class="post-meta" style="margin-bottom:16px">
+        <span class="post-category" style="background:${categoryColor(p.category)}22;color:${categoryColor(p.category)}">${p.category}</span>
+        <span class="post-date">${formatDate(p.created_at)}</span>
+        <span class="post-date">by ${p.author_name}</span>
+      </div>
+      <h1 style="font-size:2rem;font-weight:800;margin-bottom:24px">${escHtml(p.title)}</h1>
+      <div class="post-full-body">${markdownToHtml(p.content)}</div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<p>Failed to load post.</p>';
+  }
+}
+
+function showList() {
+  document.getElementById('blog-list').style.display = 'block';
+  document.getElementById('post-view').style.display = 'none';
+  window.scrollTo(0, 0);
+}
+
+function toggleWriteForm() {
+  const f = document.getElementById('write-form');
+  f.classList.toggle('show');
+}
+
+async function submitPost() {
+  const title = document.getElementById('wf-title').value.trim();
+  const content = document.getElementById('wf-content').value.trim();
+  const excerpt = document.getElementById('wf-excerpt').value.trim();
+  const category = document.getElementById('wf-category').value;
+  const author_name = document.getElementById('wf-author').value.trim() || 'Arbitova Team';
+  if (!title || !content) { alert('Title and content are required.'); return; }
+  try {
+    const r = await fetch(API + '/api/v1/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ title, content, excerpt, category, author_name })
+    }).then(r => r.json());
+    if (r.error) { alert('Error: ' + r.error); return; }
+    document.getElementById('wf-title').value = '';
+    document.getElementById('wf-content').value = '';
+    document.getElementById('wf-excerpt').value = '';
+    toggleWriteForm();
+    loadPosts();
+  } catch (e) { alert('Failed: ' + e.message); }
+}
+
+async function deletePost(id) {
+  if (!confirm('Delete this post?')) return;
+  await fetch(API + '/api/v1/posts/' + id, {
+    method: 'DELETE',
+    headers: { 'X-Admin-Key': adminKey }
+  });
+  loadPosts();
+}
+
+// Minimal markdown renderer
+function markdownToHtml(md) {
+  return md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/^(?!<[h|u|l])/gm, '')
+    .replace(/(.+)/g, (m) => m.startsWith('<') ? m : '<p>' + m + '</p>');
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Apply theme from localStorage
+const theme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', theme);
+
+loadPosts();
+</script>
+</body>
+</html>

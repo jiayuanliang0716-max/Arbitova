@@ -4,9 +4,7 @@ function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(el => { const v = t(el.dataset.i18n); if (v != null) el.textContent = v; });
   document.querySelectorAll('[data-i18n-html]').forEach(el => { const v = t(el.dataset.i18nHtml); if (v != null) el.innerHTML = v; });
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const v = t(el.dataset.i18nPlaceholder); if (v != null) el.placeholder = v; });
-  document.documentElement.lang = currentLang === 'zh' ? 'zh-Hant' : 'en';
-  const lb = document.getElementById('langBtn');
-  if (lb) lb.textContent = currentLang === 'en' ? '中' : 'EN';
+  document.documentElement.lang = 'en';
 }
 function toggleLang() {
   currentLang = currentLang === 'en' ? 'zh' : 'en';
@@ -277,7 +275,7 @@ function confirmAction({ title, message, confirmText, cancelText, danger, onConf
     const btnClass = danger ? 'btn btn-danger' : 'btn btn-primary';
     overlay.innerHTML = `
       <div class="confirm-box">
-        <h3>${escapeHtml(title || (currentLang === 'en' ? 'Are you sure?' : '確認操作'))}</h3>
+        <h3>${escapeHtml(title || 'Are you sure?')}</h3>
         <p>${escapeHtml(message || '')}</p>
         <div class="btn-row">
           <button class="btn btn-ghost confirm-cancel">${escapeHtml(cancelText || t('common_cancel'))}</button>
@@ -606,6 +604,7 @@ async function loadLandingStats() {
   } catch (e) { console.error('Stats load error:', e); }
   loadLandingLeaderboard();
   loadLandingVerdicts();
+  loadLandingBlogPosts();
 }
 
 // Auto-refresh stats every 30 seconds
@@ -643,29 +642,78 @@ async function loadLandingVerdicts() {
   const el = document.getElementById('landing-verdicts-feed');
   if (!el) return;
   try {
-    const data = await fetch(API + '/api/v1/arbitrate/verdicts?limit=5').then(r => r.json());
+    const data = await fetch(API + '/api/v1/arbitrate/verdicts?limit=6').then(r => r.json());
     const verdicts = data.verdicts || [];
-    if (!verdicts.length) { el.style.display = 'none'; return; }
+    if (!verdicts.length) { el.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-tertiary);font-size:13px">No verdicts yet. Be the first to use AI arbitration.</div>'; return; }
     const LABELS = {
       incomplete_delivery:'Incomplete Delivery', format_mismatch:'Format Mismatch',
       deadline_violation:'Deadline Violation', quality_dispute:'Quality Dispute',
       missing_sections:'Missing Sections', no_delivery:'No Delivery',
       spec_mismatch:'Spec Mismatch', scope_dispute:'Scope Dispute', general:'General'
     };
+    // Fill stats
+    const totalEl = document.getElementById('lv-total');
+    if (totalEl && data.total) totalEl.textContent = data.total;
+    const avgConf = verdicts.filter(v => v.confidence).map(v => v.confidence).reduce((a,b) => a+b, 0) / (verdicts.filter(v => v.confidence).length || 1);
+    const accEl = document.getElementById('lv-accuracy');
+    if (accEl && avgConf) accEl.textContent = Math.round(avgConf * 100) + '%';
+
     el.innerHTML = verdicts.map(v => {
       const winner = v.winner || 'unknown';
       const conf = v.confidence ? Math.round(v.confidence * 100) : null;
       const label = LABELS[v.dispute_type] || v.dispute_type || 'Dispute';
-      const date = v.resolved_at ? new Date(v.resolved_at).toLocaleDateString('en-US', {month:'short',day:'numeric'}) : '';
-      const winColor = winner === 'buyer' ? 'var(--success)' : winner === 'seller' ? 'var(--warning)' : 'var(--text-secondary)';
-      const winLabel = winner === 'buyer' ? 'Buyer wins' : winner === 'seller' ? 'Seller wins' : 'Unknown';
-      return `<div class="lv-row">
-        <span class="lv-case">#${v.case_number}</span>
-        <span class="lv-type">${escapeHtml(label)}</span>
-        <span class="lv-winner" style="color:${winColor}">${winLabel}</span>
-        ${conf ? `<span class="lv-conf">${conf}%</span>` : ''}
-        <span class="lv-date">${date}</span>
+      const date = v.resolved_at ? new Date(v.resolved_at).toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) : '';
+      const isBuyer = winner === 'buyer';
+      const isSeller = winner === 'seller';
+      const winBg = isBuyer ? 'rgba(34,197,94,0.08)' : isSeller ? 'rgba(245,158,11,0.08)' : 'var(--bg-raised)';
+      const winColor = isBuyer ? 'var(--success)' : isSeller ? 'var(--warning)' : 'var(--text-secondary)';
+      const winLabel = isBuyer ? 'Buyer wins' : isSeller ? 'Seller wins' : 'Split';
+      const winIcon = isBuyer
+        ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>'
+        : isSeller
+          ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="4 18 15 7 20 12"/></svg>'
+          : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+      const confBar = conf ? `<div class="lv-conf-bar"><div class="lv-conf-fill" style="width:${conf}%"></div></div>` : '';
+      return `<div class="lv-card" style="border-left:3px solid ${winColor}">
+        <div class="lv-card-top">
+          <span class="lv-case-num">#${v.case_number || '—'}</span>
+          <span class="lv-tag">${escapeHtml(label)}</span>
+        </div>
+        <div class="lv-reasoning">${escapeHtml((v.reasoning || 'Arbitration decision recorded.').slice(0, 90))}${(v.reasoning || '').length > 90 ? '…' : ''}</div>
+        ${confBar}
+        <div class="lv-card-bottom">
+          <span class="lv-winner-badge" style="background:${winBg};color:${winColor}">${winIcon} ${winLabel}</span>
+          ${conf ? `<span class="lv-conf-pct">${conf}% confidence</span>` : ''}
+          <span class="lv-date">${date}</span>
+        </div>
       </div>`;
+    }).join('');
+  } catch (e) { /* skip */ }
+}
+
+async function loadLandingBlogPosts() {
+  const el = document.getElementById('landing-blog-posts');
+  if (!el) return;
+  try {
+    const data = await fetch(API + '/api/v1/posts?limit=3').then(r => r.json());
+    const posts = data.posts || [];
+    if (!posts.length) {
+      el.innerHTML = '<div style="grid-column:1/-1;color:var(--text-tertiary);font-size:13px;text-align:center;padding:32px">No posts yet. Check back soon.</div>';
+      return;
+    }
+    const CAT_COLORS = { changelog:'#3b82f6', update:'#00C896', guide:'#f59e0b', announcement:'#8b5cf6' };
+    el.innerHTML = posts.map(p => {
+      const catColor = CAT_COLORS[p.category] || '#00C896';
+      const date = new Date(p.created_at).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric'});
+      return `<a class="blog-prev-card" href="/blog#${escapeHtml(p.slug)}">
+        <div class="blog-prev-meta">
+          <span class="blog-prev-cat" style="background:${catColor}22;color:${catColor}">${escapeHtml(p.category)}</span>
+          <span class="blog-prev-date">${date}</span>
+        </div>
+        <div class="blog-prev-title">${escapeHtml(p.title)}</div>
+        <div class="blog-prev-excerpt">${escapeHtml((p.excerpt || '').slice(0, 100))}${(p.excerpt || '').length > 100 ? '…' : ''}</div>
+        <span class="blog-prev-read">Read more &rarr;</span>
+      </a>`;
     }).join('');
   } catch (e) { /* skip */ }
 }
@@ -865,6 +913,7 @@ function switchPanel(name) {
   if (name === 'wallet') loadWallet();
   if (name === 'settings') loadSettings();
   if (name === 'rfp') loadRfpPanel();
+  if (name === 'publish') loadPublish();
 }
 
 // Bind sidebar buttons
@@ -2428,13 +2477,6 @@ async function loadSettings() {
             <button class="btn btn-sm ${curTheme === 'light' ? 'btn-primary' : 'btn-ghost'}" onclick="applyTheme('light');loadSettings()">${t('dash_settings_theme_light')}</button>
           </div>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <span>${t('dash_settings_language')}</span>
-          <div class="btn-row" style="gap:4px">
-            <button class="btn btn-sm ${currentLang === 'en' ? 'btn-primary' : 'btn-ghost'}" onclick="currentLang='zh';localStorage.setItem('lang','zh');applyTranslations();loadSettings()">中文</button>
-            <button class="btn btn-sm ${currentLang === 'zh' ? 'btn-primary' : 'btn-ghost'}" onclick="currentLang='en';localStorage.setItem('lang','en');applyTranslations();loadSettings()">EN</button>
-          </div>
-        </div>
       </div>
 
       <h3 style="color:var(--danger)">${t('dash_settings_danger')}</h3>
@@ -3113,10 +3155,8 @@ async function confirmWithdraw() {
   if (!to_address) return toast(t('toast_fill_address'), 'warn');
   if (!(amount >= 1)) return toast(t('toast_min_withdraw'), 'warn');
   const confirmed = await confirmAction({
-    title: currentLang === 'en' ? 'Confirm Withdrawal' : '確認提款',
-    message: currentLang === 'en'
-      ? `Withdraw ${money(amount)} USDC to ${to_address.slice(0, 10)}...${to_address.slice(-6)}?`
-      : `提款 ${money(amount)} USDC 至 ${to_address.slice(0, 10)}...${to_address.slice(-6)}？`,
+    title: 'Confirm Withdrawal',
+    message: `Withdraw ${money(amount)} USDC to ${to_address.slice(0, 10)}...${to_address.slice(-6)}?`,
     confirmText: t('wd_confirm'),
     danger: false
   });
@@ -3505,6 +3545,131 @@ async function closeRfpRequest(requestId) {
     await api('/requests/' + requestId + '/close', { method: 'POST', headers: authHeaders() });
     toast('Request closed', 'success');
     loadRfpMine();
+  } catch (e) { toast(friendlyError(e.message), 'error'); }
+}
+
+// ================= Dashboard: Publish (Blog) =================
+
+async function loadPublish() {
+  const container = document.getElementById('panel-publish-content');
+  if (!container) return;
+  const adminKey = localStorage.getItem('arb_admin_key') || '';
+
+  showSkeleton(container, 2);
+  try {
+    const r = await fetch(API + '/api/v1/posts?limit=30').then(r => r.json());
+    const posts = r.posts || [];
+
+    const postRows = posts.length
+      ? posts.map(p => `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border-subtle);gap:12px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;margin-bottom:4px">${escapeHtml(p.title)}</div>
+            <div style="font-size:11px;color:var(--text-tertiary)">${p.category} &middot; ${new Date(p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})} &middot; ${p.author_name}</div>
+            ${p.excerpt ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(p.excerpt)}</div>` : ''}
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <a href="/blog" target="_blank" class="btn btn-ghost btn-sm" style="font-size:11px;text-decoration:none">View</a>
+            ${adminKey ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;color:var(--danger)" onclick="deletePublishPost('${p.id}')">Delete</button>` : ''}
+          </div>
+        </div>`).join('')
+      : `<div style="text-align:center;padding:32px 0;color:var(--text-tertiary);font-size:13px">No posts yet. Write your first post below.</div>`;
+
+    container.innerHTML = `
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-header">
+          <h3>Blog & Updates</h3>
+          <div style="display:flex;gap:8px">
+            <a href="/blog" target="_blank" class="btn btn-ghost btn-sm" style="text-decoration:none">View Blog</a>
+            <button class="btn btn-primary btn-sm" onclick="togglePublishForm()">+ New Post</button>
+          </div>
+        </div>
+        <div class="dash-card-body" style="padding:0 16px">${postRows}</div>
+      </div>
+
+      <div id="publish-form-wrap" style="display:none">
+        <div class="dash-card">
+          <div class="dash-card-header"><h3>Write New Post</h3></div>
+          <div class="dash-card-body">
+            ${!adminKey ? `<div style="background:var(--warn-bg);border:1px solid var(--warn);border-radius:8px;padding:12px;font-size:13px;margin-bottom:16px">
+              <b>Admin key required</b> to publish posts.
+              <input type="text" id="pub-admin-key" placeholder="Enter X-Admin-Key..." style="margin-top:8px;width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:12px">
+              <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="saveAdminKey()">Save Key</button>
+            </div>` : ''}
+            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Title</label>
+            <input id="pub-title" class="plain" type="text" placeholder="Post title...">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Category</label>
+                <select id="pub-category" class="plain" style="width:100%;padding:8px">
+                  <option value="update">Update</option>
+                  <option value="changelog">Changelog</option>
+                  <option value="guide">Guide</option>
+                  <option value="announcement">Announcement</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Author</label>
+                <input id="pub-author" class="plain" type="text" value="Arbitova Team">
+              </div>
+            </div>
+            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">Excerpt (brief summary)</label>
+            <input id="pub-excerpt" class="plain" type="text" placeholder="One or two sentences...">
+            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-top:12px;margin-bottom:4px">Content (Markdown)</label>
+            <textarea id="pub-content" class="plain" rows="8" style="resize:vertical;width:100%" placeholder="## Heading&#10;&#10;Write your content here..."></textarea>
+            <div class="btn-row" style="margin-top:14px">
+              <button class="btn btn-primary" onclick="submitPublishPost(this)">Publish</button>
+              <button class="btn btn-ghost" onclick="togglePublishForm()">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) {
+    container.innerHTML = renderErrorWithRetry(e.message, loadPublish);
+  }
+}
+
+function togglePublishForm() {
+  const wrap = document.getElementById('publish-form-wrap');
+  if (wrap) wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveAdminKey() {
+  const val = (document.getElementById('pub-admin-key') || {}).value || '';
+  if (val.trim()) { localStorage.setItem('arb_admin_key', val.trim()); loadPublish(); }
+}
+
+async function submitPublishPost(btn) {
+  const adminKey = localStorage.getItem('arb_admin_key') || '';
+  if (!adminKey) { toast('Admin key required', 'warn'); return; }
+  const title = (document.getElementById('pub-title') || {}).value || '';
+  const content = (document.getElementById('pub-content') || {}).value || '';
+  const excerpt = (document.getElementById('pub-excerpt') || {}).value || '';
+  const category = (document.getElementById('pub-category') || {}).value || 'update';
+  const author_name = (document.getElementById('pub-author') || {}).value || 'Arbitova Team';
+  if (!title.trim() || !content.trim()) { toast('Title and content required', 'warn'); return; }
+  btnLoading(btn, 'Publishing...');
+  try {
+    const r = await fetch(API + '/api/v1/posts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ title: title.trim(), content: content.trim(), excerpt: excerpt.trim(), category, author_name })
+    }).then(r => r.json());
+    if (r.error) { toast(r.error, 'error'); btnRestore(btn); return; }
+    toast('Post published!', 'success');
+    loadPublish();
+  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
+}
+
+async function deletePublishPost(id) {
+  const adminKey = localStorage.getItem('arb_admin_key') || '';
+  if (!adminKey) { toast('Admin key required', 'warn'); return; }
+  const confirmed = await confirmAction({ title: 'Delete Post', message: 'This action cannot be undone.', danger: true });
+  if (!confirmed) return;
+  try {
+    await fetch(API + '/api/v1/posts/' + id, { method: 'DELETE', headers: { 'X-Admin-Key': adminKey } });
+    toast('Post deleted', 'success');
+    loadPublish();
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
 
