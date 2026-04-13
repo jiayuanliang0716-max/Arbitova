@@ -96,6 +96,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Canonical domain redirect — send old Render URL to arbitova.com
+app.use((req, res, next) => {
+  if (req.hostname === 'a2a-system.onrender.com') {
+    return res.redirect(301, 'https://arbitova.com' + req.path + (req.search ? '?' + req.search : ''));
+  }
+  next();
+});
+
 // Static frontend (SPA — public/index.html is served at /)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 

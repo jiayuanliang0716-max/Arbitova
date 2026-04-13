@@ -3680,9 +3680,15 @@ const SUN_SVG  = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" st
 
 function applyTheme(t) {
   document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('theme', t);
+  // Dashboard topbar button (if present)
   const btn = document.getElementById('themeBtn');
   if (btn) btn.innerHTML = t === 'light' ? MOON_SVG : SUN_SVG;
-  localStorage.setItem('theme', t);
+  // Landing nav toggle icons
+  const darkIcon = document.getElementById('theme-icon-dark');
+  const lightIcon = document.getElementById('theme-icon-light');
+  if (darkIcon) darkIcon.style.display = t === 'dark' ? '' : 'none';
+  if (lightIcon) lightIcon.style.display = t === 'light' ? '' : 'none';
 }
 function toggleTheme() {
   const cur = document.documentElement.getAttribute('data-theme') || 'dark';

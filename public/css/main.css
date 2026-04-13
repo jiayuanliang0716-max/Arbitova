@@ -3330,6 +3330,25 @@ code { font-family: var(--font-mono); font-size: 0.875em; color: var(--brand); }
   color: var(--text-primary);
 }
 
+/* Theme toggle button */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.theme-toggle-btn:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
 /* btn-danger */
 .btn-danger {
   background: var(--danger);
