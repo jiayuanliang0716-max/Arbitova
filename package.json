@@ -1,7 +1,7 @@
 {
-  "name": "a2a-system",
+  "name": "arbitova",
   "version": "1.0.0",
-  "description": "Agent-to-Agent Trading System MVP",
+  "description": "Arbitova — AI-powered escrow and arbitration for autonomous agents",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

@@ -273,10 +273,9 @@ router.get('/verdicts', async (req, res, next) => {
     `;
     const params = [];
 
-    if (winner === 'buyer' || winner === 'seller') {
-      query += ` AND d.resolution LIKE ${p(params.length + 1)}`;
-      params.push(`%winner: ${winner}%`);
-    }
+    // Winner is determined by vote majority in format "buyer(X%), buyer(X%), seller(X%)"
+    // Filter applied post-fetch since winner is parsed from votes string
+    const filterWinner = (winner === 'buyer' || winner === 'seller') ? winner : null;
 
     query += ` ORDER BY d.resolved_at DESC LIMIT ${p(params.length + 1)} OFFSET ${p(params.length + 2)}`;
     params.push(limit, offset);
@@ -285,13 +284,19 @@ router.get('/verdicts', async (req, res, next) => {
 
     // Parse stored resolution string back into structured fields
     // Format: "[AI Arbitration N=3 | votes: buyer(82%), seller(74%) | avg confidence: 82%] reasoning..."
-    const verdicts = rows.map((row, idx) => {
+    const allVerdicts = rows.map((row, idx) => {
       const res_str = row.resolution || '';
 
-      // Extract winner from resolution
+      // Extract winner from votes majority
+      // Format: "votes: buyer(95%), buyer(92%), buyer(95%)" or "buyer(82%), seller(74%), buyer(79%)"
       let caseWinner = null;
-      if (res_str.includes('winner: buyer'))  caseWinner = 'buyer';
-      if (res_str.includes('winner: seller')) caseWinner = 'seller';
+      const votesSection = res_str.match(/votes:\s*([^\|]+)/);
+      if (votesSection) {
+        const buyerCount  = (votesSection[1].match(/buyer\(/g)  || []).length;
+        const sellerCount = (votesSection[1].match(/seller\(/g) || []).length;
+        if (buyerCount > sellerCount)  caseWinner = 'buyer';
+        if (sellerCount > buyerCount)  caseWinner = 'seller';
+      }
 
       // Extract confidence
       let confidence = null;
@@ -344,20 +349,31 @@ router.get('/verdicts', async (req, res, next) => {
       };
     });
 
-    // Aggregate stats
-    const totalQuery = `
-      SELECT COUNT(*) AS total,
-        SUM(CASE WHEN resolution LIKE '%winner: buyer%' THEN 1 ELSE 0 END)  AS buyer_wins,
-        SUM(CASE WHEN resolution LIKE '%winner: seller%' THEN 1 ELSE 0 END) AS seller_wins
-      FROM disputes
-      WHERE status = 'resolved' AND resolution LIKE '%[AI Arbitration%'
-    `;
-    const stats = await dbGet(totalQuery, []).catch(() => ({ total: 0, buyer_wins: 0, seller_wins: 0 }));
+    // Apply winner filter post-parse (since winner is derived from votes string)
+    const verdicts = filterWinner
+      ? allVerdicts.filter(v => v.winner === filterWinner)
+      : allVerdicts;
+
+    // Aggregate stats — count all AI-arbitrated disputes, parse winner from votes
+    const statsRows = await dbAll(
+      `SELECT resolution FROM disputes WHERE status = 'resolved' AND resolution LIKE '%[AI Arbitration%'`,
+      []
+    ).catch(() => []);
+
+    let buyer_wins = 0, seller_wins = 0;
+    for (const r of statsRows) {
+      const vs = (r.resolution || '').match(/votes:\s*([^\|]+)/);
+      if (!vs) continue;
+      const b = (vs[1].match(/buyer\(/g)  || []).length;
+      const s = (vs[1].match(/seller\(/g) || []).length;
+      if (b > s) buyer_wins++;
+      else if (s > b) seller_wins++;
+    }
 
     res.json({
-      total:       parseInt(stats.total || 0),
-      buyer_wins:  parseInt(stats.buyer_wins || 0),
-      seller_wins: parseInt(stats.seller_wins || 0),
+      total:       statsRows.length,
+      buyer_wins,
+      seller_wins,
       page:        parseInt(req.query.page) || 0,
       limit,
       verdicts,
