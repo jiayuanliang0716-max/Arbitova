@@ -1230,7 +1230,8 @@ label {
    TOAST NOTIFICATIONS
    ========================================================================== */
 
-.toast-container {
+.toast-container,
+.toasts {
   position: fixed;
   top: 20px;
   right: 20px;
@@ -1312,10 +1313,11 @@ label {
   color: var(--text);
 }
 
-.toast-success { border-left: 3px solid var(--success); }
-.toast-error { border-left: 3px solid var(--error); }
-.toast-warning { border-left: 3px solid var(--warning); }
-.toast-info { border-left: 3px solid var(--info); }
+.toast-success, .toast.success { border-left: 3px solid var(--success); }
+.toast-error,   .toast.error   { border-left: 3px solid var(--danger); }
+.toast-warning, .toast.warn,
+.toast.warning  { border-left: 3px solid var(--warning); }
+.toast-info,    .toast.info    { border-left: 3px solid var(--brand); }
 
 
 /* ==========================================================================
