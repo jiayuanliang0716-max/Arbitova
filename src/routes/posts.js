@@ -43,14 +43,14 @@ router.get('/', async (req, res) => {
     const offset = parseInt(req.query.offset) || 0;
     const category = req.query.category || null;
 
-    let sql = `SELECT id, title, slug, excerpt, category, author_name, created_at, updated_at
+    let sql = `SELECT id, title, slug, excerpt, cover_image, category, author_name, pinned, created_at, updated_at
                FROM posts WHERE published = TRUE`;
     const params = [];
     if (category) {
       params.push(category);
       sql += ` AND category = $${params.length}`;
     }
-    sql += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    sql += ` ORDER BY pinned DESC, created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
 
     const posts = await dbAll(sql, params);
@@ -77,16 +77,16 @@ router.get('/:slug', async (req, res) => {
 // POST /api/v1/posts (admin)
 router.post('/', requireAdminKey, async (req, res) => {
   try {
-    const { title, content, excerpt, category, author_name, published, slug } = req.body;
+    const { title, content, excerpt, cover_image, category, author_name, published, pinned, slug } = req.body;
     if (!title || !content) return res.status(400).json({ error: 'title and content required' });
 
     const id = genId();
     const finalSlug = slug || toSlug(title) + '-' + Date.now().toString(36);
     await dbRun(
-      `INSERT INTO posts (id, title, slug, content, excerpt, category, author_name, published)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-      [id, title, finalSlug, content, excerpt || '', category || 'update',
-       author_name || 'Arbitova Team', published !== false]
+      `INSERT INTO posts (id, title, slug, content, excerpt, cover_image, category, author_name, published, pinned)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, title, finalSlug, content, excerpt || '', cover_image || null, category || 'update',
+       author_name || 'Arbitova Team', published !== false, pinned === true]
     );
     const post = await dbGet('SELECT * FROM posts WHERE id = $1', [id]);
     res.status(201).json(post);
@@ -101,18 +101,21 @@ router.post('/', requireAdminKey, async (req, res) => {
 // PATCH /api/v1/posts/:id (admin)
 router.patch('/:id', requireAdminKey, async (req, res) => {
   try {
-    const { title, content, excerpt, category, author_name, published } = req.body;
+    const { title, content, excerpt, cover_image, category, author_name, published, pinned } = req.body;
     const post = await dbGet('SELECT * FROM posts WHERE id = $1', [req.params.id]);
     if (!post) return res.status(404).json({ error: 'Post not found' });
 
     await dbRun(
       `UPDATE posts SET
-         title = $1, content = $2, excerpt = $3, category = $4,
-         author_name = $5, published = $6, updated_at = NOW()
-       WHERE id = $7`,
+         title = $1, content = $2, excerpt = $3, cover_image = $4, category = $5,
+         author_name = $6, published = $7, pinned = $8, updated_at = NOW()
+       WHERE id = $9`,
       [title ?? post.title, content ?? post.content, excerpt ?? post.excerpt,
+       cover_image !== undefined ? cover_image : post.cover_image,
        category ?? post.category, author_name ?? post.author_name,
-       published !== undefined ? published : post.published, req.params.id]
+       published !== undefined ? published : post.published,
+       pinned !== undefined ? pinned : post.pinned,
+       req.params.id]
     );
     const updated = await dbGet('SELECT * FROM posts WHERE id = $1', [req.params.id]);
     res.json(updated);

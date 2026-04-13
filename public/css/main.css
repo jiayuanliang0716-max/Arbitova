@@ -3031,6 +3031,29 @@ code { font-family: var(--font-mono); font-size: 0.875em; color: var(--brand); }
   .hiw-flow { flex-direction: column; align-items: center; }
   .hiw-step { max-width: 100%; }
 }
+/* How It Works — buyer/seller tabs */
+.hiw-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+.hiw-tab {
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-default);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.hiw-tab:hover { border-color: var(--brand); color: var(--brand); }
+.hiw-tab.active { background: var(--brand); border-color: var(--brand); color: #000; }
+/* Tag row inside steps */
+.hiw-tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.hiw-tag { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--bg-base); border: 1px solid var(--border-subtle); color: var(--text-tertiary); }
 
 /* ==========================================================================
    Landing Verdicts — Card Grid

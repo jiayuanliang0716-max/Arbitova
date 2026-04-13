@@ -9,79 +9,139 @@
   <link rel="stylesheet" href="/css/tokens.css?v=202604140001">
   <link rel="stylesheet" href="/css/main.css?v=202604140001">
   <style>
-    .blog-layout { max-width: 800px; margin: 0 auto; padding: 0 24px 80px; }
-    .blog-hero { padding: 80px 0 48px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 48px; }
-    .blog-hero h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 12px; }
-    .blog-hero p { color: var(--text-secondary); font-size: 1.1rem; }
-    .post-card { padding: 28px 0; border-bottom: 1px solid var(--border-subtle); }
-    .post-card:last-child { border-bottom: none; }
-    .post-meta { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-    .post-category { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 999px; background: var(--brand-dim); color: var(--brand); }
-    .post-date { font-size: 12px; color: var(--text-tertiary); }
-    .post-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; color: var(--text-primary); text-decoration: none; display: block; }
-    .post-title:hover { color: var(--brand); }
-    .post-excerpt { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.7; margin-bottom: 14px; }
-    .post-read { font-size: 13px; color: var(--brand); text-decoration: none; font-weight: 600; }
-    .post-read:hover { text-decoration: underline; }
-    .post-full { display: none; }
-    .post-full.active { display: block; }
-    .post-full-body { font-size: 1rem; line-height: 1.8; color: var(--text-secondary); margin-top: 24px; }
-    .post-full-body h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 32px 0 12px; }
-    .post-full-body h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin: 24px 0 8px; }
-    .post-full-body p { margin-bottom: 16px; }
-    .post-full-body code { background: var(--bg-raised); border: 1px solid var(--border-subtle); padding: 2px 6px; border-radius: 4px; font-size: 0.875em; color: var(--brand); }
-    .post-full-body pre { background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 16px 0; }
-    .post-full-body ul { padding-left: 24px; margin-bottom: 16px; }
-    .post-full-body li { margin-bottom: 6px; }
-    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); text-decoration: none; margin-bottom: 32px; cursor: pointer; background: none; border: none; padding: 0; }
+    /* ── Reuters-style Blog Layout ── */
+    * { box-sizing: border-box; }
+
+    .blog-nav { position: sticky; top: 0; z-index: 100; background: var(--bg-base); border-bottom: 2px solid var(--brand); }
+    .blog-nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+    .blog-nav-left { display: flex; align-items: center; gap: 24px; }
+    .blog-brand { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); text-decoration: none; letter-spacing: -0.02em; }
+    .blog-brand span { color: var(--brand); }
+    .blog-nav-cats { display: flex; gap: 2px; }
+    .blog-cat-btn { background: none; border: none; padding: 6px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); cursor: pointer; border-radius: 4px; transition: all 0.15s; }
+    .blog-cat-btn:hover, .blog-cat-btn.active { color: var(--brand); background: var(--brand-dim); }
+    .blog-nav-right { display: flex; align-items: center; gap: 12px; }
+
+    /* ── Page layout ── */
+    .blog-page { max-width: 1200px; margin: 0 auto; padding: 0 24px 80px; }
+
+    /* ── Date strip ── */
+    .blog-date-strip { border-bottom: 1px solid var(--border-subtle); padding: 10px 0; margin-bottom: 28px; display: flex; align-items: center; justify-content: space-between; }
+    .blog-date-strip-left { font-size: 12px; color: var(--text-tertiary); font-weight: 500; }
+    .blog-date-strip-right { font-size: 12px; color: var(--text-tertiary); }
+
+    /* ── Featured post (Reuters hero) ── */
+    .featured-post { display: grid; grid-template-columns: 1fr 420px; gap: 32px; padding-bottom: 32px; border-bottom: 2px solid var(--border-subtle); margin-bottom: 32px; }
+    @media (max-width: 900px) { .featured-post { grid-template-columns: 1fr; } }
+    .featured-img-wrap { position: relative; overflow: hidden; border-radius: 4px; aspect-ratio: 16/9; background: var(--bg-raised); }
+    .featured-img-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .featured-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, var(--bg-raised) 0%, var(--bg-surface) 100%); }
+    .pinned-badge { position: absolute; top: 12px; left: 12px; background: var(--brand); color: #000; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 3px 10px; border-radius: 2px; }
+    .featured-body { display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+    .featured-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); }
+    .featured-title { font-size: 1.6rem; font-weight: 800; line-height: 1.25; color: var(--text-primary); cursor: pointer; }
+    .featured-title:hover { color: var(--brand); }
+    .featured-excerpt { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.7; }
+    .featured-meta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: var(--text-tertiary); border-top: 1px solid var(--border-subtle); padding-top: 14px; }
+    .featured-read { color: var(--brand); font-weight: 700; font-size: 13px; cursor: pointer; margin-top: auto; }
+    .featured-read:hover { text-decoration: underline; }
+
+    /* ── Secondary grid ── */
+    .posts-section-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-tertiary); border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; margin-bottom: 20px; }
+    .posts-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 900px) { .posts-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 600px) { .posts-grid { grid-template-columns: 1fr; } }
+
+    .post-card { display: flex; flex-direction: column; gap: 0; border-bottom: 1px solid var(--border-subtle); padding-bottom: 20px; }
+    .post-card-img { aspect-ratio: 16/9; overflow: hidden; border-radius: 3px; margin-bottom: 14px; background: var(--bg-raised); position: relative; }
+    .post-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.3s ease; }
+    .post-card:hover .post-card-img img { transform: scale(1.03); }
+    .post-card-img-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .post-card-cat { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); margin-bottom: 7px; }
+    .post-card-title { font-size: 1rem; font-weight: 700; line-height: 1.35; color: var(--text-primary); cursor: pointer; margin-bottom: 8px; }
+    .post-card-title:hover { color: var(--brand); }
+    .post-card-excerpt { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 10px; flex: 1; }
+    .post-card-meta { font-size: 11px; color: var(--text-tertiary); margin-top: auto; }
+    .post-card-pinned { position: absolute; top: 8px; left: 8px; background: var(--brand); color: #000; font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; }
+
+    /* ── Single post view ── */
+    .single-wrap { max-width: 780px; margin: 0 auto; padding-top: 36px; }
+    .single-cover { aspect-ratio: 16/9; overflow: hidden; border-radius: 4px; margin-bottom: 32px; background: var(--bg-raised); }
+    .single-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .single-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); margin-bottom: 12px; }
+    .single-title { font-size: 2.2rem; font-weight: 800; line-height: 1.2; color: var(--text-primary); margin-bottom: 16px; letter-spacing: -0.02em; }
+    .single-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary); padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 32px; }
+    .single-body { font-size: 1.05rem; line-height: 1.85; color: var(--text-secondary); }
+    .single-body h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 40px 0 14px; }
+    .single-body h3 { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin: 28px 0 10px; }
+    .single-body p { margin-bottom: 18px; }
+    .single-body code { background: var(--bg-raised); border: 1px solid var(--border-subtle); padding: 2px 7px; border-radius: 4px; font-size: 0.875em; color: var(--brand); }
+    .single-body pre { background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 20px 0; }
+    .single-body ul { padding-left: 26px; margin-bottom: 18px; }
+    .single-body li { margin-bottom: 8px; }
+    .single-body img { width: 100%; border-radius: 4px; margin: 20px 0; display: block; }
+    .single-body blockquote { border-left: 3px solid var(--brand); padding-left: 20px; margin: 24px 0; color: var(--text-secondary); font-style: italic; }
+
+    /* ── Back button ── */
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 24px; }
     .back-btn:hover { color: var(--brand); }
-    .empty-blog { text-align: center; padding: 60px 0; color: var(--text-tertiary); }
-    .admin-bar { background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 8px; padding: 14px 16px; margin-bottom: 32px; display: none; align-items: center; justify-content: space-between; gap: 12px; }
+
+    /* ── Admin ── */
+    .admin-bar { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; display: none; align-items: center; justify-content: space-between; gap: 12px; }
     .admin-bar.show { display: flex; }
-    .write-form { background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 12px; padding: 24px; margin-bottom: 32px; display: none; }
+    .write-form { background: var(--bg-raised); border: 1px solid var(--border-default); border-radius: 12px; padding: 24px; margin-bottom: 28px; display: none; }
     .write-form.show { display: block; }
-    .write-form input, .write-form select, .write-form textarea {
-      width: 100%; padding: 10px 12px; border: 1px solid var(--border-default);
-      border-radius: 6px; background: var(--bg-base); color: var(--text-primary);
-      font-size: 14px; font-family: inherit; margin-bottom: 12px; box-sizing: border-box;
-    }
-    .write-form textarea { min-height: 200px; resize: vertical; }
-    .write-form label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 6px; }
+    .write-form input, .write-form select, .write-form textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 6px; background: var(--bg-base); color: var(--text-primary); font-size: 14px; font-family: inherit; margin-bottom: 12px; box-sizing: border-box; }
+    .write-form textarea { min-height: 220px; resize: vertical; }
+    .write-form label { font-size: 12px; font-weight: 600; color: var(--text-secondary); display: block; margin-bottom: 5px; }
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+    .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-row, .form-row-3 { grid-template-columns: 1fr; } }
+
+    .empty-blog { text-align: center; padding: 80px 0; color: var(--text-tertiary); }
   </style>
 </head>
 <body>
-<nav class="landing-nav" style="position:sticky;top:0;z-index:100;background:var(--bg-base);border-bottom:1px solid var(--border-subtle)">
-  <div class="landing-nav-inner">
-    <div class="landing-nav-left">
-      <a href="/" class="landing-logo"><span class="landing-logo-text">Arbitova</span></a>
-      <div class="landing-nav-links">
-        <a href="/docs" class="landing-nav-link">Docs</a>
-        <a href="/blog" class="landing-nav-link" style="color:var(--brand)">Blog</a>
-        <a href="/verdicts" class="landing-nav-link">Verdicts</a>
+<!-- Apply theme -->
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'dark');</script>
+
+<!-- Nav -->
+<nav class="blog-nav">
+  <div class="blog-nav-inner">
+    <div class="blog-nav-left">
+      <a href="/" class="blog-brand">Arbit<span>ova</span></a>
+      <div class="blog-nav-cats">
+        <button class="blog-cat-btn active" onclick="filterCat(null, this)">All</button>
+        <button class="blog-cat-btn" onclick="filterCat('announcement', this)">Announcements</button>
+        <button class="blog-cat-btn" onclick="filterCat('update', this)">Updates</button>
+        <button class="blog-cat-btn" onclick="filterCat('guide', this)">Guides</button>
+        <button class="blog-cat-btn" onclick="filterCat('changelog', this)">Changelog</button>
       </div>
     </div>
-    <div class="landing-nav-right">
-      <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none">Back to Home</a>
+    <div class="blog-nav-right">
+      <a href="/" class="btn btn-ghost btn-sm" style="text-decoration:none;font-size:12px">← Back to Home</a>
     </div>
   </div>
 </nav>
 
-<div class="blog-layout" id="blog-layout">
+<div class="blog-page" id="blog-page">
 
-  <!-- Admin bar (only shows with admin key) -->
-  <div class="admin-bar" id="admin-bar">
-    <span style="font-size:13px;font-weight:600;color:var(--brand)">Admin Mode</span>
-    <button class="btn btn-primary btn-sm" onclick="toggleWriteForm()">+ Write Post</button>
+  <!-- Admin bar -->
+  <div class="admin-bar" id="admin-bar" style="margin-top:20px">
+    <span style="font-size:13px;font-weight:700;color:var(--brand)">Admin Mode</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary btn-sm" onclick="toggleWriteForm()">+ Write Post</button>
+    </div>
   </div>
 
-  <!-- Write/Edit Form -->
+  <!-- Write Form -->
   <div class="write-form" id="write-form">
-    <h3 style="margin:0 0 20px;font-size:1.1rem">New Post</h3>
+    <h3 style="margin:0 0 18px;font-size:1rem;font-weight:700">New Post</h3>
     <label>Title</label>
     <input type="text" id="wf-title" placeholder="Post title...">
-    <div class="form-row">
+    <label>Cover Image URL (16:9 landscape recommended)</label>
+    <input type="text" id="wf-cover" placeholder="https://images.unsplash.com/photo-...?w=1200&h=675&fit=crop">
+    <div class="form-row-3">
       <div>
         <label>Category</label>
         <select id="wf-category">
@@ -95,31 +155,39 @@
         <label>Author</label>
         <input type="text" id="wf-author" value="Arbitova Team">
       </div>
+      <div>
+        <label>Pin to top?</label>
+        <select id="wf-pinned">
+          <option value="false">No</option>
+          <option value="true">Yes — Pin</option>
+        </select>
+      </div>
     </div>
-    <label>Excerpt (1-2 sentences)</label>
-    <input type="text" id="wf-excerpt" placeholder="Brief summary shown in the list...">
-    <label>Content (Markdown supported)</label>
-    <textarea id="wf-content" placeholder="Write your post content here...&#10;&#10;## Heading&#10;&#10;Paragraph text..."></textarea>
+    <label>Excerpt</label>
+    <input type="text" id="wf-excerpt" placeholder="1-2 sentence summary...">
+    <label>Content (Markdown)</label>
+    <textarea id="wf-content" placeholder="## Heading&#10;&#10;Paragraph...&#10;&#10;![Image alt](https://...)"></textarea>
     <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-primary" onclick="submitPost()">Publish Post</button>
+      <button class="btn btn-primary" onclick="submitPost()">Publish</button>
       <button class="btn btn-ghost" onclick="toggleWriteForm()">Cancel</button>
     </div>
   </div>
 
-  <!-- Blog list view -->
+  <!-- Date strip -->
+  <div class="blog-date-strip" id="blog-date-strip" style="margin-top:20px">
+    <span class="blog-date-strip-left" id="strip-date"></span>
+    <span class="blog-date-strip-right">Arbitova Blog</span>
+  </div>
+
+  <!-- Blog list -->
   <div id="blog-list">
-    <div class="blog-hero">
-      <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--brand);margin-bottom:12px">Arbitova Blog</div>
-      <h1>Updates & Insights</h1>
-      <p>Platform changelogs, developer guides, and news from the Arbitova team.</p>
-    </div>
     <div id="posts-container">
-      <div class="empty-blog">Loading posts...</div>
+      <div class="empty-blog">Loading...</div>
     </div>
   </div>
 
   <!-- Single post view -->
-  <div id="post-view" style="display:none;padding-top:40px">
+  <div id="post-view" style="display:none">
     <button class="back-btn" onclick="showList()">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       All Posts
@@ -132,28 +200,30 @@
 <script>
 const API = 'https://api.arbitova.com';
 const adminKey = new URLSearchParams(location.search).get('admin') || localStorage.getItem('arb_admin_key');
-
 if (adminKey) {
   localStorage.setItem('arb_admin_key', adminKey);
   document.getElementById('admin-bar').classList.add('show');
 }
 
-function slugify(s) {
-  return s.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').slice(0, 80);
-}
-
-function formatDate(d) {
-  return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-function categoryColor(c) {
-  const colors = {
-    changelog: '#3b82f6', update: '#00C896', guide: '#f59e0b', announcement: '#8b5cf6'
-  };
-  return colors[c] || '#00C896';
-}
+// Set date strip
+document.getElementById('strip-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
 let allPosts = [];
+let currentCat = null;
+
+const CAT_COLORS = { changelog:'#3b82f6', update:'#00C896', guide:'#f59e0b', announcement:'#8b5cf6' };
+function catColor(c) { return CAT_COLORS[c] || '#00C896'; }
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+}
+
+function filterCat(cat, btn) {
+  currentCat = cat;
+  document.querySelectorAll('.blog-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderPosts(cat ? allPosts.filter(p => p.category === cat) : allPosts);
+}
 
 async function loadPosts() {
   const container = document.getElementById('posts-container');
@@ -161,117 +231,169 @@ async function loadPosts() {
     const r = await fetch(API + '/api/v1/posts?limit=50').then(r => r.json());
     allPosts = r.posts || [];
     if (!allPosts.length) {
-      container.innerHTML = '<div class="empty-blog"><p style="font-size:1.1rem;font-weight:600">No posts yet.</p><p>Check back soon for updates.</p></div>';
+      container.innerHTML = '<div class="empty-blog"><p style="font-size:1.1rem;font-weight:600;color:var(--text-secondary)">No posts yet.</p><p style="color:var(--text-tertiary)">Check back soon for updates.</p></div>';
       return;
     }
-    container.innerHTML = allPosts.map(p => `
-      <div class="post-card">
-        <div class="post-meta">
-          <span class="post-category" style="background:${categoryColor(p.category)}22;color:${categoryColor(p.category)}">${p.category}</span>
-          <span class="post-date">${formatDate(p.created_at)}</span>
-          <span class="post-date">by ${p.author_name}</span>
-          ${adminKey ? `<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:11px" onclick="deletePost('${p.id}')">Delete</button>` : ''}
-        </div>
-        <a class="post-title" onclick="openPost('${p.slug}')" href="#">${escHtml(p.title)}</a>
-        <p class="post-excerpt">${escHtml(p.excerpt || '')}</p>
-        <a class="post-read" onclick="openPost('${p.slug}')" href="#">Read more →</a>
-      </div>
-    `).join('');
+    renderPosts(allPosts);
   } catch (e) {
-    container.innerHTML = '<div class="empty-blog">Failed to load posts. Please try again later.</div>';
+    container.innerHTML = '<div class="empty-blog">Failed to load posts.</div>';
   }
 }
 
+function renderPosts(posts) {
+  const container = document.getElementById('posts-container');
+  if (!posts.length) {
+    container.innerHTML = '<div class="empty-blog"><p style="color:var(--text-tertiary)">No posts in this category.</p></div>';
+    return;
+  }
+
+  const featured = posts[0];
+  const rest = posts.slice(1);
+
+  const featuredHtml = `
+    <div class="featured-post">
+      <div class="featured-img-wrap">
+        ${featured.cover_image
+          ? `<img src="${escHtml(featured.cover_image)}" alt="${escHtml(featured.title)}" loading="lazy">`
+          : `<div class="featured-img-placeholder">${placeholderSvg(featured.category)}</div>`
+        }
+        ${featured.pinned ? '<span class="pinned-badge">Pinned</span>' : ''}
+      </div>
+      <div class="featured-body">
+        <div class="featured-cat">${escHtml(featured.category)}</div>
+        <div class="featured-title" onclick="openPost('${escHtml(featured.slug)}')">${escHtml(featured.title)}</div>
+        <div class="featured-excerpt">${escHtml(featured.excerpt || '')}</div>
+        <div class="featured-meta">
+          <span>${formatDate(featured.created_at)}</span>
+          <span>·</span>
+          <span>${escHtml(featured.author_name)}</span>
+          ${adminKey ? `<button class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:11px;color:var(--danger)" onclick="deletePost('${featured.id}')">Delete</button>` : ''}
+        </div>
+        <span class="featured-read" onclick="openPost('${escHtml(featured.slug)}')">Read full story →</span>
+      </div>
+    </div>`;
+
+  const gridHtml = rest.length ? `
+    <p class="posts-section-title">More Stories</p>
+    <div class="posts-grid">
+      ${rest.map(p => `
+        <div class="post-card">
+          <div class="post-card-img">
+            ${p.cover_image
+              ? `<img src="${escHtml(p.cover_image)}" alt="${escHtml(p.title)}" loading="lazy">`
+              : `<div class="post-card-img-placeholder" style="height:100%">${placeholderSvg(p.category)}</div>`
+            }
+            ${p.pinned ? '<span class="post-card-pinned">Pinned</span>' : ''}
+          </div>
+          <div class="post-card-cat">${escHtml(p.category)}</div>
+          <div class="post-card-title" onclick="openPost('${escHtml(p.slug)}')">${escHtml(p.title)}</div>
+          <div class="post-card-excerpt">${escHtml((p.excerpt || '').slice(0,100))}${(p.excerpt||'').length>100?'…':''}</div>
+          <div class="post-card-meta">${formatDate(p.created_at)} · ${escHtml(p.author_name)}${adminKey ? ` <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:1px 6px;margin-left:8px;color:var(--danger)" onclick="deletePost('${p.id}')">×</button>` : ''}</div>
+        </div>`).join('')}
+    </div>` : '';
+
+  container.innerHTML = featuredHtml + gridHtml;
+}
+
+function placeholderSvg(cat) {
+  const color = catColor(cat);
+  return `<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="1" opacity="0.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
+}
+
 async function openPost(slug) {
-  const container = document.getElementById('post-content');
   document.getElementById('blog-list').style.display = 'none';
+  document.getElementById('blog-date-strip').style.display = 'none';
   document.getElementById('post-view').style.display = 'block';
-  container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-tertiary)">Loading...</div>';
+  const container = document.getElementById('post-content');
+  container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-tertiary)">Loading...</div>';
   window.scrollTo(0, 0);
   try {
     const p = await fetch(API + '/api/v1/posts/' + slug).then(r => r.json());
     if (p.error) { container.innerHTML = '<p>Post not found.</p>'; return; }
+    const coverHtml = p.cover_image
+      ? `<div class="single-cover"><img src="${escHtml(p.cover_image)}" alt="${escHtml(p.title)}"></div>`
+      : '';
     container.innerHTML = `
-      <div class="post-meta" style="margin-bottom:16px">
-        <span class="post-category" style="background:${categoryColor(p.category)}22;color:${categoryColor(p.category)}">${p.category}</span>
-        <span class="post-date">${formatDate(p.created_at)}</span>
-        <span class="post-date">by ${p.author_name}</span>
+      ${coverHtml}
+      <div class="single-cat">${escHtml(p.category)}${p.pinned ? ' · <span style="color:var(--brand)">Pinned</span>' : ''}</div>
+      <h1 class="single-title">${escHtml(p.title)}</h1>
+      <div class="single-meta">
+        <span>${formatDate(p.created_at)}</span>
+        <span>·</span>
+        <span>By ${escHtml(p.author_name)}</span>
       </div>
-      <h1 style="font-size:2rem;font-weight:800;margin-bottom:24px">${escHtml(p.title)}</h1>
-      <div class="post-full-body">${markdownToHtml(p.content)}</div>
+      <div class="single-body">${markdownToHtml(p.content)}</div>
     `;
-  } catch (e) {
+  } catch(e) {
     container.innerHTML = '<p>Failed to load post.</p>';
   }
 }
 
 function showList() {
   document.getElementById('blog-list').style.display = 'block';
+  document.getElementById('blog-date-strip').style.display = 'flex';
   document.getElementById('post-view').style.display = 'none';
   window.scrollTo(0, 0);
 }
 
 function toggleWriteForm() {
-  const f = document.getElementById('write-form');
-  f.classList.toggle('show');
+  document.getElementById('write-form').classList.toggle('show');
 }
 
 async function submitPost() {
   const title = document.getElementById('wf-title').value.trim();
   const content = document.getElementById('wf-content').value.trim();
   const excerpt = document.getElementById('wf-excerpt').value.trim();
+  const cover_image = document.getElementById('wf-cover').value.trim() || null;
   const category = document.getElementById('wf-category').value;
   const author_name = document.getElementById('wf-author').value.trim() || 'Arbitova Team';
-  if (!title || !content) { alert('Title and content are required.'); return; }
+  const pinned = document.getElementById('wf-pinned').value === 'true';
+  if (!title || !content) { alert('Title and content required.'); return; }
   try {
     const r = await fetch(API + '/api/v1/posts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
-      body: JSON.stringify({ title, content, excerpt, category, author_name })
+      body: JSON.stringify({ title, content, excerpt, cover_image, category, author_name, pinned })
     }).then(r => r.json());
     if (r.error) { alert('Error: ' + r.error); return; }
     document.getElementById('wf-title').value = '';
     document.getElementById('wf-content').value = '';
     document.getElementById('wf-excerpt').value = '';
+    document.getElementById('wf-cover').value = '';
     toggleWriteForm();
     loadPosts();
-  } catch (e) { alert('Failed: ' + e.message); }
+  } catch(e) { alert('Failed: ' + e.message); }
 }
 
 async function deletePost(id) {
   if (!confirm('Delete this post?')) return;
   await fetch(API + '/api/v1/posts/' + id, {
-    method: 'DELETE',
-    headers: { 'X-Admin-Key': adminKey }
+    method: 'DELETE', headers: { 'X-Admin-Key': adminKey }
   });
   loadPosts();
 }
 
 // Markdown renderer with image support
 function markdownToHtml(md) {
-  // Extract and protect image tags before HTML escaping
   const images = [];
   md = md.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
-    const safe_src = src.replace(/"/g, '');
-    const safe_alt = alt.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     const idx = images.length;
-    images.push(`<img src="${safe_src}" alt="${safe_alt}" style="width:100%;border-radius:10px;margin:16px 0;display:block">`);
+    images.push(`<img src="${src.replace(/"/g,'')}" alt="${alt.replace(/</g,'&lt;').replace(/>/g,'&gt;')}" style="width:100%;border-radius:6px;margin:20px 0;aspect-ratio:16/9;object-fit:cover;display:block">`);
     return `\x00IMG${idx}\x00`;
   });
   let html = md
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/^- (.+)$/gm, '<li>$1</li>')
-    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/^(?!<[h|u|l])/gm, '')
-    .replace(/(.+)/g, (m) => m.startsWith('<') ? m : '<p>' + m + '</p>');
-  // Restore images
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/^# (.+)$/gm,'<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`]+)`/g,'<code>$1</code>')
+    .replace(/^> (.+)$/gm,'<blockquote>$1</blockquote>')
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>[\s\S]*?<\/li>\n?)+/g,'<ul>$&</ul>')
+    .replace(/\n\n/g,'</p><p>')
+    .replace(/(.+)/g, m => m.startsWith('<') ? m : '<p>' + m + '</p>');
   images.forEach((img, i) => { html = html.replace(`\x00IMG${i}\x00`, img); });
   return html;
 }
@@ -279,10 +401,6 @@ function markdownToHtml(md) {
 function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-
-// Apply theme from localStorage
-const theme = localStorage.getItem('theme') || 'dark';
-document.documentElement.setAttribute('data-theme', theme);
 
 loadPosts();
 </script>

@@ -386,14 +386,18 @@ if (DATABASE_URL) {
         slug         TEXT NOT NULL UNIQUE,
         content      TEXT NOT NULL,
         excerpt      TEXT,
+        cover_image  TEXT,
         category     TEXT DEFAULT 'update',
         author_name  TEXT DEFAULT 'Arbitova Team',
         published    BOOLEAN DEFAULT TRUE,
+        pinned       BOOLEAN DEFAULT FALSE,
         created_at   TIMESTAMPTZ DEFAULT NOW(),
         updated_at   TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts (slug);
       CREATE INDEX IF NOT EXISTS idx_posts_published ON posts (published, created_at DESC);
+      ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image TEXT;
+      ALTER TABLE posts ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
     `);
 
     // One-time migrations: set product_type for existing data
