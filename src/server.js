@@ -27,6 +27,7 @@ const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const arbitrationRoutes = require('./routes/arbitration');
 const requestRoutes = require('./routes/requests');
 const credentialRoutes = require('./routes/credentials');
+const mcpHttpRoutes = require('./routes/mcp-http');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -820,6 +821,9 @@ apiV1.get('/site-config', async (req, res) => {
 });
 
 app.use('/api/v1', apiV1);
+
+// MCP HTTP endpoint for Smithery.ai and HTTP-based MCP clients
+app.use('/mcp', mcpHttpRoutes);
 
 // Legacy routes — kept for backward compatibility with existing frontend
 app.use('/agents', agentRoutes);
