@@ -540,7 +540,10 @@ function showDashboard() {
   const dashboard = document.getElementById('dashboard');
   if (landing) landing.style.display = 'none';
   if (dashboard) dashboard.style.display = '';
-  switchPanel('overview');
+  const hashPanel = window.location.hash.slice(1);
+  const validPanels = ['overview','transactions','marketplace','rfp','apikeys','webhooks',
+    'disputes','contracts','messages','leaderboard','analytics','wallet','settings'];
+  switchPanel((hashPanel && validPanels.includes(hashPanel)) ? hashPanel : 'overview');
   // Poll unread count every 60s while on dashboard
   if (_unreadPollTimer) clearInterval(_unreadPollTimer);
   _unreadPollTimer = setInterval(pollUnreadCount, 60000);
@@ -739,6 +742,20 @@ async function doLogin() {
 function switchPanel(name) {
   state.activePanel = name;
 
+  // Update URL hash for bookmarkable panels
+  if (history.replaceState) {
+    history.replaceState(null, '', '#' + name);
+  }
+
+  // Update page title
+  const titles = {
+    overview: 'Overview', transactions: 'Transactions', marketplace: 'Marketplace',
+    rfp: 'RFP Board', apikeys: 'API Keys', webhooks: 'Webhooks',
+    disputes: 'Disputes', contracts: 'Contracts', messages: 'Messages',
+    leaderboard: 'Leaderboard', analytics: 'Analytics', wallet: 'Wallet', settings: 'Settings'
+  };
+  document.title = (titles[name] || name) + ' — Arbitova';
+
   // Hide all panels
   document.querySelectorAll('.dash-panel').forEach(p => p.classList.remove('active'));
 
@@ -774,6 +791,51 @@ function switchPanel(name) {
   });
 })();
 
+// ================= Onboarding Checklist =================
+
+function renderOnboardingChecklist(me, orderStats, apiKeys) {
+  const dismissed = localStorage.getItem('arb_onboarding_done');
+  if (dismissed) return '';
+
+  const totalOrders = orderStats?.total || me.active_orders || 0;
+  const hasApiKey = apiKeys && apiKeys.length > 0;
+  const hasTransaction = totalOrders > 0;
+
+  // Hide checklist if all steps done
+  if (hasApiKey && hasTransaction) {
+    localStorage.setItem('arb_onboarding_done', '1');
+    return '';
+  }
+
+  const step = (done, label, action, actionLabel) => `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border-subtle)">
+      <div style="width:22px;height:22px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;
+        background:${done ? 'var(--brand-dim)' : 'var(--bg-raised)'};
+        border:1.5px solid ${done ? 'var(--brand)' : 'var(--border-strong)'};
+        color:${done ? 'var(--brand)' : 'var(--text-tertiary)'}">
+        ${done ? '&#10003;' : ''}
+      </div>
+      <span style="flex:1;font-size:13px;color:${done ? 'var(--text-tertiary)' : 'var(--text)'};
+        text-decoration:${done ? 'line-through' : 'none'}">${label}</span>
+      ${!done ? `<button class="btn btn-ghost btn-sm" onclick="${action}" style="font-size:12px">${actionLabel}</button>` : ''}
+    </div>`;
+
+  return `
+    <div id="onboarding-checklist" style="margin-bottom:16px;background:var(--bg-surface);border:1px solid var(--brand-border);border-radius:var(--radius-lg);padding:16px 20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div>
+          <div style="font-weight:700;font-size:14px;color:var(--text)">Get Started with Arbitova</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">Complete these steps to start transacting</div>
+        </div>
+        <button onclick="document.getElementById('onboarding-checklist').remove();localStorage.setItem('arb_onboarding_done','1')"
+          style="background:none;border:none;cursor:pointer;color:var(--text-tertiary);font-size:18px;line-height:1;padding:4px" aria-label="Dismiss">&#215;</button>
+      </div>
+      ${step(true, 'Create your agent account', '', '')}
+      ${step(hasApiKey, 'Generate your first API key', "switchPanel('apikeys')", 'Go to API Keys &rarr;')}
+      ${step(hasTransaction, 'Complete your first transaction', "switchPanel('marketplace')", 'Browse Marketplace &rarr;')}
+    </div>`;
+}
+
 // ================= Dashboard: Overview =================
 
 async function loadOverview() {
@@ -787,11 +849,12 @@ async function loadOverview() {
   if (statsEl) showSkeleton(statsEl, 1);
 
   try {
-    const [me, walletInfo, pendingSellerOrders, orderStats] = await Promise.all([
+    const [me, walletInfo, pendingSellerOrders, orderStats, apiKeysResp] = await Promise.all([
       api('/api/v1/agents/me', { headers: authHeaders() }),
       api('/api/v1/agents/' + a.id + '/wallet', { headers: authHeaders() }).catch(() => null),
       api('/api/v1/orders?role=seller&status=paid&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
       api('/api/v1/orders/stats', { headers: authHeaders() }).catch(() => null),
+      api('/api/v1/apikeys', { headers: authHeaders() }).catch(() => ({ keys: [] })),
     ]);
 
     if (me.name) localStorage.setItem(K.name, me.name);
@@ -830,7 +893,7 @@ async function loadOverview() {
       </div>` : '';
 
     if (statsEl) {
-      statsEl.innerHTML = `
+      statsEl.innerHTML = renderOnboardingChecklist(me, orderStats, apiKeysResp?.keys) + `
         <div class="grid c4">
           <div class="stat"><div class="n">${money(me.balance)}</div><div class="l">${t('dash_balance')}</div></div>
           <div class="stat"><div class="n">${money(me.escrow)}</div><div class="l">${t('dash_escrow')}</div></div>
@@ -1633,7 +1696,59 @@ const order = await fetch(API + '/orders', {
   headers: { 'X-API-Key': API_KEY, 'Content-Type': 'application/json' },
   body: JSON.stringify({ service_id: 'SERVICE_ID', requirements: 'Your task here' })
 }).then(r => r.json());`, 'javascript')}
+
+    <div style="margin-top:24px;background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-lg);overflow:hidden">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-weight:600;font-size:13px">Quick API Test</div>
+        <span style="font-size:11px;color:var(--text-tertiary)">Live call to api.arbitova.com</span>
+      </div>
+      <div style="padding:16px">
+        <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center">
+          <select id="api-playground-method" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:12px;font-weight:600;width:80px">
+            <option>GET</option>
+          </select>
+          <select id="api-playground-endpoint" onchange="apiPlaygroundEndpointChange()" style="flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:12px">
+            <option value="/api/v1/agents/me">GET /agents/me — Your profile</option>
+            <option value="/api/v1/orders/stats">GET /orders/stats — Order statistics</option>
+            <option value="/api/v1/orders?limit=5">GET /orders — Recent orders</option>
+            <option value="/api/v1/webhooks">GET /webhooks — Your webhooks</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="runApiPlayground('${escapeHtml(a.key)}')">Run</button>
+        </div>
+        <div id="api-playground-result" style="font-family:var(--font-mono);font-size:11px;line-height:1.7;background:var(--bg-base);border:1px solid var(--border-subtle);border-radius:6px;padding:12px;min-height:60px;max-height:200px;overflow-y:auto;color:var(--text-secondary);white-space:pre-wrap">
+          Click Run to execute this API call with your key.
+        </div>
+      </div>
+    </div>
   `;
+}
+
+async function runApiPlayground(apiKey) {
+  const resultEl = document.getElementById('api-playground-result');
+  const endpointEl = document.getElementById('api-playground-endpoint');
+  if (!resultEl || !endpointEl) return;
+  const endpoint = endpointEl.value;
+  resultEl.textContent = 'Loading...';
+  resultEl.style.color = 'var(--text-secondary)';
+  try {
+    const res = await fetch('https://api.arbitova.com' + endpoint, {
+      headers: { 'X-API-Key': apiKey }
+    });
+    const data = await res.json().catch(() => ({}));
+    resultEl.textContent = JSON.stringify(data, null, 2);
+    resultEl.style.color = res.ok ? 'var(--success)' : '#ef4444';
+  } catch (e) {
+    resultEl.textContent = 'Error: ' + e.message;
+    resultEl.style.color = '#ef4444';
+  }
+}
+
+function apiPlaygroundEndpointChange() {
+  const resultEl = document.getElementById('api-playground-result');
+  if (resultEl) {
+    resultEl.textContent = 'Click Run to execute this API call with your key.';
+    resultEl.style.color = 'var(--text-secondary)';
+  }
 }
 
 function toggleApiKeyVisibility() {
@@ -1653,7 +1768,10 @@ async function loadWebhooks() {
   if (!a.id || !a.key) return;
   showSkeleton(container, 2);
   try {
-    const data = await api('/api/v1/webhooks', { headers: authHeaders() });
+    const [data, logsData] = await Promise.all([
+      api('/api/v1/webhooks', { headers: authHeaders() }),
+      api('/api/v1/webhooks/logs?limit=20', { headers: authHeaders() }).catch(() => null),
+    ]);
     const hooks = data.webhooks || data || [];
     const rows = hooks.length
       ? hooks.map(h => `
@@ -1669,6 +1787,32 @@ async function loadWebhooks() {
           </div>`).join('')
       : `<div style="text-align:center;padding:40px 0;color:var(--text-soft)">No webhook endpoints yet</div>`;
 
+    // Delivery log section
+    const logs = logsData?.logs || [];
+    const logRows = logs.length
+      ? logs.map(log => {
+          const ok = log.status_code >= 200 && log.status_code < 300;
+          const statusColor = ok ? 'var(--success)' : '#ef4444';
+          const dot = ok ? '&#10003;' : '&#10005;';
+          return `
+            <div style="display:grid;grid-template-columns:20px 1fr auto auto;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border-subtle);font-size:12px">
+              <span style="color:${statusColor};font-weight:700">${dot}</span>
+              <span style="color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(log.event_type || 'unknown')}</span>
+              <span style="color:${statusColor};font-family:var(--font-mono);font-weight:600">${log.status_code ? 'HTTP ' + log.status_code : 'timeout'}</span>
+              <span style="color:var(--text-tertiary);white-space:nowrap">${relativeTime(log.created_at)}</span>
+            </div>`;
+        }).join('')
+      : `<div style="text-align:center;padding:24px;color:var(--text-tertiary);font-size:12px">No delivery logs yet — send a test to see events here</div>`;
+
+    const logSection = logsData !== null ? `
+      <div class="dash-card" style="margin-top:16px">
+        <div class="dash-card-header">
+          <h3>Recent Delivery Log</h3>
+          <button class="btn btn-ghost btn-sm" onclick="loadWebhooks()">Refresh</button>
+        </div>
+        <div class="dash-card-body" style="padding:0 16px">${logRows}</div>
+      </div>` : '';
+
     container.innerHTML = `
       <div class="dash-card">
         <div class="dash-card-header">
@@ -1676,7 +1820,8 @@ async function loadWebhooks() {
           <button class="btn btn-primary btn-sm" onclick="openCreateWebhookModal()">+ Add Endpoint</button>
         </div>
         <div class="dash-card-body">${rows}</div>
-      </div>`;
+      </div>
+      ${logSection}`;
   } catch (e) {
     container.innerHTML = renderErrorWithRetry(e.message, loadWebhooks);
   }
@@ -3341,8 +3486,20 @@ applyTheme(localStorage.getItem('theme') || 'dark');
 applyTranslations();
 
 if (isLoggedIn()) {
+  // showDashboard() will restore panel from URL hash automatically
   showDashboard();
-  loadOverview();
 } else {
   showLanding();
 }
+
+// Handle browser back/forward button while on dashboard
+window.addEventListener('popstate', () => {
+  if (isLoggedIn()) {
+    const hashPanel = window.location.hash.slice(1);
+    const validPanels = ['overview','transactions','marketplace','rfp','apikeys','webhooks',
+      'disputes','contracts','messages','leaderboard','analytics','wallet','settings'];
+    if (hashPanel && validPanels.includes(hashPanel)) {
+      switchPanel(hashPanel);
+    }
+  }
+});

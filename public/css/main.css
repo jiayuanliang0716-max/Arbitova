@@ -12,75 +12,10 @@
   box-sizing: border-box;
 }
 
-:root {
-  /* Surfaces */
-  --bg: #0a0a0a;
-  --surface: #1a1a1a;
-  --surface-raised: #222222;
-  --border: #2a2a2a;
-  --border-light: #333333;
+/* tokens.css is the single source of truth for all CSS variables.
+   main.css does NOT redefine variables — they come from tokens.css above. */
 
-  /* Text */
-  --text: #fafafa;
-  --text-secondary: #888888;
-  --text-dim: #555555;
-
-  /* Accent — teal-green (trust/money) */
-  --accent: #00d4aa;
-  --accent-hover: #00e8bb;
-  --accent-muted: rgba(0, 212, 170, 0.12);
-  --accent-border: rgba(0, 212, 170, 0.3);
-
-  /* Semantic */
-  --error: #ff4444;
-  --error-bg: rgba(255, 68, 68, 0.1);
-  --error-border: rgba(255, 68, 68, 0.25);
-  --warning: #ffaa00;
-  --warning-bg: rgba(255, 170, 0, 0.1);
-  --warning-border: rgba(255, 170, 0, 0.25);
-  --success: #00cc66;
-  --success-bg: rgba(0, 204, 102, 0.1);
-  --success-border: rgba(0, 204, 102, 0.25);
-  --info: #3b82f6;
-  --info-bg: rgba(59, 130, 246, 0.1);
-  --info-border: rgba(59, 130, 246, 0.25);
-
-  /* Radii */
-  --radius-card: 8px;
-  --radius-btn: 6px;
-  --radius-input: 4px;
-
-  /* Fonts */
-  --font-heading: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
-
-  /* Sidebar */
-  --sidebar-width: 240px;
-
-  /* Transitions */
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ---------- Light theme ---------- */
-[data-theme="light"] {
-  --bg: #f5f5f5;
-  --surface: #ffffff;
-  --surface-raised: #f0f0f0;
-  --border: #e0e0e0;
-  --border-light: #d0d0d0;
-  --text: #111111;
-  --text-secondary: #666666;
-  --text-dim: #999999;
-  --accent: #00b892;
-  --accent-hover: #00a37f;
-  --accent-muted: rgba(0, 184, 146, 0.1);
-  --accent-border: rgba(0, 184, 146, 0.3);
-  --error-bg: rgba(255, 68, 68, 0.08);
-  --warning-bg: rgba(255, 170, 0, 0.08);
-  --success-bg: rgba(0, 204, 102, 0.08);
-  --info-bg: rgba(59, 130, 246, 0.08);
-}
+/* Light theme is defined in tokens.css */
 
 html {
   font-size: 16px;
@@ -2271,4 +2206,375 @@ label {
   .dash-main { margin-left: 0; }
   .dash-menu-toggle { display: flex; }
   .dash-panel { padding: 16px; }
+}
+
+
+/* ==========================================================================
+   LANDING PAGE — New class names (hero-section, features-section, etc.)
+   These replace the old landing-hero / landing-features naming.
+   ========================================================================== */
+
+/* ── Landing Logo ── */
+.landing-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.landing-logo-text {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+/* ── Landing Nav Layout ── */
+.landing-nav-inner {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.landing-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.landing-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landing-nav-link {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease);
+}
+.landing-nav-link:hover {
+  color: var(--text);
+}
+
+/* ── CTA Section ── */
+.cta-section {
+  text-align: center;
+  padding: 80px 40px;
+  margin-bottom: 60px;
+  background: linear-gradient(180deg, transparent 0%, var(--brand-dim) 100%);
+  border-top: 1px solid var(--brand-border);
+  border-bottom: 1px solid var(--brand-border);
+}
+.cta-inner {
+  max-width: 640px;
+  margin: 0 auto;
+}
+.cta-heading {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.cta-sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+/* ── Landing Footer ── */
+.landing-footer-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.landing-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.landing-footer-brand {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+.landing-footer-copy {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+.landing-footer-link {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color var(--duration) var(--ease);
+}
+.landing-footer-link:hover {
+  color: var(--text);
+}
+
+/* ── btn-outline alias (same as btn-secondary) ── */
+.btn-outline {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-btn);
+}
+.btn-outline:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-dim);
+}
+
+/* ── Hero Section ── */
+.hero-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 120px 40px 80px;
+  text-align: center;
+  animation: fadeIn 0.6s var(--ease) both;
+}
+
+.hero-inner {
+  max-width: 800px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 14px;
+  background: var(--brand-dim);
+  border: 1px solid var(--brand-border);
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--brand);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+
+.hero-title .highlight {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-hover) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-bottom: 40px;
+  line-height: 1.7;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* ── Features / Sections ── */
+.features-section {
+  max-width: 1100px;
+  margin: 0 auto 80px;
+  padding: 0 40px;
+}
+
+.features-inner {
+  width: 100%;
+}
+
+.section-heading {
+  font-size: 2.2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.section-sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+/* ── Feature card icon (text + SVG variant) ── */
+.feature-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--brand-dim);
+  color: var(--brand);
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.feature-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+.feature-desc {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* ── Code Section ── */
+.code-section {
+  max-width: 760px;
+  margin: 0 auto 80px;
+  padding: 0 40px;
+  animation: fadeIn 0.6s 0.15s var(--ease) both;
+}
+
+.code-section-inner {
+  width: 100%;
+}
+
+.code-window {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+
+.code-window-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.code-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+.code-dot-red    { background: #ff5f57; }
+.code-dot-yellow { background: #febc2e; }
+.code-dot-green  { background: #28c840; }
+
+.code-window-title {
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+.code-block {
+  display: block;
+  padding: 24px 28px;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  line-height: 1.8;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  margin: 0;
+}
+
+/* Syntax tokens */
+.code-comment  { color: #546e7a; font-style: italic; }
+.code-keyword  { color: #c792ea; }
+.code-type     { color: #82aaff; }
+.code-fn       { color: #82aaff; }
+.code-string   { color: #c3e88d; }
+.code-prop     { color: #ffcb6b; }
+
+/* ── Integrations / Partners section ── */
+.integrations-section {
+  text-align: center;
+  max-width: 1100px;
+  margin: 0 auto 80px;
+  padding: 0 40px;
+}
+
+.integrations-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.integration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: border-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+
+.integration-badge:hover {
+  border-color: var(--brand-border);
+  color: var(--text);
+}
+
+/* ── Responsive overrides for new classes ── */
+@media (max-width: 1024px) {
+  .features-grid { grid-template-columns: repeat(2, 1fr); }
+  .hero-title    { font-size: 2.8rem; }
+}
+
+@media (max-width: 768px) {
+  .hero-section  { padding: 80px 20px 60px; }
+  .hero-title    { font-size: 2rem; }
+  .hero-subtitle { font-size: 1rem; }
+  .hero-actions  { flex-direction: column; width: 100%; }
+  .hero-actions .btn { width: 100%; }
+  .features-section { padding: 0 20px; margin-bottom: 60px; }
+  .features-grid { grid-template-columns: 1fr; }
+  .code-section  { padding: 0 20px; }
+  .section-heading { font-size: 1.8rem; }
+}
+
+@media (max-width: 480px) {
+  .hero-title    { font-size: 1.7rem; }
+  .section-heading { font-size: 1.5rem; }
 }
