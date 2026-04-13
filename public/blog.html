@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Blog — Arbitova</title>
   <meta name="description" content="Updates, changelogs, and insights from the Arbitova team.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230a0a0a'/%3E%3Ctext x='16' y='21' font-family='-apple-system%2Csystem-ui' font-size='12' font-weight='800' fill='%2300d4aa' text-anchor='middle'%3EARB%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-2%20-2%2072%2048'%3E%3Cdefs%3E%3CclipPath id='fc'%3E%3Ccircle cx='46' cy='22' r='20'/%3E%3C/clipPath%3E%3C/defs%3E%3Ccircle cx='22' cy='22' r='20' fill='%231D9E75' clip-path='url(%23fc)'/%3E%3Ccircle cx='22' cy='22' r='20' fill='none' stroke='%23E6E3DE' stroke-width='3'/%3E%3Ccircle cx='46' cy='22' r='20' fill='none' stroke='%23E6E3DE' stroke-width='3'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="/css/tokens.css?v=202604140001">
   <link rel="stylesheet" href="/css/main.css?v=202604140001">
   <style>
@@ -15,8 +15,7 @@
     .blog-nav { position: sticky; top: 0; z-index: 100; background: var(--bg-base); border-bottom: 2px solid var(--brand); }
     .blog-nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
     .blog-nav-left { display: flex; align-items: center; gap: 24px; }
-    .blog-brand { font-size: 1.2rem; font-weight: 800; color: var(--text-primary); text-decoration: none; letter-spacing: -0.02em; }
-    .blog-brand span { color: var(--brand); }
+    .blog-brand { color: var(--text-primary); text-decoration: none; }
     .blog-nav-cats { display: flex; gap: 2px; }
     .blog-cat-btn { background: none; border: none; padding: 6px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); cursor: pointer; border-radius: 4px; transition: all 0.15s; }
     .blog-cat-btn:hover, .blog-cat-btn.active { color: var(--brand); background: var(--brand-dim); }
@@ -109,7 +108,15 @@
 <nav class="blog-nav">
   <div class="blog-nav-inner">
     <div class="blog-nav-left">
-      <a href="/" class="blog-brand">Arbit<span>ova</span></a>
+      <a href="/" class="blog-brand" style="display:flex;align-items:center;gap:8px;text-decoration:none">
+        <svg width="30" height="20" viewBox="-2 -2 72 48" fill="none" aria-hidden="true">
+          <defs><clipPath id="lc-blog"><circle cx="46" cy="22" r="20"/></clipPath></defs>
+          <circle cx="22" cy="22" r="20" fill="#1D9E75" clip-path="url(#lc-blog)"/>
+          <circle cx="22" cy="22" r="20" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="46" cy="22" r="20" stroke="currentColor" stroke-width="2.5"/>
+        </svg>
+        <span style="font-size:0.85rem;font-weight:500;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-primary)">ARBITOVA</span>
+      </a>
       <div class="blog-nav-cats">
         <button class="blog-cat-btn active" onclick="filterCat(null, this)">All</button>
         <button class="blog-cat-btn" onclick="filterCat('announcement', this)">Announcements</button>

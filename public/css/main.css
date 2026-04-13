@@ -2272,11 +2272,16 @@ label {
   text-decoration: none;
 }
 .landing-logo-text {
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-primary);
   font-family: var(--font-ui);
+}
+.logo-mark {
+  color: var(--text-primary);
+  flex-shrink: 0;
 }
 
 /* ── Landing Nav Layout ── */
