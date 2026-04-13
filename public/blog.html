@@ -247,9 +247,18 @@ async function deletePost(id) {
   loadPosts();
 }
 
-// Minimal markdown renderer
+// Markdown renderer with image support
 function markdownToHtml(md) {
-  return md
+  // Extract and protect image tags before HTML escaping
+  const images = [];
+  md = md.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+    const safe_src = src.replace(/"/g, '');
+    const safe_alt = alt.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const idx = images.length;
+    images.push(`<img src="${safe_src}" alt="${safe_alt}" style="width:100%;border-radius:10px;margin:16px 0;display:block">`);
+    return `\x00IMG${idx}\x00`;
+  });
+  let html = md
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
@@ -262,6 +271,9 @@ function markdownToHtml(md) {
     .replace(/\n\n/g, '</p><p>')
     .replace(/^(?!<[h|u|l])/gm, '')
     .replace(/(.+)/g, (m) => m.startsWith('<') ? m : '<p>' + m + '</p>');
+  // Restore images
+  images.forEach((img, i) => { html = html.replace(`\x00IMG${i}\x00`, img); });
+  return html;
 }
 
 function escHtml(s) {
