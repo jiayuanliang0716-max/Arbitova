@@ -2216,6 +2216,35 @@ label {
    These replace the old landing-hero / landing-features naming.
    ========================================================================== */
 
+/* ── Utility Classes ── */
+
+/* Skip link (accessibility) */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  background: var(--brand);
+  color: #000;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 10000;
+  border-radius: 0 0 var(--radius-md) 0;
+  transition: top 0.2s;
+}
+.skip-link:focus { top: 0; }
+
+/* Full-width button variant */
+.btn-block { width: 100%; }
+
+/* Transaction filter pill buttons */
+.tx-filter-btn.active,
+.tx-status-btn.active {
+  background: var(--brand-dim);
+  color: var(--brand);
+  border-color: var(--brand-border);
+}
+
 /* ── Landing Logo ── */
 .landing-logo {
   display: flex;
