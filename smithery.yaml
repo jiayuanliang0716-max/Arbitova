@@ -1,0 +1,16 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      apiKey:
+        type: string
+        description: Your Arbitova API key (get one at arbitova.com)
+    required:
+      - apiKey
+  commandFunction: |-
+    (config) => ({
+      command: "npx",
+      args: ["-y", "@arbitova/mcp-server"],
+      env: { ARBITOVA_API_KEY: config.apiKey }
+    })
