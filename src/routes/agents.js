@@ -200,14 +200,14 @@ router.get('/me/escrow-breakdown', requireApiKey, async (req, res, next) => {
         `SELECT o.id, o.amount, o.status, o.deadline, o.created_at,
                 s.name as service_name, s.category,
                 a_buyer.name as buyer_name, a_seller.name as seller_name,
-                CASE WHEN o.buyer_id = ${p(2)} THEN 'buyer' ELSE 'seller' END as role
+                CASE WHEN o.buyer_id = ${p(1)} THEN 'buyer' ELSE 'seller' END as role
          FROM orders o
          LEFT JOIN services s ON o.service_id = s.id
          LEFT JOIN agents a_buyer ON a_buyer.id = o.buyer_id
          LEFT JOIN agents a_seller ON a_seller.id = o.seller_id
-         WHERE o.status IN ('paid', 'delivered') AND (o.buyer_id = ${p(3)} OR o.seller_id = ${p(4)})
+         WHERE o.status IN ('paid', 'delivered') AND (o.buyer_id = ${p(2)} OR o.seller_id = ${p(3)})
          ORDER BY o.deadline ASC`,
-        [agentId, agentId, agentId, agentId]
+        [agentId, agentId, agentId]
       ),
     ]);
 
