@@ -180,6 +180,24 @@ img {
   font-size: 1rem;
 }
 
+/* Danger — destructive actions */
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  background: #cc2222;
+  border-color: #cc2222;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:active {
+  transform: scale(0.98);
+}
+
 
 /* ==========================================================================
    FORM ELEMENTS
@@ -1866,6 +1884,7 @@ label {
    ========================================================================== */
 
 .grid { display: grid; gap: 12px; }
+.grid.c2 { grid-template-columns: repeat(2, 1fr); }
 .grid.c3 { grid-template-columns: repeat(3, 1fr); }
 .grid.c4 { grid-template-columns: repeat(4, 1fr); }
 

@@ -1681,7 +1681,9 @@ async function loadLeaderboard(searchQuery) {
       if (category) url += '&category=' + encodeURIComponent(category);
     }
     const r = await api(url);
-    const agents = r.agents || [];
+    const agents = (r.agents || []).filter(a =>
+      !/seed/i.test(a.name) && !/test/i.test(a.name) && !/demo/i.test(a.name)
+    );
 
     if (!agents.length) {
       container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No agents found</h3></div>`;
