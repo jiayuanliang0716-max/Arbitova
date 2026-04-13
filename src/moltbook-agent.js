@@ -14,7 +14,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const cron = require('node-cron');
 
-const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY || 'moltbook_sk_G6WIZTmOYjNpIIqIea2NH5RQ2sKj7s0z';
+const MOLTBOOK_API_KEY = process.env.MOLTBOOK_API_KEY;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const BASE_URL = 'https://www.moltbook.com/api/v1';
 

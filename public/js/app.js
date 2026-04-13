@@ -383,9 +383,10 @@ function btnRestore(btn) {
 }
 
 function renderErrorWithRetry(message, retryFn) {
+  const fnCall = retryFn.name ? retryFn.name + '()' : '';
   return `<div style="text-align:center;padding:24px;">
     <div style="color:var(--danger,#e55);margin-bottom:12px;font-size:13px">${escapeHtml(friendlyError(message))}</div>
-    <button class="btn btn-ghost btn-sm" onclick="(${retryFn.toString()})()">${t('common_retry')}</button>
+    ${fnCall ? `<button class="btn btn-ghost btn-sm" onclick="${fnCall}">${t('common_retry')}</button>` : ''}
   </div>`;
 }
 
