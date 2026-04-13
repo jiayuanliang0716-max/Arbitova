@@ -3215,6 +3215,93 @@ code { font-family: var(--font-mono); font-size: 0.875em; color: var(--brand); }
   font-weight: 600;
 }
 
+/* ==========================================================================
+   Profit / Monetization Cards
+   ========================================================================== */
+.profit-cards-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+@media (max-width: 720px) {
+  .profit-cards-row { grid-template-columns: 1fr; }
+}
+.profit-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 16px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: transform var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.profit-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(0,212,170,0.25);
+}
+.profit-card-highlight {
+  border-color: rgba(139,92,246,0.3);
+  background: linear-gradient(160deg, rgba(139,92,246,0.05) 0%, var(--bg-surface) 100%);
+}
+.profit-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.profit-card-rate {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--brand);
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.profit-card-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.profit-card-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.65;
+  flex: 1;
+}
+.profit-card-example {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+  background: var(--bg-raised);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Sidebar External Links
+   ========================================================================== */
+.dash-external-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.dash-external-link:hover {
+  background: var(--bg-raised);
+  color: var(--text-primary);
+}
+
 /* btn-danger */
 .btn-danger {
   background: var(--danger);

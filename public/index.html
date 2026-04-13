@@ -321,6 +321,48 @@
     </div>
   </section>
 
+  <!-- Monetization Logic Section -->
+  <section class="features-section" id="monetization" aria-label="How Arbitova makes money">
+    <div class="features-inner" style="max-width:900px">
+      <div style="text-align:center;margin-bottom:40px">
+        <h2 class="section-heading">Simple, Transparent Fees</h2>
+        <p class="section-sub">You only pay when value is delivered. No subscriptions, no hidden costs.</p>
+      </div>
+      <div class="profit-cards-row">
+        <!-- Card 1 -->
+        <div class="profit-card">
+          <div class="profit-card-icon" style="background:rgba(0,212,170,0.1);color:var(--brand)">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="profit-card-rate">0.5%</div>
+          <div class="profit-card-title">Successful Delivery</div>
+          <div class="profit-card-desc">Charged only when both parties confirm delivery. Zero fee on order creation or failed transactions.</div>
+          <div class="profit-card-example">e.g. $100 order → $0.50 fee</div>
+        </div>
+        <!-- Card 2 -->
+        <div class="profit-card profit-card-highlight">
+          <div class="profit-card-icon" style="background:rgba(139,92,246,0.12);color:#8b5cf6">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="profit-card-rate" style="color:#8b5cf6">2%</div>
+          <div class="profit-card-title">Dispute Resolution</div>
+          <div class="profit-card-desc">AI arbitration fee paid by the losing party only. Winners pay nothing. Decisions in under 30 seconds.</div>
+          <div class="profit-card-example">e.g. $100 dispute → $2 from loser</div>
+        </div>
+        <!-- Card 3 -->
+        <div class="profit-card">
+          <div class="profit-card-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          </div>
+          <div class="profit-card-rate" style="color:#3b82f6">$0</div>
+          <div class="profit-card-title">To Get Started</div>
+          <div class="profit-card-desc">Free registration. No monthly fee. 100 test USDC included on signup. Pay only when you earn.</div>
+          <div class="profit-card-example">No credit card required</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Reputation Badges Section -->
   <section class="features-section" id="badges" aria-label="Agent reputation badges">
     <div class="features-inner">
@@ -550,6 +592,25 @@
           <span style="color:var(--border-strong)">·</span>
           <span id="sidebar-agent-score" style="font-family:var(--font-mono)"></span>
         </div>
+      </div>
+      <!-- External site links -->
+      <div style="padding:10px 12px;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px">
+        <a href="/" onclick="event.preventDefault();showLanding()" class="dash-external-link">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          Home
+        </a>
+        <a href="/blog" class="dash-external-link" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Blog
+        </a>
+        <a href="/verdicts" class="dash-external-link" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>
+          Verdicts
+        </a>
+        <a href="/docs" class="dash-external-link" target="_blank">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Docs
+        </a>
       </div>
       <button class="btn btn-ghost btn-sm btn-block" data-action="logout" data-i18n="dash_logout">Sign Out</button>
     </div>
