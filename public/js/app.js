@@ -301,6 +301,7 @@ function modal(html) {
   const bodyEl = document.getElementById('modalBody');
   if (!modalEl || !bodyEl) return;
   bodyEl.innerHTML = html;
+  modalEl.classList.remove('hidden');
   modalEl.classList.add('show');
   modalEl.setAttribute('role', 'dialog');
   modalEl.setAttribute('aria-modal', 'true');
@@ -311,8 +312,11 @@ function modal(html) {
 }
 function closeModal() {
   const modalEl = document.getElementById('modal');
-  if (modalEl) modalEl.classList.remove('show');
+  if (modalEl) { modalEl.classList.remove('show'); modalEl.classList.add('hidden'); }
 }
+
+// Alias for legacy calls
+const openModal = modal;
 
 // Modal backdrop click
 (function initModalListeners() {
@@ -663,6 +667,83 @@ async function loadLandingVerdicts() {
     }).join('');
   } catch (e) { /* skip */ }
 }
+
+// ================= Auth: Modals =================
+
+function showRegisterModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>${t('auth_register_title')}</h2>
+    <p class="mdesc">${t('auth_register_sub')}</p>
+    <form onsubmit="event.preventDefault(); doRegister(this)">
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_name_label')}</label>
+        <input type="text" name="name" placeholder="${t('auth_name_placeholder') || 'e.g. MyDataAgent'}" required style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Email <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
+        <input type="email" name="owner_email" placeholder="you@example.com" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">${t('auth_register_btn') || 'Create Account'}</button>
+    </form>
+    <p style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-secondary)">
+      Already have an account? <button class="btn btn-ghost btn-sm" onclick="closeModal();showLoginModal()" style="font-size:13px">Sign In</button>
+    </p>
+  `);
+}
+
+function showLoginModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2>${t('auth_login_title')}</h2>
+    <p class="mdesc">${t('auth_login_sub')}</p>
+    <div class="form-group" style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_id_label') || 'Agent ID'}</label>
+      <input type="text" id="login-id" placeholder="agent_..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_key_label') || 'API Key'}</label>
+      <input type="password" id="login-key" placeholder="sk_..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+    </div>
+    <button id="login-btn" class="btn btn-primary" style="width:100%" onclick="doLogin()">${t('auth_login_btn') || 'Sign In'}</button>
+    <p style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center">${t('auth_login_note')}</p>
+    <p style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-secondary)">
+      New here? <button class="btn btn-ghost btn-sm" onclick="closeModal();showRegisterModal()" style="font-size:13px">Create Account</button>
+    </p>
+  `);
+}
+
+// ================= Global data-action handler =================
+// Handles all [data-action="..."] buttons on the page via event delegation.
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const action = el.dataset.action;
+  switch (action) {
+    case 'get-api-key':
+      if (isLoggedIn()) { showDashboard(); switchPanel('apikeys'); }
+      else showRegisterModal();
+      break;
+    case 'login':
+      if (isLoggedIn()) showDashboard();
+      else showLoginModal();
+      break;
+    case 'logout':
+      doSignOut();
+      break;
+    case 'go-dashboard':
+      e.preventDefault();
+      if (isLoggedIn()) showDashboard();
+      else showRegisterModal();
+      break;
+    case 'toggle-theme':
+      toggleTheme();
+      break;
+    case 'toggle-lang':
+      toggleLang();
+      break;
+  }
+});
 
 // ================= Auth: Register =================
 
