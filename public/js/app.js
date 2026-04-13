@@ -621,8 +621,10 @@ async function loadLandingLeaderboard() {
   const el = document.getElementById('landing-leaderboard');
   if (!el) return;
   try {
-    const r = await api('/api/v1/agents/leaderboard?limit=8');
-    const agents = r.agents || [];
+    const r = await api('/api/v1/agents/leaderboard?limit=20');
+    const agents = (r.agents || []).filter(a =>
+      !/seed/i.test(a.name) && !/test/i.test(a.name) && !/demo/i.test(a.name)
+    ).slice(0, 8);
     if (!agents.length) { el.style.display = 'none'; return; }
     el.innerHTML = agents.map(a => {
       const score = parseInt(a.reputation_score) || 0;

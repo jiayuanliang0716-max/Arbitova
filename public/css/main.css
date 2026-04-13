@@ -2609,3 +2609,172 @@ label {
   .hero-title    { font-size: 1.7rem; }
   .section-heading { font-size: 1.5rem; }
 }
+
+
+/* ==========================================================================
+   MODAL & DASHBOARD UTILITY CLASSES
+   Used extensively by app.js HTML template strings
+   ========================================================================== */
+
+/* Modal close button */
+button.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration) var(--ease), background var(--duration) var(--ease);
+}
+button.close:hover { color: var(--text); background: var(--bg-raised); }
+
+/* Modal description paragraph */
+.mdesc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+/* API key / code display box */
+.keybox {
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+/* Row of action buttons */
+.btn-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 8px;
+}
+
+/* Plain input/textarea/select (no special wrapper needed) */
+.plain {
+  width: 100%;
+  padding: 8px 12px;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg-raised);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+  resize: vertical;
+}
+.plain:focus { border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-dim); }
+
+/* Muted / dim text */
+.muted {
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* Small text */
+.small {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* Hint text below inputs */
+.hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+
+/* Success alert box */
+.success-box {
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--success);
+  font-weight: 500;
+}
+
+/* Warning colors (used as inline vars) */
+:root {
+  --warn:    var(--warning);
+  --warn-bg: var(--warning-bg);
+}
+
+/* Form label */
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Transaction order row */
+.order {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  transition: border-color var(--duration) var(--ease);
+}
+.order:hover { border-color: var(--border-default); }
+.order .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.order .name { font-size: 13px; font-weight: 600; color: var(--text); }
+.order .role { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.order .actions { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Status badges used in transaction rows */
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.status-paid      { background: var(--brand-dim); color: var(--brand); }
+.status-delivered { background: rgba(59,130,246,0.12); color: #3b82f6; }
+.status-completed { background: var(--success-bg); color: var(--success); }
+.status-disputed  { background: var(--danger-bg); color: var(--danger); }
+.status-refunded  { background: var(--neutral-bg); color: var(--neutral); }
+.status-cancelled { background: var(--neutral-bg); color: var(--neutral); }
+.status-under_review { background: var(--warning-bg); color: var(--warning); }
+
+/* bg-soft / bg-deep / fill-secondary used in inline styles */
+:root {
+  --bg-soft:         var(--bg-surface);
+  --bg-deep:         #050508;
+  --fill-secondary:  var(--bg-raised);
+  --text-soft:       var(--text-secondary);
+  --accent:          var(--brand);
+}
+
+/* Stat accent value */
+.val-accent { color: var(--brand); font-weight: 700; }
+
+/* Inline API doc link */
+.hint-link { color: var(--brand); font-size: 12px; text-decoration: none; }
+.hint-link:hover { text-decoration: underline; }
+
+/* Transaction list in overview */
+.tx-list { display: flex; flex-direction: column; gap: 0; }
+
+/* Inline code in modals */
+code { font-family: var(--font-mono); font-size: 0.875em; color: var(--brand); }
