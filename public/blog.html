@@ -85,6 +85,9 @@
     .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 24px; }
     .back-btn:hover { color: var(--brand); }
 
+    /* ── Single cover: cap height so portrait images don't stretch too tall ── */
+    .single-cover { max-height: 380px; }
+
     /* ── Admin ── */
     .admin-bar { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; display: none; align-items: center; justify-content: space-between; gap: 12px; }
     .admin-bar.show { display: flex; }
@@ -206,9 +209,9 @@
 
 <script>
 const API = 'https://api.arbitova.com';
-const adminKey = new URLSearchParams(location.search).get('admin') || localStorage.getItem('arb_admin_key');
+// Admin mode is URL-only (?admin=KEY). Never persisted to localStorage so normal visitors never see admin UI.
+const adminKey = new URLSearchParams(location.search).get('admin') || null;
 if (adminKey) {
-  localStorage.setItem('arb_admin_key', adminKey);
   document.getElementById('admin-bar').classList.add('show');
 }
 
