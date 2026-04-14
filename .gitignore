@@ -10,16 +10,19 @@ python-sdk/dist/
 python-sdk/__pycache__/
 *.pyc
 
-# Internal planning docs
+# Internal planning docs (all moved to ~/arbitova-private/)
 A2A-PAY-計畫書.md
+ARBITOVA_UI_MASTER_PLAN.md
 AUTONOMOUS_RULES.md
 BLUEPRINT.md
 DECISION_NEEDED.md
 MISSION.md
+MOLTBOOK_REPLY_TIEBREAKER.md
 PROGRESS.md
 QUICKSTART.md
 REPORT.md
 LAUNCH_POSTS.md
+generate-favicon.js
 iterate.js
 run-iteration.bat
 scripts/
