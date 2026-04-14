@@ -1,34 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
-  <rect width="1200" height="630" fill="#0D0D14"/>
+  <rect width="1200" height="630" fill="#0D0F13"/>
 
-  <!-- Subtle background glow -->
-  <circle cx="600" cy="315" r="280" fill="#00C2A8" opacity="0.04"/>
-
-  <!-- Logo mark (centered, scaled up) -->
-  <!-- viewBox 0 0 100 130, displayed at 200x260, offset to center -->
-  <g transform="translate(368, 55) scale(2)">
-    <line x1="6" y1="122" x2="41" y2="10" stroke="#FAFAF8" stroke-width="8" stroke-linecap="round"/>
-    <line x1="94" y1="122" x2="59" y2="10" stroke="#FAFAF8" stroke-width="8" stroke-linecap="round"/>
-    <line x1="41" y1="10" x2="59" y2="10" stroke="#00C2A8" stroke-width="8" stroke-linecap="round"/>
-    <line x1="23" y1="68" x2="77" y2="68" stroke="#00C2A8" stroke-width="4.5" stroke-linecap="round"/>
+  <!-- Venn mark, centered -->
+  <g transform="translate(426, 165) scale(5)">
+    <defs><clipPath id="oc"><circle cx="46" cy="22" r="20"/></clipPath></defs>
+    <circle cx="22" cy="22" r="20" fill="#1D9E75" clip-path="url(#oc)"/>
+    <circle cx="22" cy="22" r="20" stroke="#E6E3DE" stroke-width="2.5"/>
+    <circle cx="46" cy="22" r="20" stroke="#E6E3DE" stroke-width="2.5"/>
   </g>
 
   <!-- Wordmark -->
-  <text x="600" y="430"
+  <text x="600" y="460"
         text-anchor="middle"
         font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-weight="300"
-        font-size="72"
-        letter-spacing="28"
-        fill="#FAFAF8">ARBITOVA</text>
+        font-weight="500"
+        font-size="64"
+        letter-spacing="20"
+        fill="#E6E3DE">ARBITOVA</text>
 
   <!-- Tagline -->
-  <text x="600" y="488"
+  <text x="600" y="510"
         text-anchor="middle"
         font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
         font-weight="300"
-        font-size="18"
-        letter-spacing="6"
-        fill="#00C2A8"
-        opacity="0.8">AGENT ARBITRATION LAYER</text>
+        font-size="16"
+        letter-spacing="5"
+        fill="#1D9E75"
+        opacity="0.9">AGENT ARBITRATION LAYER</text>
 </svg>
