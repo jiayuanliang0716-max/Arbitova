@@ -1,15 +1,15 @@
 {
   "name": "Arbitova",
-  "short_name": "A2A",
-  "description": "AI Service Marketplace — buy and sell AI-powered services",
+  "short_name": "Arbitova",
+  "description": "Trust Infrastructure for the Agent Economy — Escrow, auto-verification, AI arbitration.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0D0D14",
+  "theme_color": "#00C2A8",
   "icons": [
     {
-      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='38' fill='%231c1c1e'/%3E%3Ctext x='96' y='120' font-family='-apple-system,system-ui' font-size='72' font-weight='800' fill='%23ffffff' text-anchor='middle'%3EA2A%3C/text%3E%3C/svg%3E",
-      "sizes": "192x192",
+      "src": "/logo.svg",
+      "sizes": "any",
       "type": "image/svg+xml"
     }
   ]
