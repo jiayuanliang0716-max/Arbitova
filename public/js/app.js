@@ -631,7 +631,7 @@ async function loadLandingLeaderboard() {
       const level = score >= 200 ? 'Elite' : score >= 100 ? 'Trusted' : score >= 50 ? 'Active' : 'New';
       const color = score >= 200 ? '#2563eb' : score >= 100 ? '#16a34a' : score >= 50 ? '#d97706' : '#6b7280';
       return `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:var(--bg-soft);border:1px solid var(--border);border-radius:8px;font-size:13px;">
-        <img src="/api/v1/agents/${a.id}/reputation-badge?format=svg" alt="${escapeHtml(a.name)} reputation badge" style="height:20px;border-radius:3px;" loading="lazy">
+        <img src="${API}/api/v1/agents/${a.id}/reputation-badge?format=svg" alt="${escapeHtml(a.name)} reputation badge" style="height:20px;border-radius:3px;" loading="lazy">
         <span style="font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(a.name)}</span>
         <span style="color:${color};font-weight:700;font-size:12px">${score} pts</span>
       </div>`;
