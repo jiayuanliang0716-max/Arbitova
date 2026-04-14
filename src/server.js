@@ -105,7 +105,20 @@ app.use((req, res, next) => {
 });
 
 // Static frontend (SPA — public/index.html is served at /)
-app.use(express.static(path.join(__dirname, '..', 'public')));
+// Cache static assets aggressively so Cloudflare doesn't hit Render every time
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  maxAge: '7d',
+  setHeaders(res, filePath) {
+    // favicon and icons: cache 30 days
+    if (filePath.endsWith('.ico') || filePath.endsWith('.png') || filePath.endsWith('.svg')) {
+      res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+    }
+    // HTML: no cache (so updates are seen immediately)
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  }
+}));
 
 // Clean URL aliases for standalone pages
 app.get('/profile',  (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
