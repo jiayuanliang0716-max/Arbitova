@@ -2272,12 +2272,13 @@ label {
   text-decoration: none;
 }
 .landing-logo-text {
-  font-size: 0.85rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
+  font-size: 0.75rem;
+  font-weight: 200;
+  letter-spacing: 0.55em;
   text-transform: uppercase;
   color: var(--text-primary);
-  font-family: var(--font-ui);
+  font-family: 'Josefin Sans', var(--font-ui);
+  padding-left: 0.55em;
 }
 .logo-mark {
   color: var(--text-primary);
