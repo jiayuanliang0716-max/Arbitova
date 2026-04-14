@@ -63,30 +63,46 @@
     .post-card-meta { font-size: 11px; color: var(--text-tertiary); margin-top: auto; }
     .post-card-pinned { position: absolute; top: 8px; left: 8px; background: var(--brand); color: #000; font-size: 9px; font-weight: 800; text-transform: uppercase; padding: 2px 7px; border-radius: 2px; }
 
-    /* ── Single post view ── */
-    .single-wrap { max-width: 780px; margin: 0 auto; padding-top: 36px; }
-    .single-cover { aspect-ratio: 16/9; overflow: hidden; border-radius: 4px; margin-bottom: 32px; background: var(--bg-raised); }
-    .single-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-    .single-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); margin-bottom: 12px; }
-    .single-title { font-size: 2.2rem; font-weight: 800; line-height: 1.2; color: var(--text-primary); margin-bottom: 16px; letter-spacing: -0.02em; }
-    .single-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary); padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 32px; }
-    .single-body { font-size: 1.05rem; line-height: 1.85; color: var(--text-secondary); }
-    .single-body h2 { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); margin: 40px 0 14px; }
-    .single-body h3 { font-size: 1.15rem; font-weight: 600; color: var(--text-primary); margin: 28px 0 10px; }
-    .single-body p { margin-bottom: 18px; }
+    /* ── Single post: Reuters two-column layout ── */
+    .single-page { max-width: 1200px; margin: 0 auto; padding-top: 32px; }
+    .single-layout { display: grid; grid-template-columns: 1fr 296px; gap: 52px; align-items: start; }
+    @media (max-width: 900px) { .single-layout { grid-template-columns: 1fr; } .single-sidebar { display: none; } }
+
+    /* ── Cover image: natural ratio, height cap, no distortion ── */
+    .single-cover { overflow: hidden; border-radius: 4px; margin-bottom: 24px; background: var(--bg-raised); }
+    .single-cover img { width: 100%; display: block; object-fit: cover; max-height: 460px; }
+
+    /* ── Article text ── */
+    .single-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--brand); margin-bottom: 10px; }
+    .single-title { font-size: 2rem; font-weight: 800; line-height: 1.2; color: var(--text-primary); margin-bottom: 14px; letter-spacing: -0.02em; }
+    .single-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-tertiary); padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 28px; }
+    .single-body { font-size: 1rem; line-height: 1.85; color: var(--text-secondary); }
+    .single-body h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-primary); margin: 36px 0 12px; }
+    .single-body h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-primary); margin: 24px 0 8px; }
+    .single-body p { margin-bottom: 16px; }
     .single-body code { background: var(--bg-raised); border: 1px solid var(--border-subtle); padding: 2px 7px; border-radius: 4px; font-size: 0.875em; color: var(--brand); }
     .single-body pre { background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 20px 0; }
-    .single-body ul { padding-left: 26px; margin-bottom: 18px; }
-    .single-body li { margin-bottom: 8px; }
+    .single-body ul { padding-left: 26px; margin-bottom: 16px; }
+    .single-body li { margin-bottom: 6px; }
     .single-body img { width: 100%; border-radius: 4px; margin: 20px 0; display: block; }
     .single-body blockquote { border-left: 3px solid var(--brand); padding-left: 20px; margin: 24px 0; color: var(--text-secondary); font-style: italic; }
 
-    /* ── Back button ── */
-    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 24px; }
-    .back-btn:hover { color: var(--brand); }
+    /* ── Sidebar ── */
+    .single-sidebar { position: sticky; top: 68px; }
+    .sidebar-section-title { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-tertiary); border-bottom: 2px solid var(--text-primary); padding-bottom: 8px; margin-bottom: 0; }
+    .sidebar-post { display: grid; grid-template-columns: 72px 1fr; gap: 10px; padding: 14px 0; border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+    .sidebar-post:last-child { border-bottom: none; }
+    .sidebar-post:hover .sidebar-post-title { color: var(--brand); }
+    .sidebar-thumb { width: 72px; height: 52px; border-radius: 2px; overflow: hidden; background: var(--bg-raised); flex-shrink: 0; }
+    .sidebar-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .sidebar-thumb-placeholder { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+    .sidebar-post-cat { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--brand); margin-bottom: 3px; }
+    .sidebar-post-title { font-size: 0.78rem; font-weight: 700; line-height: 1.35; color: var(--text-primary); transition: color 0.15s; }
+    .sidebar-post-date { font-size: 10px; color: var(--text-tertiary); margin-top: 4px; }
 
-    /* ── Single cover: cap height so portrait images don't stretch too tall ── */
-    .single-cover { max-height: 380px; }
+    /* ── Back button ── */
+    .back-btn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); cursor: pointer; background: none; border: none; padding: 0; margin-bottom: 20px; }
+    .back-btn:hover { color: var(--brand); }
 
     /* ── Admin ── */
     .admin-bar { background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; display: none; align-items: center; justify-content: space-between; gap: 12px; }
@@ -198,11 +214,16 @@
 
   <!-- Single post view -->
   <div id="post-view" style="display:none">
-    <button class="back-btn" onclick="showList()">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      All Posts
-    </button>
-    <div id="post-content"></div>
+    <div class="single-page">
+      <button class="back-btn" onclick="showList()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        All Posts
+      </button>
+      <div class="single-layout">
+        <main id="post-content"></main>
+        <aside class="single-sidebar" id="sidebar-content"></aside>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -315,7 +336,9 @@ async function openPost(slug) {
   document.getElementById('blog-date-strip').style.display = 'none';
   document.getElementById('post-view').style.display = 'block';
   const container = document.getElementById('post-content');
+  const sidebar = document.getElementById('sidebar-content');
   container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-tertiary)">Loading...</div>';
+  sidebar.innerHTML = '';
   window.scrollTo(0, 0);
   try {
     const p = await fetch(API + '/api/v1/posts/' + slug).then(r => r.json());
@@ -334,6 +357,32 @@ async function openPost(slug) {
       </div>
       <div class="single-body">${markdownToHtml(p.content)}</div>
     `;
+
+    // Sidebar: related posts (same category first, then others, exclude current)
+    const others = allPosts.filter(q => q.slug !== slug);
+    const related = [
+      ...others.filter(q => q.category === p.category),
+      ...others.filter(q => q.category !== p.category)
+    ].slice(0, 6);
+
+    if (related.length) {
+      sidebar.innerHTML = `
+        <div class="sidebar-section-title">More Stories</div>
+        ${related.map(r => `
+          <div class="sidebar-post" onclick="openPost('${escHtml(r.slug)}')">
+            <div class="sidebar-thumb">
+              ${r.cover_image
+                ? `<img src="${escHtml(r.cover_image)}" alt="${escHtml(r.title)}" loading="lazy">`
+                : `<div class="sidebar-thumb-placeholder">${placeholderSvg(r.category)}</div>`}
+            </div>
+            <div>
+              <div class="sidebar-post-cat">${escHtml(r.category)}</div>
+              <div class="sidebar-post-title">${escHtml(r.title)}</div>
+              <div class="sidebar-post-date">${formatDate(r.created_at)}</div>
+            </div>
+          </div>`).join('')}
+      `;
+    }
   } catch(e) {
     container.innerHTML = '<p>Failed to load post.</p>';
   }
