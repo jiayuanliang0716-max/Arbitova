@@ -207,6 +207,7 @@ app.get('/architecture', (req, res) => res.sendFile(path.join(__dirname, '..', '
 
 // Pricing
 app.get('/pricing', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'pricing.html')));
+app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'blog.html')));
 
 // ── Contact Form ─────────────────────────────────────────────────────────────
 const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many messages. Try again in an hour.' } });
