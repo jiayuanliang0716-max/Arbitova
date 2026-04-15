@@ -196,8 +196,11 @@ app.get('/api/mode', (req, res) => {
   });
 });
 
-// API Docs
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(openApiSpec));
+// API Reference (Swagger UI)
+app.use('/api-reference', swaggerUi.serve, swaggerUi.setup(openApiSpec));
+
+// Quick Start Docs
+app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'docs.html')));
 
 // ── Google A2A Protocol v0.2 — Agent Card ─────────────────────────────────────
 const BASE = process.env.API_BASE_URL || 'https://a2a-system.onrender.com';
