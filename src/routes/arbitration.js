@@ -110,15 +110,18 @@ router.post('/external', requireApiKey, async (req, res, next) => {
     }
 
     res.json({
-      arbitration_id:   arbitrationId,
-      dispute_id:       dispute_id || null,
-      escrow_provider:  escrow_provider || null,
-      winner:           verdict.winner,
-      confidence:       verdict.confidence,
-      method:           verdict.method,
-      reasoning:        verdict.reasoning,
-      votes:            verdict.votes,
-      escalate_to_human: verdict.escalate_to_human,
+      arbitration_id:         arbitrationId,
+      dispute_id:             dispute_id || null,
+      escrow_provider:        escrow_provider || null,
+      winner:                 verdict.winner,
+      confidence:             verdict.confidence,
+      method:                 verdict.method,
+      reasoning:              verdict.reasoning,
+      key_factors:            verdict.key_factors || [],
+      dissent:                verdict.dissent || null,
+      votes:                  verdict.votes,
+      constitutional_shortcut: verdict.constitutional_shortcut || false,
+      escalate_to_human:      verdict.escalate_to_human,
       callback_scheduled,
     });
 
@@ -206,16 +209,19 @@ router.post('/batch', requireApiKey, async (req, res, next) => {
 
       return {
         index: idx,
-        arbitration_id:    arbitrationId,
-        dispute_id:        dispute_id || null,
-        escrow_provider:   escrow_provider || null,
-        winner:            verdict.winner,
-        confidence:        verdict.confidence,
-        method:            verdict.method,
-        reasoning:         verdict.reasoning,
-        votes:             verdict.votes,
-        escalate_to_human: verdict.escalate_to_human,
-        callback_scheduled: !!callback_url,
+        arbitration_id:         arbitrationId,
+        dispute_id:             dispute_id || null,
+        escrow_provider:        escrow_provider || null,
+        winner:                 verdict.winner,
+        confidence:             verdict.confidence,
+        method:                 verdict.method,
+        reasoning:              verdict.reasoning,
+        key_factors:            verdict.key_factors || [],
+        dissent:                verdict.dissent || null,
+        votes:                  verdict.votes,
+        constitutional_shortcut: verdict.constitutional_shortcut || false,
+        escalate_to_human:      verdict.escalate_to_human,
+        callback_scheduled:     !!callback_url,
       };
     }));
 

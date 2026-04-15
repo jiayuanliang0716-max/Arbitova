@@ -1526,7 +1526,7 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       return res.status(500).json({ error: 'AI arbitration failed', details: e.message });
     }
 
-    const { winner, reasoning, confidence, votes, escalate_to_human } = verdict;
+    const { winner, reasoning, confidence, votes, key_factors, dissent, escalate_to_human, constitutional_shortcut } = verdict;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
     // ── Human escalation path ────────────────────────────────────────────────
@@ -1591,8 +1591,11 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     }
 
-    const votesSummary = votes.map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%)`).join(', ');
-    const resolution = `[AI Arbitration N=3 | votes: ${votesSummary} | avg confidence: ${(confidence * 100).toFixed(0)}%] ${reasoning}`;
+    const votesSummary = (votes || []).map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%,${v.model||'claude'})`).join(', ');
+    const keyFactorsStr = (key_factors || []).length > 0 ? ` | key_factors: ${(key_factors || []).join('; ')}` : '';
+    const dissentStr    = dissent ? ` | dissent: ${dissent.slice(0, 200)}` : '';
+    const shortcutStr   = constitutional_shortcut ? ' | method: constitutional' : '';
+    const resolution = `[AI Arbitration N=3 | votes: ${votesSummary} | avg confidence: ${(confidence * 100).toFixed(0)}%${keyFactorsStr}${dissentStr}${shortcutStr}] ${reasoning}`;
     await dbRun(
       `UPDATE disputes SET status = 'resolved', resolution = ${p(1)}, resolved_at = ${now} WHERE id = ${p(2)}`,
       [resolution, dispute.id]
@@ -1622,10 +1625,13 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       new_order_status: winner === 'buyer' ? 'refunded' : 'completed',
       ai_reasoning: reasoning,
       confidence,
-      ai_votes: votes,
+      key_factors:  key_factors || [],
+      dissent:      dissent || null,
+      ai_votes:     votes,
+      constitutional_shortcut: constitutional_shortcut || false,
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed,
-      arbitrated_by: 'claude-haiku-n3',
+      arbitrated_by: constitutional_shortcut ? 'constitutional-rules' : 'arbitova-n3-multi-model',
     });
   } catch (err) { next(err); }
 });
@@ -1692,7 +1698,7 @@ router.post('/:id/appeal', requireApiKey, async (req, res, next) => {
       return res.status(500).json({ error: 'Re-arbitration failed', details: e.message });
     }
 
-    const { winner: newWinner, confidence, votes, method, escalate_to_human } = verdict;
+    const { winner: newWinner, confidence, votes, key_factors, dissent, method, escalate_to_human, constitutional_shortcut } = verdict;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
     if (escalate_to_human) {
