@@ -1,8 +1,19 @@
 node_modules/
 data/
 .env
+.env.*
+!.env.example
 *.db
 .memsearch/
+
+# Secrets — never commit
+*.key
+*.pem
+wallet*.json
+secret*.json
+*-private.*
+seed-*.js
+tmp-*.js
 
 # Python build artifacts
 python-sdk/arbitova.egg-info/
