@@ -154,10 +154,10 @@
         <span class="stats-bar-value">0.5%</span>
         <span class="stats-bar-label">Fee on Success Only</span>
       </div>
-      <div class="stats-bar-item">
-        <span class="stats-bar-value">99.9%</span>
-        <span class="stats-bar-label">Uptime</span>
-      </div>
+      <a href="/verdicts" class="stats-bar-item" id="stat-verdicts-link" style="text-decoration:none;color:inherit">
+        <span class="stats-bar-value" id="stat-verdicts-count">386+</span>
+        <span class="stats-bar-label">Verdicts Delivered</span>
+      </a>
     </div>
   </section>
 
@@ -861,6 +861,20 @@
     btn.disabled = false;
     btn.textContent = 'Send Message';
   });
+})();
+
+// Live verdict count from real API
+(async () => {
+  try {
+    const el = document.getElementById('stat-verdicts-count');
+    if (!el) return;
+    const resp = await fetch('/api/v1/arbitrate/verdicts?limit=1');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (typeof data.total === 'number' && data.total > 0) {
+      el.textContent = data.total.toLocaleString();
+    }
+  } catch (e) {}
 })();
 </script>
 </body>
