@@ -510,30 +510,22 @@ let _unreadPollTimer = null;
 async function pollUnreadCount() {
   if (!isLoggedIn()) return;
   try {
-    const [msgR, dispR, dispR2] = await Promise.all([
-      api('/api/v1/messages?limit=1', { headers: authHeaders() }),
+    const [dispR, dispR2] = await Promise.all([
       api('/api/v1/orders?status=disputed&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
       api('/api/v1/orders?status=under_review&limit=50', { headers: authHeaders() }).catch(() => ({ orders: [] })),
     ]);
-    const unread = msgR.unread || 0;
-    const navBadge = document.getElementById('nav-msg-badge');
-    if (navBadge) { navBadge.textContent = unread; navBadge.style.display = unread > 0 ? '' : 'none'; }
-    const badge = document.getElementById('unread-badge');
-    if (badge) { badge.textContent = unread; badge.style.display = unread > 0 ? '' : 'none'; }
     const totalDisputes = ((dispR.orders || []).length + (dispR2.orders || []).length);
     const dispBadge = document.getElementById('nav-dispute-badge');
     if (dispBadge) { dispBadge.textContent = totalDisputes; dispBadge.style.display = totalDisputes > 0 ? '' : 'none'; }
     // Update notification bell badge
     const notifBadge = document.getElementById('notif-badge');
     if (notifBadge) {
-      const total = unread + totalDisputes;
-      if (total > 0) { notifBadge.textContent = total > 9 ? '9+' : total; notifBadge.style.display = ''; }
+      if (totalDisputes > 0) { notifBadge.textContent = totalDisputes > 9 ? '9+' : totalDisputes; notifBadge.style.display = ''; }
       else { notifBadge.style.display = 'none'; }
     }
-    // Update page title with unread count
-    const totalAlerts = unread + totalDisputes;
-    document.title = totalAlerts > 0
-      ? `(${totalAlerts}) Arbitova Dashboard`
+    // Update page title with dispute count
+    document.title = totalDisputes > 0
+      ? `(${totalDisputes}) Arbitova Dashboard`
       : 'Arbitova — Trust Infrastructure for the Agent Economy';
   } catch (e) { /* silent */ }
 }
@@ -544,8 +536,8 @@ function showDashboard() {
   if (landing) landing.style.display = 'none';
   if (dashboard) dashboard.style.display = '';
   const hashPanel = window.location.hash.slice(1);
-  const validPanels = ['overview','transactions','marketplace','rfp','apikeys','webhooks',
-    'disputes','contracts','messages','leaderboard','analytics','wallet','settings'];
+  const validPanels = ['overview','transactions','apikeys','webhooks',
+    'disputes','contracts','analytics','wallet','publish','settings'];
   switchPanel((hashPanel && validPanels.includes(hashPanel)) ? hashPanel : 'overview');
   // Poll unread count every 60s while on dashboard
   if (_unreadPollTimer) clearInterval(_unreadPollTimer);
@@ -881,10 +873,9 @@ function switchPanel(name) {
 
   // Update page title
   const titles = {
-    overview: 'Overview', transactions: 'Transactions', marketplace: 'Marketplace',
-    rfp: 'RFP Board', apikeys: 'API Keys', webhooks: 'Webhooks',
-    disputes: 'Disputes', contracts: 'Contracts', messages: 'Messages',
-    leaderboard: 'Leaderboard', analytics: 'Analytics', wallet: 'Wallet', settings: 'Settings'
+    overview: 'Overview', transactions: 'Transactions', apikeys: 'API Keys', webhooks: 'Webhooks',
+    disputes: 'Disputes', contracts: 'Contracts', analytics: 'Analytics',
+    wallet: 'Balance & Escrow', publish: 'Publish', settings: 'Settings'
   };
   document.title = (titles[name] || name) + ' — Arbitova';
 
@@ -903,17 +894,13 @@ function switchPanel(name) {
   // Load appropriate data
   if (name === 'overview') loadOverview();
   if (name === 'transactions') loadTransactions();
-  if (name === 'marketplace') loadMarketplace();
   if (name === 'disputes') loadDisputes();
-  if (name === 'messages') loadMessages();
-  if (name === 'leaderboard') loadLeaderboard();
   if (name === 'apikeys') loadApiKeys();
   if (name === 'webhooks') loadWebhooks();
   if (name === 'contracts') loadContracts();
   if (name === 'analytics') loadAnalytics();
   if (name === 'wallet') loadWallet();
   if (name === 'settings') loadSettings();
-  if (name === 'rfp') loadRfpPanel();
   if (name === 'publish') loadPublish();
 }
 
@@ -965,7 +952,7 @@ function renderOnboardingChecklist(me, orderStats, apiKeys) {
       </div>
       ${step(true, 'Create your agent account', '', '')}
       ${step(hasApiKey, 'Generate your first API key', "switchPanel('apikeys')", 'Go to API Keys &rarr;')}
-      ${step(hasTransaction, 'Complete your first transaction', "switchPanel('marketplace')", 'Browse Marketplace &rarr;')}
+      ${step(hasTransaction, 'Complete your first transaction', "switchPanel('transactions')", 'View Transactions &rarr;')}
     </div>`;
 }
 
@@ -1008,62 +995,52 @@ async function loadOverview() {
       sidebarInfo.style.display = '';
     }
 
-    const isChain = walletInfo?.mode === 'chain';
-    const walletSection = walletInfo?.wallet_address ? `
-      <div style="margin:16px 0;padding:16px;background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <b style="font-size:13px;">${t('wallet_deposit_address')}</b>
-          <span style="font-size:10.5px;background:${isChain ? 'var(--success-bg)' : 'var(--warn-bg)'};color:${isChain ? 'var(--success)' : 'var(--warn)'};padding:2px 8px;border-radius:4px;font-weight:600;">${isChain ? 'Base' : t('wallet_chain_mock')}</span>
-        </div>
-        <div style="font-family:monospace;font-size:12px;word-break:break-all;color:var(--text-soft);margin-bottom:10px;">${walletInfo.wallet_address}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="copyText('${walletInfo.wallet_address}')">${t('wallet_copy_addr')}</button>
-          ${isChain ? `<button class="btn btn-primary btn-sm" onclick="syncBalance()">${t('wallet_sync')}</button>` : ''}
-          ${isChain ? `<button class="btn btn-ghost btn-sm" onclick="openWithdrawModal()">${t('wallet_withdraw')}</button>` : `<button class="btn btn-secondary btn-sm" onclick="openTopupModal()">${t('wallet_mock_topup')}</button>`}
-        </div>
-        ${isChain && walletInfo.chain_balance !== null ? `<div class="small" style="margin-top:8px;">${t('wallet_chain_bal')}${money(walletInfo.chain_balance)}</div>` : ''}
-        ${isChain ? `<div class="small" style="margin-top:4px;">${t('wallet_chain_hint')}</div>` : ''}
-      </div>` : '';
+    const walletSection = '';
 
     if (statsEl) {
+      const totalOrders = orderStats?.total || 0;
+      const completedOrders = orderStats?.completed || me.completed_sales || 0;
+      const disputedOrders = orderStats?.disputed || 0;
+      const disputeRate = totalOrders > 0 ? ((disputedOrders / totalOrders) * 100).toFixed(1) + '%' : '—';
+      const pendingDelivery = (pendingSellerOrders.orders || []).length;
+      const apiKeyCount = (apiKeysResp?.keys || []).length;
+
       statsEl.innerHTML = renderOnboardingChecklist(me, orderStats, apiKeysResp?.keys) + `
         <div class="grid c4">
-          <div class="stat"><div class="n">${money(me.balance)}</div><div class="l">${t('dash_balance')}</div></div>
-          <div class="stat"><div class="n">${money(me.escrow)}</div><div class="l">${t('dash_escrow')}</div></div>
-          <div class="stat"><div class="n">${me.reputation_score}</div><div class="l">${t('dash_reputation')}</div></div>
-          <div class="stat"><div class="n">${me.completed_sales || 0}</div><div class="l">Completed Sales</div></div>
-        </div>
-        ${(pendingSellerOrders.orders || []).length > 0 ? `
-        <div style="margin-top:10px;padding:10px 14px;background:rgba(0,212,170,0.07);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div>
-            <div style="font-weight:700;font-size:13px;color:var(--accent)">${(pendingSellerOrders.orders || []).length} order${(pendingSellerOrders.orders || []).length > 1 ? 's' : ''} awaiting your delivery</div>
-            <div style="font-size:11px;color:var(--text-soft);margin-top:2px">Buyers are waiting. Deliver to earn your payment.</div>
+          <div class="stat">
+            <div class="n">${totalOrders}</div>
+            <div class="l">Total Orders</div>
           </div>
+          <div class="stat">
+            <div class="n">${money(me.escrow)}</div>
+            <div class="l">In Escrow</div>
+          </div>
+          <div class="stat">
+            <div class="n" style="${disputedOrders > 0 ? 'color:var(--danger,#ef4444)' : ''}">${disputeRate}</div>
+            <div class="l">Dispute Rate</div>
+          </div>
+          <div class="stat">
+            <div class="n">${apiKeyCount}</div>
+            <div class="l">Active API Keys</div>
+          </div>
+        </div>
+        <div class="grid c4" style="margin-top:8px">
+          <div class="stat-sm"><span class="label">Available Balance</span><span class="val">${money(me.balance)}</span></div>
+          <div class="stat-sm"><span class="label">Completed</span><span class="val">${completedOrders}</span></div>
+          <div class="stat-sm"><span class="label">Pending Delivery</span><span class="val ${pendingDelivery > 0 ? 'val-accent' : ''}" style="${pendingDelivery > 0 ? 'color:var(--accent);font-weight:700' : ''}">${pendingDelivery}</span></div>
+          <div class="stat-sm"><span class="label">Disputes Open</span><span class="val ${disputedOrders > 0 ? '' : ''}" style="${disputedOrders > 0 ? 'color:var(--danger,#ef4444);font-weight:700' : ''}">${disputedOrders}</span></div>
+        </div>
+        ${pendingDelivery > 0 ? `
+        <div style="margin-top:12px;padding:10px 14px;background:rgba(0,212,170,0.07);border:1px solid var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:13px;font-weight:600;color:var(--accent)">${pendingDelivery} order${pendingDelivery > 1 ? 's' : ''} pending delivery</div>
           <button class="btn btn-primary btn-sm" onclick="switchPanel('transactions')">View Orders</button>
         </div>` : ''}
-        ${orderStats && orderStats.pending_confirmation > 0 ? `
-        <div style="margin-top:8px;padding:10px 14px;background:rgba(234,179,8,0.07);border:1px solid rgba(234,179,8,0.4);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div>
-            <div style="font-weight:700;font-size:13px;color:#ca8a04">${orderStats.pending_confirmation} delivery${orderStats.pending_confirmation > 1 ? 'ies' : ''} awaiting your confirmation</div>
-            <div style="font-size:11px;color:var(--text-soft);margin-top:2px">Review and confirm to release payment to sellers.</div>
-          </div>
-          <button class="btn btn-sm" style="background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.4);color:#ca8a04" onclick="switchPanel('transactions')">Review</button>
-        </div>` : ''}
-        <div class="grid c3" style="margin-top:8px">
-          <div class="stat-sm"><span class="label">Total Orders</span><span class="val">${orderStats?.total || me.active_orders || 0}</span></div>
-          <div class="stat-sm"><span class="label">Awaiting Delivery</span><span class="val ${(pendingSellerOrders.orders || []).length > 0 ? 'val-accent' : ''}" style="${(pendingSellerOrders.orders || []).length > 0 ? 'color:var(--accent);font-weight:700' : ''}">${(pendingSellerOrders.orders || []).length}</span></div>
-          <div class="stat-sm"><span class="label">Stake Locked</span><span class="val">${money(me.stake || 0)}</span></div>
-        </div>
-        ${walletSection}
-        <h3 style="margin-top:20px">${t('dash_quick_actions')}</h3>
-        <div class="btn-row" style="flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="openTopupModal()">${t('dash_action_topup')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="openWithdrawModal()">${t('dash_action_withdraw')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="openStakeModal()">${t('dash_action_stake')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="openRepHistory('${me.id}')">${t('rep_title')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="openDepositHistory()">${t('deposit_title')}</button>
-          <button class="btn btn-secondary btn-sm" onclick="showQuickStart()">${t('dash_action_quickstart')}</button>
-          <button class="btn btn-ghost btn-sm" onclick="switchPanel('marketplace')">Browse Marketplace</button>
+        <div class="btn-row" style="flex-wrap:wrap;margin-top:16px">
+          <button class="btn btn-ghost btn-sm" onclick="switchPanel('transactions')">Transactions</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchPanel('disputes')">Disputes</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchPanel('wallet')">Balance &amp; Escrow</button>
+          <button class="btn btn-ghost btn-sm" onclick="switchPanel('apikeys')">API Keys</button>
+          <button class="btn btn-secondary btn-sm" onclick="showQuickStart()">Quick Start</button>
         </div>
       `;
     }
@@ -1263,218 +1240,6 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ================= Dashboard: Marketplace =================
-
-let mktSearchTimer;
-function debouncedMktSearch(val) {
-  clearTimeout(mktSearchTimer);
-  mktSearchTimer = setTimeout(() => loadMarketplace(val), 400);
-}
-
-async function loadMarketplace(searchQuery) {
-  const a = getAuth();
-  if (!a.id || !a.key) return;
-  const container = document.getElementById('marketplace-list');
-  if (!container) return;
-  showSkeleton(container, 4);
-
-  try {
-    const q = searchQuery !== undefined ? searchQuery : (document.getElementById('mkt-search') || {}).value || '';
-    const sort = (document.getElementById('mkt-sort') || {}).value || 'reputation';
-    const category = (document.getElementById('mkt-category') || {}).value || '';
-    const params = new URLSearchParams();
-    if (q && q.trim()) params.set('q', q.trim());
-    if (category) params.set('category', category);
-    params.set('sort', sort);
-    params.set('limit', '30');
-    const qs = params.toString() ? '?' + params.toString() : '';
-    // Use search endpoint when query or category is set
-    const endpoint = (q.trim() || category) ? '/api/v1/services/search' : '/api/v1/services';
-    const r = await api(endpoint + qs, { headers: authHeaders() });
-    const svcs = r.services || r.matches || [];
-
-    if (!svcs.length) {
-      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No services found</h3><p class="muted">Try a different search or check back later.</p></div>`;
-      return;
-    }
-
-    container.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;padding:16px">` +
-      svcs.map(s => {
-        const rep = parseInt(s.seller_reputation || 0);
-        // Derive trust level from reputation as proxy (full composite requires a separate call)
-        const trustLevel = rep >= 150 ? 'Elite' : rep >= 80 ? 'Trusted' : rep >= 20 ? 'Rising' : 'New';
-        const trustColor = trustLevel === 'Elite' ? 'var(--accent)' : trustLevel === 'Trusted' ? '#00b890' : trustLevel === 'Rising' ? 'var(--text-soft)' : 'var(--text-soft)';
-        const trustBg = trustLevel === 'Elite' ? 'rgba(0,212,170,.18)' : trustLevel === 'Trusted' ? 'rgba(0,184,144,.12)' : 'var(--fill-secondary)';
-        return `<div style="background:var(--bg-soft);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
-            <div style="font-weight:700;font-size:14px;flex:1">${escapeHtml(s.name)}</div>
-            ${s.category ? `<span style="font-size:10px;padding:2px 6px;border-radius:4px;background:var(--fill-secondary);color:var(--text-soft);white-space:nowrap">${s.category}</span>` : ''}
-          </div>
-          ${s.description ? `<div style="font-size:12px;color:var(--text-soft);overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">${escapeHtml(s.description)}</div>` : ''}
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto">
-            <div>
-              <div style="font-size:16px;font-weight:800;color:var(--accent)">${money(s.price)}</div>
-              <div style="font-size:11px;color:var(--text-soft)">${s.delivery_hours || 24}h delivery</div>
-            </div>
-            <div style="text-align:right">
-              <a href="/profile?id=${s.agent_id}" target="_blank" style="font-size:11px;color:var(--accent);text-decoration:none">${escapeHtml(s.agent_name || 'unknown')}</a>
-              <div style="margin-top:2px"><span style="font-size:10px;padding:1px 5px;border-radius:3px;background:${trustBg};color:${trustColor};font-weight:600">${trustLevel}</span></div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-primary btn-sm" style="flex:1" onclick="openPlaceOrderModal('${s.id}','${escapeHtml(s.agent_id)}','${escapeHtml(s.name)}',${s.price})">Order</button>
-            <button class="btn btn-ghost btn-sm" onclick="openServiceReviews('${s.id}','${escapeHtml(s.name)}')" title="View reviews">&#9733;</button>
-          </div>
-        </div>`;
-      }).join('') + `</div>`;
-  } catch (e) {
-    container.innerHTML = renderErrorWithRetry(e.message, loadMarketplace);
-  }
-}
-
-function openRecommendModal() {
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>AI Service Match</h2>
-    <p class="mdesc">Describe your task and get AI-powered service recommendations.</p>
-    <label>What do you need done?</label>
-    <textarea id="rec-task" class="plain" rows="3" placeholder="e.g. Summarize 10 research papers into key points and bullet list"></textarea>
-    <div style="display:flex;gap:10px;margin-top:10px">
-      <div style="flex:1">
-        <label>Budget (USDC, optional)</label>
-        <input id="rec-budget" class="plain" type="number" step="0.01" min="0.01" placeholder="Any">
-      </div>
-      <div style="flex:1">
-        <label>Category (optional)</label>
-        <select id="rec-cat" class="plain" style="width:100%;padding:8px">
-          <option value="">Any</option>
-          ${['general','writing','analysis','coding','data','research'].map(c => `<option value="${c}">${c.charAt(0).toUpperCase()+c.slice(1)}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    <div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-primary" onclick="submitRecommend(this)">Find Services</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    </div>
-    <div id="rec-results"></div>
-  `);
-}
-
-async function submitRecommend(btn) {
-  const task = (document.getElementById('rec-task')?.value || '').trim();
-  if (!task) return toast('Please describe your task', 'warn');
-  const budget = document.getElementById('rec-budget')?.value;
-  const category = document.getElementById('rec-cat')?.value;
-  btnLoading(btn, 'Finding...');
-  const resultsEl = document.getElementById('rec-results');
-  if (resultsEl) resultsEl.innerHTML = '';
-  try {
-    const r = await api('/api/v1/recommend', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ task, ...(budget ? { budget: parseFloat(budget) } : {}), ...(category ? { category } : {}) }),
-    });
-    btnRestore(btn);
-    const recs = r.recommendations || [];
-    if (!recs.length) {
-      if (resultsEl) resultsEl.innerHTML = '<div style="margin-top:12px;color:var(--text-soft);font-size:13px">No matching services found. Try a different description or category.</div>';
-      return;
-    }
-    if (resultsEl) {
-      resultsEl.innerHTML = `<div style="margin-top:16px"><h4 style="margin:0 0 10px;font-size:13px">${r.method === 'ai' ? 'AI Recommendations' : 'Keyword Matches'}</h4>` +
-        recs.map(s => `
-          <div style="padding:10px 14px;background:var(--fill-secondary);border-radius:8px;margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
-              <div>
-                <div style="font-weight:600;font-size:13px">${escapeHtml(s.name)}</div>
-                <div style="font-size:11px;color:var(--text-soft);margin-top:2px">${escapeHtml(s.agent)} &middot; ${s.category} &middot; ${money(s.price)} USDC</div>
-                <div style="font-size:12px;color:var(--accent);margin-top:4px;font-style:italic">${escapeHtml(s.reason)}</div>
-              </div>
-              <button class="btn btn-primary btn-sm" style="white-space:nowrap" onclick="closeModal();openPlaceOrderModal('${s.id}','${escapeHtml(s.id)}','${escapeHtml(s.name)}',${s.price})">Order</button>
-            </div>
-          </div>`).join('') + '</div>';
-    }
-  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
-}
-
-async function openServiceReviews(serviceId, serviceName) {
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>${escapeHtml(serviceName)} — Reviews</h2>
-    <div id="svc-reviews-body" style="min-height:60px;display:flex;align-items:center;justify-content:center">
-      <span style="color:var(--text-soft);font-size:13px">Loading reviews...</span>
-    </div>
-  `);
-  try {
-    const r = await api('/api/v1/reviews/service/' + serviceId);
-    const body = document.getElementById('svc-reviews-body');
-    if (!body) return;
-    const reviews = r.reviews || [];
-    if (!reviews.length) {
-      body.innerHTML = `<div style="text-align:center;padding:20px 0;color:var(--text-soft)">No reviews yet for this service.</div>`;
-      return;
-    }
-    const avg = (reviews.reduce((s, rv) => s + rv.rating, 0) / reviews.length).toFixed(1);
-    body.innerHTML = `
-      <div style="width:100%">
-        <div style="text-align:center;padding:12px 0;font-size:22px;font-weight:800;color:#fbbf24">${avg}&#9733; <span style="font-size:13px;color:var(--text-soft);font-weight:400">(${reviews.length} review${reviews.length>1?'s':''})</span></div>
-        ${reviews.map(rv => `
-          <div style="padding:12px 0;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="color:#fbbf24;font-size:14px">${'&#9733;'.repeat(rv.rating)}${'&#9734;'.repeat(5-rv.rating)}</span>
-              <span style="font-size:11px;color:var(--text-soft)">${relativeTime(rv.created_at)}</span>
-            </div>
-            ${rv.comment ? `<div style="font-size:13px;color:var(--text)">${escapeHtml(rv.comment)}</div>` : ''}
-          </div>`).join('')}
-      </div>`;
-  } catch (e) {
-    const body = document.getElementById('svc-reviews-body');
-    if (body) body.innerHTML = `<div style="color:var(--danger,#ef4444);padding:20px">${escapeHtml(friendlyError(e.message))}</div>`;
-  }
-}
-
-function openPlaceOrderModal(serviceId, sellerId, serviceName, price) {
-  const a = getAuth();
-  if (!a.id || !a.key) { toast('Please log in first', 'error'); return; }
-  if (sellerId === a.id) { toast('You cannot order your own service', 'info'); return; }
-  openModal(`
-    <h2 style="margin:0 0 16px">Place Order</h2>
-    <div style="margin-bottom:12px">
-      <div style="font-weight:600">${escapeHtml(serviceName)}</div>
-      <div style="font-size:13px;color:var(--text-soft)">Cost: <strong>${money(price)}</strong></div>
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="font-size:12px;color:var(--text-soft);display:block;margin-bottom:4px">Requirements / Instructions</label>
-      <textarea id="po-requirements" rows="4" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-soft);color:var(--text);font-size:13px;resize:vertical;box-sizing:border-box" placeholder="Describe what you need from the seller..."></textarea>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="submitPlaceOrder('${serviceId}','${sellerId}',${price},this)">Confirm Order (${money(price)})</button>
-    </div>
-  `);
-}
-
-async function submitPlaceOrder(serviceId, sellerId, price, btn) {
-  const requirements = (document.getElementById('po-requirements') || {}).value || '';
-  if (!requirements.trim()) { toast('Requirements are required', 'error'); return; }
-  const a = getAuth();
-  btnRestore._saved = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Placing...';
-  try {
-    await api('/api/v1/orders', {
-      method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ service_id: serviceId, seller_id: sellerId, requirements }),
-    });
-    toast('Order placed successfully', 'success');
-    closeModal();
-    switchPanel('transactions');
-  } catch (e) {
-    toast(friendlyError(e.message), 'error');
-    btn.disabled = false; btn.textContent = btnRestore._saved || 'Confirm Order';
-  }
-}
-
 // ================= Dashboard: Disputes =================
 
 async function loadDisputes() {
@@ -1574,212 +1339,6 @@ async function viewTransparencyReport(orderId) {
   } catch (e) {
     toast('Failed to load report: ' + e.message, 'error');
   }
-}
-
-// ================= Dashboard: Messages =================
-
-async function loadMessages() {
-  const a = getAuth();
-  if (!a.id || !a.key) return;
-  const container = document.getElementById('messages-list');
-  if (!container) return;
-  showSkeleton(container, 3);
-
-  try {
-    const r = await api('/api/v1/messages', { headers: authHeaders() });
-    const msgs = r.messages || [];
-    const unread = r.unread || 0;
-
-    // Update unread badge in panel header
-    const badge = document.getElementById('unread-badge');
-    if (badge) {
-      badge.textContent = unread;
-      badge.style.display = unread > 0 ? '' : 'none';
-    }
-    // Update unread badge in sidebar nav item
-    const navBadge = document.getElementById('nav-msg-badge');
-    if (navBadge) {
-      navBadge.textContent = unread;
-      navBadge.style.display = unread > 0 ? '' : 'none';
-    }
-
-    if (!msgs.length) {
-      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No messages</h3><p class="muted">Messages from other agents will appear here.</p></div>`;
-      return;
-    }
-
-    container.innerHTML = msgs.map(m => {
-      const isUnread = !m.is_read && m.is_read !== 1;
-      const time = relativeTime(m.created_at);
-      return `<div style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;${isUnread ? 'background:var(--accent-bg, rgba(0,212,170,0.04));' : ''}" onclick="openMessageDetail('${m.id}')">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
-          <div style="font-size:13px;font-weight:${isUnread ? '700' : '500'};flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            ${isUnread ? '<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-right:6px"></span>' : ''}
-            ${m.subject ? escapeHtml(m.subject) : '(no subject)'}
-          </div>
-          <span style="font-size:11px;color:var(--text-soft);flex-shrink:0">${time}</span>
-        </div>
-        <div style="font-size:12px;color:var(--text-soft);margin-top:2px">
-          From: ${escapeHtml(m.sender_name || 'System')}
-          ${m.order_id ? ` &middot; Order: <code style="font-size:11px">${m.order_id.slice(0, 8)}...</code>` : ''}
-        </div>
-        <div style="font-size:12px;color:var(--text-soft);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-          ${escapeHtml(String(m.body || '').slice(0, 100))}
-        </div>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    container.innerHTML = renderErrorWithRetry(e.message, loadMessages);
-  }
-}
-
-async function openMessageDetail(msgId) {
-  try {
-    const r = await api('/api/v1/messages', { headers: authHeaders() });
-    const msg = (r.messages || []).find(m => m.id === msgId);
-    if (!msg) return;
-
-    // Mark as read
-    await api('/api/v1/messages/' + msgId + '/read', { method: 'POST', headers: authHeaders() }).catch(() => {});
-
-    openModal(`
-      <button class="close" onclick="closeModal()">&times;</button>
-      <h2 style="word-break:break-word">${msg.subject ? escapeHtml(msg.subject) : '(no subject)'}</h2>
-      <div style="font-size:12px;color:var(--text-soft);margin-bottom:16px">
-        From: <b>${escapeHtml(msg.sender_name || 'System')}</b>
-        &middot; ${relativeTime(msg.created_at)}
-        ${msg.order_id ? ` &middot; <a style="color:var(--accent)" onclick="closeModal();openOrderDetail('${msg.order_id}')">View Order</a>` : ''}
-      </div>
-      <div style="font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word">${escapeHtml(msg.body || '')}</div>
-      <div style="margin-top:16px;display:flex;gap:8px">
-        ${msg.sender_id ? `<button class="btn btn-primary btn-sm" onclick="closeModal();openComposeModal('${msg.sender_id}')">Reply</button>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="closeModal()">Close</button>
-      </div>
-    `);
-
-    // Refresh list to update unread count
-    loadMessages();
-  } catch (e) { toast('Failed to open message', 'error'); }
-}
-
-async function markAllRead() {
-  try {
-    await api('/api/v1/messages/read-all', { method: 'POST', headers: authHeaders() });
-    toast('All messages marked as read', 'success');
-    loadMessages();
-  } catch (e) { toast(e.message, 'error'); }
-}
-
-function openComposeModal(toId, orderId) {
-  openModal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>Send Message</h2>
-    <p class="mdesc">Send a message to another agent by their Agent ID.</p>
-    <label>Recipient Agent ID</label>
-    <input id="msg-to" class="plain" type="text" placeholder="Agent ID..." value="${toId || ''}">
-    <label style="margin-top:10px">Subject (optional)</label>
-    <input id="msg-subject" class="plain" type="text" placeholder="Subject..." value="${orderId ? 'Re: Order ' + orderId.slice(0,8) : ''}">
-    <label style="margin-top:10px">Message</label>
-    <textarea id="msg-body" class="plain" rows="5" placeholder="Your message..." style="resize:vertical;width:100%"></textarea>
-    <input type="hidden" id="msg-order-id" value="${orderId || ''}">
-    <div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-primary" onclick="submitSendMessage()">Send</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
-}
-
-async function submitSendMessage() {
-  const to = document.getElementById('msg-to').value.trim();
-  const subject = document.getElementById('msg-subject').value.trim();
-  const body = document.getElementById('msg-body').value.trim();
-  if (!to) return toast('Enter recipient agent ID', 'warn');
-  if (!body) return toast('Enter message body', 'warn');
-  const btn = document.querySelector('#modalBody .btn-primary');
-  btnLoading(btn, 'Sending...');
-  try {
-    const orderId = (document.getElementById('msg-order-id') || {}).value || '';
-    await api('/api/v1/messages/send', {
-      method: 'POST',
-      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, subject: subject || undefined, body, order_id: orderId || undefined }),
-    });
-    toast('Message sent', 'success');
-    closeModal();
-    if (state.activePanel === 'messages') loadMessages();
-  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
-}
-
-// ================= Dashboard: Leaderboard =================
-
-let agentSearchTimer;
-
-async function loadLeaderboard(searchQuery) {
-  const container = document.getElementById('leaderboard-list');
-  if (!container) return;
-  showSkeleton(container, 5);
-
-  try {
-    const catEl = document.getElementById('lb-category');
-    const category = catEl ? catEl.value : '';
-    let url;
-    if (searchQuery && searchQuery.trim()) {
-      url = '/api/v1/agents/leaderboard?q=' + encodeURIComponent(searchQuery.trim()) + '&limit=50';
-      if (category) url += '&category=' + encodeURIComponent(category);
-    } else {
-      url = '/api/v1/agents/leaderboard?limit=50';
-      if (category) url += '&category=' + encodeURIComponent(category);
-    }
-    const r = await api(url);
-    const agents = (r.agents || []).filter(a =>
-      !/seed/i.test(a.name) && !/test/i.test(a.name) && !/demo/i.test(a.name)
-    );
-
-    if (!agents.length) {
-      container.innerHTML = `<div class="empty" style="text-align:center;padding:40px 0"><h3>No agents found</h3></div>`;
-      return;
-    }
-
-    const myId = getAuth().id;
-    const medals = ['#FFD700', '#C0C0C0', '#CD7F32'];
-    container.innerHTML = agents.map((a, i) => {
-      const score = parseInt(a.reputation_score) || 0;
-      const isMe = a.id === myId;
-      const svgUrl = '/api/v1/agents/' + a.id + '/reputation-badge?format=svg';
-      const rank = !searchQuery ? i + 1 : null;
-      const rankDisplay = rank
-        ? rank <= 3
-          ? `<span style="font-size:16px;line-height:1" title="#${rank}">` + (rank === 1 ? '&#129351;' : rank === 2 ? '&#129352;' : '&#129353;') + `</span>`
-          : `<span style="width:24px;text-align:center;color:var(--text-soft);font-size:13px;font-weight:600">${rank}</span>`
-        : `<span style="width:24px"></span>`;
-      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--border);${isMe ? 'background:var(--accent-bg, rgba(0,212,170,0.06));' : ''}">
-        ${rankDisplay}
-        <div style="flex:1;min-width:0">
-          <div style="font-size:13px;font-weight:600">
-            <a href="/profile?id=${a.id}" target="_blank" style="color:inherit;text-decoration:none;hover:underline">${escapeHtml(a.name)}</a>
-            ${isMe ? ' <span style="font-size:10px;color:var(--accent)">(you)</span>' : ''}
-          </div>
-          ${a.description ? `<div style="font-size:11px;color:var(--text-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(a.description)}</div>` : ''}
-        </div>
-        <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px">
-          ${!isMe ? `<button class="btn btn-ghost btn-sm" style="font-size:11px;padding:3px 8px" onclick="switchPanel('messages');openComposeModal('${a.id}')">Message</button>` : ''}
-          <div>
-            <img src="${svgUrl}" alt="badge" style="height:18px;display:block;margin-bottom:2px" loading="lazy">
-            ${a.category_score !== undefined
-              ? `<span style="font-size:11px;color:var(--accent);font-weight:600">${a.category_score} pts</span>`
-              : `<span style="font-size:11px;color:var(--text-soft)">${parseInt(a.completed_sales || 0)} sales</span>`}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-  } catch (e) {
-    container.innerHTML = renderErrorWithRetry(e.message, loadLeaderboard);
-  }
-}
-
-function debouncedAgentSearch(val) {
-  clearTimeout(agentSearchTimer);
-  agentSearchTimer = setTimeout(() => loadLeaderboard(val), 400);
 }
 
 // ================= Dashboard: API Keys =================
@@ -2404,7 +1963,7 @@ async function loadWallet() {
 
     container.innerHTML = `
       <div class="dash-card">
-        <div class="dash-card-header"><h3>Wallet Overview</h3></div>
+        <div class="dash-card-header"><h3>Balance &amp; Escrow</h3></div>
         <div class="dash-card-body">
           <div class="grid c3" style="margin-bottom:20px">
             <div class="stat"><div class="n">${money(escrow.available_balance || 0)}</div><div class="l">Available</div></div>
@@ -3010,7 +2569,6 @@ async function openOrderDetail(orderId) {
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openTipModal('${r.id}')">Send Tip</button>` : ''}
         ${r.status === 'completed' ? `<button class="btn btn-ghost btn-sm" onclick="viewOrderReceipt('${r.id}')">Receipt</button>` : ''}
-        <button class="btn btn-ghost btn-sm" onclick="closeModal();openComposeModal('${isBuyer ? r.seller_id : r.buyer_id}','${r.id}')">Message ${isBuyer ? 'Seller' : 'Buyer'}</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>
       </div>
     `);
@@ -3244,311 +2802,6 @@ async function openRepHistory(id) {
   } catch (e) { toast(friendlyError(e.message), 'error'); }
 }
 
-// ================= RFP Board =================
-
-let rfpAllRequests = [];
-let rfpCurrentTab = 'browse';
-
-async function loadRfpPanel() {
-  if (rfpCurrentTab === 'browse') await loadRfpBrowse();
-  else await loadRfpMine();
-}
-
-function switchRfpTab(tab) {
-  rfpCurrentTab = tab;
-  const browseTab = document.getElementById('rfp-browse-tab');
-  const mineTab = document.getElementById('rfp-mine-tab');
-  const browseBtn = document.getElementById('rfp-tab-browse');
-  const mineBtn = document.getElementById('rfp-tab-mine');
-  if (tab === 'browse') {
-    browseTab.style.display = '';
-    mineTab.style.display = 'none';
-    browseBtn.className = 'btn btn-sm';
-    mineBtn.className = 'btn btn-sm btn-ghost';
-    loadRfpBrowse();
-  } else {
-    browseTab.style.display = 'none';
-    mineTab.style.display = '';
-    browseBtn.className = 'btn btn-sm btn-ghost';
-    mineBtn.className = 'btn btn-sm';
-    loadRfpMine();
-  }
-}
-
-async function loadRfpBrowse() {
-  const list = document.getElementById('rfp-browse-list');
-  if (!list) return;
-  list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading...</div>';
-  try {
-    const r = await api('/requests', { headers: authHeaders() });
-    rfpAllRequests = r.requests || [];
-    renderRfpBrowse(rfpAllRequests);
-  } catch (e) {
-    list.innerHTML = `<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">${escapeHtml(e.message)}</div>`;
-  }
-}
-
-function filterRfpRequests() {
-  const q = (document.getElementById('rfp-filter-q')?.value || '').toLowerCase();
-  const cat = (document.getElementById('rfp-filter-cat')?.value || '').toLowerCase();
-  const maxB = parseFloat(document.getElementById('rfp-filter-max')?.value) || Infinity;
-  const filtered = rfpAllRequests.filter(r => {
-    if (q && !r.title.toLowerCase().includes(q) && !r.description.toLowerCase().includes(q)) return false;
-    if (cat && !(r.category || '').toLowerCase().includes(cat)) return false;
-    if (r.budget_usdc > maxB) return false;
-    return true;
-  });
-  renderRfpBrowse(filtered);
-}
-
-function renderRfpBrowse(requests) {
-  const list = document.getElementById('rfp-browse-list');
-  if (!list) return;
-  if (!requests.length) {
-    list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">No open requests found.</div>';
-    return;
-  }
-  list.innerHTML = requests.map(r => `
-    <div class="rfp-card">
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        <div style="flex:1">
-          <div class="rfp-card-title">${escapeHtml(r.title)}</div>
-          <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px;line-height:1.4">${escapeHtml((r.description || '').slice(0, 120))}${r.description?.length > 120 ? '...' : ''}</div>
-        </div>
-        <span class="rfp-status-badge rfp-status-${r.status || 'open'}">${r.status || 'open'}</span>
-      </div>
-      <div class="rfp-card-meta">
-        <span class="rfp-card-budget">${money(r.budget_usdc)} USDC budget</span>
-        ${r.category ? `<span>Category: ${escapeHtml(r.category)}</span>` : ''}
-        ${r.delivery_hours ? `<span>Deliver in ${r.delivery_hours}h</span>` : ''}
-        <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
-      </div>
-      <div class="rfp-card-actions">
-        <button class="btn btn-sm btn-primary" onclick="openApplyModal('${r.id}', ${r.budget_usdc})">Apply</button>
-        <button class="btn btn-sm btn-ghost" onclick="openRfpDetail('${r.id}')">View Details</button>
-      </div>
-    </div>`).join('');
-}
-
-async function loadRfpMine() {
-  const list = document.getElementById('rfp-mine-list');
-  if (!list) return;
-  list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading...</div>';
-  try {
-    const requests = await api('/requests/mine', { headers: authHeaders() });
-    if (!requests.length) {
-      list.innerHTML = '<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">You have not posted any requests yet.</div>';
-      return;
-    }
-    list.innerHTML = requests.map(r => `
-      <div class="rfp-card">
-        <div style="display:flex;align-items:flex-start;gap:10px">
-          <div style="flex:1">
-            <div class="rfp-card-title">${escapeHtml(r.title)}</div>
-            <div style="font-size:0.82rem;color:var(--text-secondary);margin-top:2px">${escapeHtml((r.description || '').slice(0, 100))}${r.description?.length > 100 ? '...' : ''}</div>
-          </div>
-          <span class="rfp-status-badge rfp-status-${r.status || 'open'}">${r.status || 'open'}</span>
-        </div>
-        <div class="rfp-card-meta">
-          <span class="rfp-card-budget">${money(r.budget_usdc)} USDC</span>
-          ${r.application_count != null ? `<span>${r.application_count} application${r.application_count !== 1 ? 's' : ''}</span>` : ''}
-          ${r.category ? `<span>${escapeHtml(r.category)}</span>` : ''}
-          <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
-        </div>
-        <div class="rfp-card-actions">
-          ${r.status === 'open' ? `<button class="btn btn-sm" onclick="openRequestApplications('${r.id}')">View Applications</button>` : ''}
-          ${r.status === 'open' ? `<button class="btn btn-sm btn-ghost" onclick="closeRfpRequest('${r.id}')">Close Request</button>` : ''}
-        </div>
-      </div>`).join('');
-  } catch (e) {
-    list.innerHTML = `<div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">${escapeHtml(e.message)}</div>`;
-  }
-}
-
-function showPostRequestModal() {
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>Post a Task Request</h2>
-    <p class="mdesc" style="margin-bottom:16px">Sellers will bid on your request. Accept the best application to auto-create an escrow order.</p>
-    <div class="form-group">
-      <label class="form-label">Title *</label>
-      <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-title" placeholder="e.g. Summarize 50-page PDF into bullet points">
-    </div>
-    <div class="form-group" style="margin-top:10px">
-      <label class="form-label">Description *</label>
-      <textarea id="rfp-post-desc" class="input-sm" style="width:100%;box-sizing:border-box;height:80px;resize:vertical" placeholder="Describe the task in detail..."></textarea>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:10px">
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Budget (USDC) *</label>
-        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-budget" type="number" min="0.01" step="0.01" placeholder="5.00">
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Category</label>
-        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-cat" placeholder="e.g. research, coding">
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-top:10px">
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Delivery (hours)</label>
-        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-delivery" type="number" value="24">
-      </div>
-      <div class="form-group" style="flex:1">
-        <label class="form-label">Expires in (hours)</label>
-        <input class="input-sm" style="width:100%;box-sizing:border-box" id="rfp-post-expires" type="number" value="72">
-      </div>
-    </div>
-    <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="submitPostRequest()">Post Request</button>
-  `);
-}
-
-async function submitPostRequest() {
-  const title = document.getElementById('rfp-post-title')?.value?.trim();
-  const description = document.getElementById('rfp-post-desc')?.value?.trim();
-  const budget_usdc = parseFloat(document.getElementById('rfp-post-budget')?.value);
-  const category = document.getElementById('rfp-post-cat')?.value?.trim();
-  const delivery_hours = parseInt(document.getElementById('rfp-post-delivery')?.value) || 24;
-  const expires_in_hours = parseInt(document.getElementById('rfp-post-expires')?.value) || 72;
-
-  if (!title) { toast('Title is required', 'error'); return; }
-  if (!description) { toast('Description is required', 'error'); return; }
-  if (!budget_usdc || budget_usdc <= 0) { toast('Enter a valid budget', 'error'); return; }
-
-  try {
-    await api('/requests', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ title, description, budget_usdc, category: category || undefined, delivery_hours, expires_in_hours })
-    });
-    closeModal();
-    toast('Request posted to RFP board', 'success');
-    switchRfpTab('mine');
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
-async function openApplyModal(requestId, budget) {
-  // Load user's services first
-  let servicesHtml = '<option value="">Loading...</option>';
-  try {
-    const a = getAuth();
-    const svcRes = await api('/services?agent_id=' + a.id, { headers: authHeaders() });
-    const svcs = svcRes.services || svcRes || [];
-    servicesHtml = svcs.length
-      ? svcs.filter(s => s.is_active !== false).map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${money(s.price)} USDC)</option>`).join('')
-      : '<option value="">No active services</option>';
-  } catch (_) {}
-
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>Apply to Request</h2>
-    <p class="mdesc">Budget: <b style="color:var(--accent)">${money(budget)} USDC</b>. Propose your price and the service you'll use.</p>
-    <div class="form-group" style="margin-top:12px">
-      <label class="form-label">Your Service *</label>
-      <select id="apply-service-id" class="input-sm" style="width:100%;box-sizing:border-box">
-        ${servicesHtml}
-      </select>
-    </div>
-    <div class="form-group" style="margin-top:10px">
-      <label class="form-label">Proposed Price (USDC) *</label>
-      <input class="input-sm" style="width:100%;box-sizing:border-box" id="apply-price" type="number" min="0.01" step="0.01" value="${budget}">
-    </div>
-    <div class="form-group" style="margin-top:10px">
-      <label class="form-label">Message to buyer (optional)</label>
-      <textarea id="apply-msg" class="input-sm" style="width:100%;box-sizing:border-box;height:70px;resize:vertical" placeholder="Why you're the right agent for this task..."></textarea>
-    </div>
-    <button class="btn btn-primary" style="margin-top:16px;width:100%" onclick="submitApplication('${requestId}')">Submit Application</button>
-  `);
-}
-
-async function submitApplication(requestId) {
-  const service_id = document.getElementById('apply-service-id')?.value;
-  const proposed_price = parseFloat(document.getElementById('apply-price')?.value);
-  const message = document.getElementById('apply-msg')?.value?.trim();
-
-  if (!service_id) { toast('Select a service', 'error'); return; }
-  if (!proposed_price || proposed_price <= 0) { toast('Enter a valid price', 'error'); return; }
-
-  try {
-    await api('/requests/' + requestId + '/apply', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ service_id, proposed_price, message: message || undefined })
-    });
-    closeModal();
-    toast('Application submitted', 'success');
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
-async function openRfpDetail(requestId) {
-  try {
-    const r = await api('/requests/' + requestId, { headers: authHeaders() });
-    modal(`
-      <button class="close" onclick="closeModal()">&times;</button>
-      <h2>${escapeHtml(r.title)}</h2>
-      <span class="rfp-status-badge rfp-status-${r.status}">${r.status}</span>
-      <p style="margin:12px 0;line-height:1.6;color:var(--text-secondary)">${escapeHtml(r.description || '')}</p>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:0.85rem;color:var(--text-secondary);margin-bottom:16px">
-        <span>Budget: <b style="color:var(--accent)">${money(r.budget_usdc)} USDC</b></span>
-        ${r.category ? `<span>Category: ${escapeHtml(r.category)}</span>` : ''}
-        ${r.delivery_hours ? `<span>Delivery: ${r.delivery_hours}h</span>` : ''}
-        <span>Expires: ${r.expires_at ? new Date(r.expires_at).toLocaleDateString() : 'N/A'}</span>
-      </div>
-      ${r.status === 'open' ? `<button class="btn btn-primary" style="width:100%" onclick="closeModal();openApplyModal('${r.id}', ${r.budget_usdc})">Apply to this Request</button>` : ''}
-    `);
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
-async function openRequestApplications(requestId) {
-  try {
-    const apps = await api('/requests/' + requestId + '/applications', { headers: authHeaders() });
-    if (!apps.length) {
-      modal(`<button class="close" onclick="closeModal()">&times;</button><h2>Applications</h2><p class="mdesc">No applications yet.</p>`);
-      return;
-    }
-    const items = apps.map(a => `
-      <div class="rfp-card" style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <b>${escapeHtml(a.seller_name || a.seller_id)}</b>
-          <span class="rfp-status-badge rfp-status-${a.status}">${a.status}</span>
-        </div>
-        <div class="rfp-card-meta">
-          <span>Rep: ${a.reputation_score ?? '—'}</span>
-          <span>Completed Sales: ${a.completed_sales ?? '—'}</span>
-          <span class="rfp-card-budget">${money(a.proposed_price)} USDC</span>
-        </div>
-        ${a.message ? `<div style="font-size:0.82rem;color:var(--text-secondary);margin-top:4px">${escapeHtml(a.message)}</div>` : ''}
-        ${a.status === 'pending' ? `<div class="rfp-card-actions"><button class="btn btn-sm btn-primary" onclick="acceptApplication('${requestId}','${a.application_id}')">Accept</button></div>` : ''}
-      </div>`).join('');
-    modal(`
-      <button class="close" onclick="closeModal()">&times;</button>
-      <h2>Applications (${apps.length})</h2>
-      <div style="margin-top:12px">${items}</div>
-    `);
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
-async function acceptApplication(requestId, applicationId) {
-  try {
-    const r = await api('/requests/' + requestId + '/accept', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ application_id: applicationId })
-    });
-    closeModal();
-    toast('Application accepted! Escrow order created: ' + r.order?.id, 'success');
-    loadRfpMine();
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
-async function closeRfpRequest(requestId) {
-  if (!confirm('Close this request? All pending applications will be rejected.')) return;
-  try {
-    await api('/requests/' + requestId + '/close', { method: 'POST', headers: authHeaders() });
-    toast('Request closed', 'success');
-    loadRfpMine();
-  } catch (e) { toast(friendlyError(e.message), 'error'); }
-}
-
 // ================= Dashboard: Publish (Blog) =================
 
 async function loadPublish() {
@@ -3753,8 +3006,8 @@ if (isLoggedIn()) {
 window.addEventListener('popstate', () => {
   if (isLoggedIn()) {
     const hashPanel = window.location.hash.slice(1);
-    const validPanels = ['overview','transactions','marketplace','rfp','apikeys','webhooks',
-      'disputes','contracts','messages','leaderboard','analytics','wallet','settings'];
+    const validPanels = ['overview','transactions','apikeys','webhooks',
+      'disputes','contracts','analytics','wallet','publish','settings'];
     if (hashPanel && validPanels.includes(hashPanel)) {
       switchPanel(hashPanel);
     }

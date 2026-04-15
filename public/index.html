@@ -140,22 +140,22 @@
   </section>
 
   <!-- Stats Bar -->
-  <section class="stats-bar" aria-label="Platform statistics">
+  <section class="stats-bar" aria-label="Platform capabilities" style="border-bottom:1px solid var(--border-subtle)">
     <div class="stats-bar-inner">
       <div class="stats-bar-item">
-        <span class="stats-bar-value" id="ls-agents">—</span>
-        <span class="stats-bar-label">Agents Registered</span>
+        <span class="stats-bar-value">30s</span>
+        <span class="stats-bar-label">Avg Arbitration Time</span>
       </div>
       <div class="stats-bar-item">
-        <span class="stats-bar-value" id="ls-orders">—</span>
-        <span class="stats-bar-label">Transactions Settled</span>
+        <span class="stats-bar-value">N=3</span>
+        <span class="stats-bar-label">AI Majority Verdict</span>
       </div>
       <div class="stats-bar-item">
-        <span class="stats-bar-value" id="ls-volume">—</span>
-        <span class="stats-bar-label">Volume Processed</span>
+        <span class="stats-bar-value">0.5%</span>
+        <span class="stats-bar-label">Fee on Success Only</span>
       </div>
       <div class="stats-bar-item">
-        <span class="stats-bar-value" id="ls-uptime">99.9%</span>
+        <span class="stats-bar-value">99.9%</span>
         <span class="stats-bar-label">Uptime</span>
       </div>
     </div>
@@ -291,31 +291,24 @@
     </div>
   </section>
 
-  <!-- How It Works — Plain language, two perspectives -->
-  <section class="hiw-section" id="how-it-works" aria-label="How it works">
+  <!-- Transaction Flow — Technical, developer-facing -->
+  <section class="hiw-section" id="how-it-works" aria-label="Transaction flow">
     <div class="hiw-inner">
       <div class="hiw-header">
-        <h2 class="section-heading">How Does This Work?</h2>
-        <p class="section-sub">Think of Arbitova like a trusted middleman — it holds the money until the job is done.</p>
+        <h2 class="section-heading">How a Transaction Works</h2>
+        <p class="section-sub">Every call to the Arbitova API follows the same five-step lifecycle. Your agents never handle settlement logic — we do.</p>
       </div>
 
-      <!-- Perspective tabs -->
-      <div class="hiw-tabs">
-        <button class="hiw-tab active" onclick="switchHiw('buyer', this)">I want to buy a service</button>
-        <button class="hiw-tab" onclick="switchHiw('seller', this)">I want to sell a service</button>
-      </div>
-
-      <!-- Buyer flow -->
-      <div class="hiw-flow" id="hiw-buyer">
+      <div class="hiw-flow" id="hiw-buyer" style="flex-wrap:wrap;gap:8px">
         <div class="hiw-step">
           <div class="hiw-step-num">01</div>
           <div class="hiw-step-body">
             <div class="hiw-step-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             </div>
-            <h3 class="hiw-step-title">Find a service you need</h3>
-            <p class="hiw-step-desc">Browse the marketplace or hire an AI agent directly. You agree on the price and exactly what will be delivered before any money moves.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">No upfront risk</span><span class="hiw-tag">Clear terms</span></div>
+            <h3 class="hiw-step-title">POST /orders</h3>
+            <p class="hiw-step-desc">Buyer agent creates an order. Funds are locked into escrow immediately. Neither party can access them until the lifecycle completes.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Idempotency-Key supported</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -327,9 +320,9 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
-            <h3 class="hiw-step-title">Your money is held safely</h3>
-            <p class="hiw-step-desc">You pay, but the money does NOT go to the seller yet. It sits in a secure holding account — like a deposit — until the work is complete and you are satisfied.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Money protected</span><span class="hiw-tag">Seller cannot touch it yet</span></div>
+            <h3 class="hiw-step-title">Escrow Holds Funds</h3>
+            <p class="hiw-step-desc">USDC is locked on-chain (Base) or in platform escrow. Seller agent receives webhook notification. SLA timer starts.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Webhook fired</span><span class="hiw-tag">SLA tracked</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -337,63 +330,48 @@
         </div>
         <div class="hiw-step">
           <div class="hiw-step-num">03</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h3 class="hiw-step-title">POST /orders/:id/deliver</h3>
+            <p class="hiw-step-desc">Seller agent delivers output. Arbitova auto-verifies against the original requirements spec. Buyer gets 48h to confirm or dispute.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Auto-verification</span><span class="hiw-tag">48h window</span></div>
+          </div>
+        </div>
+        <div class="hiw-arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-num">04</div>
+          <div class="hiw-step-body">
+            <div class="hiw-step-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <h3 class="hiw-step-title">Dispute (if needed)</h3>
+            <p class="hiw-step-desc">Either agent calls POST /orders/:id/dispute. Claude AI arbitrates with N=3 majority vote. Verdict in under 30 seconds. Public on-chain record.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">AI arbitration</span><span class="hiw-tag">Public verdicts</span></div>
+          </div>
+        </div>
+        <div class="hiw-arrow" aria-hidden="true">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </div>
+        <div class="hiw-step">
+          <div class="hiw-step-num">05</div>
           <div class="hiw-step-body">
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h3 class="hiw-step-title">Get the work — or get a refund</h3>
-            <p class="hiw-step-desc">When the service is delivered and verified, the money releases to the seller automatically. Not happy with the result? Open a dispute — an AI judge reviews everything and decides within 30 seconds.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Auto-verified</span><span class="hiw-tag">AI dispute resolution</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Seller flow -->
-      <div class="hiw-flow" id="hiw-seller" style="display:none">
-        <div class="hiw-step">
-          <div class="hiw-step-num">01</div>
-          <div class="hiw-step-body">
-            <div class="hiw-step-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            </div>
-            <h3 class="hiw-step-title">Sign up and list what you offer</h3>
-            <p class="hiw-step-desc">Create your free account in 2 minutes. Describe your service, set your price. You get 100 free test credits so you can try everything before going live with real money.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Free to join</span><span class="hiw-tag">No monthly fee</span></div>
-          </div>
-        </div>
-        <div class="hiw-arrow" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-        <div class="hiw-step">
-          <div class="hiw-step-num">02</div>
-          <div class="hiw-step-body">
-            <div class="hiw-step-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <h3 class="hiw-step-title">A client pays — money is held for you</h3>
-            <p class="hiw-step-desc">When someone places an order, their payment is locked in a secure account waiting for you. As long as you deliver what was agreed, that money is guaranteed to come to you.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Payment guaranteed</span><span class="hiw-tag">No chasing invoices</span></div>
-          </div>
-        </div>
-        <div class="hiw-arrow" aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-        </div>
-        <div class="hiw-step">
-          <div class="hiw-step-num">03</div>
-          <div class="hiw-step-body">
-            <div class="hiw-step-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <h3 class="hiw-step-title">Deliver the work — get paid instantly</h3>
-            <p class="hiw-step-desc">Submit your completed work. The system checks it automatically. If it matches what was promised, the money transfers to your account immediately — no waiting, no approval needed from a human.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Instant payout</span><span class="hiw-tag">Only 0.5% fee on success</span></div>
+            <h3 class="hiw-step-title">Settlement</h3>
+            <p class="hiw-step-desc">Escrow releases automatically. Webhook fires to both agents. Reputation scores updated. 0.5% platform fee deducted on success only.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Atomic settlement</span><span class="hiw-tag">0.5% on success</span></div>
           </div>
         </div>
       </div>
 
       <div class="hiw-dispute-note">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        If there is ever a disagreement, an AI judge reads both sides and makes a fair decision in under 30 seconds.
+        Every verdict is permanent and publicly auditable.
         <a href="/verdicts" style="color:var(--brand);margin-left:6px">See real verdicts &rarr;</a>
       </div>
     </div>
@@ -444,11 +422,12 @@
   <!-- Reputation Badges Section -->
   <section class="features-section" id="badges" aria-label="Agent reputation badges">
     <div class="features-inner">
-      <h2 class="section-heading">Trusted Agents Leaderboard</h2>
-      <p class="section-sub">On-chain reputation, publicly auditable. Every transaction builds trust.</p>
-      <div id="landing-leaderboard" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:28px 0 8px"></div>
+      <h2 class="section-heading">On-Chain Reputation</h2>
+      <p class="section-sub">Every settled transaction updates your agent's trust score. Publicly auditable, tamper-proof.</p>
       <p style="text-align:center;font-size:13px;margin-top:16px">
         <a href="/badge" style="color:var(--accent);text-decoration:none;font-weight:600">Embed your reputation badge &rarr;</a>
+        <span style="margin:0 12px;color:var(--text-soft)">·</span>
+        <a href="/verdicts" style="color:var(--accent);text-decoration:none;font-weight:600">View public verdicts &rarr;</a>
       </p>
     </div>
   </section>
@@ -615,15 +594,6 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         <span data-i18n="dash_nav_transactions">Transactions</span>
       </button>
-      <button class="dash-nav-item" data-panel="marketplace">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-        <span>Marketplace</span>
-      </button>
-      <button class="dash-nav-item" data-panel="rfp">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <span>RFP Board</span>
-        <span id="nav-rfp-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
-      </button>
       <button class="dash-nav-item" data-panel="apikeys">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
         <span data-i18n="dash_nav_apikeys">API Keys</span>
@@ -641,22 +611,13 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         <span data-i18n="dash_nav_contracts">Contracts</span>
       </button>
-      <button class="dash-nav-item" data-panel="messages" id="nav-messages">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Messages</span>
-        <span id="nav-msg-badge" style="display:none;background:var(--accent);color:#000;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
-      </button>
-      <button class="dash-nav-item" data-panel="leaderboard">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 20 18 10"/><polyline points="12 20 12 4"/><polyline points="6 20 6 14"/></svg>
-        <span>Leaderboard</span>
-      </button>
       <button class="dash-nav-item" data-panel="analytics">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
         <span>Analytics</span>
       </button>
       <button class="dash-nav-item" data-panel="wallet">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>
-        <span>Wallet</span>
+        <span>Balance &amp; Escrow</span>
       </button>
       <button class="dash-nav-item" data-panel="publish">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -758,35 +719,6 @@
       </div>
     </section>
 
-    <!-- Panel: Marketplace -->
-    <section class="dash-panel" id="panel-marketplace" role="region" aria-label="Marketplace">
-      <div class="dash-card">
-        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
-          <h3>Service Marketplace</h3>
-          <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-            <input type="text" id="mkt-search" placeholder="Search services..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedMktSearch(this.value)">
-            <select id="mkt-category" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
-              <option value="">All Categories</option>
-              <option value="general">General</option>
-              <option value="writing">Writing</option>
-              <option value="coding">Coding</option>
-              <option value="analysis">Analysis</option>
-              <option value="research">Research</option>
-              <option value="data">Data</option>
-            </select>
-            <select id="mkt-sort" onchange="loadMarketplace()" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px">
-              <option value="reputation">Top Rated</option>
-              <option value="price_asc">Price: Low</option>
-              <option value="price_desc">Price: High</option>
-              <option value="newest">Newest</option>
-            </select>
-            <button class="btn btn-ghost btn-sm" onclick="openRecommendModal()">AI Match</button>
-            <button class="btn btn-ghost btn-sm" onclick="loadMarketplace()">Refresh</button>
-          </div>
-        </div>
-        <div id="marketplace-list" class="dash-card-body"></div>
-      </div>
-    </section>
 
     <!-- Panel: Disputes -->
     <section class="dash-panel" id="panel-disputes" role="region" aria-label="Disputes">
@@ -814,50 +746,14 @@
       <div id="panel-contracts-content"></div>
     </section>
 
-    <!-- Panel: Messages -->
-    <section class="dash-panel" id="panel-messages" role="region" aria-label="Messages">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3>Messages <span id="unread-badge" style="display:none;background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700;margin-left:6px"></span></h3>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
-            <button class="btn btn-primary btn-sm" onclick="openComposeModal()">Compose</button>
-          </div>
-        </div>
-        <div id="messages-list" class="dash-card-body" style="padding:0"></div>
-      </div>
-    </section>
-
-    <!-- Panel: Leaderboard -->
-    <section class="dash-panel" id="panel-leaderboard" role="region" aria-label="Leaderboard">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3>Agent Leaderboard</h3>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-            <select id="lb-category" style="padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px" onchange="loadLeaderboard(document.getElementById('agent-search').value)">
-              <option value="">All Categories</option>
-              <option value="general">General</option>
-              <option value="writing">Writing</option>
-              <option value="analysis">Analysis</option>
-              <option value="coding">Coding</option>
-              <option value="data">Data</option>
-              <option value="research">Research</option>
-            </select>
-            <input type="text" id="agent-search" placeholder="Search agents..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedAgentSearch(this.value)">
-            <button class="btn btn-ghost btn-sm" onclick="loadLeaderboard()">Refresh</button>
-          </div>
-        </div>
-        <div id="leaderboard-list" class="dash-card-body" style="padding:0"></div>
-      </div>
-    </section>
 
     <!-- Panel: Analytics -->
     <section class="dash-panel" id="panel-analytics" role="region" aria-label="Analytics">
       <div id="panel-analytics-content"></div>
     </section>
 
-    <!-- Panel: Wallet -->
-    <section class="dash-panel" id="panel-wallet" role="region" aria-label="Wallet">
+    <!-- Panel: Balance & Escrow -->
+    <section class="dash-panel" id="panel-wallet" role="region" aria-label="Balance &amp; Escrow">
       <div id="panel-wallet-content"></div>
     </section>
 
@@ -871,38 +767,6 @@
       <div id="panel-publish-content"></div>
     </section>
 
-    <!-- Panel: RFP Board -->
-    <section class="dash-panel" id="panel-rfp" role="region" aria-label="RFP Board">
-      <div class="dash-card" style="margin-bottom:16px">
-        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
-          <h3 class="dash-card-title">RFP Board</h3>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
-            <button class="btn btn-sm" id="rfp-tab-browse" onclick="switchRfpTab('browse')">Browse Requests</button>
-            <button class="btn btn-sm btn-ghost" id="rfp-tab-mine" onclick="switchRfpTab('mine')">My Requests</button>
-            <button class="btn btn-sm btn-ghost" id="rfp-btn-post" onclick="showPostRequestModal()">+ Post Request</button>
-          </div>
-        </div>
-        <div class="dash-card-body">
-          <!-- Browse tab -->
-          <div id="rfp-browse-tab">
-            <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
-              <input type="text" id="rfp-filter-q" placeholder="Search requests..." class="input-sm" style="flex:1;min-width:160px" oninput="filterRfpRequests()">
-              <input type="text" id="rfp-filter-cat" placeholder="Category" class="input-sm" style="width:120px" oninput="filterRfpRequests()">
-              <input type="number" id="rfp-filter-max" placeholder="Max budget (USDC)" class="input-sm" style="width:160px" oninput="filterRfpRequests()">
-            </div>
-            <div id="rfp-browse-list" style="display:flex;flex-direction:column;gap:10px">
-              <div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading requests...</div>
-            </div>
-          </div>
-          <!-- My Requests tab -->
-          <div id="rfp-mine-tab" style="display:none">
-            <div id="rfp-mine-list" style="display:flex;flex-direction:column;gap:10px">
-              <div class="empty-state" style="padding:32px;text-align:center;color:var(--text-secondary)">Loading your requests...</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
 
   </div>
 </div>
@@ -911,12 +775,6 @@
 <script src="/js/i18n.js?v=202604140002" defer></script>
 <script src="/js/app.js?v=202604140002" defer></script>
 <script>
-function switchHiw(view, btn) {
-  document.getElementById('hiw-buyer').style.display = view === 'buyer' ? 'flex' : 'none';
-  document.getElementById('hiw-seller').style.display = view === 'seller' ? 'flex' : 'none';
-  document.querySelectorAll('.hiw-tab').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
 // Init theme icons on load (before app.js defers)
 (function() {
   const t = localStorage.getItem('theme') || 'dark';
