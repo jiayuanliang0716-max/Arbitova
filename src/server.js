@@ -4,6 +4,7 @@ const rateLimit = require('express-rate-limit');
 const swaggerUi = require('swagger-ui-express');
 const openApiSpec = require('./openapi.json');
 const cors = require('cors');
+const nodemailer = require('nodemailer');
 
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
@@ -204,6 +205,53 @@ app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '..', 'public',
 
 // System Architecture
 app.get('/architecture', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'architecture.html')));
+
+// ── Contact Form ─────────────────────────────────────────────────────────────
+const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many messages. Try again in an hour.' } });
+
+app.post('/contact', contactLimiter, async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'name, email, and message are required' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+    if (message.length > 5000) {
+      return res.status(400).json({ error: 'Message too long (max 5000 characters)' });
+    }
+
+    if (!process.env.BREVO_SMTP_KEY || !process.env.BREVO_SMTP_NAME) {
+      console.error('Contact form: BREVO_SMTP_KEY or BREVO_SMTP_NAME not set');
+      return res.status(503).json({ error: 'Email service not configured' });
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.BREVO_SMTP_NAME,
+        pass: process.env.BREVO_SMTP_KEY,
+      },
+    });
+
+    await transporter.sendMail({
+      from: `"Arbitova Contact" <dev@arbitova.com>`,
+      to: 'dev@arbitova.com',
+      replyTo: `"${name}" <${email}>`,
+      subject: `[Contact] ${subject || 'New message from ' + name}`,
+      text: `Name: ${name}\nEmail: ${email}\n\n${message}`,
+      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><hr/><p>${message.replace(/\n/g, '<br>')}</p>`,
+    });
+
+    res.json({ success: true, message: 'Message sent. We will get back to you shortly.' });
+  } catch (err) {
+    console.error('Contact form error:', err.message);
+    res.status(500).json({ error: 'Failed to send message. Please try again.' });
+  }
+});
 
 // ── Google A2A Protocol v0.2 — Agent Card ─────────────────────────────────────
 const BASE = process.env.API_BASE_URL || 'https://a2a-system.onrender.com';
