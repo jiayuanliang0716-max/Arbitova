@@ -1290,6 +1290,13 @@ router.post('/:id/partial-confirm', requireApiKey, async (req, res, next) => {
 });
 
 // POST /orders/:id/dispute
+// Dispute Bond: 5% of order amount (min 0.01, max 2.0 USDC) locked on open.
+// If disputing party loses arbitration, bond is forfeited to the winner.
+// If dispute is upheld, bond is returned.
+const DISPUTE_BOND_RATE  = 0.05;
+const DISPUTE_BOND_MIN   = 0.01;
+const DISPUTE_BOND_MAX   = 2.0;
+
 router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
   try {
     const { reason, evidence } = req.body;
@@ -1306,10 +1313,33 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
     const existing = await dbGet(`SELECT id FROM disputes WHERE order_id = ${p(1)} AND status = 'open'`, [order.id]);
     if (existing) return res.status(400).json({ error: 'A dispute is already open for this order' });
 
+    // Calculate and lock dispute bond
+    const orderAmount = parseFloat(order.amount) || 0;
+    const bondAmount  = Math.min(
+      Math.max(orderAmount * DISPUTE_BOND_RATE, DISPUTE_BOND_MIN),
+      DISPUTE_BOND_MAX
+    );
+
+    const agent = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (!agent || parseFloat(agent.balance) < bondAmount) {
+      return res.status(402).json({
+        error: 'Insufficient balance for dispute bond',
+        bond_required: bondAmount,
+        current_balance: parseFloat(agent?.balance || 0),
+        reason: 'A dispute bond of 5% of order amount is required to open a dispute. It is returned if you win, forfeited if you lose.',
+      });
+    }
+
+    // Lock bond: deduct from balance, add to escrow
+    await dbRun(
+      `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
+      [bondAmount, bondAmount, req.agent.id]
+    );
+
     const disputeId = uuidv4();
     await dbRun(
-      `INSERT INTO disputes (id, order_id, raised_by, reason, evidence) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)})`,
-      [disputeId, order.id, req.agent.id, reason, evidence || null]
+      `INSERT INTO disputes (id, order_id, raised_by, reason, evidence, bond_amount) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)})`,
+      [disputeId, order.id, req.agent.id, reason, evidence || null, bondAmount]
     );
     await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
 
@@ -1319,8 +1349,11 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
     });
 
     res.status(201).json({
-      dispute_id: disputeId, order_id: order.id, status: 'open',
-      message: 'Dispute opened. Funds remain locked. A human arbitrator will review within 24 hours.'
+      dispute_id:   disputeId,
+      order_id:     order.id,
+      status:       'open',
+      bond_locked:  bondAmount,
+      message:      `Dispute opened. Bond of ${bondAmount} USDC locked. Returned if you win, forfeited if you lose.`,
     });
   } catch (err) { next(err); }
 });
@@ -1578,7 +1611,8 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
     }
 
     // ── Execute AI verdict ───────────────────────────────────────────────────
-    const loserId = winner === 'buyer' ? order.seller_id : order.buyer_id;
+    const loserId  = winner === 'buyer' ? order.seller_id  : order.buyer_id;
+    const winnerId = winner === 'buyer' ? order.buyer_id   : order.seller_id;
 
     if (winner === 'buyer') {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
@@ -1589,6 +1623,32 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    }
+
+    // ── Dispute bond settlement ──────────────────────────────────────────────
+    // If disputing party wins: return bond. If loses: bond goes to winner.
+    const bondAmount = parseFloat(dispute.bond_amount || 0);
+    if (bondAmount > 0) {
+      const disputingParty = dispute.raised_by;
+      // Release bond from disputing party's escrow
+      await dbRun(
+        `UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`,
+        [bondAmount, disputingParty]
+      ).catch(() => {});
+
+      if (disputingParty === winnerId) {
+        // Dispute upheld — bond returned to disputing party
+        await dbRun(
+          `UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`,
+          [bondAmount, disputingParty]
+        ).catch(() => {});
+      } else {
+        // Dispute rejected — bond forfeited to winner
+        await dbRun(
+          `UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`,
+          [bondAmount, winnerId]
+        ).catch(() => {});
+      }
     }
 
     const votesSummary = (votes || []).map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%,${v.model||'claude'})`).join(', ');
@@ -1617,6 +1677,10 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       }
     } catch (e) {}
 
+    const bondOutcome = bondAmount > 0
+      ? (dispute.raised_by === winnerId ? 'returned' : 'forfeited')
+      : 'no_bond';
+
     res.json({
       order_id: order.id,
       dispute_id: dispute.id,
@@ -1629,6 +1693,8 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       dissent:      dissent || null,
       ai_votes:     votes,
       constitutional_shortcut: constitutional_shortcut || false,
+      bond_amount:  bondAmount,
+      bond_outcome: bondOutcome,
       reputation_penalty: REP_DISPUTE_PENALTY,
       stake_slashed: slashed,
       arbitrated_by: constitutional_shortcut ? 'constitutional-rules' : 'arbitova-n3-multi-model',

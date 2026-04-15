@@ -195,6 +195,7 @@ if (DATABASE_URL) {
       );
 
       ALTER TABLE disputes ADD COLUMN IF NOT EXISTS appealed BOOLEAN DEFAULT FALSE;
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS bond_amount NUMERIC DEFAULT 0;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_price NUMERIC DEFAULT 0;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_interval TEXT DEFAULT NULL;
 
@@ -824,6 +825,9 @@ if (DATABASE_URL) {
       );
     `);
   } catch(e) { console.error('Migration warn:', e.message); }
+
+  // Dispute bond column (P2-1 upgrade)
+  addColIfMissing('disputes', 'bond_amount', 'REAL DEFAULT 0');
 
   // One-time migrations: set product_type for existing data
   try {
