@@ -5,7 +5,7 @@
  *
  * Setup in Alchemy Dashboard:
  *   Notify → Address Activity → add all agent wallet addresses
- *   Webhook URL: https://a2a-system.onrender.com/webhook/alchemy
+ *   Webhook URL: https://api.arbitova.com/webhook/alchemy
  *   Signing key: set ALCHEMY_WEBHOOK_SIGNING_KEY env var
  */
 

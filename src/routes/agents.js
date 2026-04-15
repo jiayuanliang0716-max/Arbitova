@@ -915,7 +915,7 @@ router.get('/:id/capabilities', async (req, res, next) => {
       capability_tags: capTagsRaw?.tags || [],
       capability_description: capTagsRaw?.description || null,
       capabilities,
-      profile_url: `https://a2a-system.onrender.com/profile?id=${agent.id}`,
+      profile_url: `https://api.arbitova.com/profile?id=${agent.id}`,
     });
   } catch (err) { next(err); }
 });
@@ -1295,7 +1295,7 @@ router.get('/:id/reputation-badge', async (req, res, next) => {
       name: agent.name,
       reputation_score: score,
       level,
-      badge_url: `${process.env.API_BASE_URL || 'https://a2a-system.onrender.com'}/api/v1/agents/${agent.id}/reputation-badge?format=svg`,
+      badge_url: `${process.env.API_BASE_URL || 'https://api.arbitova.com'}/api/v1/agents/${agent.id}/reputation-badge?format=svg`,
       verified_by: 'arbitova',
     });
   } catch (err) { next(err); }

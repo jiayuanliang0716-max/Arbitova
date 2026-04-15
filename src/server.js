@@ -57,9 +57,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS — allow same-origin and the Render deployment URL
+// CORS
 const allowedOrigins = [
-  'https://a2a-system.onrender.com',
   'https://arbitova.com',
   'https://www.arbitova.com',
   'https://api.arbitova.com',
@@ -206,6 +205,9 @@ app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '..', 'public',
 // System Architecture
 app.get('/architecture', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'architecture.html')));
 
+// Pricing
+app.get('/pricing', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'pricing.html')));
+
 // ── Contact Form ─────────────────────────────────────────────────────────────
 const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many messages. Try again in an hour.' } });
 
@@ -254,7 +256,7 @@ app.post('/contact', contactLimiter, async (req, res) => {
 });
 
 // ── Google A2A Protocol v0.2 — Agent Card ─────────────────────────────────────
-const BASE = process.env.API_BASE_URL || 'https://a2a-system.onrender.com';
+const BASE = process.env.API_BASE_URL || 'https://api.arbitova.com';
 app.get('/.well-known/agent.json', (req, res) => {
   res.json({
     name: 'Arbitova',
@@ -591,7 +593,7 @@ apiV1.get('/analytics', analyticsAuth, async (req, res) => {
 // GET /api/v1/manifest — machine-readable tool manifest for agent frameworks
 // Follows a simplified OpenAI/Anthropic tool schema so agents can auto-discover actions.
 apiV1.get('/manifest', (req, res) => {
-  const base = process.env.API_BASE_URL || `https://a2a-system.onrender.com/api/v1`;
+  const base = process.env.API_BASE_URL || 'https://api.arbitova.com/api/v1';
   res.json({
     schema_version: '1.0',
     name: 'Arbitova',

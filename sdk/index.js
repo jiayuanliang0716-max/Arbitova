@@ -1,6 +1,6 @@
 'use strict';
 
-const DEFAULT_BASE_URL = 'https://a2a-system.onrender.com/api/v1';
+const DEFAULT_BASE_URL = 'https://api.arbitova.com/api/v1';
 const DEFAULT_TIMEOUT = 30000;
 const DEFAULT_RETRIES = 2;
 

@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://a2a-system.onrender.com/api/v1",
+      "url": "https://api.arbitova.com/api/v1",
       "description": "Production (v1)"
     },
     {

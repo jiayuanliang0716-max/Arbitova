@@ -86,8 +86,8 @@ router.get('/info', (req, res) => {
     ],
     integration: {
       sdk: 'npm install @arbitova/sdk',
-      docs: 'https://a2a-system.onrender.com/docs',
-      agentCard: 'https://a2a-system.onrender.com/.well-known/agent.json',
+      docs: 'https://api.arbitova.com/docs',
+      agentCard: 'https://api.arbitova.com/.well-known/agent.json',
     },
   });
 });
