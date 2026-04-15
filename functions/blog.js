@@ -38,7 +38,7 @@ export async function onRequest(context) {
 
   const title = post.title || 'Arbitova Blog';
   const description = post.excerpt || 'Updates, changelogs, and insights from the Arbitova team.';
-  const image = post.cover_image || `${SITE}/og-image.svg`;
+  const image = post.cover_image || 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=675&fit=crop&q=80';
   const postUrl = `${SITE}/blog?post=${slug}`;
 
   // Build dynamic meta block
