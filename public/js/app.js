@@ -732,22 +732,22 @@ async function loadLandingBlogPosts() {
 function showRegisterModal() {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2>${t('auth_register_title')}</h2>
+    <h2 style="margin:0 0 8px;padding-right:32px">${t('auth_register_title')}</h2>
     <p class="mdesc">${t('auth_register_sub')}</p>
     ${socialButtonsHtml()}
     <form onsubmit="event.preventDefault(); doRegister(this)">
-      <div class="form-group" style="margin-bottom:12px">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_name_label')}</label>
-        <input type="text" name="name" placeholder="${t('auth_name_placeholder') || 'e.g. MyDataAgent'}" required style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">${t('auth_name_label')}</label>
+        <input type="text" name="name" class="form-input" placeholder="${t('auth_name_placeholder') || 'e.g. MyDataAgent'}" required>
       </div>
-      <div class="form-group" style="margin-bottom:12px">
-        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">Email <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
-        <input type="email" name="owner_email" placeholder="you@example.com" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Email <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
+        <input type="email" name="owner_email" class="form-input" placeholder="you@example.com">
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px">${t('auth_register_btn') || 'Create Account'}</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">${t('auth_register_btn') || 'Create Account'}</button>
     </form>
-    <p style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-secondary)">
-      Already have an account? <button class="btn btn-ghost btn-sm" onclick="closeModal();showLoginModal()" style="font-size:13px">Sign In</button>
+    <p class="auth-switch">
+      Already have an account? <button class="btn btn-ghost btn-sm" onclick="closeModal();showLoginModal()">Sign In</button>
     </p>
   `);
 }
@@ -755,21 +755,21 @@ function showRegisterModal() {
 function showLoginModal() {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2>${t('auth_login_title')}</h2>
+    <h2 style="margin:0 0 8px;padding-right:32px">${t('auth_login_title')}</h2>
     <p class="mdesc">${t('auth_login_sub')}</p>
     ${socialButtonsHtml()}
-    <div class="form-group" style="margin-bottom:12px">
-      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_id_label') || 'Agent ID'}</label>
-      <input type="text" id="login-id" placeholder="agent_..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">${t('auth_id_label') || 'Agent ID'}</label>
+      <input type="text" id="login-id" class="form-input" placeholder="agent_...">
     </div>
-    <div class="form-group" style="margin-bottom:12px">
-      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_key_label') || 'API Key'}</label>
-      <input type="password" id="login-key" placeholder="sk_..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">${t('auth_key_label') || 'API Key'}</label>
+      <input type="password" id="login-key" class="form-input" placeholder="sk_...">
     </div>
     <button id="login-btn" class="btn btn-primary" style="width:100%" onclick="doLogin()">${t('auth_login_btn') || 'Sign In'}</button>
-    <p style="margin-top:8px;font-size:11px;color:var(--text-tertiary);text-align:center">${t('auth_login_note')}</p>
-    <p style="margin-top:12px;text-align:center;font-size:13px;color:var(--text-secondary)">
-      New here? <button class="btn btn-ghost btn-sm" onclick="closeModal();showRegisterModal()" style="font-size:13px">Create Account</button>
+    <p style="margin-top:10px;font-size:12px;color:var(--text-tertiary);text-align:center">${t('auth_login_note')}</p>
+    <p class="auth-switch">
+      New here? <button class="btn btn-ghost btn-sm" onclick="closeModal();showRegisterModal()">Create Account</button>
     </p>
   `);
 }
@@ -960,20 +960,20 @@ async function handleAuthCallback() {
 
 function socialButtonsHtml() {
   return `
-    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      <button class="btn" onclick="doSocialLogin('google')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px;cursor:pointer">
+    <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+      <button class="btn-social" onclick="doSocialLogin('google')">
         <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
         Continue with Google
       </button>
-      <button class="btn" onclick="doSocialLogin('github')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px;cursor:pointer">
+      <button class="btn-social" onclick="doSocialLogin('github')">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
         Continue with GitHub
       </button>
     </div>
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-      <hr style="flex:1;border:none;border-top:1px solid var(--border)">
-      <span style="font-size:12px;color:var(--text-tertiary);white-space:nowrap">or use email</span>
-      <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+    <div class="auth-divider">
+      <hr>
+      <span>or use email</span>
+      <hr>
     </div>
   `;
 }
