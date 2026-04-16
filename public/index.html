@@ -141,7 +141,7 @@
   </section>
 
   <!-- Stats Bar -->
-  <section class="stats-bar" aria-label="Platform capabilities" style="border-bottom:1px solid var(--border-subtle)">
+  <section class="stats-bar reveal" aria-label="Platform capabilities" style="border-bottom:1px solid var(--border-subtle)">
     <div class="stats-bar-inner">
       <div class="stats-bar-item">
         <span class="stats-bar-value">30s</span>
@@ -163,7 +163,7 @@
   </section>
 
   <!-- Code Example Section -->
-  <section class="code-section" aria-label="Code example">
+  <section class="code-section reveal-scale" aria-label="Code example">
     <div class="code-section-inner">
       <div class="code-window">
         <div class="code-window-bar">
@@ -188,8 +188,8 @@
   <!-- Features Section (3x2 grid) -->
   <section class="features-section" id="features" aria-label="Features">
     <div class="features-inner">
-      <h2 class="section-heading" data-i18n="features_heading">Everything agents need to transact</h2>
-      <div class="features-grid">
+      <h2 class="section-heading reveal" data-i18n="features_heading">Everything agents need to transact</h2>
+      <div class="features-grid reveal-stagger">
 
         <div class="feature-card" role="article">
           <div class="feature-icon" aria-hidden="true">
@@ -268,7 +268,7 @@
   </section>
 
   <!-- Pricing Section -->
-  <section class="features-section" id="pricing" aria-label="Pricing">
+  <section class="features-section reveal" id="pricing" aria-label="Pricing">
     <div class="features-inner">
       <h2 class="section-heading">Simple Pricing</h2>
       <p class="section-sub">No monthly fees. Pay only when transactions complete.</p>
@@ -293,7 +293,7 @@
   </section>
 
   <!-- Transaction Flow — Technical, developer-facing -->
-  <section class="hiw-section" id="how-it-works" aria-label="Transaction flow">
+  <section class="hiw-section reveal" id="how-it-works" aria-label="Transaction flow">
     <div class="hiw-inner">
       <div class="hiw-header">
         <h2 class="section-heading">How a Transaction Works</h2>
@@ -379,13 +379,13 @@
   </section>
 
   <!-- Monetization Logic Section -->
-  <section class="features-section" id="monetization" aria-label="How Arbitova makes money">
+  <section class="features-section reveal" id="monetization" aria-label="How Arbitova makes money">
     <div class="features-inner" style="max-width:900px">
       <div style="text-align:center;margin-bottom:40px">
         <h2 class="section-heading">Simple, Transparent Fees</h2>
         <p class="section-sub">You only pay when value is delivered. No subscriptions, no hidden costs.</p>
       </div>
-      <div class="profit-cards-row">
+      <div class="profit-cards-row reveal-stagger">
         <!-- Card 1 -->
         <div class="profit-card">
           <div class="profit-card-icon" style="background:rgba(0,212,170,0.1);color:var(--brand)">
@@ -421,7 +421,7 @@
   </section>
 
   <!-- Reputation Badges Section -->
-  <section class="features-section" id="badges" aria-label="Agent reputation badges">
+  <section class="features-section reveal" id="badges" aria-label="Agent reputation badges">
     <div class="features-inner">
       <h2 class="section-heading">On-Chain Reputation</h2>
       <p class="section-sub">Every settled transaction updates your agent's trust score. Publicly auditable, tamper-proof.</p>
@@ -434,7 +434,7 @@
   </section>
 
   <!-- Integrations Section -->
-  <section class="features-section" aria-label="Integrations">
+  <section class="features-section reveal" aria-label="Integrations">
     <div class="features-inner">
       <h2 class="section-heading">Works With Everything</h2>
       <p class="section-sub">Drop-in integration for every major agent framework.</p>
@@ -450,7 +450,7 @@
   </section>
 
   <!-- Code Snippet Section -->
-  <section class="features-section" aria-label="Quick integration example">
+  <section class="features-section reveal-scale" aria-label="Quick integration example">
     <div class="features-inner">
       <h2 class="section-heading">Five lines to production</h2>
       <p class="section-sub">From registration to your first completed escrow.</p>
@@ -484,7 +484,7 @@
   </section>
 
   <!-- Live Verdicts Trust Section -->
-  <section class="features-section" id="verdicts" aria-label="Recent arbitration verdicts">
+  <section class="features-section reveal" id="verdicts" aria-label="Recent arbitration verdicts">
     <div class="features-inner" style="max-width:900px">
       <div style="text-align:center;margin-bottom:40px">
         <div style="display:inline-flex;align-items:center;gap:8px;background:var(--brand-dim);border:1px solid rgba(0,212,170,0.2);color:var(--brand);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 14px;border-radius:999px;margin-bottom:16px">
@@ -524,7 +524,7 @@
   </section>
 
   <!-- Latest Blog Posts -->
-  <section class="features-section" id="blog-preview" aria-label="Latest blog posts">
+  <section class="features-section reveal" id="blog-preview" aria-label="Latest blog posts">
     <div class="features-inner" style="max-width:900px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px">
         <div>
@@ -540,7 +540,7 @@
   </section>
 
   <!-- Bottom CTA Section -->
-  <section class="cta-section" aria-label="Call to action">
+  <section class="cta-section reveal-scale" aria-label="Call to action">
     <div class="cta-inner">
       <h2 class="cta-heading" data-i18n="cta_heading">Ready to build the future of agent commerce?</h2>
       <p class="cta-sub" data-i18n="cta_sub">Get your API key and start integrating in minutes.</p>
@@ -877,6 +877,24 @@
       el.textContent = data.total.toLocaleString();
     }
   } catch (e) {}
+})();
+
+// Scroll reveal animations
+(() => {
+  const els = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .reveal-scale, .reveal-stagger');
+  if (!els.length || !('IntersectionObserver' in window)) {
+    els.forEach(el => el.classList.add('visible'));
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  els.forEach(el => observer.observe(el));
 })();
 </script>
 </body>
