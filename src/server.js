@@ -30,6 +30,7 @@ const requestRoutes = require('./routes/requests');
 const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
+const authRoutes = require('./routes/auth');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -393,6 +394,7 @@ apiV1.use('/arbitrate', arbitrationRoutes);
 apiV1.use('/requests', requestRoutes);
 apiV1.use('/credentials', credentialRoutes);
 apiV1.use('/posts', postRoutes);
+apiV1.use('/auth', authRoutes);
 
 // POST /api/v1/recommend — AI-powered service recommendation for a buyer task description
 const { requireApiKey: recAuth } = require('./middleware/auth');
@@ -893,10 +895,15 @@ apiV1.get('/site-config', async (req, res) => {
     for (const r of configRows) {
       config[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value;
     }
-    res.json({ config, announcements: announcementRows });
+    // Include Supabase public config for social auth
+    const supabase_url = process.env.SUPABASE_URL || null;
+    const supabase_anon_key = process.env.SUPABASE_ANON_KEY || null;
+    res.json({ config, announcements: announcementRows, supabase_url, supabase_anon_key });
   } catch (err) {
     // Table may not exist on first boot — return empty gracefully
-    res.json({ config: {}, announcements: [] });
+    const supabase_url = process.env.SUPABASE_URL || null;
+    const supabase_anon_key = process.env.SUPABASE_ANON_KEY || null;
+    res.json({ config: {}, announcements: [], supabase_url, supabase_anon_key });
   }
 });
 

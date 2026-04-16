@@ -15,6 +15,22 @@ function toggleLang() {
   }
 }
 
+// ================= Supabase Auth =================
+let _supabase = null;
+async function initSupabase() {
+  if (_supabase) return _supabase;
+  if (typeof supabase === 'undefined') return null;
+  try {
+    const r = await fetch(API + '/api/v1/site-config');
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (data.supabase_url && data.supabase_anon_key) {
+      _supabase = supabase.createClient(data.supabase_url, data.supabase_anon_key);
+    }
+  } catch (e) { /* social auth unavailable */ }
+  return _supabase;
+}
+
 // ================= State & Storage =================
 const API = 'https://api.arbitova.com';
 const K = { id: 'a2a_agent_id', key: 'a2a_api_key', name: 'a2a_agent_name' };
@@ -718,6 +734,7 @@ function showRegisterModal() {
     <button class="close" onclick="closeModal()">&times;</button>
     <h2>${t('auth_register_title')}</h2>
     <p class="mdesc">${t('auth_register_sub')}</p>
+    ${socialButtonsHtml()}
     <form onsubmit="event.preventDefault(); doRegister(this)">
       <div class="form-group" style="margin-bottom:12px">
         <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_name_label')}</label>
@@ -740,6 +757,7 @@ function showLoginModal() {
     <button class="close" onclick="closeModal()">&times;</button>
     <h2>${t('auth_login_title')}</h2>
     <p class="mdesc">${t('auth_login_sub')}</p>
+    ${socialButtonsHtml()}
     <div class="form-group" style="margin-bottom:12px">
       <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">${t('auth_id_label') || 'Agent ID'}</label>
       <input type="text" id="login-id" placeholder="agent_..." style="width:100%;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px">
@@ -859,6 +877,109 @@ async function doLogin() {
     toast(friendlyError(e.message), 'error');
   }
   if (btn) btnRestore(btn);
+}
+
+// ================= Social Login =================
+
+async function doSocialLogin(provider) {
+  const sb = await initSupabase();
+  if (!sb) {
+    toast('Social login is not configured yet.', 'warn');
+    return;
+  }
+  try {
+    const { data, error } = await sb.auth.signInWithOAuth({
+      provider: provider,
+      options: {
+        redirectTo: window.location.origin + '/?auth_callback=1',
+      },
+    });
+    if (error) throw error;
+    // User will be redirected to provider, then back
+  } catch (e) {
+    toast('Social login failed: ' + (e.message || e), 'error');
+  }
+}
+
+// Handle OAuth callback — runs on page load
+async function handleAuthCallback() {
+  // Check for hash fragment from Supabase OAuth redirect
+  const hash = window.location.hash;
+  const params = new URLSearchParams(window.location.search);
+  if (!hash.includes('access_token') && !params.get('auth_callback')) return;
+
+  const sb = await initSupabase();
+  if (!sb) return;
+
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error || !session) return;
+
+    // Exchange Supabase token for Arbitova agent credentials
+    const r = await api('/auth/social', {
+      method: 'POST',
+      body: JSON.stringify({ access_token: session.access_token }),
+    });
+
+    setAuth(r.id, r.api_key, r.name);
+
+    // Clean URL
+    history.replaceState(null, '', window.location.pathname);
+
+    if (r.is_new) {
+      modal(`
+        <button class="close" onclick="closeModal()">&times;</button>
+        <h2>Welcome to Arbitova</h2>
+        <div class="success-box" style="margin-bottom:16px">Account created via ${r.provider || 'social login'}. You got 100 test credits.</div>
+        <div style="background:var(--warn-bg);border:1px solid var(--warn);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+          <b>Save your API Key</b><br>You will need it for API access. It won't be shown again.
+        </div>
+        <label>Agent ID</label>
+        <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <code style="flex:1;word-break:break-all;font-size:12px">${escapeHtml(r.id)}</code>
+          <button class="btn btn-ghost btn-sm" onclick="copyText('${r.id}')">Copy</button>
+        </div>
+        <label>API Key</label>
+        <div class="keybox" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <code style="flex:1;word-break:break-all;font-size:12px">${escapeHtml(r.api_key)}</code>
+          <button class="btn btn-ghost btn-sm" onclick="copyText('${r.api_key}')">Copy</button>
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-primary" onclick="closeModal(); showDashboard();">Go to Dashboard</button>
+        </div>
+      `);
+    } else {
+      toast('Welcome back, ' + (r.name || 'Agent') + '!', 'success');
+      showDashboard();
+    }
+  } catch (e) {
+    console.error('Social auth callback error:', e);
+    toast('Login failed: ' + (e.message || e), 'error');
+  }
+}
+
+function socialButtonsHtml() {
+  return `
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
+      <button class="btn" onclick="doSocialLogin('google')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px;cursor:pointer">
+        <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59a14.5 14.5 0 0 1 0-9.18l-7.98-6.19a24.01 24.01 0 0 0 0 21.56l7.98-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+        Continue with Google
+      </button>
+      <button class="btn" onclick="doSocialLogin('apple')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px;cursor:pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.32 2.32-2.14 4.27-3.74 4.25z"/></svg>
+        Continue with Apple
+      </button>
+      <button class="btn" onclick="doSocialLogin('github')" style="width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-raised);color:var(--text);font-size:14px;cursor:pointer">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        Continue with GitHub
+      </button>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+      <span style="font-size:12px;color:var(--text-tertiary);white-space:nowrap">or use email</span>
+      <hr style="flex:1;border:none;border-top:1px solid var(--border)">
+    </div>
+  `;
 }
 
 // ================= Sidebar Navigation =================
@@ -2097,6 +2218,7 @@ async function doSignOut() {
   });
   if (!confirmed) return;
   clearAuth();
+  if (_supabase) { _supabase.auth.signOut().catch(() => {}); }
   toast(t('toast_logged_out'), 'success');
   showLanding();
 }
@@ -2995,12 +3117,14 @@ function toggleTheme() {
 applyTheme(localStorage.getItem('theme') || 'dark');
 applyTranslations();
 
-if (isLoggedIn()) {
-  // showDashboard() will restore panel from URL hash automatically
-  showDashboard();
-} else {
-  showLanding();
-}
+// Handle social login OAuth callback (runs before normal init)
+handleAuthCallback().then(() => {
+  if (isLoggedIn()) {
+    showDashboard();
+  } else {
+    showLanding();
+  }
+});
 
 // Handle browser back/forward button while on dashboard
 window.addEventListener('popstate', () => {

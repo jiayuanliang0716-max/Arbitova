@@ -45,6 +45,8 @@ if (DATABASE_URL) {
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS escrow NUMERIC DEFAULT 0.0;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_address TEXT;
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS wallet_encrypted_key TEXT;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS supabase_user_id TEXT;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS auth_provider TEXT;
 
       CREATE TABLE IF NOT EXISTS deposits (
         id         TEXT PRIMARY KEY,
@@ -399,6 +401,50 @@ if (DATABASE_URL) {
       CREATE INDEX IF NOT EXISTS idx_posts_published ON posts (published, created_at DESC);
       ALTER TABLE posts ADD COLUMN IF NOT EXISTS cover_image TEXT;
       ALTER TABLE posts ADD COLUMN IF NOT EXISTS pinned BOOLEAN DEFAULT FALSE;
+
+      CREATE TABLE IF NOT EXISTS arbitration_transactions (
+        id              TEXT PRIMARY KEY,
+        api_key_owner   TEXT NOT NULL,
+        buyer_ref       TEXT NOT NULL,
+        seller_ref      TEXT NOT NULL,
+        amount          NUMERIC,
+        currency        TEXT DEFAULT 'USDC',
+        requirements    TEXT NOT NULL,
+        metadata        JSONB,
+        status          TEXT DEFAULT 'active',
+        verdict_id      TEXT,
+        created_at      TIMESTAMPTZ DEFAULT NOW(),
+        updated_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_arb_tx_owner ON arbitration_transactions (api_key_owner);
+      CREATE INDEX IF NOT EXISTS idx_arb_tx_status ON arbitration_transactions (status);
+
+      CREATE TABLE IF NOT EXISTS arbitration_evidence (
+        id              TEXT PRIMARY KEY,
+        transaction_id  TEXT NOT NULL REFERENCES arbitration_transactions(id),
+        submitted_by    TEXT NOT NULL,
+        role            TEXT NOT NULL,
+        evidence_type   TEXT NOT NULL,
+        content         TEXT NOT NULL,
+        metadata        JSONB,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_arb_evidence_tx ON arbitration_evidence (transaction_id);
+
+      CREATE TABLE IF NOT EXISTS arbitration_verdicts (
+        id              TEXT PRIMARY KEY,
+        transaction_id  TEXT NOT NULL REFERENCES arbitration_transactions(id),
+        winner          TEXT NOT NULL,
+        confidence      NUMERIC NOT NULL,
+        method          TEXT NOT NULL,
+        reasoning       TEXT,
+        key_factors     JSONB,
+        dissent         TEXT,
+        votes           JSONB,
+        escalate_to_human BOOLEAN DEFAULT FALSE,
+        created_at      TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
     `);
 
     // One-time migrations: set product_type for existing data
@@ -687,6 +733,50 @@ if (DATABASE_URL) {
       provider_order_id     TEXT,
       created_at            TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS arbitration_transactions (
+      id              TEXT PRIMARY KEY,
+      api_key_owner   TEXT NOT NULL,
+      buyer_ref       TEXT NOT NULL,
+      seller_ref      TEXT NOT NULL,
+      amount          REAL,
+      currency        TEXT DEFAULT 'USDC',
+      requirements    TEXT NOT NULL,
+      metadata        TEXT,
+      status          TEXT DEFAULT 'active',
+      verdict_id      TEXT,
+      created_at      TEXT DEFAULT (datetime('now')),
+      updated_at      TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_arb_tx_owner ON arbitration_transactions (api_key_owner);
+    CREATE INDEX IF NOT EXISTS idx_arb_tx_status ON arbitration_transactions (status);
+
+    CREATE TABLE IF NOT EXISTS arbitration_evidence (
+      id              TEXT PRIMARY KEY,
+      transaction_id  TEXT NOT NULL REFERENCES arbitration_transactions(id),
+      submitted_by    TEXT NOT NULL,
+      role            TEXT NOT NULL,
+      evidence_type   TEXT NOT NULL,
+      content         TEXT NOT NULL,
+      metadata        TEXT,
+      created_at      TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_arb_evidence_tx ON arbitration_evidence (transaction_id);
+
+    CREATE TABLE IF NOT EXISTS arbitration_verdicts (
+      id              TEXT PRIMARY KEY,
+      transaction_id  TEXT NOT NULL REFERENCES arbitration_transactions(id),
+      winner          TEXT NOT NULL,
+      confidence      REAL NOT NULL,
+      method          TEXT NOT NULL,
+      reasoning       TEXT,
+      key_factors     TEXT,
+      dissent         TEXT,
+      votes           TEXT,
+      escalate_to_human INTEGER DEFAULT 0,
+      created_at      TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
   `);
 
   // Idempotent migrations for older SQLite DBs
