@@ -3,11 +3,18 @@
 /**
  * External Arbitration API
  *
- * Allows third-party escrow providers (PayCrow, KAMIYO, custom)
- * to use Arbitova's N=3 AI arbitration as a service.
+ * Arbitova Arbitration API — Trust Layer for Agent Transactions
  *
- * POST /api/v1/arbitrate/external
- * GET  /api/v1/arbitrate/verdicts  (public)
+ * Stateless (one-shot):
+ *   POST /api/v1/arbitrate/external        — single arbitration call
+ *   POST /api/v1/arbitrate/batch           — batch arbitration (up to 10)
+ *   GET  /api/v1/arbitrate/verdicts        — public verdict feed
+ *
+ * Stateful (trust layer — register → evidence → trigger):
+ *   POST /api/v1/arbitrate/register        — register transaction at start
+ *   POST /api/v1/arbitrate/evidence        — submit evidence throughout
+ *   POST /api/v1/arbitrate/trigger         — trigger arbitration (auto-pulls data)
+ *   GET  /api/v1/arbitrate/transaction/:id — check status + evidence + verdict
  */
 
 const express = require('express');
@@ -15,7 +22,7 @@ const { v4: uuidv4 } = require('uuid');
 const { requireApiKey } = require('../middleware/auth');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
-const { dbAll, dbGet } = require('../db/helpers');
+const { dbAll, dbGet, dbRun } = require('../db/helpers');
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
@@ -383,6 +390,371 @@ router.get('/verdicts', async (req, res, next) => {
       page:        parseInt(req.query.page) || 0,
       limit,
       verdicts,
+    });
+  } catch (err) { next(err); }
+});
+
+// =============================================================================
+// Stateful Arbitration API — Trust Layer for External Transactions
+//
+// Flow:
+//   1. POST /arbitrate/register    — both parties agree to Arbitova protection
+//   2. POST /arbitrate/evidence    — submit evidence throughout the transaction
+//   3. POST /arbitrate/trigger     — trigger arbitration (auto-pulls all evidence)
+//
+// Also:
+//   GET  /arbitrate/transaction/:id — check transaction status + evidence
+// =============================================================================
+
+/**
+ * POST /api/v1/arbitrate/register
+ *
+ * Register a transaction for Arbitova protection at the START of a deal.
+ * Both parties are recorded. Evidence can be submitted throughout.
+ * When a dispute arises, all recorded data is automatically available.
+ *
+ * Body:
+ *   buyer_ref        string   - Buyer identifier (their system's ID, wallet, etc.)
+ *   seller_ref       string   - Seller identifier
+ *   requirements     string   - What the buyer expects (contract terms)
+ *   amount           number?  - Transaction value (optional)
+ *   currency         string?  - Currency code (default: USDC)
+ *   metadata         object?  - Any extra context (service name, deadline, etc.)
+ */
+router.post('/register', requireApiKey, async (req, res, next) => {
+  try {
+    const { buyer_ref, seller_ref, requirements, amount, currency, metadata } = req.body;
+
+    if (!buyer_ref)     return res.status(400).json({ error: 'buyer_ref is required' });
+    if (!seller_ref)    return res.status(400).json({ error: 'seller_ref is required' });
+    if (!requirements)  return res.status(400).json({ error: 'requirements is required' });
+    if (buyer_ref === seller_ref) {
+      return res.status(400).json({ error: 'buyer_ref and seller_ref must be different' });
+    }
+
+    const txId = uuidv4();
+    const metaStr = metadata ? JSON.stringify(metadata) : null;
+
+    await dbRun(
+      `INSERT INTO arbitration_transactions
+         (id, api_key_owner, buyer_ref, seller_ref, amount, currency, requirements, metadata)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)})`,
+      [txId, req.agent.id, buyer_ref, seller_ref, amount || null, currency || 'USDC', requirements, metaStr]
+    );
+
+    res.status(201).json({
+      transaction_id: txId,
+      status: 'active',
+      buyer_ref,
+      seller_ref,
+      requirements,
+      amount: amount || null,
+      currency: currency || 'USDC',
+      message: 'Transaction registered. Both parties are now protected by Arbitova. Submit evidence with POST /arbitrate/evidence.',
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/v1/arbitrate/evidence
+ *
+ * Submit evidence for a registered transaction.
+ * Can be called multiple times by either party throughout the transaction.
+ *
+ * Body:
+ *   transaction_id   string   - The registered transaction ID
+ *   submitted_by     string   - Who is submitting (buyer_ref or seller_ref)
+ *   role             string   - 'buyer' | 'seller'
+ *   evidence_type    string   - 'delivery' | 'communication' | 'requirement_change' |
+ *                                'partial_delivery' | 'complaint' | 'other'
+ *   content          string   - The evidence content
+ *   metadata         object?  - Extra context
+ */
+router.post('/evidence', requireApiKey, async (req, res, next) => {
+  try {
+    const { transaction_id, submitted_by, role, evidence_type, content, metadata } = req.body;
+
+    if (!transaction_id) return res.status(400).json({ error: 'transaction_id is required' });
+    if (!submitted_by)   return res.status(400).json({ error: 'submitted_by is required' });
+    if (!role || !['buyer', 'seller'].includes(role)) {
+      return res.status(400).json({ error: 'role must be "buyer" or "seller"' });
+    }
+    if (!evidence_type)  return res.status(400).json({ error: 'evidence_type is required' });
+    if (!content)        return res.status(400).json({ error: 'content is required' });
+
+    const validTypes = ['delivery', 'communication', 'requirement_change', 'partial_delivery', 'complaint', 'other'];
+    if (!validTypes.includes(evidence_type)) {
+      return res.status(400).json({ error: `evidence_type must be one of: ${validTypes.join(', ')}` });
+    }
+
+    // Verify transaction exists and belongs to this API key owner
+    const tx = await dbGet(
+      `SELECT * FROM arbitration_transactions WHERE id = ${p(1)} AND api_key_owner = ${p(2)}`,
+      [transaction_id, req.agent.id]
+    );
+    if (!tx) return res.status(404).json({ error: 'Transaction not found or access denied' });
+    if (tx.status !== 'active') {
+      return res.status(400).json({ error: `Transaction is ${tx.status}, cannot submit evidence` });
+    }
+
+    // Verify submitted_by matches either buyer_ref or seller_ref
+    if (submitted_by !== tx.buyer_ref && submitted_by !== tx.seller_ref) {
+      return res.status(400).json({
+        error: 'submitted_by must match either buyer_ref or seller_ref of the transaction',
+      });
+    }
+
+    const evidenceId = uuidv4();
+    const metaStr = metadata ? JSON.stringify(metadata) : null;
+
+    await dbRun(
+      `INSERT INTO arbitration_evidence
+         (id, transaction_id, submitted_by, role, evidence_type, content, metadata)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)})`,
+      [evidenceId, transaction_id, submitted_by, role, evidence_type, content, metaStr]
+    );
+
+    // Update transaction timestamp
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbRun(
+      `UPDATE arbitration_transactions SET updated_at = ${now} WHERE id = ${p(1)}`,
+      [transaction_id]
+    );
+
+    // Count evidence so far
+    const countRow = await dbGet(
+      `SELECT COUNT(*) as cnt FROM arbitration_evidence WHERE transaction_id = ${p(1)}`,
+      [transaction_id]
+    );
+
+    res.status(201).json({
+      evidence_id: evidenceId,
+      transaction_id,
+      submitted_by,
+      role,
+      evidence_type,
+      total_evidence: parseInt(countRow?.cnt || 1),
+      message: 'Evidence recorded. It will be automatically included if arbitration is triggered.',
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/v1/arbitrate/trigger
+ *
+ * Trigger AI arbitration for a registered transaction.
+ * Automatically pulls ALL recorded evidence — no need to re-submit anything.
+ *
+ * Body:
+ *   transaction_id   string   - The registered transaction ID
+ *   dispute_reason   string   - Why arbitration is being triggered
+ *   raised_by        string   - Who is raising the dispute (buyer_ref or seller_ref)
+ */
+router.post('/trigger', requireApiKey, async (req, res, next) => {
+  try {
+    const { transaction_id, dispute_reason, raised_by } = req.body;
+
+    if (!transaction_id) return res.status(400).json({ error: 'transaction_id is required' });
+    if (!dispute_reason) return res.status(400).json({ error: 'dispute_reason is required' });
+    if (!raised_by)      return res.status(400).json({ error: 'raised_by is required' });
+
+    // Load transaction
+    const tx = await dbGet(
+      `SELECT * FROM arbitration_transactions WHERE id = ${p(1)} AND api_key_owner = ${p(2)}`,
+      [transaction_id, req.agent.id]
+    );
+    if (!tx) return res.status(404).json({ error: 'Transaction not found or access denied' });
+    if (tx.status === 'arbitrated') {
+      // Return existing verdict
+      const existing = await dbGet(
+        `SELECT * FROM arbitration_verdicts WHERE transaction_id = ${p(1)}`,
+        [transaction_id]
+      );
+      if (existing) {
+        return res.json({
+          transaction_id,
+          status: 'already_arbitrated',
+          verdict: {
+            verdict_id: existing.id,
+            winner: existing.winner,
+            confidence: parseFloat(existing.confidence),
+            method: existing.method,
+            reasoning: existing.reasoning,
+            key_factors: typeof existing.key_factors === 'string' ? JSON.parse(existing.key_factors) : existing.key_factors,
+            dissent: existing.dissent,
+            votes: typeof existing.votes === 'string' ? JSON.parse(existing.votes) : existing.votes,
+            escalate_to_human: !!existing.escalate_to_human,
+          },
+          message: 'This transaction has already been arbitrated.',
+        });
+      }
+    }
+    if (tx.status !== 'active') {
+      return res.status(400).json({ error: `Transaction is ${tx.status}, cannot trigger arbitration` });
+    }
+
+    // Verify raised_by matches
+    if (raised_by !== tx.buyer_ref && raised_by !== tx.seller_ref) {
+      return res.status(400).json({
+        error: 'raised_by must match either buyer_ref or seller_ref',
+      });
+    }
+
+    // Load all evidence
+    const allEvidence = await dbAll(
+      `SELECT * FROM arbitration_evidence WHERE transaction_id = ${p(1)} ORDER BY created_at ASC`,
+      [transaction_id]
+    );
+
+    // Build delivery evidence from seller submissions
+    const sellerEvidence = allEvidence
+      .filter(e => e.role === 'seller')
+      .map(e => e.content)
+      .join('\n---\n');
+
+    // Build buyer evidence
+    const buyerEvidence = allEvidence
+      .filter(e => e.role === 'buyer')
+      .map(e => e.content)
+      .join('\n---\n');
+
+    // Parse metadata
+    const txMeta = tx.metadata
+      ? (typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : tx.metadata)
+      : {};
+
+    // Build synthetic objects for the arbitration engine
+    const syntheticOrder = {
+      buyer_id:     tx.buyer_ref,
+      amount:       tx.amount || 0,
+      requirements: tx.requirements,
+      status:       'disputed',
+      deadline:     txMeta.deadline || new Date().toISOString(),
+      created_at:   tx.created_at,
+    };
+    const syntheticService = {
+      name:        txMeta.service_name || 'External Transaction',
+      description: tx.requirements,
+    };
+    const syntheticDispute = {
+      raised_by:   raised_by,
+      reason:      dispute_reason,
+      evidence:    buyerEvidence || null,
+      created_at:  new Date().toISOString(),
+    };
+    const syntheticDelivery = sellerEvidence
+      ? { content: sellerEvidence, created_at: allEvidence.find(e => e.role === 'seller')?.created_at || new Date().toISOString() }
+      : null;
+
+    // Run arbitration
+    const verdict = await arbitrateDispute({
+      order:    syntheticOrder,
+      service:  syntheticService,
+      dispute:  syntheticDispute,
+      delivery: syntheticDelivery,
+    });
+
+    // Store verdict
+    const verdictId = uuidv4();
+    const keyFactorsStr = JSON.stringify(verdict.key_factors || []);
+    const votesStr = JSON.stringify(verdict.votes || []);
+
+    await dbRun(
+      `INSERT INTO arbitration_verdicts
+         (id, transaction_id, winner, confidence, method, reasoning, key_factors, dissent, votes, escalate_to_human)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)})`,
+      [verdictId, transaction_id, verdict.winner, verdict.confidence, verdict.method,
+       verdict.reasoning, keyFactorsStr, verdict.dissent || null, votesStr,
+       isPostgres ? verdict.escalate_to_human : (verdict.escalate_to_human ? 1 : 0)]
+    );
+
+    // Update transaction status
+    const now = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbRun(
+      `UPDATE arbitration_transactions SET status = 'arbitrated', verdict_id = ${p(1)}, updated_at = ${now} WHERE id = ${p(2)}`,
+      [verdictId, transaction_id]
+    );
+
+    res.json({
+      transaction_id,
+      verdict_id: verdictId,
+      status: 'arbitrated',
+      evidence_used: allEvidence.length,
+      verdict: {
+        winner:                 verdict.winner,
+        confidence:             verdict.confidence,
+        method:                 verdict.method,
+        reasoning:              verdict.reasoning,
+        key_factors:            verdict.key_factors || [],
+        dissent:                verdict.dissent || null,
+        votes:                  verdict.votes,
+        constitutional_shortcut: verdict.constitutional_shortcut || false,
+        escalate_to_human:      verdict.escalate_to_human,
+      },
+      message: `Arbitration complete. Winner: ${verdict.winner} (confidence: ${(verdict.confidence * 100).toFixed(0)}%). ${allEvidence.length} pieces of evidence were automatically analyzed.`,
+    });
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/v1/arbitrate/transaction/:id
+ *
+ * Get full status of a registered transaction, including all evidence and verdict.
+ */
+router.get('/transaction/:id', requireApiKey, async (req, res, next) => {
+  try {
+    const tx = await dbGet(
+      `SELECT * FROM arbitration_transactions WHERE id = ${p(1)} AND api_key_owner = ${p(2)}`,
+      [req.params.id, req.agent.id]
+    );
+    if (!tx) return res.status(404).json({ error: 'Transaction not found or access denied' });
+
+    const evidence = await dbAll(
+      `SELECT id, submitted_by, role, evidence_type, content, created_at
+       FROM arbitration_evidence WHERE transaction_id = ${p(1)} ORDER BY created_at ASC`,
+      [tx.id]
+    );
+
+    let verdict = null;
+    if (tx.verdict_id) {
+      const v = await dbGet(
+        `SELECT * FROM arbitration_verdicts WHERE id = ${p(1)}`,
+        [tx.verdict_id]
+      );
+      if (v) {
+        verdict = {
+          verdict_id: v.id,
+          winner: v.winner,
+          confidence: parseFloat(v.confidence),
+          method: v.method,
+          reasoning: v.reasoning,
+          key_factors: typeof v.key_factors === 'string' ? JSON.parse(v.key_factors) : v.key_factors,
+          dissent: v.dissent,
+          votes: typeof v.votes === 'string' ? JSON.parse(v.votes) : v.votes,
+          escalate_to_human: !!v.escalate_to_human,
+          created_at: v.created_at,
+        };
+      }
+    }
+
+    const meta = tx.metadata
+      ? (typeof tx.metadata === 'string' ? JSON.parse(tx.metadata) : tx.metadata)
+      : null;
+
+    res.json({
+      transaction_id: tx.id,
+      status: tx.status,
+      buyer_ref: tx.buyer_ref,
+      seller_ref: tx.seller_ref,
+      requirements: tx.requirements,
+      amount: tx.amount ? parseFloat(tx.amount) : null,
+      currency: tx.currency,
+      metadata: meta,
+      evidence_count: evidence.length,
+      evidence,
+      verdict,
+      created_at: tx.created_at,
+      updated_at: tx.updated_at,
     });
   } catch (err) { next(err); }
 });

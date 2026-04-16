@@ -1387,4 +1387,183 @@ function verifyWebhookSignature({ payload, signature, secret }) {
   }
 }
 
-module.exports = { Arbitova, ArbitovaError, verifyWebhookSignature };
+// ── ProtectedTransaction — high-level wrapper ────────────────────────────────
+//
+// Usage:
+//   const tx = await withArbitova('your-api-key', {
+//     buyer: 'alice',
+//     seller: 'bob',
+//     requirements: 'Generate 500-word report',
+//     amount: 5.00,
+//   });
+//
+//   await tx.deliver('Here is the report...');   // seller submits
+//   await tx.confirm();                          // buyer confirms → done
+//   // OR
+//   const verdict = await tx.dispute('Only 200 words');  // → auto arbitration
+//
+// ─────────────────────────────────────────────────────────────────────────────
+
+class ProtectedTransaction {
+  /**
+   * @param {Arbitova} client
+   * @param {object} registration - Response from /arbitrate/register
+   */
+  constructor(client, registration) {
+    this._client = client;
+    this.id = registration.transaction_id;
+    this.buyer = registration.buyer_ref;
+    this.seller = registration.seller_ref;
+    this.requirements = registration.requirements;
+    this.amount = registration.amount;
+    this.currency = registration.currency;
+    this._status = 'active';
+  }
+
+  /**
+   * Submit delivery content (seller side).
+   * Records the delivery as evidence so it's available for arbitration.
+   *
+   * @param {string} content - The delivered work
+   * @param {object} [opts]
+   * @param {object} [opts.metadata] - Extra context about the delivery
+   * @returns {Promise<object>} Evidence submission result
+   */
+  async deliver(content, { metadata } = {}) {
+    return this._client._request('POST', '/arbitrate/evidence', {
+      transaction_id: this.id,
+      submitted_by: this.seller,
+      role: 'seller',
+      evidence_type: 'delivery',
+      content,
+      metadata,
+    });
+  }
+
+  /**
+   * Submit a message or note as evidence (either party).
+   *
+   * @param {string} content - The message / note
+   * @param {object} opts
+   * @param {string} opts.from - Who is submitting (buyer or seller ref)
+   * @param {string} opts.role - 'buyer' | 'seller'
+   * @param {string} [opts.type='communication'] - Evidence type
+   * @param {object} [opts.metadata]
+   */
+  async addEvidence(content, { from, role, type = 'communication', metadata } = {}) {
+    return this._client._request('POST', '/arbitrate/evidence', {
+      transaction_id: this.id,
+      submitted_by: from,
+      role,
+      evidence_type: type,
+      content,
+      metadata,
+    });
+  }
+
+  /**
+   * Buyer confirms delivery is satisfactory. Marks transaction as completed.
+   * (No fund movement — that's handled by the caller's own payment system.)
+   *
+   * @returns {Promise<object>}
+   */
+  async confirm() {
+    this._status = 'completed';
+    return this._client._request('POST', '/arbitrate/evidence', {
+      transaction_id: this.id,
+      submitted_by: this.buyer,
+      role: 'buyer',
+      evidence_type: 'other',
+      content: 'Buyer confirmed delivery. Transaction completed successfully.',
+    });
+  }
+
+  /**
+   * Raise a dispute and immediately trigger AI arbitration.
+   * All previously submitted evidence is automatically included.
+   *
+   * @param {string} reason - Why the dispute is being raised
+   * @param {object} [opts]
+   * @param {string} [opts.raisedBy] - Who raised it (defaults to buyer)
+   * @returns {Promise<object>} Arbitration verdict
+   */
+  async dispute(reason, { raisedBy } = {}) {
+    this._status = 'disputed';
+    return this._client._request('POST', '/arbitrate/trigger', {
+      transaction_id: this.id,
+      dispute_reason: reason,
+      raised_by: raisedBy || this.buyer,
+    });
+  }
+
+  /**
+   * Get the full transaction status, all evidence, and verdict (if any).
+   *
+   * @returns {Promise<object>}
+   */
+  async status() {
+    const result = await this._client._request('GET', `/arbitrate/transaction/${this.id}`);
+    this._status = result.status;
+    return result;
+  }
+}
+
+/**
+ * Create a new Arbitova-protected transaction.
+ *
+ * This is the recommended entry point for developers integrating Arbitova.
+ * One function call wraps your transaction with full dispute protection.
+ *
+ * @param {string|object} apiKeyOrOpts - API key string, or { apiKey, baseUrl, timeout }
+ * @param {object} params
+ * @param {string}  params.buyer        - Buyer identifier in your system
+ * @param {string}  params.seller       - Seller identifier in your system
+ * @param {string}  params.requirements - What the buyer expects
+ * @param {number}  [params.amount]     - Transaction value
+ * @param {string}  [params.currency]   - Currency (default: USDC)
+ * @param {object}  [params.metadata]   - Extra context (service name, deadline, etc.)
+ * @returns {Promise<ProtectedTransaction>}
+ *
+ * @example
+ * const { withArbitova } = require('@arbitova/sdk');
+ *
+ * // Wrap any transaction with Arbitova protection
+ * const tx = await withArbitova('your-api-key', {
+ *   buyer: 'agent_alice',
+ *   seller: 'agent_bob',
+ *   requirements: 'Translate 1000 words EN→JP',
+ *   amount: 15.00,
+ *   metadata: { deadline: '2026-04-18T00:00:00Z' },
+ * });
+ *
+ * // Seller delivers
+ * await tx.deliver('ここに翻訳された内容があります...');
+ *
+ * // Happy path: buyer confirms
+ * await tx.confirm();
+ *
+ * // OR dispute path: auto-triggers AI arbitration
+ * const verdict = await tx.dispute('Translation is machine-generated, not human quality');
+ * console.log(verdict.verdict.winner);      // 'buyer' or 'seller'
+ * console.log(verdict.verdict.confidence);  // 0.0 - 1.0
+ */
+async function withArbitova(apiKeyOrOpts, params) {
+  const opts = typeof apiKeyOrOpts === 'string'
+    ? { apiKey: apiKeyOrOpts }
+    : apiKeyOrOpts;
+
+  const client = new Arbitova(opts);
+
+  const registration = await client._request('POST', '/arbitrate/register', {
+    buyer_ref: params.buyer,
+    seller_ref: params.seller,
+    requirements: params.requirements,
+    amount: params.amount,
+    currency: params.currency,
+    metadata: params.metadata,
+  });
+
+  return new ProtectedTransaction(client, registration);
+}
+
+module.exports = { Arbitova, ArbitovaError, ProtectedTransaction, withArbitova, verifyWebhookSignature };
