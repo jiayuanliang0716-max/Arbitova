@@ -8,7 +8,8 @@
   <meta property="og:title" content="Blog — Arbitova">
   <meta property="og:description" content="Updates, changelogs, and insights from the Arbitova team.">
   <meta property="og:image" content="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=675&fit=crop&q=80">
-  <meta property="og:url" content="https://www.arbitova.com/blog">
+  <link rel="canonical" href="https://arbitova.com/blog">
+  <meta property="og:url" content="https://arbitova.com/blog">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Arbitova">
   <meta name="twitter:card" content="summary_large_image">
@@ -464,7 +465,7 @@ function showList() {
 }
 
 function openShareModal(slug, title) {
-  const url = 'https://www.arbitova.com/blog?post=' + slug;
+  const url = 'https://arbitova.com/blog?post=' + slug;
   const enc = encodeURIComponent(url);
   const encTitle = encodeURIComponent(title);
 

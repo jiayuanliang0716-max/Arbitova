@@ -9,7 +9,7 @@
  */
 
 const API = 'https://api.arbitova.com';
-const SITE = 'https://www.arbitova.com';
+const SITE = 'https://arbitova.com';
 
 export async function onRequest(context) {
   const url = new URL(context.request.url);
@@ -44,6 +44,7 @@ export async function onRequest(context) {
   // Build dynamic meta block
   const dynamicMeta = `
     <title>${escapeHtml(title)} — Arbitova</title>
+    <link rel="canonical" href="${escapeHtml(postUrl)}">
     <meta name="description" content="${escapeHtml(description)}">
     <meta property="og:title" content="${escapeHtml(title)}">
     <meta property="og:description" content="${escapeHtml(description)}">
