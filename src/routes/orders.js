@@ -2110,6 +2110,23 @@ router.post('/:id/counter-offer', requireApiKey, async (req, res, next) => {
     if (!(refundAmount >= 0.01)) return res.status(400).json({ error: 'refund_amount must be at least 0.01 USDC' });
     if (refundAmount >= parseFloat(order.amount)) return res.status(400).json({ error: 'refund_amount must be less than the order total. For a full refund, cancel the order instead.' });
 
+    // Rate limit: if a pending counter-offer already exists, require a 1-hour cooldown
+    // before it can be superseded. Prevents sellers from spamming the buyer with new offers.
+    const existing = order.counter_offer
+      ? (typeof order.counter_offer === 'string' ? JSON.parse(order.counter_offer) : order.counter_offer)
+      : null;
+    if (existing && existing.status === 'pending') {
+      const elapsedMs = Date.now() - new Date(existing.proposed_at).getTime();
+      const COOLDOWN_MS = 60 * 60 * 1000;
+      if (elapsedMs < COOLDOWN_MS) {
+        const retryInMin = Math.ceil((COOLDOWN_MS - elapsedMs) / 60000);
+        return res.status(429).json({
+          error: `A counter-offer is already pending. You can propose a new one in ${retryInMin} minute(s), or wait for the buyer to accept/decline.`,
+          retry_after_minutes: retryInMin,
+        });
+      }
+    }
+
     const offer = {
       status: 'pending',
       refund_amount: refundAmount,
