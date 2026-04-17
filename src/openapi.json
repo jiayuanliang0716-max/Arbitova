@@ -1760,7 +1760,7 @@
           "Transactions"
         ],
         "summary": "Confirm delivery, release escrow (buyer only)",
-        "description": "2.5% platform fee deducted; remainder sent to seller.",
+        "description": "0.5% platform fee deducted; remainder sent to seller.",
         "security": [
           {
             "ApiKeyAuth": []
