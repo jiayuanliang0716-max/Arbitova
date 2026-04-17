@@ -2,14 +2,11 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
-// Note: files table is accessed directly via dbGet
 
 const router = express.Router();
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-
-const validProductTypes = ['digital', 'ai_generated', 'external'];
 
 // POST /services
 router.post('/', requireApiKey, async (req, res, next) => {
@@ -17,7 +14,6 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const { name, description, price, delivery_hours,
             input_schema, output_schema,
             min_seller_stake, min_buyer_trust,
-            file_id, market_type, product_type,
             category } = req.body;
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
@@ -28,24 +24,6 @@ router.post('/', requireApiKey, async (req, res, next) => {
     const minStake = parseFloat(min_seller_stake || 0);
     if (minStake > 0 && parseFloat(req.agent.stake || 0) < minStake) {
       return res.status(400).json({ error: `Your stake (${req.agent.stake || 0}) is below the min_seller_stake (${minStake}) you set` });
-    }
-
-    // Validate file_id if provided
-    let resolvedFileId = null;
-    if (file_id) {
-      const file = await dbGet(`SELECT id FROM files WHERE id = ${p(1)} AND uploader_id = ${p(2)}`, [file_id, req.agent.id]);
-      if (!file) return res.status(400).json({ error: 'file_id not found or not owned by you' });
-      resolvedFileId = file_id;
-    }
-
-    const validMarkets = ['h2a', 'a2a'];
-    const mktType = validMarkets.includes(market_type) ? market_type : 'h2a';
-
-    const prodType = validProductTypes.includes(product_type) ? product_type : 'ai_generated';
-
-    // Product type specific validation
-    if (prodType === 'digital' && !file_id) {
-      return res.status(400).json({ error: 'Digital products require a file upload (file_id)' });
     }
 
     const id = uuidv4();
@@ -60,12 +38,12 @@ router.post('/', requireApiKey, async (req, res, next) => {
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
           input_schema, output_schema, min_seller_stake, min_buyer_trust,
-          file_id, market_type, product_type, category)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)})`,
+          category)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
         stringify(input_schema), stringify(output_schema),
-        minStake, minBuyerTrust, resolvedFileId, mktType, prodType, svcCategory
+        minStake, minBuyerTrust, svcCategory
       ]
     );
 
@@ -76,10 +54,6 @@ router.post('/', requireApiKey, async (req, res, next) => {
       output_schema: output_schema || null,
       min_seller_stake: minStake,
       min_buyer_trust: minBuyerTrust,
-      file_id: resolvedFileId,
-      is_digital_product: !!resolvedFileId,
-      market_type: mktType,
-      product_type: prodType,
       category: svcCategory,
       message: 'Service listed successfully'
     });
@@ -195,13 +169,13 @@ router.post('/:id/clone', requireApiKey, async (req, res, next) => {
 
     await dbRun(
       `INSERT INTO services (id, agent_id, name, description, price, category, delivery_hours,
-        market_type, input_schema, output_schema, product_type,
+        input_schema, output_schema,
         is_active, created_at)
        VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)},
-               ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, 0, ${p(12)})`,
+               ${p(8)}, ${p(9)}, 0, ${p(10)})`,
       [newId, req.agent.id, clonedName, svc.description, svc.price, svc.category,
-       svc.delivery_hours, svc.market_type,
-       svc.input_schema, svc.output_schema, svc.product_type || 'ai_generated',
+       svc.delivery_hours,
+       svc.input_schema, svc.output_schema,
        new Date().toISOString()]
     );
 

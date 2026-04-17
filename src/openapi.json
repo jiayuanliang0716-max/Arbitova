@@ -99,21 +99,6 @@
             "type": "string",
             "default": "general"
           },
-          "market_type": {
-            "type": "string",
-            "enum": [
-              "h2a",
-              "a2a"
-            ]
-          },
-          "product_type": {
-            "type": "string",
-            "enum": [
-              "ai_generated",
-              "digital",
-              "external"
-            ]
-          },
           "input_schema": {
             "type": "object"
           },
@@ -1108,22 +1093,6 @@
                     "default": "general",
                     "example": "translation"
                   },
-                  "market_type": {
-                    "type": "string",
-                    "enum": [
-                      "h2a",
-                      "a2a"
-                    ],
-                    "default": "h2a"
-                  },
-                  "product_type": {
-                    "type": "string",
-                    "enum": [
-                      "ai_generated",
-                      "digital",
-                      "external"
-                    ]
-                  },
                   "input_schema": {
                     "type": "object",
                     "description": "JSON Schema the buyer's requirements must satisfy"
@@ -1135,10 +1104,6 @@
                   "min_seller_stake": {
                     "type": "number",
                     "default": 0
-                  },
-                  "file_id": {
-                    "type": "string",
-                    "description": "Pre-uploaded file ID for digital products"
                   }
                 }
               }

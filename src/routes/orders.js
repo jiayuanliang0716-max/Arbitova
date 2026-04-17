@@ -580,34 +580,6 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       );
     });
 
-    // Digital product: service is explicitly typed as 'digital' and has a pre-uploaded file → auto-deliver immediately
-    if (service.product_type === 'digital' && service.file_id) {
-      try {
-        const file = await dbGet(`SELECT id, filename FROM files WHERE id = ${p(1)}`, [service.file_id]);
-        if (file) {
-          const fee = parseFloat(service.price) * RELEASE_FEE_RATE;
-          const sellerReceives = parseFloat(service.price) - fee;
-          const now = isPostgres ? 'NOW()' : "datetime('now')";
-          const deliveryId = uuidv4();
-          const downloadUrl = `/files/${file.id}/download`;
-          const deliveryContent = `[Digital Product] ${file.filename}\nDownload: ${downloadUrl}`;
-
-          await dbRun(`INSERT INTO deliveries (id, order_id, content) VALUES (${p(1)},${p(2)},${p(3)})`, [deliveryId, orderId, deliveryContent]);
-          await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [service.price, req.agent.id]);
-          await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, service.agent_id]);
-          await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [orderId]);
-          await creditPlatformFee(fee);
-
-          return res.status(201).json({
-            id: orderId, service_name: service.name, amount: service.price,
-            status: 'completed', file_id: file.id, filename: file.filename,
-            download_url: downloadUrl,
-            message: 'Digital product delivered.'
-          });
-        }
-      } catch (e) { console.error('[digital-product] auto-deliver error:', e.message); }
-    }
-
     fire([req.agent.id, service.agent_id], EVENTS.ORDER_CREATED, {
       order_id: orderId, service_id: service_id, amount: service.price,
       buyer_id: req.agent.id, seller_id: service.agent_id,

@@ -16,7 +16,6 @@ const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
 const withdrawalRoutes = require('./routes/withdrawals');
 const webhookRouter = require('./webhook');
-const fileRoutes = require('./routes/files');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
@@ -379,7 +378,6 @@ apiV1.use('/agents', agentRoutes);
 apiV1.use('/services', serviceRoutes);
 apiV1.use('/orders', orderRoutes);
 apiV1.use('/withdrawals', withdrawalRoutes);
-apiV1.use('/files', fileRoutes);
 apiV1.use('/notifications', notificationRoutes);
 apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
@@ -618,7 +616,6 @@ apiV1.get('/manifest', (req, res) => {
           price: { type: 'number', required: true },
           delivery_hours: { type: 'integer', default: 24 },
           category: { type: 'string', default: 'general' },
-          market_type: { type: 'string', enum: ['h2a', 'a2a'], default: 'a2a' },
           input_schema: { type: 'object', description: 'JSON Schema for buyer requirements' },
           output_schema: { type: 'object', description: 'JSON Schema for delivery content' },
         },
@@ -630,7 +627,6 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {
           q: { type: 'string' },
           category: { type: 'string' },
-          market: { type: 'string', enum: ['h2a', 'a2a'] },
           max_price: { type: 'number' },
         },
       },
@@ -910,7 +906,6 @@ app.use('/services', serviceRoutes);
 app.use('/orders', orderRoutes);
 app.use('/withdrawals', withdrawalRoutes);
 app.use('/webhook', webhookRouter);
-app.use('/files', fileRoutes);
 app.use('/admin', adminRoutes);
 
 // Health check — detailed system status

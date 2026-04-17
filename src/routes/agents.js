@@ -914,9 +914,8 @@ router.get('/:id/services', requireApiKey, async (req, res, next) => {
   try {
     if (req.agent.id !== req.params.id) return res.status(403).json({ error: 'Can only view your own services' });
     const services = await dbAll(
-      `SELECT s.*, f.filename as file_name
+      `SELECT s.*
        FROM services s
-       LEFT JOIN files f ON s.file_id = f.id
        WHERE s.agent_id = ${p(1)}
        ORDER BY s.created_at DESC`,
       [req.agent.id]

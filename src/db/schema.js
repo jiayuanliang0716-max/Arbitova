@@ -169,21 +169,6 @@ if (DATABASE_URL) {
 
       ALTER TABLE disputes ADD COLUMN IF NOT EXISTS appealed BOOLEAN DEFAULT FALSE;
       ALTER TABLE disputes ADD COLUMN IF NOT EXISTS bond_amount NUMERIC DEFAULT 0;
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_price NUMERIC DEFAULT 0;
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS sub_interval TEXT DEFAULT NULL;
-
-      CREATE TABLE IF NOT EXISTS files (
-        id          TEXT PRIMARY KEY,
-        uploader_id TEXT NOT NULL REFERENCES agents(id),
-        filename    TEXT NOT NULL,
-        mimetype    TEXT,
-        size        INTEGER,
-        content     TEXT NOT NULL,
-        created_at  TIMESTAMPTZ DEFAULT NOW()
-      );
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS file_id TEXT REFERENCES files(id);
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS market_type TEXT DEFAULT 'h2a';
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'ai_generated';
 
       CREATE TABLE IF NOT EXISTS api_keys (
         id           TEXT PRIMARY KEY,
@@ -362,11 +347,6 @@ if (DATABASE_URL) {
       CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
     `);
 
-    // One-time migrations: set product_type for existing data
-    await pool.query(`
-      UPDATE services SET product_type = 'digital' WHERE file_id IS NOT NULL AND (product_type IS NULL OR product_type = 'ai_generated');
-    `);
-
     console.log('PostgreSQL schema initialized');
   }
 
@@ -500,16 +480,6 @@ if (DATABASE_URL) {
       appealed    INTEGER DEFAULT 0,
       created_at  TEXT DEFAULT (datetime('now')),
       resolved_at TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS files (
-      id          TEXT PRIMARY KEY,
-      uploader_id TEXT NOT NULL REFERENCES agents(id),
-      filename    TEXT NOT NULL,
-      mimetype    TEXT,
-      size        INTEGER,
-      content     TEXT NOT NULL,
-      created_at  TEXT DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS api_keys (
@@ -664,15 +634,10 @@ if (DATABASE_URL) {
   addColIfMissing('services', 'output_schema', 'TEXT');
   addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
   addColIfMissing('services', 'category', "TEXT DEFAULT 'general'");
-  addColIfMissing('services', 'sub_price', 'REAL DEFAULT 0');
-  addColIfMissing('services', 'sub_interval', 'TEXT');
   addColIfMissing('orders', 'bundle_id', 'TEXT');
   addColIfMissing('orders', 'parent_order_id', 'TEXT');
   addColIfMissing('agents', 'wallet_address', 'TEXT');
   addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
-  addColIfMissing('services', 'file_id', 'TEXT');
-  addColIfMissing('services', 'market_type', "TEXT DEFAULT 'h2a'");
-  addColIfMissing('services', 'product_type', "TEXT DEFAULT 'ai_generated'");
 
   // tips table
   try {
@@ -744,13 +709,6 @@ if (DATABASE_URL) {
 
   // Dispute bond column (P2-1 upgrade)
   addColIfMissing('disputes', 'bond_amount', 'REAL DEFAULT 0');
-
-  // One-time migrations: set product_type for existing data
-  try {
-    sqlite.exec(`
-      UPDATE services SET product_type = 'digital' WHERE file_id IS NOT NULL AND (product_type IS NULL OR product_type = 'ai_generated');
-    `);
-  } catch(e) { console.error('Migration warn:', e.message); }
 
   console.log('SQLite schema initialized');
 
