@@ -312,6 +312,15 @@ function filterCat(cat, btn) {
   currentCat = cat;
   document.querySelectorAll('.blog-cat-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+  const postView = document.getElementById('post-view');
+  if (postView && postView.style.display === 'block') {
+    postView.style.display = 'none';
+    document.getElementById('blog-list').style.display = '';
+    const strip = document.getElementById('blog-date-strip');
+    if (strip) strip.style.display = '';
+    if (location.search) history.pushState({}, '', location.pathname);
+    window.scrollTo(0, 0);
+  }
   renderPosts(cat ? allPosts.filter(p => p.category === cat) : allPosts);
 }
 
@@ -344,7 +353,7 @@ function renderPosts(posts) {
 
   const featuredHtml = `
     <div class="featured-post">
-      <div class="featured-img-wrap">
+      <div class="featured-img-wrap" onclick="openPost('${escHtml(featured.slug)}')" style="cursor:pointer">
         ${featured.cover_image
           ? `<img src="${escHtml(featured.cover_image)}" alt="${escHtml(featured.title)}" loading="lazy">`
           : `<div class="featured-img-placeholder">${placeholderSvg(featured.category)}</div>`
@@ -370,7 +379,7 @@ function renderPosts(posts) {
     <div class="posts-grid">
       ${rest.map(p => `
         <div class="post-card">
-          <div class="post-card-img">
+          <div class="post-card-img" onclick="openPost('${escHtml(p.slug)}')" style="cursor:pointer">
             ${p.cover_image
               ? `<img src="${escHtml(p.cover_image)}" alt="${escHtml(p.title)}" loading="lazy">`
               : `<div class="post-card-img-placeholder" style="height:100%">${placeholderSvg(p.category)}</div>`
