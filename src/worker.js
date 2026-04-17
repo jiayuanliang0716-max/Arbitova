@@ -161,61 +161,7 @@ cron.schedule('*/30 * * * *', async () => {
   }
 });
 
-// ── 4. Subscription billing every hour ──────────────────────────────────────
-cron.schedule('0 * * * *', async () => {
-  try {
-    const now = new Date().toISOString();
-    const nowExpr = isPostgres ? 'NOW()' : "datetime('now')";
-    const due = await dbAll(
-      `SELECT sub.*, s.name as service_name
-       FROM subscriptions sub JOIN services s ON sub.service_id = s.id
-       WHERE sub.status = 'active' AND sub.next_billing_at <= ${p(1)}`,
-      [now]
-    );
-    let billed = 0, cancelled = 0;
-    for (const sub of due) {
-      const price = parseFloat(sub.price);
-      const buyer = await dbAll(`SELECT balance FROM agents WHERE id = ${p(1)}`, [sub.buyer_id]);
-      const balance = parseFloat(buyer[0]?.balance || 0);
-
-      if (balance < price) {
-        await dbRun(`UPDATE subscriptions SET status = 'cancelled', cancelled_at = ${nowExpr} WHERE id = ${p(1)}`, [sub.id]);
-        cancelled++;
-        continue;
-      }
-
-      const fee = price * SETTLEMENT_FEE_RATE;
-      const sellerReceives = price - fee;
-      const nextBilling = (() => {
-        const d = new Date();
-        if (sub.interval === 'daily')   d.setDate(d.getDate() + 1);
-        if (sub.interval === 'weekly')  d.setDate(d.getDate() + 7);
-        if (sub.interval === 'monthly') d.setMonth(d.getMonth() + 1);
-        return d.toISOString();
-      })();
-
-      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, sub.buyer_id]);
-      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, sub.seller_id]);
-      await dbRun(`UPDATE subscriptions SET next_billing_at = ${p(1)} WHERE id = ${p(2)}`, [nextBilling, sub.id]);
-      await creditPlatformFee(fee);
-
-      const contentOrderId = uuidv4();
-      const deadline = new Date();
-      deadline.setHours(deadline.getHours() + 2);
-      await dbRun(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, subscription_id, deadline)
-         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',0,${p(5)},${p(6)},${p(7)})`,
-        [contentOrderId, sub.buyer_id, sub.seller_id, sub.service_id, sub.service_name, sub.id, deadline.toISOString()]
-      );
-      billed++;
-    }
-    if (due.length > 0) console.log(`[worker] subscription billing: ${billed} billed, ${cancelled} cancelled`);
-  } catch (err) {
-    console.error('[worker] subscription billing error:', err.message);
-  }
-});
-
-// ── 5. Daily reconciliation at 02:00 UTC ────────────────────────────────────
+// ── 4. Daily reconciliation at 02:00 UTC ────────────────────────────────────
 cron.schedule('0 2 * * *', async () => {
   try {
     const nowExpr = isPostgres ? 'NOW()' : "datetime('now')";

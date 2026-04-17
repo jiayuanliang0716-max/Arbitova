@@ -22,10 +22,8 @@ router.get('/', requireApiKey, async (req, res, next) => {
     const [
       newOrders,
       pendingDeliveries,
-      newMessages,
       disputes,
     ] = await Promise.all([
-      // New orders placed on MY services (I'm the seller, status=paid, recent)
       dbAll(
         `SELECT o.id, o.amount, o.created_at, s.name as service_name, buyer.name as buyer_name
          FROM orders o
@@ -33,9 +31,8 @@ router.get('/', requireApiKey, async (req, res, next) => {
          LEFT JOIN agents buyer ON o.buyer_id = buyer.id
          WHERE o.seller_id = ${p(1)} AND o.status = 'paid'
          ORDER BY o.created_at DESC LIMIT ${p(2)}`,
-        [id, Math.ceil(limit / 4)]
+        [id, Math.ceil(limit / 3)]
       ),
-      // Orders delivered to me (I'm buyer, status=delivered)
       dbAll(
         `SELECT o.id, o.amount, o.created_at, s.name as service_name, seller.name as seller_name
          FROM orders o
@@ -43,19 +40,8 @@ router.get('/', requireApiKey, async (req, res, next) => {
          LEFT JOIN agents seller ON o.seller_id = seller.id
          WHERE o.buyer_id = ${p(1)} AND o.status = 'delivered'
          ORDER BY o.created_at DESC LIMIT ${p(2)}`,
-        [id, Math.ceil(limit / 4)]
+        [id, Math.ceil(limit / 3)]
       ),
-      // Unread messages
-      dbAll(
-        `SELECT id, sender_id, subject, body, created_at, order_id,
-                sender.name as sender_name
-         FROM messages m
-         LEFT JOIN agents sender ON m.sender_id = sender.id
-         WHERE m.recipient_id = ${p(1)} AND m.read = 0
-         ORDER BY m.created_at DESC LIMIT ${p(2)}`,
-        [id, Math.ceil(limit / 4)]
-      ).catch(() => []),
-      // Active disputes (I'm buyer or seller)
       dbAll(
         `SELECT d.id, d.order_id, d.status, d.reason, d.created_at,
                 o.amount, o.buyer_id, o.seller_id
@@ -63,7 +49,7 @@ router.get('/', requireApiKey, async (req, res, next) => {
          LEFT JOIN orders o ON d.order_id = o.id
          WHERE (o.buyer_id = ${p(1)} OR o.seller_id = ${p(2)}) AND d.status = 'open'
          ORDER BY d.created_at DESC LIMIT ${p(3)}`,
-        [id, id, Math.ceil(limit / 4)]
+        [id, id, Math.ceil(limit / 3)]
       ).catch(() => []),
     ]);
 
@@ -90,19 +76,6 @@ router.get('/', requireApiKey, async (req, res, next) => {
         order_id: o.id,
         amount: parseFloat(o.amount),
         created_at: o.created_at,
-      });
-    }
-
-    for (const m of newMessages) {
-      notifications.push({
-        type: 'new_message',
-        priority: 'medium',
-        title: `Message from ${m.sender_name || 'agent'}`,
-        body: m.subject || (m.body ? m.body.substring(0, 80) : 'New message'),
-        message_id: m.id,
-        sender_id: m.sender_id,
-        order_id: m.order_id || null,
-        created_at: m.created_at,
       });
     }
 

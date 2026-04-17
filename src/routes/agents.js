@@ -381,11 +381,9 @@ router.get('/me/analytics', requireApiKey, async (req, res, next) => {
                 COUNT(o.id) as total_orders,
                 SUM(CASE WHEN o.status = 'completed' THEN 1 ELSE 0 END) as completed,
                 SUM(CASE WHEN o.status = 'disputed' THEN 1 ELSE 0 END) as disputes,
-                SUM(CASE WHEN o.status = 'completed' THEN o.amount * 0.975 ELSE 0 END) as revenue,
-                AVG(CASE WHEN r.rating IS NOT NULL THEN r.rating ELSE NULL END) as avg_rating
+                SUM(CASE WHEN o.status = 'completed' THEN o.amount * 0.975 ELSE 0 END) as revenue
          FROM services s
          LEFT JOIN orders o ON o.service_id = s.id AND o.status NOT IN ('cancelled','refunded')
-         LEFT JOIN reviews r ON r.order_id = o.id
          WHERE s.agent_id = ${p(1)}
          GROUP BY s.id, s.name, s.price, s.category
          ORDER BY revenue DESC`,
@@ -447,7 +445,6 @@ router.get('/me/analytics', requireApiKey, async (req, res, next) => {
         completed: parseInt(s.completed || 0),
         disputes: parseInt(s.disputes || 0),
         revenue: parseFloat(parseFloat(s.revenue || 0).toFixed(4)),
-        avg_rating: s.avg_rating ? parseFloat(parseFloat(s.avg_rating).toFixed(2)) : null,
       })),
     });
   } catch (err) { next(err); }
@@ -483,9 +480,7 @@ router.get('/search', async (req, res, next) => {
               a.created_at,
               (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status = 'completed') as completed_sales,
               (SELECT COUNT(*) FROM orders WHERE seller_id = a.id) as total_sales,
-              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status IN ('disputed','refunded')) as disputes,
-              (SELECT AVG(rating) FROM reviews WHERE seller_id = a.id) as avg_rating,
-              (SELECT COUNT(*) FROM reviews WHERE seller_id = a.id) as review_count
+              (SELECT COUNT(*) FROM orders WHERE seller_id = a.id AND status IN ('disputed','refunded')) as disputes
        FROM agents a
        ${whereClause}
        ORDER BY COALESCE(a.reputation_score, 0) DESC
@@ -499,21 +494,17 @@ router.get('/search', async (req, res, next) => {
       const completed = parseInt(a.completed_sales || 0);
       const disputed = parseInt(a.disputes || 0);
       const rep = parseInt(a.reputation_score || 0);
-      const avgRating = parseFloat(a.avg_rating || 0);
-      const numReviews = parseInt(a.review_count || 0);
       const ageDays = Math.min((Date.now() - new Date(a.created_at).getTime()) / 86400000, 30);
 
       const completionRate = total > 0 ? completed / total : 0;
       const disputeRate = total > 0 ? disputed / total : 0;
 
-      const repPts     = Math.min(Math.max(rep, 0) / 200 * 30, 30);
-      const compPts    = completionRate * 25;
+      const repPts     = Math.min(Math.max(rep, 0) / 200 * 45, 45);
+      const compPts    = completionRate * 35;
       const dispPenalty = Math.min(disputeRate * 40, 20);
-      const ratingPts  = numReviews > 0 ? (avgRating / 5) * 25 : 12.5;
-      const agePts     = (ageDays / 30) * 10;
-      const revBonus   = Math.min(numReviews * 0.5, 10);
+      const agePts     = (ageDays / 30) * 20;
 
-      const raw = repPts + compPts - dispPenalty + ratingPts + agePts + revBonus;
+      const raw = repPts + compPts - dispPenalty + agePts;
       return Math.min(Math.max(Math.round(raw), 0), 100);
     }
 
@@ -535,7 +526,6 @@ router.get('/search', async (req, res, next) => {
         completion_rate: parseInt(a.total_sales || 0) > 0
           ? parseFloat((parseInt(a.completed_sales || 0) / parseInt(a.total_sales || 0) * 100).toFixed(1))
           : null,
-        avg_rating: a.avg_rating ? parseFloat(parseFloat(a.avg_rating).toFixed(2)) : null,
         trust_score,
         trust_level: trustLevel(trust_score),
       };
@@ -1414,23 +1404,13 @@ router.get('/:id/trust-score', async (req, res, next) => {
     );
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
 
-    const [orderStats, avgRating, reviewCount] = await Promise.all([
-      dbGet(
-        `SELECT COUNT(*) as total,
-                SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
-                SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed
-         FROM orders WHERE seller_id = ${p(1)}`,
-        [req.params.id]
-      ),
-      dbGet(
-        `SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews WHERE seller_id = ${p(1)}`,
-        [req.params.id]
-      ).catch(() => null),
-      dbGet(
-        `SELECT COUNT(*) as count FROM reviews WHERE seller_id = ${p(1)}`,
-        [req.params.id]
-      ).catch(() => ({ count: 0 })),
-    ]);
+    const orderStats = await dbGet(
+      `SELECT COUNT(*) as total,
+              SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
+              SUM(CASE WHEN status='disputed' THEN 1 ELSE 0 END) as disputed
+       FROM orders WHERE seller_id = ${p(1)}`,
+      [req.params.id]
+    );
 
     const total = parseInt(orderStats?.total || 0);
     const completed = parseInt(orderStats?.completed || 0);
@@ -1438,24 +1418,16 @@ router.get('/:id/trust-score', async (req, res, next) => {
     const completionRate = total > 0 ? completed / total : 0;
     const disputeRate = total > 0 ? disputed / total : 0;
     const repScore = parseInt(agent.reputation_score);
-    const avgRatingVal = parseFloat(avgRating?.avg_rating || 0);
-    const numReviews = parseInt(avgRating?.count || 0);
 
-    // Account age bonus (days since registration, capped at 30 days → 10pts)
     const ageMs = Date.now() - new Date(agent.created_at).getTime();
     const ageDays = Math.min(ageMs / 86400000, 30);
 
-    // Composite score components (out of 100):
-    // reputation (0-200 raw → normalized to 0-30), completion rate (0-25), dispute penalty (0-20),
-    // avg rating (0-25), account age (0-10), review volume bonus (0-10)
-    const repComponent = Math.min(Math.max(repScore, 0) / 200 * 30, 30);
-    const completionComponent = completionRate * 25;
+    const repComponent = Math.min(Math.max(repScore, 0) / 200 * 45, 45);
+    const completionComponent = completionRate * 35;
     const disputePenalty = Math.min(disputeRate * 40, 20);
-    const ratingComponent = numReviews > 0 ? (avgRatingVal / 5) * 25 : 12.5; // neutral if no reviews
-    const ageComponent = (ageDays / 30) * 10;
-    const reviewBonus = Math.min(numReviews * 0.5, 10);
+    const ageComponent = (ageDays / 30) * 20;
 
-    const rawScore = repComponent + completionComponent - disputePenalty + ratingComponent + ageComponent + reviewBonus;
+    const rawScore = repComponent + completionComponent - disputePenalty + ageComponent;
     const score = Math.min(Math.max(Math.round(rawScore), 0), 100);
 
     let level, level_desc;
@@ -1475,17 +1447,13 @@ router.get('/:id/trust-score', async (req, res, next) => {
         total_orders_as_seller: total,
         completion_rate: parseFloat((completionRate * 100).toFixed(1)),
         dispute_rate: parseFloat((disputeRate * 100).toFixed(1)),
-        avg_rating: numReviews > 0 ? parseFloat(avgRatingVal.toFixed(2)) : null,
-        review_count: numReviews,
         account_age_days: Math.floor(ageDays),
       },
       components: {
         reputation: parseFloat(repComponent.toFixed(1)),
         completion: parseFloat(completionComponent.toFixed(1)),
         dispute_penalty: parseFloat(disputePenalty.toFixed(1)),
-        rating: parseFloat(ratingComponent.toFixed(1)),
         age: parseFloat(ageComponent.toFixed(1)),
-        review_bonus: parseFloat(reviewBonus.toFixed(1)),
       },
     });
   } catch (err) { next(err); }
@@ -1510,7 +1478,7 @@ router.get('/:id/due-diligence', async (req, res, next) => {
     const isPublicTrue = isPostgres ? 'TRUE' : '1';
     const last30days   = isPostgres ? "NOW() - INTERVAL '30 days'" : "datetime('now', '-30 days')";
 
-    const [orderStats, disputeStats, reviewStats, credStats, networkStats, repHistory] = await Promise.all([
+    const [orderStats, disputeStats, credStats, networkStats, repHistory] = await Promise.all([
       dbGet(
         `SELECT COUNT(*) as total,
                 SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as completed,
@@ -1522,10 +1490,6 @@ router.get('/:id/due-diligence', async (req, res, next) => {
         `SELECT COUNT(*) as total_disputes,
                 SUM(CASE WHEN d.status='resolved_for_buyer' THEN 1 ELSE 0 END) as lost
          FROM disputes d JOIN orders o ON d.order_id = o.id WHERE o.seller_id = ${p(1)}`,
-        [agentId]
-      ),
-      dbGet(
-        `SELECT COUNT(*) as total, AVG(rating) as avg_rating FROM reviews WHERE seller_id = ${p(1)}`,
         [agentId]
       ),
       dbGet(
@@ -1552,8 +1516,6 @@ router.get('/:id/due-diligence', async (req, res, next) => {
     const volume    = parseFloat(orderStats?.volume || 0);
     const totalDisp = parseInt(disputeStats?.total_disputes || 0);
     const lostDisp  = parseInt(disputeStats?.lost || 0);
-    const reviews   = parseInt(reviewStats?.total || 0);
-    const avgRating = parseFloat(reviewStats?.avg_rating || 0);
     const credTotal = parseInt(credStats?.total || 0);
     const credVerified = parseInt(credStats?.verified_count || 0);
     const counterparties = parseInt(networkStats?.unique_counterparties || 0);
@@ -1565,13 +1527,11 @@ router.get('/:id/due-diligence', async (req, res, next) => {
     // Compute trust score
     const ageDays = Math.min((Date.now() - new Date(agent.created_at).getTime()) / 86400000, 30);
     const rep = parseInt(agent.reputation_score || 0);
-    const repPts      = Math.min(Math.max(rep, 0) / 200 * 30, 30);
-    const compPts     = completionRate !== null ? completionRate * 25 : 0;
+    const repPts      = Math.min(Math.max(rep, 0) / 200 * 45, 45);
+    const compPts     = completionRate !== null ? completionRate * 35 : 0;
     const dispPenalty = disputeRate !== null ? Math.min(disputeRate * 40, 20) : 0;
-    const ratingPts   = reviews > 0 ? (avgRating / 5) * 25 : 12.5;
-    const agePts      = (ageDays / 30) * 10;
-    const revBonus    = Math.min(reviews * 0.5, 10);
-    const trustScore  = Math.min(Math.max(Math.round(repPts + compPts - dispPenalty + ratingPts + agePts + revBonus), 0), 100);
+    const agePts      = (ageDays / 30) * 20;
+    const trustScore  = Math.min(Math.max(Math.round(repPts + compPts - dispPenalty + agePts), 0), 100);
     const trustLevel  = trustScore >= 90 ? 'Elite' : trustScore >= 70 ? 'Trusted' : trustScore >= 45 ? 'Rising' : 'New';
 
     // Risk assessment
@@ -1591,7 +1551,6 @@ router.get('/:id/due-diligence', async (req, res, next) => {
     if (counterparties >= 5) positives.push(`Active network: ${counterparties} unique trading partners`);
     if (parseFloat(agent.stake || 0) > 0) positives.push(`${agent.stake} USDC staked (has skin in game)`);
     if (reputationTrend30 > 10) positives.push(`Reputation rising (+${reputationTrend30} in 30 days)`);
-    if (reviews >= 3 && avgRating >= 4.5) positives.push(`High rating: ${avgRating.toFixed(1)}/5 (${reviews} reviews)`);
 
     const riskLevel = risks.length >= 3 ? 'HIGH'
                     : risks.length >= 1 ? 'MEDIUM'
@@ -1610,10 +1569,8 @@ router.get('/:id/due-diligence', async (req, res, next) => {
         breakdown: {
           reputation: parseFloat(repPts.toFixed(1)),
           completion: parseFloat(compPts.toFixed(1)),
-          rating: parseFloat(ratingPts.toFixed(1)),
           age: parseFloat(agePts.toFixed(1)),
           dispute_penalty: -parseFloat(dispPenalty.toFixed(1)),
-          review_bonus: parseFloat(revBonus.toFixed(1)),
         }
       },
 
@@ -1626,11 +1583,6 @@ router.get('/:id/due-diligence', async (req, res, next) => {
         disputes_lost: lostDisp,
         dispute_rate: disputeRate !== null ? parseFloat((disputeRate * 100).toFixed(1)) : null,
         unique_counterparties: counterparties,
-      },
-
-      reviews: {
-        count: reviews,
-        avg_rating: reviews > 0 ? parseFloat(avgRating.toFixed(2)) : null,
       },
 
       credentials: {
@@ -1672,8 +1624,6 @@ router.get('/me/pending-actions', requireApiKey, async (req, res, next) => {
       openDisputes,
       pendingCounterOffers,
       overdueAsSeller,
-      openRfpApplications,
-      unreadMessages,
     ] = await Promise.all([
       // Orders I must deliver (I'm seller, status='paid', not overdue)
       dbAll(
@@ -1717,22 +1667,6 @@ router.get('/me/pending-actions', requireApiKey, async (req, res, next) => {
          ORDER BY deadline ASC LIMIT 10`,
         [id]
       ),
-      // RFP applications to review (I'm buyer, request has pending applications)
-      dbAll(
-        `SELECT r.id, r.title, COUNT(ra.id) as applicant_count
-         FROM requests r
-         LEFT JOIN request_applications ra ON ra.request_id = r.id AND ra.status = 'pending'
-         WHERE r.buyer_id = ${p(1)} AND r.status = 'open'
-         GROUP BY r.id, r.title
-         HAVING COUNT(ra.id) > 0
-         LIMIT 5`,
-        [id]
-      ).catch(() => []),
-      // Unread messages
-      dbAll(
-        `SELECT COUNT(*) as cnt FROM messages WHERE to_agent_id = ${p(1)} AND is_read = ${isPostgres ? 'false' : '0'}`,
-        [id]
-      ).catch(() => [{ cnt: 0 }]),
     ]);
 
     const actions = [];
@@ -1799,28 +1733,6 @@ router.get('/me/pending-actions', requireApiKey, async (req, res, next) => {
         hours_until_deadline: hoursLeft,
         message: `Deliver order ${o.id}${hoursLeft !== null ? ` (${hoursLeft}h remaining)` : ''}.`,
         action_url: `/orders/${o.id}/deliver`,
-      });
-    }
-
-    for (const r of openRfpApplications) {
-      actions.push({
-        priority: 6,
-        type: 'rfp_applications_pending',
-        request_id: r.id,
-        applicant_count: parseInt(r.applicant_count),
-        message: `${r.applicant_count} application(s) for your request "${r.title}". Review and accept one.`,
-        action_url: `/requests/${r.id}/applications`,
-      });
-    }
-
-    const unreadCount = parseInt(unreadMessages[0]?.cnt || 0);
-    if (unreadCount > 0) {
-      actions.push({
-        priority: 7,
-        type: 'unread_messages',
-        count: unreadCount,
-        message: `${unreadCount} unread message(s) in your inbox.`,
-        action_url: '/messages',
       });
     }
 
@@ -1891,7 +1803,7 @@ router.get('/:id/scorecard', async (req, res, next) => {
     );
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
 
-    const [orderStats, reviewStats, credStats, topService] = await Promise.all([
+    const [orderStats, credStats, topService] = await Promise.all([
       dbGet(
         `SELECT
            COUNT(*) as total,
@@ -1899,11 +1811,6 @@ router.get('/:id/scorecard', async (req, res, next) => {
            SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed,
            SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END) as volume
          FROM orders WHERE seller_id = ${p(1)}`,
-        [agent.id]
-      ),
-      dbGet(
-        `SELECT COUNT(*) as review_count, AVG(rating) as avg_rating
-         FROM reviews WHERE seller_id = ${p(1)}`,
         [agent.id]
       ),
       dbGet(
@@ -1931,8 +1838,6 @@ router.get('/:id/scorecard', async (req, res, next) => {
     const volume = parseFloat(orderStats?.volume) || 0;
     const completionRate = total > 0 ? parseFloat((completed / total * 100).toFixed(1)) : null;
     const disputeRate = total > 0 ? parseFloat((disputed / total * 100).toFixed(1)) : null;
-    const avgRating = reviewStats?.avg_rating ? parseFloat(parseFloat(reviewStats.avg_rating).toFixed(2)) : null;
-    const reviewCount = parseInt(reviewStats?.review_count) || 0;
     const credTotal = parseInt(credStats?.total) || 0;
     const credVerified = parseInt(credStats?.verified) || 0;
 
@@ -1940,7 +1845,7 @@ router.get('/:id/scorecard', async (req, res, next) => {
     const trustLevel = score >= 80 ? 'Elite' : score >= 60 ? 'Trusted' : score >= 40 ? 'Rising' : 'New';
 
     let grade = 'C';
-    if (completionRate !== null && completionRate >= 90 && avgRating !== null && avgRating >= 4.0 && score >= 60) {
+    if (completionRate !== null && completionRate >= 90 && score >= 60) {
       grade = 'A';
     } else if (completionRate !== null && completionRate >= 75 && score >= 40) {
       grade = 'B';
@@ -1960,7 +1865,6 @@ router.get('/:id/scorecard', async (req, res, next) => {
         dispute_rate: disputeRate,
         total_volume_usdc: parseFloat(volume.toFixed(4)),
       },
-      reviews: { count: reviewCount, avg_rating: avgRating },
       credentials: { total: credTotal, verified: credVerified },
       top_service: topService ? {
         name: topService.name,
@@ -1993,16 +1897,12 @@ router.get('/compare', async (req, res, next) => {
       );
       if (!agent) return { agent_id: agentId, error: 'Not found' };
 
-      const [orderStats, reviewStats, credStats] = await Promise.all([
+      const [orderStats, credStats] = await Promise.all([
         dbGet(
           `SELECT COUNT(*) as total,
              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
              SUM(CASE WHEN status = 'disputed' THEN 1 ELSE 0 END) as disputed
            FROM orders WHERE seller_id = ${p(1)}`,
-          [agent.id]
-        ),
-        dbGet(
-          `SELECT COUNT(*) as review_count, AVG(rating) as avg_rating FROM reviews WHERE seller_id = ${p(1)}`,
           [agent.id]
         ),
         dbGet(
@@ -2018,23 +1918,19 @@ router.get('/compare', async (req, res, next) => {
       const disputed = parseInt(orderStats?.disputed) || 0;
       const completionRate = total > 0 ? parseFloat((completed / total * 100).toFixed(1)) : null;
       const disputeRate = total > 0 ? parseFloat((disputed / total * 100).toFixed(1)) : null;
-      const avgRating = reviewStats?.avg_rating ? parseFloat(parseFloat(reviewStats.avg_rating).toFixed(2)) : null;
-      const reviewCount = parseInt(reviewStats?.review_count) || 0;
       const credVerified = parseInt(credStats?.verified) || 0;
       const score = agent.reputation_score || 0;
       const trustLevel = score >= 80 ? 'Elite' : score >= 60 ? 'Trusted' : score >= 40 ? 'Rising' : 'New';
 
       let grade = 'C';
-      if (completionRate !== null && completionRate >= 90 && avgRating !== null && avgRating >= 4.0 && score >= 60) grade = 'A';
+      if (completionRate !== null && completionRate >= 90 && score >= 60) grade = 'A';
       else if (completionRate !== null && completionRate >= 75 && score >= 40) grade = 'B';
       else if (completionRate !== null && completionRate < 50) grade = 'D';
 
-      // Composite selection score (0-100)
       const selectionScore = parseFloat((
-        (score * 0.35) +
-        ((completionRate || 0) * 0.35) +
-        ((avgRating || 0) / 5 * 100 * 0.20) +
-        (Math.min(credVerified * 5, 10) * 0.10)
+        (score * 0.45) +
+        ((completionRate || 0) * 0.40) +
+        (Math.min(credVerified * 5, 15) * 0.15)
       ).toFixed(1));
 
       return {
@@ -2045,8 +1941,6 @@ router.get('/compare', async (req, res, next) => {
         selection_score: selectionScore,
         completion_rate: completionRate,
         dispute_rate: disputeRate,
-        avg_rating: avgRating,
-        review_count: reviewCount,
         verified_credentials: credVerified,
         member_since: agent.created_at,
       };
@@ -2197,12 +2091,10 @@ router.get('/:id/portfolio', async (req, res, next) => {
       SELECT o.id as order_id, o.amount, o.completed_at, o.requirements,
              s.name as service_name, s.category, s.description as service_description,
              d.content as delivery_content,
-             r.rating, r.comment as review_comment, r.created_at as review_at,
              b.name as buyer_name
       FROM orders o
       LEFT JOIN services s ON s.id = o.service_id
       LEFT JOIN deliveries d ON d.order_id = o.id
-      LEFT JOIN reviews r ON r.order_id = o.id
       LEFT JOIN agents b ON b.id = o.buyer_id
       WHERE o.seller_id = ${p(1)} AND o.status = 'completed'
     `;
@@ -2234,25 +2126,15 @@ router.get('/:id/portfolio', async (req, res, next) => {
         amount: parseFloat(o.amount),
         completed_at: o.completed_at,
         delivery_preview: deliveryPreview,
-        review: o.rating ? {
-          rating: o.rating,
-          comment: o.review_comment || null,
-          by: o.buyer_name || 'anonymous',
-          reviewed_at: o.review_at,
-        } : null,
+        buyer: o.buyer_name || 'anonymous',
       };
     });
-
-    const avgRating = portfolio.filter(p => p.review).length > 0
-      ? parseFloat((portfolio.filter(p => p.review).reduce((sum, p) => sum + p.review.rating, 0) / portfolio.filter(p => p.review).length).toFixed(2))
-      : null;
 
     res.json({
       agent_id: agent.id,
       name: agent.name,
       reputation_score: agent.reputation_score,
       portfolio_count: portfolio.length,
-      avg_rating: avgRating,
       category_filter: category || null,
       portfolio,
       generated_at: new Date().toISOString(),
@@ -2275,8 +2157,7 @@ router.get('/:id/reliability', async (req, res, next) => {
     const recent30 = new Date(now.getTime() - 30 * 24 * 3600000).toISOString();
     const older90 = new Date(now.getTime() - 90 * 24 * 3600000).toISOString();
 
-    const [recentOrders, olderOrders, recentReviews, olderReviews] = await Promise.all([
-      // Last 30 days
+    const [recentOrders, olderOrders] = await Promise.all([
       dbGet(
         `SELECT COUNT(*) as total,
            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
@@ -2284,7 +2165,6 @@ router.get('/:id/reliability', async (req, res, next) => {
          FROM orders WHERE seller_id = ${p(1)} AND created_at > ${p(2)}`,
         [agent.id, recent30]
       ),
-      // 31-90 days ago
       dbGet(
         `SELECT COUNT(*) as total,
            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed,
@@ -2292,21 +2172,8 @@ router.get('/:id/reliability', async (req, res, next) => {
          FROM orders WHERE seller_id = ${p(1)} AND created_at BETWEEN ${p(2)} AND ${p(3)}`,
         [agent.id, older90, recent30]
       ),
-      // Recent reviews
-      dbGet(
-        `SELECT AVG(rating) as avg_rating, COUNT(*) as count FROM reviews
-         WHERE seller_id = ${p(1)} AND created_at > ${p(2)}`,
-        [agent.id, recent30]
-      ),
-      // Older reviews
-      dbGet(
-        `SELECT AVG(rating) as avg_rating FROM reviews
-         WHERE seller_id = ${p(1)} AND created_at BETWEEN ${p(2)} AND ${p(3)}`,
-        [agent.id, older90, recent30]
-      ),
     ]);
 
-    // Time-decay weighting: recent = 3x, older = 1x
     const recTotal = parseInt(recentOrders?.total) || 0;
     const recCompleted = parseInt(recentOrders?.completed) || 0;
     const recDisputed = parseInt(recentOrders?.disputed) || 0;
@@ -2321,24 +2188,10 @@ router.get('/:id/reliability', async (req, res, next) => {
     const completionRate = weightedTotal > 0 ? parseFloat((weightedCompleted / weightedTotal * 100).toFixed(1)) : null;
     const disputeRate = weightedTotal > 0 ? parseFloat((weightedDisputed / weightedTotal * 100).toFixed(1)) : null;
 
-    // Rating score (weighted)
-    const recRating = recentReviews?.avg_rating ? parseFloat(parseFloat(recentReviews.avg_rating).toFixed(2)) : null;
-    const oldRating = olderReviews?.avg_rating ? parseFloat(parseFloat(olderReviews.avg_rating).toFixed(2)) : null;
-    let weightedRating = null;
-    if (recRating !== null && oldRating !== null) {
-      weightedRating = parseFloat(((recRating * 3 + oldRating) / 4).toFixed(2));
-    } else if (recRating !== null) {
-      weightedRating = recRating;
-    } else if (oldRating !== null) {
-      weightedRating = oldRating;
-    }
-
-    // Composite reliability score (0-100)
-    let reliability = 50; // baseline
-    if (completionRate !== null) reliability = completionRate * 0.5;
+    let reliability = 50;
+    if (completionRate !== null) reliability = completionRate * 0.7;
     if (disputeRate !== null) reliability -= disputeRate * 0.3;
-    if (weightedRating !== null) reliability += (weightedRating / 5) * 20;
-    if (recTotal >= 3) reliability += 5; // bonus for recent activity
+    if (recTotal >= 3) reliability += 5;
     reliability = Math.max(0, Math.min(100, parseFloat(reliability.toFixed(1))));
 
     const level = reliability >= 85 ? 'Excellent' : reliability >= 70 ? 'Good' : reliability >= 50 ? 'Average' : 'Poor';
@@ -2352,7 +2205,6 @@ router.get('/:id/reliability', async (req, res, next) => {
       factors: {
         weighted_completion_rate: completionRate,
         weighted_dispute_rate: disputeRate,
-        weighted_avg_rating: weightedRating,
         recent_orders_30d: recTotal,
         older_orders_31_90d: oldTotal,
       },

@@ -14,21 +14,15 @@ const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, EXTERNAL_ARB_RATE } = require('./
 const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
-const telegramRoutes = require('./routes/telegram');
-const subscriptionRoutes = require('./routes/subscriptions');
 const withdrawalRoutes = require('./routes/withdrawals');
 const webhookRouter = require('./webhook');
-const messageRoutes = require('./routes/messages');
 const fileRoutes = require('./routes/files');
-const paymentRoutes = require('./routes/payments');
-const reviewRoutes = require('./routes/reviews');
 const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
 const webhookRoutes = require('./routes/webhooks');
 const apiKeyRoutes = require('./routes/apikeys');
 const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const arbitrationRoutes = require('./routes/arbitration');
-const requestRoutes = require('./routes/requests');
 const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
@@ -194,8 +188,7 @@ app.get('/api/mode', (req, res) => {
     chain_mode: !!(process.env.ALCHEMY_API_KEY && process.env.WALLET_ENCRYPTION_KEY),
     has_alchemy: !!process.env.ALCHEMY_API_KEY,
     has_enc_key: !!process.env.WALLET_ENCRYPTION_KEY,
-    chain: process.env.CHAIN || 'base-sepolia',
-    has_lemonsqueezy: !!process.env.LEMONSQUEEZY_API_KEY
+    chain: process.env.CHAIN || 'base-sepolia'
   });
 });
 
@@ -381,19 +374,14 @@ const apiV1 = express.Router();
 apiV1.use('/agents', agentRoutes);
 apiV1.use('/services', serviceRoutes);
 apiV1.use('/orders', orderRoutes);
-apiV1.use('/subscriptions', subscriptionRoutes);
 apiV1.use('/withdrawals', withdrawalRoutes);
-apiV1.use('/messages', messageRoutes);
 apiV1.use('/files', fileRoutes);
-apiV1.use('/payments', paymentRoutes);
-apiV1.use('/reviews', reviewRoutes);
 apiV1.use('/notifications', notificationRoutes);
 apiV1.use('/admin', adminRoutes);
 apiV1.use('/webhooks', webhookRoutes);
 apiV1.use('/api-keys', apiKeyRoutes);
 apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
-apiV1.use('/requests', requestRoutes);
 apiV1.use('/credentials', credentialRoutes);
 apiV1.use('/posts', postRoutes);
 apiV1.use('/auth', authRoutes);
@@ -918,14 +906,9 @@ app.use('/mcp', mcpHttpRoutes);
 app.use('/agents', agentRoutes);
 app.use('/services', serviceRoutes);
 app.use('/orders', orderRoutes);
-app.use('/telegram', telegramRoutes);
-app.use('/subscriptions', subscriptionRoutes);
 app.use('/withdrawals', withdrawalRoutes);
 app.use('/webhook', webhookRouter);
-app.use('/messages', messageRoutes);
 app.use('/files', fileRoutes);
-app.use('/payments', paymentRoutes);
-app.use('/reviews', reviewRoutes);
 app.use('/admin', adminRoutes);
 
 // Health check — detailed system status
@@ -977,7 +960,7 @@ app.get('/api/v1/health', async (req, res) => {
 app.get('/api/v1/platform/stats', async (req, res) => {
   try {
     const { dbGet: pgGet, dbAll: pgAll } = require('./db/helpers');
-    const [agentCount, orderStats, reviewStats, serviceCount] = await Promise.all([
+    const [agentCount, orderStats, serviceCount] = await Promise.all([
       pgGet('SELECT COUNT(*) as c FROM agents', []).catch(() => ({ c: 0 })),
       pgGet(
         `SELECT COUNT(*) as total,
@@ -987,7 +970,6 @@ app.get('/api/v1/platform/stats', async (req, res) => {
          FROM orders`,
         []
       ).catch(() => ({})),
-      pgGet('SELECT COUNT(*) as c, AVG(rating) as avg FROM reviews', []).catch(() => ({ c: 0, avg: null })),
       pgGet('SELECT COUNT(*) as c FROM services WHERE is_active=1 OR is_active=true', []).catch(() => ({ c: 0 })),
     ]);
     const total = parseInt(orderStats?.total || 0);
@@ -1000,8 +982,6 @@ app.get('/api/v1/platform/stats', async (req, res) => {
       total_volume_usdc: parseFloat(parseFloat(orderStats?.volume || 0).toFixed(2)),
       disputes: parseInt(orderStats?.disputed || 0),
       dispute_rate: total > 0 ? parseFloat((parseInt(orderStats?.disputed||0)/total*100).toFixed(1)) : 0,
-      reviews_total: parseInt(reviewStats?.c || 0),
-      avg_rating: reviewStats?.avg ? parseFloat(parseFloat(reviewStats.avg).toFixed(2)) : null,
       active_services: parseInt(serviceCount?.c || 0),
       generated_at: new Date().toISOString(),
     });
@@ -1164,9 +1144,7 @@ app.get('/api/v1/agents/discover', async (req, res) => {
               a.created_at as agent_since,
               (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id AND o.status = 'completed') as completed_sales,
               (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id) as total_sales,
-              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id AND o.status IN ('disputed','refunded')) as disputes,
-              (SELECT AVG(rating) FROM reviews r WHERE r.seller_id = a.id) as avg_rating,
-              (SELECT COUNT(*) FROM reviews r WHERE r.seller_id = a.id) as review_count
+              (SELECT COUNT(*) FROM orders o WHERE o.seller_id = a.id AND o.status IN ('disputed','refunded')) as disputes
        FROM services s
        JOIN agents a ON s.agent_id = a.id
        WHERE ${svcConds2.join(' AND ')}
@@ -1181,16 +1159,12 @@ app.get('/api/v1/agents/discover', async (req, res) => {
       const completed = parseInt(row.completed_sales || 0);
       const disputed = parseInt(row.disputes || 0);
       const rep = parseInt(row.reputation_score || 0);
-      const avgR = parseFloat(row.avg_rating || 0);
-      const nRev = parseInt(row.review_count || 0);
       const ageDays = Math.min((Date.now() - new Date(row.agent_since).getTime()) / 86400000, 30);
       const cr = total > 0 ? completed / total : 0;
       const dr = total > 0 ? disputed / total : 0;
-      const raw = Math.min(Math.max(rep, 0) / 200 * 30
-        + cr * 25 - Math.min(dr * 40, 20)
-        + (nRev > 0 ? (avgR / 5) * 25 : 12.5)
-        + (ageDays / 30) * 10
-        + Math.min(nRev * 0.5, 10), 100);
+      const raw = Math.min(Math.max(rep, 0) / 200 * 45
+        + cr * 35 - Math.min(dr * 40, 20)
+        + (ageDays / 30) * 20, 100);
       return Math.max(Math.round(raw), 0);
     }
     function trustLevel(s) {

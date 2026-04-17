@@ -1956,14 +1956,12 @@ async function loadAnalytics() {
           <thead><tr style="color:var(--text-soft);border-bottom:1px solid var(--border)">
             <th style="text-align:left;padding:4px 0">Service</th>
             <th style="text-align:right;padding:4px 4px">Orders</th>
-            <th style="text-align:right;padding:4px 4px">Revenue</th>
-            <th style="text-align:right;padding:4px 0">Rating</th>
+            <th style="text-align:right;padding:4px 0">Revenue</th>
           </tr></thead>
           <tbody>${services.map(s => `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:5px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">${escapeHtml(s.name)}</td>
             <td style="text-align:right;padding:5px 4px">${s.completed}/${s.total_orders}</td>
-            <td style="text-align:right;padding:5px 4px;font-weight:600">${money(s.revenue)}</td>
-            <td style="text-align:right;padding:5px 0">${s.avg_rating ? s.avg_rating.toFixed(1) + ' &#9733;' : '&mdash;'}</td>
+            <td style="text-align:right;padding:5px 0;font-weight:600">${money(s.revenue)}</td>
           </tr>`).join('')}</tbody>
         </table>` : '<div style="color:var(--text-soft);font-size:12px">No services yet.</div>';
 
@@ -2450,49 +2448,6 @@ async function submitTip(orderId, btn) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
-function openReviewModal(orderId, sellerId) {
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>Leave a Review</h2>
-    <p class="mdesc">Rate your experience with this seller. One review per order.</p>
-    <label>Rating</label>
-    <div style="display:flex;gap:6px;margin:8px 0 14px">
-      ${[1,2,3,4,5].map(n => `<button id="star-${n}" onclick="selectStar(${n})" style="font-size:24px;background:none;border:none;cursor:pointer;padding:0;line-height:1;filter:grayscale(1);transition:filter 0.15s" title="${n} star${n>1?'s':''}">&#9733;</button>`).join('')}
-    </div>
-    <input type="hidden" id="review-rating" value="0">
-    <label>Comment (optional)</label>
-    <textarea id="review-comment" class="plain" rows="3" placeholder="Share your experience..." style="width:100%;resize:vertical"></textarea>
-    <div class="btn-row" style="margin-top:14px">
-      <button class="btn btn-primary" onclick="submitReview('${orderId}',this)">Submit Review</button>
-      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-    </div>
-  `);
-}
-
-function selectStar(n) {
-  document.getElementById('review-rating').value = n;
-  for (let i = 1; i <= 5; i++) {
-    const el = document.getElementById('star-' + i);
-    if (el) el.style.filter = i <= n ? 'none' : 'grayscale(1)';
-  }
-}
-
-async function submitReview(orderId, btn) {
-  const rating = parseInt(document.getElementById('review-rating').value);
-  const comment = document.getElementById('review-comment').value.trim();
-  if (!(rating >= 1 && rating <= 5)) return toast('Please select a star rating', 'warn');
-  btnLoading(btn, 'Submitting...');
-  try {
-    await api('/api/v1/reviews', {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ order_id: orderId, rating, comment: comment || undefined }),
-    });
-    toast('Review submitted. Thank you!', 'success');
-    closeModal();
-  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
-}
-
 function openUpdateRequirementsModal(orderId) {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
@@ -2699,7 +2654,6 @@ async function openOrderDetail(orderId) {
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openUpdateRequirementsModal('${r.id}')">Update Requirements</button>` : ''}
         ${r.status === 'paid' && isBuyer ? `<button class="btn btn-danger btn-sm" onclick="cancelOrder('${r.id}',this)">Cancel & Refund</button>` : ''}
         ${['paid','delivered'].includes(r.status) && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openExtendDeadlineModal('${r.id}')">Extend Deadline</button>` : ''}
-        ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openReviewModal('${r.id}','${r.seller_id}')">Leave Review</button>` : ''}
         ${r.status === 'completed' && isBuyer ? `<button class="btn btn-ghost btn-sm" onclick="closeModal();openTipModal('${r.id}')">Send Tip</button>` : ''}
         ${r.status === 'completed' ? `<button class="btn btn-ghost btn-sm" onclick="viewOrderReceipt('${r.id}')">Receipt</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="closeModal()">${t('common_close')}</button>

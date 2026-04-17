@@ -471,10 +471,23 @@ router.get('/stats', requireApiKey, async (req, res, next) => {
 });
 
 // POST /orders
+// Accepts two modes:
+//   (a) Service order: { service_id, requirements?, ... } — price/seller from service record
+//   (b) Freeform order: { seller_id, amount, requirements?, delivery_hours?, title? } — no service listing needed
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
     const { service_id, requirements, expected_hash, release_oracle_url, release_oracle_secret, max_revisions } = req.body;
-    if (!service_id) return res.status(400).json({ error: 'service_id is required' });
+
+    // Freeform mode: no service_id → delegate to spot-order flow.
+    if (!service_id) {
+      const { seller_id, amount, delivery_hours, title } = req.body;
+      if (!seller_id) return res.status(400).json({ error: 'seller_id is required when service_id is omitted' });
+      if (!(parseFloat(amount) >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
+      // Rewrite body to match /orders/spot contract and re-dispatch.
+      req.body = { to_agent_id: seller_id, amount, requirements, delivery_hours, title };
+      req.url = '/spot';
+      return router.handle(req, res, next);
+    }
 
     // Validate oracle URL if provided
     if (release_oracle_url) {
@@ -602,21 +615,11 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
           await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [orderId]);
           await creditPlatformFee(fee);
 
-          const msgId = uuidv4();
-          await dbRun(
-            `INSERT INTO messages (id, recipient_id, sender_id, subject, body, order_id)
-             VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)})`,
-            [msgId, req.agent.id, service.agent_id,
-             `[數位商品] ${service.name}`,
-             `您已購買「${service.name}」\n\n檔案名稱：${file.filename}\n下載連結：${downloadUrl}\n\n使用您的 API Key（X-API-Key header）存取下載連結。`,
-             orderId]
-          );
-
           return res.status(201).json({
             id: orderId, service_name: service.name, amount: service.price,
             status: 'completed', file_id: file.id, filename: file.filename,
             download_url: downloadUrl,
-            message: 'Digital product delivered. Check your Inbox for the download link.'
+            message: 'Digital product delivered.'
           });
         }
       } catch (e) { console.error('[digital-product] auto-deliver error:', e.message); }
@@ -1059,27 +1062,6 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
         platform_fee: fee.toFixed(4),
         seller_received: sellerReceives.toFixed(4),
         message: 'Delivery passed automatic verification. Funds released.'
-      });
-    }
-
-    // Subscription content orders: auto-complete (payment already settled) + write inbox message
-    if (order.subscription_id) {
-      const now = isPostgres ? 'NOW()' : "datetime('now')";
-      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-      const service = await dbRun(`SELECT name FROM services WHERE id = ${p(1)}`, [order.service_id]).catch(() => null);
-      const msgId = uuidv4();
-      const subject = order.requirements || 'Subscription Update';
-      await dbRun(
-        `INSERT INTO messages (id, recipient_id, sender_id, subject, body, order_id, subscription_id)
-         VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)})`,
-        [msgId, order.buyer_id, order.seller_id, subject, content, order.id, order.subscription_id]
-      );
-      return res.json({
-        delivery_id: deliveryId,
-        order_id: order.id,
-        status: 'completed',
-        message_id: msgId,
-        message: 'Subscription delivery complete. Message sent to buyer inbox.'
       });
     }
 
@@ -1581,19 +1563,6 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
           escalationReason,
         ]
       );
-
-      // Notify both parties
-      for (const recipientId of [order.buyer_id, order.seller_id]) {
-        const msgId = uuidv4();
-        await dbRun(
-          `INSERT INTO messages (id, recipient_id, subject, body, order_id)
-           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)})`,
-          [msgId, recipientId,
-           '[Arbitova] Dispute escalated to human review',
-           `Your dispute on order ${order.id} has been escalated to a human reviewer because the AI arbitration result was inconclusive (confidence: ${(confidence * 100).toFixed(0)}%). You will be notified when the review is complete. Review ID: ${reviewId}`,
-           order.id]
-        ).catch(() => {});
-      }
 
       return res.status(202).json({
         escalated: true,

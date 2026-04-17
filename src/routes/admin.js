@@ -7,7 +7,6 @@
  *   GET /admin/dashboard  — Platform overview stats
  *   GET /admin/agents     — Paginated agent list
  *   GET /admin/orders     — Paginated order list
- *   GET /admin/payments   — Paginated LemonSqueezy payments list
  *   GET /admin/revenue    — Revenue breakdown
  */
 
@@ -289,68 +288,6 @@ router.get('/orders', async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// GET /admin/payments
-// Query params: ?page=1&limit=20&status=completed
-// ---------------------------------------------------------------------------
-router.get('/payments', async (req, res) => {
-  try {
-    const { page, limit, offset } = parsePagination(req.query);
-    const { status } = req.query;
-
-    let whereClause = '';
-    let params = [];
-    let paramIdx = 1;
-
-    if (status) {
-      whereClause = `WHERE pay.status = ${p(paramIdx++)}`;
-      params.push(status);
-    }
-
-    const countSql = `SELECT COUNT(*) AS count FROM payments pay ${whereClause}`;
-    const totalRow = await dbAll(countSql, params);
-    const total = parseInt(totalRow[0]?.count || 0, 10);
-
-    const payments = await dbAll(
-      `SELECT
-         pay.id, pay.status, pay.amount_cents,
-         pay.provider, pay.provider_order_id, pay.provider_checkout_id,
-         pay.created_at,
-         a.name  AS agent_name,
-         s.name  AS service_name
-       FROM payments pay
-       JOIN agents   a ON a.id = pay.agent_id
-       LEFT JOIN services s ON s.id = pay.service_id
-       ${whereClause}
-       ORDER BY pay.created_at DESC
-       LIMIT ${p(paramIdx++)} OFFSET ${p(paramIdx++)}`,
-      [...params, limit, offset]
-    );
-
-    res.json({
-      page,
-      limit,
-      total,
-      total_pages: Math.ceil(total / limit),
-      payments: payments.map(pay => ({
-        id:                   pay.id,
-        status:               pay.status,
-        amount_cents:         parseInt(pay.amount_cents || 0, 10),
-        amount_usd:           parseFloat((pay.amount_cents || 0) / 100),
-        provider:             pay.provider,
-        provider_order_id:    pay.provider_order_id,
-        provider_checkout_id: pay.provider_checkout_id,
-        agent_name:           pay.agent_name,
-        service_name:         pay.service_name,
-        created_at:           pay.created_at,
-      })),
-    });
-  } catch (err) {
-    console.error('[admin] payments error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ---------------------------------------------------------------------------
 // GET /admin/revenue
 // ---------------------------------------------------------------------------
 router.get('/revenue', async (req, res) => {
@@ -398,15 +335,6 @@ router.get('/revenue', async (req, res) => {
       );
     }
 
-    // ── Total LemonSqueezy payments received ──────────────────────────────────
-    const lsPaymentsRow = await dbAll(
-      `SELECT COALESCE(SUM(amount_cents), 0) AS total_cents,
-              COUNT(*)                        AS payment_count
-       FROM payments
-       WHERE status = ${p(1)} AND provider = ${p(2)}`,
-      ['completed', 'lemonsqueezy']
-    );
-
     res.json({
       platform_fees: {
         total_fees_earned:   parseFloat(platformFeesRow[0]?.total_fees || 0),
@@ -420,11 +348,6 @@ router.get('/revenue', async (req, res) => {
         gmv:           parseFloat(r.gmv         || 0),
         platform_fees: parseFloat(r.platform_fees || 0),
       })),
-      lemonsqueezy_payments: {
-        total_received_cents: parseInt(lsPaymentsRow[0]?.total_cents   || 0, 10),
-        total_received_usd:   parseFloat((lsPaymentsRow[0]?.total_cents || 0) / 100),
-        payment_count:        parseInt(lsPaymentsRow[0]?.payment_count || 0, 10),
-      },
     });
   } catch (err) {
     console.error('[admin] revenue error:', err.message);

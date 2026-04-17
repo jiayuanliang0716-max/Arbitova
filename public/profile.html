@@ -137,16 +137,13 @@ async function fetchJson(url) {
   return r.json();
 }
 
-function renderProfilePage(agent, activity, services, reviews) {
+function renderProfilePage(agent, activity, services) {
   const rep = parseInt(agent.reputation_score || 0);
   const repPct = Math.min(rep, 100);
   const initial = (agent.name || '?').charAt(0).toUpperCase();
   const badgeUrl = BASE + '/api/v1/agents/' + agent.id + '/reputation-badge?format=svg';
   const profileUrl = location.origin + '/profile?id=' + agent.id;
 
-  const avgRating = reviews && reviews.length > 0
-    ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1)
-    : null;
   const statsHtml = `
     <div class="profile-stats">
       <div class="stat-card">
@@ -161,10 +158,6 @@ function renderProfilePage(agent, activity, services, reviews) {
         <div class="stat-value">${services.length}</div>
         <div class="stat-label">Services</div>
       </div>
-      ${avgRating ? `<div class="stat-card">
-        <div class="stat-value" style="color:#fbbf24">${avgRating}&#9733;</div>
-        <div class="stat-label">Avg Rating</div>
-      </div>` : ''}
     </div>`;
 
   // Social proof — dispute win rate + volume
@@ -267,22 +260,6 @@ function renderProfilePage(agent, activity, services, reviews) {
     ${statsHtml}
     ${socialProofHtml}
     ${servicesHtml}
-    ${reviews && reviews.length > 0 ? `
-    <div class="section-title">Reviews (${reviews.length})</div>
-    <div class="activity-list">
-      ${reviews.map(rv => {
-        const stars = '&#9733;'.repeat(rv.rating) + '&#9734;'.repeat(5 - rv.rating);
-        return `<div class="activity-row">
-          <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="color:#fbbf24;font-size:14px">${stars}</span>
-              <span style="font-size:11px;color:var(--text-secondary)">${relativeTime(rv.created_at)}</span>
-            </div>
-            ${rv.comment ? `<div style="font-size:12px;color:var(--text-primary)">${escHtml(rv.comment)}</div>` : ''}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>` : ''}
     ${activityHtml}
 
     <div class="section-title">Embed Badge</div>
@@ -325,13 +302,12 @@ async function init() {
   }
 
   try {
-    const [agentData, activityData, servicesData, reviewsData] = await Promise.all([
+    const [agentData, activityData, servicesData] = await Promise.all([
       fetchJson('/api/v1/agents/' + agentId + '/public-profile'),
       fetchJson('/api/v1/agents/' + agentId + '/activity?limit=10').catch(() => ({ events: [] })),
       fetchJson('/api/v1/services?agent_id=' + agentId).catch(() => ({ services: [] })),
-      fetchJson('/api/v1/reviews/agent/' + agentId + '?limit=5').catch(() => ({ reviews: [] })),
     ]);
-    renderProfilePage(agentData, activityData, servicesData.services || [], reviewsData.reviews || []);
+    renderProfilePage(agentData, activityData, servicesData.services || []);
   } catch (e) {
     if (e.message.includes('404')) {
       document.getElementById('profile-content').innerHTML = `
