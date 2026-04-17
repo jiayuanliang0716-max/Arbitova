@@ -651,7 +651,7 @@ async function loadLandingVerdicts() {
   const el = document.getElementById('landing-verdicts-feed');
   if (!el) return;
   try {
-    const data = await fetch(API + '/api/v1/arbitrate/verdicts?limit=6').then(r => r.json());
+    const data = await fetch(API + '/api/v1/arbitrate/verdicts?limit=100').then(r => r.json());
     const verdicts = data.verdicts || [];
     if (!verdicts.length) { el.innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-tertiary);font-size:13px">No verdicts yet. Be the first to use AI arbitration.</div>'; return; }
     const LABELS = {
@@ -663,11 +663,26 @@ async function loadLandingVerdicts() {
     // Fill stats
     const totalEl = document.getElementById('lv-total');
     if (totalEl && data.total) totalEl.textContent = data.total;
-    const avgConf = verdicts.filter(v => v.confidence).map(v => v.confidence).reduce((a,b) => a+b, 0) / (verdicts.filter(v => v.confidence).length || 1);
+    const confs = verdicts.filter(v => v.confidence).map(v => v.confidence);
+    const avgConf = confs.length ? confs.reduce((a,b) => a+b, 0) / confs.length : 0;
     const accEl = document.getElementById('lv-accuracy');
     if (accEl && avgConf) accEl.textContent = Math.round(avgConf * 100) + '%';
+    // Avg AI arbitration time — delta between raised_at and resolved_at, excluding outliers >600s
+    const deltas = verdicts
+      .filter(v => v.raised_at && v.resolved_at)
+      .map(v => (new Date(v.resolved_at) - new Date(v.raised_at)) / 1000)
+      .filter(s => s >= 0 && s <= 600);
+    if (deltas.length) {
+      const avgSec = deltas.reduce((a,b) => a+b, 0) / deltas.length;
+      const label = '~' + (avgSec < 10 ? avgSec.toFixed(1) : Math.round(avgSec)) + 's';
+      const avgTopEl = document.getElementById('stats-avg-time');
+      if (avgTopEl) avgTopEl.textContent = label;
+      const avgLvEl = document.getElementById('lv-avg-time');
+      if (avgLvEl) avgLvEl.textContent = label;
+    }
+    const limitedVerdicts = verdicts.slice(0, 6);
 
-    el.innerHTML = verdicts.map(v => {
+    el.innerHTML = limitedVerdicts.map(v => {
       const winner = v.winner || 'unknown';
       const conf = v.confidence ? Math.round(v.confidence * 100) : null;
       const label = LABELS[v.dispute_type] || v.dispute_type || 'Dispute';
