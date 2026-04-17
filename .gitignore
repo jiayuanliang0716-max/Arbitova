@@ -41,6 +41,7 @@ arbitova-dns.txt
 seed/
 scripts/*
 !scripts/backfill-platform-revenue.js
+!scripts/reset-platform-revenue.js
 demo/
 test/*
 !test/*.test.js
