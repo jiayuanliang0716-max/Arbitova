@@ -25,6 +25,7 @@ const express = require('express');
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbRun, dbAll } = require('../db/helpers');
+const { SETTLEMENT_FEE_RATE, creditPlatformFee } = require('../config/fees');
 
 const router = express.Router();
 
@@ -37,8 +38,6 @@ const LS_HEADERS = () => ({
   'Content-Type': 'application/vnd.api+json',
   'Authorization': `Bearer ${process.env.LEMONSQUEEZY_API_KEY}`
 });
-
-const PLATFORM_FEE_RATE = 0.025; // 2.5 %
 
 // ---------------------------------------------------------------------------
 // POST /payments/checkout
@@ -311,7 +310,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
             [service.file_id]
           );
           if (file) {
-            const fee = servicePrice * PLATFORM_FEE_RATE;
+            const fee = servicePrice * SETTLEMENT_FEE_RATE;
             const sellerReceives = servicePrice - fee;
             const now = isPostgres ? 'NOW()' : "datetime('now')";
             const deliveryId = uuidv4();
@@ -335,6 +334,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
               `UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`,
               [orderId]
             );
+            await creditPlatformFee(fee);
 
             const msgId = uuidv4();
             await dbRun(

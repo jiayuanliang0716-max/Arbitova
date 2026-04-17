@@ -14,6 +14,7 @@
 const express = require('express');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
 const { getPlatformWalletAddress, transferFromPlatform, isChainMode } = require('../wallet');
+const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee } = require('../config/fees');
 
 const router = express.Router();
 
@@ -76,7 +77,7 @@ router.get('/dashboard', async (req, res) => {
       dbAll('SELECT COUNT(*) AS count FROM services', []),
       dbAll('SELECT status, COUNT(*) AS count FROM orders GROUP BY status', []),
       dbAll(
-        `SELECT COALESCE(SUM(amount * 0.025), 0) AS total_fees FROM orders WHERE status = ${p(1)}`,
+        `SELECT COALESCE(SUM(amount * ${SETTLEMENT_FEE_RATE}), 0) AS total_fees FROM orders WHERE status = ${p(1)}`,
         ['completed']
       ),
     ]);
@@ -356,9 +357,9 @@ router.get('/revenue', async (req, res) => {
   try {
     const thirtyDaysAgo = daysAgo(30);
 
-    // ── Total platform fees (2.5% of completed orders) ───────────────────────
+    // ── Total platform fees (0.5% of completed orders) ───────────────────────
     const platformFeesRow = await dbAll(
-      `SELECT COALESCE(SUM(amount * 0.025), 0) AS total_fees,
+      `SELECT COALESCE(SUM(amount * ${SETTLEMENT_FEE_RATE}), 0) AS total_fees,
               COALESCE(SUM(amount), 0)          AS total_gmv,
               COUNT(*)                           AS completed_count
        FROM orders
@@ -374,7 +375,7 @@ router.get('/revenue', async (req, res) => {
         `SELECT TO_CHAR(DATE_TRUNC('day', completed_at AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS day,
                 COUNT(*)                           AS order_count,
                 COALESCE(SUM(amount), 0)           AS gmv,
-                COALESCE(SUM(amount * 0.025), 0)   AS platform_fees
+                COALESCE(SUM(amount * ${SETTLEMENT_FEE_RATE}), 0)   AS platform_fees
          FROM orders
          WHERE status = $1
            AND completed_at >= $2
@@ -387,7 +388,7 @@ router.get('/revenue', async (req, res) => {
         `SELECT strftime('%Y-%m-%d', completed_at) AS day,
                 COUNT(*)                            AS order_count,
                 COALESCE(SUM(amount), 0)            AS gmv,
-                COALESCE(SUM(amount * 0.025), 0)    AS platform_fees
+                COALESCE(SUM(amount * ${SETTLEMENT_FEE_RATE}), 0)    AS platform_fees
          FROM orders
          WHERE status = ?
            AND completed_at >= ?
@@ -411,7 +412,7 @@ router.get('/revenue', async (req, res) => {
         total_fees_earned:   parseFloat(platformFeesRow[0]?.total_fees || 0),
         total_gmv:           parseFloat(platformFeesRow[0]?.total_gmv  || 0),
         completed_orders:    parseInt(platformFeesRow[0]?.completed_count || 0, 10),
-        fee_rate:            0.025,
+        fee_rate:            SETTLEMENT_FEE_RATE,
       },
       revenue_by_day: revenueByDay.map(r => ({
         day:           r.day,
@@ -474,18 +475,18 @@ router.post('/review-queue/:id/resolve', async (req, res) => {
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
     const { dbRun } = require('../db/helpers');
-    const PLATFORM_FEE_RATE = 0.025;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
     if (winner === 'buyer') {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     } else {
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const fee = parseFloat(order.amount) * DISPUTE_FEE_RATE;
       const sellerReceives = parseFloat(order.amount) - fee;
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      await creditPlatformFee(fee);
     }
 
     await dbRun(

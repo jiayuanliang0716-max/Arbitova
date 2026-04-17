@@ -20,10 +20,10 @@ const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const { dbAll, dbGet, dbRun } = require('./db/helpers');
 const { arbitrateDispute } = require('./arbitrate');
+const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee } = require('./config/fees');
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-const PLATFORM_FEE_RATE = 0.025;
 const REP_DISPUTE_PENALTY = 20;
 
 // ── 1. Expire overdue 'paid' orders every 10 min ────────────────────────────
@@ -64,11 +64,12 @@ cron.schedule('*/30 * * * *', async () => {
       [cutoff]
     );
     for (const order of stale) {
-      const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+      const fee = parseFloat(order.amount) * SETTLEMENT_FEE_RATE;
       const sellerReceives = parseFloat(order.amount) - fee;
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${nowExpr} WHERE id = ${p(1)}`, [order.id]);
+      await creditPlatformFee(fee);
     }
     if (stale.length > 0) console.log(`[worker] auto-confirmed ${stale.length} stale delivered orders`);
   } catch (err) {
@@ -125,11 +126,12 @@ cron.schedule('*/30 * * * *', async () => {
           await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
           await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${nowExpr} WHERE id = ${p(1)}`, [order.id]);
         } else {
-          const fee = parseFloat(order.amount) * PLATFORM_FEE_RATE;
+          const fee = parseFloat(order.amount) * DISPUTE_FEE_RATE;
           const sellerReceives = parseFloat(order.amount) - fee;
           await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
           await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
           await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${nowExpr} WHERE id = ${p(1)}`, [order.id]);
+          await creditPlatformFee(fee);
         }
 
         const votesSummary = votes.map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%)`).join(', ');
@@ -182,7 +184,8 @@ cron.schedule('0 * * * *', async () => {
         continue;
       }
 
-      const sellerReceives = price * (1 - PLATFORM_FEE_RATE);
+      const fee = price * SETTLEMENT_FEE_RATE;
+      const sellerReceives = price - fee;
       const nextBilling = (() => {
         const d = new Date();
         if (sub.interval === 'daily')   d.setDate(d.getDate() + 1);
@@ -194,6 +197,7 @@ cron.schedule('0 * * * *', async () => {
       await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, sub.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, sub.seller_id]);
       await dbRun(`UPDATE subscriptions SET next_billing_at = ${p(1)} WHERE id = ${p(2)}`, [nextBilling, sub.id]);
+      await creditPlatformFee(fee);
 
       const contentOrderId = uuidv4();
       const deadline = new Date();

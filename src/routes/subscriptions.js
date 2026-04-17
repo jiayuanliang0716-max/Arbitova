@@ -2,12 +2,12 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
+const { SETTLEMENT_FEE_RATE, creditPlatformFee } = require('../config/fees');
 
 const router = express.Router();
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-const PLATFORM_FEE_RATE = 0.025;
 
 function nextBillingDate(interval) {
   const d = new Date();
@@ -47,13 +47,14 @@ router.post('/', requireApiKey, async (req, res, next) => {
       return res.status(400).json({ error: 'Insufficient balance for first billing', balance: buyer.balance, required: price });
     }
 
-    const fee = price * PLATFORM_FEE_RATE;
+    const fee = price * SETTLEMENT_FEE_RATE;
     const sellerReceives = price - fee;
     const subId = uuidv4();
     const nextBilling = nextBillingDate(interval);
 
     await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, req.agent.id]);
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, service.agent_id]);
+    await creditPlatformFee(fee);
     await dbRun(
       `INSERT INTO subscriptions (id, buyer_id, seller_id, service_id, interval, price, status, next_billing_at)
        VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},'active',${p(7)})`,
@@ -153,12 +154,13 @@ router.post('/process-billing', async (req, res, next) => {
         continue;
       }
 
-      const fee = price * PLATFORM_FEE_RATE;
+      const fee = price * SETTLEMENT_FEE_RATE;
       const sellerReceives = price - fee;
       const nextBilling = nextBillingDate(sub.interval);
 
       await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [price, sub.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, sub.seller_id]);
+      await creditPlatformFee(fee);
       await dbRun(`UPDATE subscriptions SET next_billing_at = ${p(1)} WHERE id = ${p(2)}`, [nextBilling, sub.id]);
 
       results.push({ id: sub.id, service: sub.service_name, charged: price, next_billing_at: nextBilling, outcome: 'billed' });

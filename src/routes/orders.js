@@ -9,13 +9,12 @@ const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
 const { idempotency } = require('../middleware/idempotency');
 const { getTrustScore } = require('../utils/trust');
+const { RELEASE_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee } = require('../config/fees');
 
 const router = express.Router();
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-const RELEASE_FEE_RATE = 0.005;   // 0.5% — successful delivery confirmed
-const DISPUTE_FEE_RATE = 0.02;    // 2.0% — dispute resolved via AI arbitration
 const REP_CONFIRM_BONUS = 10;
 const REP_DISPUTE_PENALTY = 20;
 
@@ -601,6 +600,7 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
           await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [service.price, req.agent.id]);
           await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, service.agent_id]);
           await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [orderId]);
+          await creditPlatformFee(fee);
 
           const msgId = uuidv4();
           await dbRun(
@@ -996,6 +996,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
         await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
         await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
         await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+        await creditPlatformFee(fee);
         try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'hash_verified_completion', order.id); } catch (e) {}
         fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
           order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'hash',
@@ -1040,6 +1041,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      await creditPlatformFee(fee);
       try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'auto_verified_completion', order.id); } catch (e) {}
       fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
         order_id: order.id, delivery_id: deliveryId, auto_completed: true,
@@ -1126,6 +1128,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
           await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
           await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
           await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+          await creditPlatformFee(fee);
           try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'oracle_verified_completion', order.id); } catch (_) {}
           fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
             order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'oracle',
@@ -1210,10 +1213,7 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
     await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
     await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-    await dbRun(
-      `UPDATE platform_revenue SET balance = balance + ${p(1)}, total_earned = total_earned + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
-      [fee, fee]
-    );
+    await creditPlatformFee(fee);
 
     // Reputation: successful delivery confirmed by buyer
     try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'order_completed', order.id); } catch (e) { console.error('rep err:', e.message); }
@@ -1263,10 +1263,7 @@ router.post('/:id/partial-confirm', requireApiKey, async (req, res, next) => {
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
     // Update order amount to remaining (locked portion)
     await dbRun(`UPDATE orders SET amount = ${p(1)}, status = 'paid' WHERE id = ${p(2)}`, [remaining, order.id]);
-    await dbRun(
-      `UPDATE platform_revenue SET balance = balance + ${p(1)}, total_earned = total_earned + ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
-      [fee, fee]
-    );
+    await creditPlatformFee(fee);
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
       order_id: order.id, type: 'partial_release',
@@ -1393,6 +1390,7 @@ router.post('/:id/resolve-dispute', async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      await creditPlatformFee(fee);
     }
 
     await dbRun(
@@ -1623,6 +1621,7 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
       await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+      await creditPlatformFee(fee);
     }
 
     // ── Dispute bond settlement ──────────────────────────────────────────────
@@ -1989,6 +1988,7 @@ router.post('/batch-arbitrate', requireApiKey, async (req, res, next) => {
         await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
         await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
         await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+        await creditPlatformFee(fee);
       }
 
       const votesSummary = votes.map(v => `${v.winner}(${(v.confidence*100).toFixed(0)}%)`).join(', ');
@@ -2329,8 +2329,6 @@ router.get('/:id/receipt', requireApiKey, async (req, res, next) => {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    const RELEASE_FEE_RATE = 0.005;
-    const DISPUTE_FEE_RATE = 0.02;
     const isDisputed = order.status === 'disputed' || order.status === 'refunded';
     const feeRate = isDisputed ? DISPUTE_FEE_RATE : RELEASE_FEE_RATE;
     const fee = parseFloat(order.amount) * feeRate;

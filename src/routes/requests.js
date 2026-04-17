@@ -27,7 +27,6 @@ const router = express.Router();
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
-const RELEASE_FEE_RATE = 0.005;
 
 // ── POST /requests — buyer posts a task request ────────────────────────────────
 router.post('/', requireApiKey, async (req, res, next) => {

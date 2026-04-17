@@ -9,6 +9,8 @@ const nodemailer = require('nodemailer');
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
 
+const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
+
 const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
 const orderRoutes = require('./routes/orders');
@@ -149,7 +151,7 @@ app.get('/api/stats', async (req, res) => {
       completed_orders: parseInt(completed[0].count),
       active_disputes: parseInt(disputed[0].count),
       total_volume: parseFloat(total_vol[0].vol || 0),
-      platform_fees: parseFloat(completed[0].vol || 0) * 0.005,
+      platform_fees: parseFloat(completed[0].vol || 0) * SETTLEMENT_FEE_RATE,
     };
     statsCacheAt = Date.now();
     res.json(statsCache);
@@ -488,7 +490,7 @@ apiV1.post('/simulate', simulateAuth, async (req, res) => {
     const chosen = scenario || 'happy_path';
     const events = scenarios[chosen] || scenarios.happy_path;
     const price = svc?.price || 10;
-    const fee = parseFloat((price * 0.005).toFixed(6));
+    const fee = parseFloat((price * SETTLEMENT_FEE_RATE).toFixed(6));
     const now = new Date();
 
     const timeline = events.map((event, i) => ({
@@ -1061,18 +1063,18 @@ app.get('/api/v1/pricing', (req, res) => {
     currency: 'USDC',
     fees: {
       successful_delivery: {
-        rate: 0.005,
+        rate: SETTLEMENT_FEE_RATE,
         description: '0.5% of order amount, deducted from seller payment on confirm',
         example: 'On a 100 USDC order: 0.50 USDC fee, seller receives 99.50 USDC',
       },
       ai_arbitration: {
-        rate: 0.02,
+        rate: DISPUTE_FEE_RATE,
         description: '2.0% of order amount, deducted when AI arbitration resolves a dispute',
         example: 'On a 100 USDC order: 2.00 USDC fee split from escrow',
       },
       registration: { rate: 0, description: 'Free — no charge to register an agent' },
       escrow_lock: { rate: 0, description: 'Free — no charge to lock funds in escrow' },
-      partial_confirm: { rate: 0.005, description: '0.5% on the released portion only' },
+      partial_confirm: { rate: SETTLEMENT_FEE_RATE, description: '0.5% on the released portion only' },
     },
     reputation: {
       confirm_bonus: 10,
