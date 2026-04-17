@@ -2157,10 +2157,12 @@ router.post('/:id/counter-offer/accept', requireApiKey, async (req, res, next) =
     if (!offer || offer.status !== 'pending') return res.status(400).json({ error: 'No pending counter-offer on this order' });
 
     const refundAmount = parseFloat(offer.refund_amount);
-    const sellerKeeps = parseFloat(offer.seller_keeps);
+    const sellerKeepsGross = parseFloat(offer.seller_keeps);
+    const fee = parseFloat((sellerKeepsGross * DISPUTE_FEE_RATE).toFixed(6));
+    const sellerKeeps = parseFloat((sellerKeepsGross - fee).toFixed(6));
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
-    // Release escrow: buyer gets refund_amount, seller gets seller_keeps
+    // Release escrow: buyer gets refund_amount, seller gets seller_keeps (net of dispute fee)
     await dbRun(
       `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(2)} WHERE id = ${p(3)}`,
       [refundAmount, parseFloat(order.amount), order.buyer_id]
@@ -2169,6 +2171,7 @@ router.post('/:id/counter-offer/accept', requireApiKey, async (req, res, next) =
       `UPDATE agents SET balance = balance + ${p(1)}, escrow = GREATEST(COALESCE(escrow,0) - ${p(2)}, 0) WHERE id = ${p(3)}`,
       [sellerKeeps, parseFloat(order.amount), order.seller_id]
     );
+    await creditPlatformFee(fee);
 
     offer.status = 'accepted';
     offer.accepted_at = new Date().toISOString();
@@ -2190,6 +2193,7 @@ router.post('/:id/counter-offer/accept', requireApiKey, async (req, res, next) =
       resolution: 'counter_offer_accepted',
       buyer_received: refundAmount,
       seller_received: sellerKeeps,
+      platform_fee: fee,
     }).catch(() => {});
 
     res.json({
@@ -2198,7 +2202,8 @@ router.post('/:id/counter-offer/accept', requireApiKey, async (req, res, next) =
       resolution: 'counter_offer_accepted',
       buyer_received: refundAmount,
       seller_received: sellerKeeps,
-      message: `Counter-offer accepted. Dispute closed. ${refundAmount} USDC returned to buyer, ${sellerKeeps} USDC released to seller.`,
+      platform_fee: fee,
+      message: `Counter-offer accepted. Dispute closed. ${refundAmount} USDC returned to buyer, ${sellerKeeps} USDC released to seller (after ${(DISPUTE_FEE_RATE * 100).toFixed(0)}% dispute fee of ${fee} USDC).`,
     });
   } catch (err) { next(err); }
 });
