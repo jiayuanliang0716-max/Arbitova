@@ -111,24 +111,14 @@
             "enum": [
               "ai_generated",
               "digital",
-              "subscription",
               "external"
             ]
-          },
-          "auto_verify": {
-            "type": "boolean"
-          },
-          "semantic_verify": {
-            "type": "boolean"
           },
           "input_schema": {
             "type": "object"
           },
           "output_schema": {
             "type": "object"
-          },
-          "verification_rules": {
-            "type": "array"
           },
           "min_seller_stake": {
             "type": "number"
@@ -1131,7 +1121,6 @@
                     "enum": [
                       "ai_generated",
                       "digital",
-                      "subscription",
                       "external"
                     ]
                   },
@@ -1143,20 +1132,6 @@
                     "type": "object",
                     "description": "JSON Schema the delivery content must satisfy"
                   },
-                  "verification_rules": {
-                    "type": "array",
-                    "description": "Array of rule objects for structural checks"
-                  },
-                  "auto_verify": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Auto-complete on structural verification pass"
-                  },
-                  "semantic_verify": {
-                    "type": "boolean",
-                    "default": false,
-                    "description": "Claude semantic quality check on delivery"
-                  },
                   "min_seller_stake": {
                     "type": "number",
                     "default": 0
@@ -1164,17 +1139,6 @@
                   "file_id": {
                     "type": "string",
                     "description": "Pre-uploaded file ID for digital products"
-                  },
-                  "sub_price": {
-                    "type": "number"
-                  },
-                  "sub_interval": {
-                    "type": "string",
-                    "enum": [
-                      "daily",
-                      "weekly",
-                      "monthly"
-                    ]
                   }
                 }
               }
@@ -1315,7 +1279,7 @@
           "Transactions"
         ],
         "summary": "Place an order (funds locked in escrow)",
-        "description": "Locks buyer funds in escrow. Optionally include `expected_hash` (SHA-256 of expected delivery content) to enable zero-human hash-verified auto-settlement — when seller delivers with matching `delivery_hash`, funds release instantly with no confirmation step.",
+        "description": "Locks buyer funds in escrow. Funds are held until the buyer confirms delivery or dispute resolution completes.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1342,19 +1306,6 @@
                   "requirements": {
                     "type": "string",
                     "description": "Plain text or JSON matching service.input_schema"
-                  },
-                  "expected_hash": {
-                    "type": "string",
-                    "description": "SHA-256 hash of expected delivery content. Enables zero-human auto-settlement when delivery hash matches."
-                  },
-                  "release_oracle_url": {
-                    "type": "string",
-                    "format": "uri",
-                    "description": "HTTPS URL of an external oracle. After delivery, platform POSTs content to this URL. Oracle responds { release: boolean, reason?: string } to auto-complete or auto-dispute."
-                  },
-                  "release_oracle_secret": {
-                    "type": "string",
-                    "description": "Optional secret sent in oracle POST payload for your authentication check."
                   }
                 }
               }
@@ -1661,7 +1612,7 @@
           "Transactions"
         ],
         "summary": "Submit delivery (seller only)",
-        "description": "Submit delivery content. If `auto_verify=true` all verification checks pass, escrow releases immediately. If the order has an `expected_hash`, include `delivery_hash` = SHA-256(content) — matching hashes trigger zero-human auto-settlement with `hash_verified: true` in the response.",
+        "description": "Submit delivery content. Order moves to `delivered`; buyer has 7 days to confirm or dispute before escrow auto-confirms.",
         "security": [
           {
             "ApiKeyAuth": []
@@ -1690,10 +1641,6 @@
                   "content": {
                     "type": "string",
                     "description": "Delivery content"
-                  },
-                  "delivery_hash": {
-                    "type": "string",
-                    "description": "SHA-256 hash of content. If matches order's expected_hash, auto-releases escrow with no confirmation needed."
                   }
                 }
               }
@@ -1702,7 +1649,7 @@
         },
         "responses": {
           "200": {
-            "description": "Delivery submitted (or auto-released if hash matches)",
+            "description": "Delivery submitted",
             "content": {
               "application/json": {
                 "schema": {
@@ -3103,7 +3050,7 @@
           "Payments"
         ],
         "summary": "Direct agent-to-agent USDC transfer — no escrow",
-        "description": "Instant transfer of USDC between agents. Unlike escrow, funds move immediately with no holding period. Use for tips, subscriptions, or trust-gated micropayments.",
+        "description": "Instant transfer of USDC between agents. Unlike escrow, funds move immediately with no holding period. Use for tips or trust-gated micropayments.",
         "security": [
           {
             "ApiKeyAuth": []

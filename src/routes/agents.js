@@ -173,7 +173,7 @@ router.get('/me/services', requireApiKey, async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 50, 200);
     const services = await dbAll(
-      `SELECT id, name, description, price, category, delivery_hours, is_active, auto_verify, created_at,
+      `SELECT id, name, description, price, category, delivery_hours, is_active, created_at,
               (SELECT COUNT(*) FROM orders WHERE service_id = services.id AND status NOT IN ('cancelled','refunded')) as total_orders,
               (SELECT COUNT(*) FROM orders WHERE service_id = services.id AND status = 'completed') as completed_orders
        FROM services WHERE agent_id = ${p(1)}
@@ -869,7 +869,7 @@ router.get('/:id/capabilities', async (req, res, next) => {
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
 
     const services = await dbAll(
-      `SELECT id, name, description, price, delivery_hours, category, input_schema, auto_verify, status
+      `SELECT id, name, description, price, delivery_hours, category, input_schema, status
        FROM services WHERE agent_id = ${p(1)} AND (is_active = 1 OR is_active = true)
        ORDER BY created_at DESC`,
       [req.params.id]
@@ -882,7 +882,6 @@ router.get('/:id/capabilities', async (req, res, next) => {
       category: s.category,
       price_usdc: s.price,
       delivery_hours: s.delivery_hours,
-      auto_verify: !!s.auto_verify,
       input_schema: s.input_schema
         ? (typeof s.input_schema === 'string' ? JSON.parse(s.input_schema) : s.input_schema)
         : null,
@@ -1300,7 +1299,7 @@ router.get('/:id/services', async (req, res, next) => {
     const isPostgres = !!process.env.DATABASE_URL;
     const pp = (n) => isPostgres ? `$${n}` : '?';
     const services = await svcAll(
-      `SELECT id, name, description, price, category, delivery_hours, is_active, auto_verify, created_at
+      `SELECT id, name, description, price, category, delivery_hours, is_active, created_at
        FROM services WHERE agent_id = ${pp(1)} AND (is_active = 1 OR is_active = true)
        ORDER BY created_at DESC LIMIT ${pp(2)}`,
       [agentId, limit]

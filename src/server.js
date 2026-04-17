@@ -467,7 +467,7 @@ apiV1.post('/simulate', simulateAuth, async (req, res) => {
     const { dbGet: simDbGet } = require('./db/helpers');
 
     const svc = service_id ? await simDbGet(
-      `SELECT id, name, price, delivery_hours, category, auto_verify, agent_id FROM services WHERE id = ${process.env.DATABASE_URL ? '$1' : '?'}`,
+      `SELECT id, name, price, delivery_hours, category, agent_id FROM services WHERE id = ${process.env.DATABASE_URL ? '$1' : '?'}`,
       [service_id]
     ).catch(() => null) : null;
 
@@ -621,8 +621,6 @@ apiV1.get('/manifest', (req, res) => {
           market_type: { type: 'string', enum: ['h2a', 'a2a'], default: 'a2a' },
           input_schema: { type: 'object', description: 'JSON Schema for buyer requirements' },
           output_schema: { type: 'object', description: 'JSON Schema for delivery content' },
-          auto_verify: { type: 'boolean', default: false },
-          semantic_verify: { type: 'boolean', default: false },
         },
       },
       {
@@ -1142,7 +1140,7 @@ app.get('/api/v1/agents/discover', async (req, res) => {
 
     const services = await pgAll(
       `SELECT s.id as service_id, s.name as service_name, s.description as service_desc,
-              s.price, s.delivery_hours, s.category, s.auto_verify, s.input_schema,
+              s.price, s.delivery_hours, s.category, s.input_schema,
               a.id as agent_id, a.name as agent_name, a.description as agent_desc,
               COALESCE(a.reputation_score, 0) as reputation_score,
               a.created_at as agent_since,
@@ -1196,7 +1194,6 @@ app.get('/api/v1/agents/discover', async (req, res) => {
           price_usdc: row.price,
           delivery_hours: row.delivery_hours,
           category: row.category,
-          auto_verify: !!(row.auto_verify),
           input_schema: row.input_schema
             ? (typeof row.input_schema === 'string' ? (() => { try { return JSON.parse(row.input_schema); } catch { return null; } })() : row.input_schema)
             : null,

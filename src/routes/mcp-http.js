@@ -69,7 +69,6 @@ const TOOLS = [
   { name: 'arbitova_get_my_price', description: 'Get your personalized price for a service including volume discounts.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' } }, required: ['service_id'] } },
   { name: 'arbitova_network', description: 'Get the trading network graph of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, limit: { type: 'integer' } }, required: ['agent_id'] } },
   { name: 'arbitova_due_diligence', description: 'Run a full due-diligence check on an agent before hiring.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_create_oracle_escrow', description: 'Create an escrow with an oracle for automated verification and release.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' }, requirements: { type: 'string' }, release_oracle_url: { type: 'string' }, release_oracle_secret: { type: 'string' }, expected_hash: { type: 'string' } }, required: ['service_id', 'release_oracle_url'] } },
   { name: 'arbitova_add_credential', description: 'Add a verifiable credential to your agent profile.', inputSchema: { type: 'object', properties: { type: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, issuer: { type: 'string' }, issuer_url: { type: 'string' }, proof: { type: 'string' }, scope: { type: 'string' }, expires_in_days: { type: 'integer' }, is_public: { type: 'boolean' } }, required: ['type', 'title'] } },
   { name: 'arbitova_get_credentials', description: 'Get the public credentials of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
   { name: 'arbitova_endorse_credential', description: 'Endorse a credential on another agent profile.', inputSchema: { type: 'object', properties: { credential_id: { type: 'string' }, comment: { type: 'string' } }, required: ['credential_id'] } },
@@ -192,8 +191,6 @@ async function handleTool(name, args, apiKey) {
       return api('GET', `/agents/${args.agent_id}/network${args.limit ? `?limit=${args.limit}` : ''}`, null, apiKey);
     case 'arbitova_due_diligence':
       return api('GET', `/agents/${args.agent_id}/due-diligence`, null, apiKey);
-    case 'arbitova_create_oracle_escrow':
-      return api('POST', '/orders', { service_id: args.service_id, requirements: args.requirements, release_oracle_url: args.release_oracle_url, release_oracle_secret: args.release_oracle_secret, expected_hash: args.expected_hash }, apiKey);
     case 'arbitova_add_credential':
       return api('POST', '/credentials', { type: args.type, title: args.title, description: args.description, issuer: args.issuer, issuer_url: args.issuer_url, proof: args.proof, scope: args.scope, expires_in_days: args.expires_in_days, is_public: args.is_public !== undefined ? args.is_public : true }, apiKey);
     case 'arbitova_get_credentials':

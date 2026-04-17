@@ -90,16 +90,11 @@ if (DATABASE_URL) {
         is_active          BOOLEAN DEFAULT TRUE,
         input_schema       JSONB,
         output_schema      JSONB,
-        verification_rules JSONB,
-        auto_verify        BOOLEAN DEFAULT FALSE,
         min_seller_stake   NUMERIC DEFAULT 0,
         created_at         TIMESTAMPTZ DEFAULT NOW()
       );
       ALTER TABLE services ADD COLUMN IF NOT EXISTS input_schema JSONB;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS output_schema JSONB;
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS verification_rules JSONB;
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS auto_verify BOOLEAN DEFAULT FALSE;
-      ALTER TABLE services ADD COLUMN IF NOT EXISTS semantic_verify BOOLEAN DEFAULT FALSE;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS min_seller_stake NUMERIC DEFAULT 0;
       ALTER TABLE services ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'general';
       ALTER TABLE agents ADD COLUMN IF NOT EXISTS stake NUMERIC DEFAULT 0;
@@ -129,9 +124,6 @@ if (DATABASE_URL) {
       );
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS bundle_id TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS parent_order_id TEXT;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_hash TEXT;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_url TEXT;
-      ALTER TABLE orders ADD COLUMN IF NOT EXISTS release_oracle_secret TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS counter_offer TEXT;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS seller_extension_used BOOLEAN DEFAULT FALSE;
       ALTER TABLE orders ADD COLUMN IF NOT EXISTS revision_count INTEGER DEFAULT 0;
@@ -464,8 +456,6 @@ if (DATABASE_URL) {
       is_active          INTEGER DEFAULT 1,
       input_schema       TEXT,
       output_schema      TEXT,
-      verification_rules TEXT,
-      auto_verify        INTEGER DEFAULT 0,
       min_seller_stake   REAL DEFAULT 0,
       created_at         TEXT DEFAULT (datetime('now'))
     );
@@ -672,9 +662,6 @@ if (DATABASE_URL) {
   addColIfMissing('agents', 'stake', 'REAL DEFAULT 0');
   addColIfMissing('services', 'input_schema', 'TEXT');
   addColIfMissing('services', 'output_schema', 'TEXT');
-  addColIfMissing('services', 'verification_rules', 'TEXT');
-  addColIfMissing('services', 'auto_verify', 'INTEGER DEFAULT 0');
-  addColIfMissing('services', 'semantic_verify', 'INTEGER DEFAULT 0');
   addColIfMissing('services', 'min_seller_stake', 'REAL DEFAULT 0');
   addColIfMissing('services', 'category', "TEXT DEFAULT 'general'");
   addColIfMissing('services', 'sub_price', 'REAL DEFAULT 0');
@@ -702,10 +689,6 @@ if (DATABASE_URL) {
     `);
   } catch(e) { console.error('Migration warn:', e.message); }
 
-  // expected_hash on orders — buyer pre-commits SHA-256 of expected delivery for zero-human A2A auto-settle
-  addColIfMissing('orders', 'expected_hash', 'TEXT');
-  addColIfMissing('orders', 'release_oracle_url', 'TEXT');
-  addColIfMissing('orders', 'release_oracle_secret', 'TEXT');
   addColIfMissing('orders', 'counter_offer', 'TEXT');
   addColIfMissing('orders', 'seller_extension_used', 'INTEGER');
   addColIfMissing('orders', 'revision_count', 'INTEGER');

@@ -1,9 +1,7 @@
 const express = require('express');
 const { v4: uuidv4 } = require('uuid');
-const crypto = require('crypto');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
-const { verifyInput, verifyDelivery, verifyDeliverySemantic } = require('../verify');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
@@ -476,7 +474,7 @@ router.get('/stats', requireApiKey, async (req, res, next) => {
 //   (b) Freeform order: { seller_id, amount, requirements?, delivery_hours?, title? } — no service listing needed
 router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
   try {
-    const { service_id, requirements, expected_hash, release_oracle_url, release_oracle_secret, max_revisions } = req.body;
+    const { service_id, requirements, max_revisions } = req.body;
 
     // Freeform mode: no service_id → delegate to spot-order flow.
     if (!service_id) {
@@ -487,13 +485,6 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       req.body = { to_agent_id: seller_id, amount, requirements, delivery_hours, title };
       req.url = '/spot';
       return router.handle(req, res, next);
-    }
-
-    // Validate oracle URL if provided
-    if (release_oracle_url) {
-      try { new URL(release_oracle_url); } catch (_) {
-        return res.status(400).json({ error: 'release_oracle_url must be a valid URL' });
-      }
     }
 
     const activeCheck = isPostgres ? 'is_active = TRUE' : 'is_active = 1';
@@ -540,14 +531,6 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       return res.status(403).json({ error: 'Order could not be placed', code: 'seller_blocked', message: 'You have blocked this seller. Remove them from your blocklist first.' });
     }
 
-    // Validate requirements against the service's input_schema (if declared)
-    if (service.input_schema) {
-      const v = verifyInput(service, requirements);
-      if (!v.ok) {
-        return res.status(400).json({ error: 'Requirements do not satisfy service input_schema', details: v.errors });
-      }
-    }
-
     // Enforce min_seller_stake (seller must have enough stake locked)
     if (parseFloat(service.min_seller_stake || 0) > 0) {
       const seller = await dbGet(`SELECT stake FROM agents WHERE id = ${p(1)}`, [service.agent_id]);
@@ -592,8 +575,8 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
         : dbRun(`UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`, [service.price, service.price, req.agent.id]);
 
       await (tx?.run || dbRun)(
-        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, expected_hash, release_oracle_url, release_oracle_secret, max_revisions) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)})`,
-        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), expected_hash || null, release_oracle_url || null, release_oracle_secret || null, Math.min(parseInt(max_revisions || 3), 10)]
+        `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, max_revisions) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)})`,
+        [orderId, req.agent.id, service.agent_id, service_id, service.price, requirements || null, deadline.toISOString(), Math.min(parseInt(max_revisions || 3), 10)]
       );
     });
 
@@ -661,10 +644,6 @@ router.post('/bundle', idempotency(), requireApiKey, async (req, res, next) => {
       if (!svc) return res.status(404).json({ error: `Service ${item.service_id} not found or inactive` });
       if (svc.agent_id === req.agent.id) return res.status(400).json({ error: `Cannot purchase own service ${svc.id}` });
 
-      if (svc.input_schema) {
-        const v = verifyInput(svc, item.requirements);
-        if (!v.ok) return res.status(400).json({ error: `Requirements invalid for service ${svc.id}`, details: v.errors });
-      }
       if (parseFloat(svc.min_seller_stake || 0) > 0) {
         const seller = await dbGet(`SELECT stake FROM agents WHERE id = ${p(1)}`, [svc.agent_id]);
         if (parseFloat(seller?.stake || 0) < parseFloat(svc.min_seller_stake)) {
@@ -931,7 +910,7 @@ router.get('/:id/negotiation', requireApiKey, async (req, res, next) => {
 // POST /orders/:id/deliver
 router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
   try {
-    const { content, delivery_hash } = req.body;
+    const { content } = req.body;
     if (!content) return res.status(400).json({ error: 'content is required' });
 
     const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
@@ -939,226 +918,8 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     if (order.seller_id !== req.agent.id) return res.status(403).json({ error: 'Only the seller can deliver' });
     if (order.status !== 'paid') return res.status(400).json({ error: `Cannot deliver: status is ${order.status}` });
 
-    // Load the service contract
-    const service = await dbGet(`SELECT * FROM services WHERE id = ${p(1)}`, [order.service_id]);
-
-    // Run output verification if contract declared
-    const hasContract = !!(service && (service.output_schema || service.verification_rules));
-    const verification = hasContract ? verifyDelivery(service, content) : { ok: true, stage: null, errors: [] };
-
-    // Semantic verification: run after structural checks pass, when service.semantic_verify = true
-    let semanticResult = null;
-    if (verification.ok && service && (service.semantic_verify === true || service.semantic_verify === 1)) {
-      semanticResult = await verifyDeliverySemantic(service, content, order.requirements);
-      if (!semanticResult.ok) {
-        // Treat semantic failure same as structural failure
-        verification.ok = false;
-        verification.stage = 'semantic';
-        verification.errors = [`Semantic check failed (score: ${(semanticResult.score * 100).toFixed(0)}%): ${semanticResult.reasoning}`];
-      }
-    }
-
-    if ((hasContract || semanticResult) && !verification.ok) {
-      // Auto-reject: refund buyer, mark delivery failed, penalize seller rep
-      const now = isPostgres ? 'NOW()' : "datetime('now')";
-      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [order.amount, order.amount, order.buyer_id]);
-      await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-      try { await adjustReputation(order.seller_id, -REP_DISPUTE_PENALTY, 'auto_verification_failed', order.id); } catch (e) {}
-      fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_FAILED, {
-        order_id: order.id, stage: verification.stage, errors: verification.errors,
-        buyer_id: order.buyer_id, seller_id: order.seller_id,
-      });
-      fire([order.buyer_id, order.seller_id], EVENTS.ORDER_REFUNDED, {
-        order_id: order.id, reason: 'verification_failed',
-        buyer_id: order.buyer_id, seller_id: order.seller_id,
-      });
-      return res.status(400).json({
-        order_id: order.id,
-        status: 'refunded',
-        code: 'verification_failed',
-        verification_failed: true,
-        stage: verification.stage,
-        errors: verification.errors,
-        message: 'Delivery rejected by automatic verification. Buyer refunded; seller reputation penalized.'
-      });
-    }
-
     const deliveryId = uuidv4();
     await dbRun(`INSERT INTO deliveries (id, order_id, content) VALUES (${p(1)},${p(2)},${p(3)})`, [deliveryId, order.id, content]);
-
-    // Hash-verified auto-settle: buyer pre-committed expected_hash on order creation;
-    // seller provides delivery_hash on deliver. Compute SHA-256 of content and compare.
-    // If matched → auto-complete with zero human involvement (pure A2A settlement).
-    if (order.expected_hash && delivery_hash) {
-      const computedHash = crypto.createHash('sha256').update(content).digest('hex');
-      const hashMatch = computedHash === delivery_hash && delivery_hash === order.expected_hash;
-      if (hashMatch) {
-        const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
-        const sellerReceives = parseFloat(order.amount) - fee;
-        const now = isPostgres ? 'NOW()' : "datetime('now')";
-        await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
-        await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-        await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-        await creditPlatformFee(fee);
-        try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'hash_verified_completion', order.id); } catch (e) {}
-        fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
-          order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'hash',
-        });
-        fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
-          order_id: order.id, amount: order.amount,
-          platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
-          hash_verified: true,
-        });
-        return res.json({
-          delivery_id: deliveryId,
-          order_id: order.id,
-          status: 'completed',
-          hash_verified: true,
-          computed_hash: computedHash,
-          platform_fee: fee.toFixed(4),
-          seller_received: sellerReceives.toFixed(4),
-          message: 'Delivery hash matched. Funds released automatically — no human confirmation required.',
-        });
-      }
-      // Hash provided but mismatched — reject immediately
-      if (delivery_hash !== order.expected_hash || computedHash !== delivery_hash) {
-        const computedHash2 = crypto.createHash('sha256').update(content).digest('hex');
-        return res.status(400).json({
-          order_id: order.id,
-          status: 'delivered',
-          code: 'hash_mismatch',
-          expected_hash: order.expected_hash,
-          provided_hash: delivery_hash,
-          computed_hash: computedHash2,
-          message: 'Delivery hash does not match expected hash. Order remains open for manual review.',
-        });
-      }
-    }
-
-    // If service has auto_verify and output verification passed, auto-complete immediately
-    const autoVerify = service && (service.auto_verify === true || service.auto_verify === 1);
-    if (hasContract && autoVerify && verification.ok) {
-      const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
-      const sellerReceives = parseFloat(order.amount) - fee;
-      const now = isPostgres ? 'NOW()' : "datetime('now')";
-      await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
-      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-      await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-      await creditPlatformFee(fee);
-      try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'auto_verified_completion', order.id); } catch (e) {}
-      fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
-        order_id: order.id, delivery_id: deliveryId, auto_completed: true,
-      });
-      fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
-        order_id: order.id, amount: order.amount,
-        platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
-        auto_verified: true,
-      });
-      return res.json({
-        delivery_id: deliveryId,
-        order_id: order.id,
-        status: 'completed',
-        auto_verified: true,
-        platform_fee: fee.toFixed(4),
-        seller_received: sellerReceives.toFixed(4),
-        message: 'Delivery passed automatic verification. Funds released.'
-      });
-    }
-
-    // Oracle-based escrow release: buyer pre-configured an external verifier URL.
-    // Platform calls it with the delivery content; oracle returns { release: true/false }.
-    // release=true  → auto-complete (same as hash_verified path, 0.5% fee)
-    // release=false → auto-open dispute with oracle's reason
-    // oracle error/timeout → fall through to normal 'delivered' flow (buyer confirms manually)
-    if (order.release_oracle_url) {
-      let oracleResult = null;
-      const oracleTimeout = 10000; // 10 second timeout
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), oracleTimeout);
-        const payload = {
-          order_id: order.id,
-          service_id: order.service_id,
-          requirements: order.requirements,
-          delivery_content: content,
-          delivery_id: deliveryId,
-          seller_id: order.seller_id,
-          buyer_id: order.buyer_id,
-          amount: order.amount,
-        };
-        if (order.release_oracle_secret) {
-          payload.secret = order.release_oracle_secret;
-        }
-        const resp = await fetch(order.release_oracle_url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'User-Agent': 'Arbitova-Oracle/1.0' },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-        clearTimeout(timer);
-        if (resp.ok) oracleResult = await resp.json();
-      } catch (oracleErr) {
-        console.warn(`[oracle] ${order.id}: oracle call failed (${oracleErr.message}), falling through to manual confirm`);
-      }
-
-      if (oracleResult && typeof oracleResult.release === 'boolean') {
-        if (oracleResult.release === true) {
-          // Oracle approved — auto-complete escrow
-          const fee = parseFloat(order.amount) * RELEASE_FEE_RATE;
-          const sellerReceives = parseFloat(order.amount) - fee;
-          const now = isPostgres ? 'NOW()' : "datetime('now')";
-          await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
-          await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-          await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
-          await creditPlatformFee(fee);
-          try { await adjustReputation(order.seller_id, REP_CONFIRM_BONUS, 'oracle_verified_completion', order.id); } catch (_) {}
-          fire([order.buyer_id, order.seller_id], EVENTS.VERIFICATION_PASSED, {
-            order_id: order.id, delivery_id: deliveryId, auto_completed: true, method: 'oracle',
-            oracle_url: order.release_oracle_url, oracle_confidence: oracleResult.confidence,
-          });
-          fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
-            order_id: order.id, amount: order.amount,
-            platform_fee: fee.toFixed(4), seller_received: sellerReceives.toFixed(4),
-            oracle_verified: true,
-          });
-          return res.json({
-            delivery_id: deliveryId,
-            order_id: order.id,
-            status: 'completed',
-            oracle_verified: true,
-            oracle_confidence: oracleResult.confidence || null,
-            oracle_reason: oracleResult.reason || null,
-            platform_fee: fee.toFixed(4),
-            seller_received: sellerReceives.toFixed(4),
-            message: 'Oracle approved delivery. Funds released automatically.',
-          });
-        } else {
-          // Oracle rejected — auto-open dispute
-          const disputeId = uuidv4();
-          await dbRun(
-            `INSERT INTO disputes (id, order_id, reason) VALUES (${p(1)},${p(2)},${p(3)})`,
-            [disputeId, order.id, `Oracle rejected delivery: ${oracleResult.reason || 'No reason provided'}`]
-          );
-          await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
-          fire([order.buyer_id, order.seller_id], EVENTS.DISPUTE_OPENED, {
-            order_id: order.id, dispute_id: disputeId,
-            reason: `Oracle rejected: ${oracleResult.reason || ''}`,
-            auto_disputed: true, method: 'oracle',
-          });
-          return res.status(422).json({
-            delivery_id: deliveryId,
-            order_id: order.id,
-            status: 'disputed',
-            oracle_verified: false,
-            oracle_reason: oracleResult.reason || 'Delivery rejected by oracle',
-            dispute_id: disputeId,
-            code: 'oracle_rejected',
-            message: 'Oracle rejected delivery. Dispute opened automatically.',
-          });
-        }
-      }
-      // Oracle call failed or returned unexpected format — fall through to manual confirm
-    }
 
     await dbRun(`UPDATE orders SET status = 'delivered' WHERE id = ${p(1)}`, [order.id]);
 
@@ -1171,8 +932,6 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       delivery_id: deliveryId,
       order_id: order.id,
       status: 'delivered',
-      auto_verified: hasContract && verification.ok ? 'eligible_but_manual' : false,
-      oracle_pending: !!order.release_oracle_url,
       message: 'Delivery submitted. Buyer has 7 days to confirm or dispute.'
     });
   } catch (err) { next(err); }
@@ -1461,12 +1220,6 @@ router.post('/:id/subdelegate', requireApiKey, async (req, res, next) => {
     const subService = await dbGet(`SELECT * FROM services WHERE id = ${p(1)} AND ${activeCheck}`, [service_id]);
     if (!subService) return res.status(404).json({ error: 'Sub-service not found or inactive' });
     if (subService.agent_id === req.agent.id) return res.status(400).json({ error: 'Cannot sub-delegate to your own service' });
-
-    // Validate input schema if declared
-    if (subService.input_schema) {
-      const v = verifyInput(subService, requirements);
-      if (!v.ok) return res.status(400).json({ error: 'Requirements do not satisfy sub-service input_schema', details: v.errors });
-    }
 
     // Seller must have enough balance to pay the sub-service
     const seller = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
@@ -1865,7 +1618,7 @@ router.post('/batch', idempotency(), requireApiKey, async (req, res, next) => {
     // Process each order item in parallel
     const results = await Promise.all(orderItems.map(async (item, idx) => {
       try {
-        const { service_id, requirements, max_revisions, expected_hash } = item;
+        const { service_id, requirements, max_revisions } = item;
         if (!service_id) return { index: idx, error: 'service_id is required' };
 
         const service = await dbGet(
@@ -1903,11 +1656,11 @@ router.post('/batch', idempotency(), requireApiKey, async (req, res, next) => {
         );
 
         await dbRun(
-          `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, max_revisions, expected_hash, created_at)
-           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${now})`,
+          `INSERT INTO orders (id, buyer_id, seller_id, service_id, status, amount, requirements, deadline, max_revisions, created_at)
+           VALUES (${p(1)},${p(2)},${p(3)},${p(4)},'paid',${p(5)},${p(6)},${p(7)},${p(8)},${now})`,
           [orderId, req.agent.id, service.agent_id, service_id, amount,
            typeof requirements === 'object' ? JSON.stringify(requirements) : (requirements || null),
-           deadline, max_revisions || 3, expected_hash || null]
+           deadline, max_revisions || 3]
         );
 
         fire([service.agent_id], EVENTS.ORDER_CREATED, {

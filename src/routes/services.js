@@ -15,7 +15,7 @@ const validProductTypes = ['digital', 'ai_generated', 'external'];
 router.post('/', requireApiKey, async (req, res, next) => {
   try {
     const { name, description, price, delivery_hours,
-            input_schema, output_schema, verification_rules, auto_verify, semantic_verify,
+            input_schema, output_schema,
             min_seller_stake, min_buyer_trust,
             file_id, market_type, product_type,
             category } = req.body;
@@ -59,14 +59,12 @@ router.post('/', requireApiKey, async (req, res, next) => {
     await dbRun(
       `INSERT INTO services
          (id, agent_id, name, description, price, delivery_hours,
-          input_schema, output_schema, verification_rules, auto_verify, semantic_verify, min_seller_stake, min_buyer_trust,
+          input_schema, output_schema, min_seller_stake, min_buyer_trust,
           file_id, market_type, product_type, category)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)},${p(16)},${p(17)})`,
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)},${p(11)},${p(12)},${p(13)},${p(14)})`,
       [
         id, req.agent.id, name, description || null, price, delivery_hours || 24,
-        stringify(input_schema), stringify(output_schema), stringify(verification_rules),
-        auto_verify     ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
-        semantic_verify ? (isPostgres ? true : 1) : (isPostgres ? false : 0),
+        stringify(input_schema), stringify(output_schema),
         minStake, minBuyerTrust, resolvedFileId, mktType, prodType, svcCategory
       ]
     );
@@ -76,9 +74,6 @@ router.post('/', requireApiKey, async (req, res, next) => {
       delivery_hours: delivery_hours || 24,
       input_schema: input_schema || null,
       output_schema: output_schema || null,
-      verification_rules: verification_rules || null,
-      auto_verify: !!auto_verify,
-      semantic_verify: !!semantic_verify,
       min_seller_stake: minStake,
       min_buyer_trust: minBuyerTrust,
       file_id: resolvedFileId,
@@ -200,12 +195,12 @@ router.post('/:id/clone', requireApiKey, async (req, res, next) => {
 
     await dbRun(
       `INSERT INTO services (id, agent_id, name, description, price, category, delivery_hours,
-        market_type, auto_verify, semantic_verify, input_schema, output_schema, product_type,
+        market_type, input_schema, output_schema, product_type,
         is_active, created_at)
        VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)},
-               ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, ${p(12)}, ${p(13)}, 0, ${p(14)})`,
+               ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, 0, ${p(12)})`,
       [newId, req.agent.id, clonedName, svc.description, svc.price, svc.category,
-       svc.delivery_hours, svc.market_type, svc.auto_verify, svc.semantic_verify,
+       svc.delivery_hours, svc.market_type,
        svc.input_schema, svc.output_schema, svc.product_type || 'ai_generated',
        new Date().toISOString()]
     );

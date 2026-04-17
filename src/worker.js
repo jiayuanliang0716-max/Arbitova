@@ -10,7 +10,6 @@
  *  - Every 10 min : expire overdue 'paid' orders (refund buyer)
  *  - Every 30 min : auto-confirm delivered orders not touched after 7 days
  *  - Every 30 min : SLA auto-arbitrate — disputed orders past deadline
- *  - Every hour   : subscription billing
  *  - Daily 02:00  : reconciliation + idempotency key cleanup
  */
 

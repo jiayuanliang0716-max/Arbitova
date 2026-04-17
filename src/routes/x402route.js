@@ -107,7 +107,7 @@ router.get('/services', useX402, async (req, res) => {
     if (max_price) { where += ` AND s.price <= ${p(idx++)}`; params.push(parseFloat(max_price)); }
 
     const services = await dbAll(
-      `SELECT s.id, s.name, s.description, s.price, s.category, s.delivery_hours, s.auto_verify, a.reputation_score
+      `SELECT s.id, s.name, s.description, s.price, s.category, s.delivery_hours, a.reputation_score
        FROM services s JOIN agents a ON a.id = s.agent_id ${where} ORDER BY a.reputation_score DESC LIMIT 20`,
       params
     );

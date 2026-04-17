@@ -1,7 +1,7 @@
 /**
  * Canonical Arbitova fee rates.
  *
- * Source of truth for every settlement / dispute / subscription path.
+ * Source of truth for every settlement / dispute path.
  * These match the public pricing page — any change here must be reflected
  * on /pricing.html in the same commit.
  *

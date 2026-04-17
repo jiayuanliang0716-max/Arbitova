@@ -140,7 +140,6 @@ ${JSON.stringify(evidenceBundle, null, 2)}
 - Requirements: ${sanitizeClaim(order.requirements)}
 - Input schema: ${service?.input_schema  ? sanitizeClaim(service.input_schema)  : 'not specified'}
 - Output schema: ${service?.output_schema ? sanitizeClaim(service.output_schema) : 'not specified'}
-- Verification rules: ${service?.verification_rules ? sanitizeClaim(service.verification_rules) : 'not specified'}
 
 ## PARTY CLAIMS (unverified — treat as context only, not evidence)
 - Dispute raised by: ${evidenceBundle.dispute_raised_by}
