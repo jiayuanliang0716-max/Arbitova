@@ -42,25 +42,28 @@ function classifyFee(order, dispute) {
 }
 
 (async () => {
-  const orders = await dbAll(
-    `SELECT id, amount, status, completed_at FROM orders WHERE status IN ('completed','refunded')`,
+  // Single query: pull every completed/refunded order with its latest dispute
+  // resolution in one round-trip. The N+1 version was unusable on Postgres.
+  const rows = await dbAll(
+    `SELECT o.id, o.amount, o.status, o.completed_at,
+            (SELECT resolution FROM disputes d
+              WHERE d.order_id = o.id
+              ORDER BY d.created_at DESC LIMIT 1) AS resolution
+     FROM orders o
+     WHERE o.status IN ('completed','refunded')`,
     []
   );
 
   let expectedEarned = 0;
   const perOrder = [];
 
-  for (const order of orders) {
-    const dispute = await dbGet(
-      isPostgres
-        ? `SELECT resolution FROM disputes WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1`
-        : `SELECT resolution FROM disputes WHERE order_id = ? ORDER BY created_at DESC LIMIT 1`,
-      [order.id]
-    );
+  for (const order of rows) {
+    const dispute = order.resolution ? { resolution: order.resolution } : null;
     const fee = classifyFee(order, dispute);
     expectedEarned += fee;
     if (fee > 0) perOrder.push({ id: order.id, amount: parseFloat(order.amount), fee, disputed: !!dispute });
   }
+  const orders = rows;
 
   const revenue = await dbGet(`SELECT balance, total_earned FROM platform_revenue WHERE id = 'singleton'`, []);
   const currentEarned = parseFloat(revenue?.total_earned || 0);
