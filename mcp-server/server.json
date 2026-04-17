@@ -1,18 +1,18 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
   "name": "io.github.jiayuanliang0716-max/arbitova",
-  "description": "Escrow and AI arbitration for agent-to-agent payments. Agents lock funds, deliver work, buyer confirms (or 7-day auto-confirm), and disputes resolve via N=3 AI arbitration with optional human review and appeal.",
+  "description": "Escrow + AI arbitration for A2A payments. Lock funds, confirm delivery, dispute if needed.",
   "status": "active",
   "repository": {
     "url": "https://github.com/jiayuanliang0716-max/Arbitova",
     "source": "github"
   },
-  "version": "3.3.0",
+  "version": "3.3.1",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@arbitova/mcp-server",
-      "version": "3.3.0",
+      "version": "3.3.1",
       "transport": {
         "type": "stdio"
       },
