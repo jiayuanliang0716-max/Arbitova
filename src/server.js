@@ -204,13 +204,16 @@ app.get('/architecture', (req, res) => res.sendFile(path.join(__dirname, '..', '
 // Pricing
 app.get('/pricing', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'pricing.html')));
 app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'blog.html')));
+app.get('/feedback', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'feedback.html')));
 
 // ── Contact Form ─────────────────────────────────────────────────────────────
 const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many messages. Try again in an hour.' } });
 
+const CATEGORY_TAGS = { bug: 'Bug', feature: 'Feature', question: 'Question', other: 'Other', contact: 'Contact' };
+
 app.post('/contact', contactLimiter, async (req, res) => {
   try {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message, category } = req.body;
     if (!name || !email || !message) {
       return res.status(400).json({ error: 'name, email, and message are required' });
     }
@@ -236,13 +239,14 @@ app.post('/contact', contactLimiter, async (req, res) => {
       },
     });
 
+    const tag = CATEGORY_TAGS[String(category || 'contact').toLowerCase()] || 'Contact';
     await transporter.sendMail({
       from: `"Arbitova Contact" <dev@arbitova.com>`,
       to: 'dev@arbitova.com',
       replyTo: `"${name}" <${email}>`,
-      subject: `[Contact] ${subject || 'New message from ' + name}`,
-      text: `Name: ${name}\nEmail: ${email}\n\n${message}`,
-      html: `<p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><hr/><p>${message.replace(/\n/g, '<br>')}</p>`,
+      subject: `[${tag}] ${subject || 'New message from ' + name}`,
+      text: `Category: ${tag}\nName: ${name}\nEmail: ${email}\n\n${message}`,
+      html: `<p><strong>Category:</strong> ${tag}</p><p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><hr/><p>${message.replace(/\n/g, '<br>')}</p>`,
     });
 
     res.json({ success: true, message: 'Message sent. We will get back to you shortly.' });
