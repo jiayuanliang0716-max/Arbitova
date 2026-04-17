@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Feedback — Arbitova</title>
-  <meta name="description" content="Report a bug, request a feature, or ask a question. We read every message.">
-  <meta property="og:title" content="Feedback — Arbitova">
-  <meta property="og:description" content="Report a bug, request a feature, or ask a question.">
+  <title>Contact Us — Arbitova</title>
+  <meta name="description" content="Get in touch with the Arbitova team. Integration help, bug reports, feature requests, partnership inquiries — we read every message.">
+  <meta property="og:title" content="Contact Us — Arbitova">
+  <meta property="og:description" content="Integration help, bug reports, feature requests — we read every message.">
   <link rel="canonical" href="https://arbitova.com/feedback">
   <meta property="og:url" content="https://arbitova.com/feedback">
   <meta name="twitter:card" content="summary">
@@ -253,26 +253,26 @@
     <a href="/architecture">Architecture</a>
     <a href="/pricing">Pricing</a>
     <a href="/blog">Blog</a>
-    <a href="/feedback" class="active">Feedback</a>
+    <a href="/feedback" class="active">Contact Us</a>
   </div>
 </nav>
 
 <div class="page">
 
-  <h1>Send us feedback</h1>
-  <p class="subtitle">Report a bug, request a feature, or ask a question. Every message is read by the team.</p>
+  <h1>Contact us</h1>
+  <p class="subtitle">Not sure how to integrate? Found a bug? Want to partner? Every message reaches the team.</p>
 
   <form id="feedback-form" class="form-card" novalidate>
 
     <div class="row">
       <label>What's this about?</label>
-      <div class="category-grid" role="radiogroup" aria-label="Feedback category">
-        <button type="button" class="cat-btn active" data-category="bug" role="radio" aria-checked="true">Bug</button>
+      <div class="category-grid" role="radiogroup" aria-label="Message category">
+        <button type="button" class="cat-btn active" data-category="question" role="radio" aria-checked="true">How to use</button>
+        <button type="button" class="cat-btn" data-category="bug" role="radio" aria-checked="false">Bug</button>
         <button type="button" class="cat-btn" data-category="feature" role="radio" aria-checked="false">Feature</button>
-        <button type="button" class="cat-btn" data-category="question" role="radio" aria-checked="false">Question</button>
         <button type="button" class="cat-btn" data-category="other" role="radio" aria-checked="false">Other</button>
       </div>
-      <input type="hidden" id="fb-category" name="category" value="bug">
+      <input type="hidden" id="fb-category" name="category" value="question">
     </div>
 
     <div class="row">
@@ -288,18 +288,18 @@
 
     <div class="row">
       <label for="fb-subject">Subject</label>
-      <input type="text" id="fb-subject" name="subject" maxlength="150" placeholder="e.g. Dispute endpoint returns 500 on retry" required>
+      <input type="text" id="fb-subject" name="subject" maxlength="150" placeholder="e.g. How do I trigger an arbitration from my agent?" required>
     </div>
 
     <div class="row">
-      <label for="fb-message">Details</label>
-      <textarea id="fb-message" name="message" maxlength="5000" placeholder="Steps to reproduce, expected vs actual behavior, relevant order/dispute IDs..." required></textarea>
+      <label for="fb-message">Message</label>
+      <textarea id="fb-message" name="message" maxlength="5000" placeholder="What are you trying to do? Include any relevant order/dispute IDs, error messages, or expected behavior..." required></textarea>
       <div class="hint"><span id="fb-char-count">0</span> / 5000 characters</div>
     </div>
 
     <div class="submit-row">
       <div class="status-msg" id="fb-status" aria-live="polite"></div>
-      <button type="submit" class="btn btn-primary" id="fb-submit">Send feedback</button>
+      <button type="submit" class="btn btn-primary" id="fb-submit">Send message</button>
     </div>
 
   </form>
@@ -373,25 +373,25 @@
           status.className = 'status-msg err';
           status.textContent = data.error || 'Failed to send. Try again or email dev@arbitova.com.';
           submit.disabled = false;
-          submit.textContent = 'Send feedback';
+          submit.textContent = 'Send message';
           return;
         }
         status.className = 'status-msg ok';
         status.textContent = 'Thanks — message sent. We\'ll reply soon.';
         form.reset();
-        catInput.value = 'bug';
+        catInput.value = 'question';
         catBtns.forEach((b, i) => {
           b.classList.toggle('active', i === 0);
           b.setAttribute('aria-checked', i === 0 ? 'true' : 'false');
         });
         count.textContent = '0';
         submit.disabled = false;
-        submit.textContent = 'Send feedback';
+        submit.textContent = 'Send message';
       } catch (err) {
         status.className = 'status-msg err';
         status.textContent = 'Network error. Try emailing dev@arbitova.com directly.';
         submit.disabled = false;
-        submit.textContent = 'Send feedback';
+        submit.textContent = 'Send message';
       }
     });
   })();
