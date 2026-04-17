@@ -23,6 +23,7 @@ const { requireApiKey } = require('../middleware/auth');
 const { arbitrateDispute } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
 const { dbAll, dbGet, dbRun } = require('../db/helpers');
+const { EXTERNAL_ARB_RATE, creditPlatformFee } = require('../config/fees');
 
 const isPostgres = !!process.env.DATABASE_URL;
 const p = (n) => isPostgres ? `$${n}` : '?';
@@ -33,6 +34,7 @@ const router = express.Router();
  * POST /api/v1/arbitrate/external
  *
  * Body:
+ *   amount             number   - Disputed transaction value (USDC). Fee = amount * 5%
  *   escrow_provider    string   - 'paycrow' | 'kamiyo' | 'custom' | any string
  *   dispute_id         string   - Your internal dispute ID (for idempotency)
  *   requirements       string   - Original contract requirements
@@ -40,15 +42,16 @@ const router = express.Router();
  *   dispute_reason     string   - Buyer's dispute reason
  *   callback_url       string?  - Webhook URL to receive verdict (optional)
  *
- * Returns:
- *   {
- *     arbitration_id, winner, confidence, method, reasoning,
- *     votes, escalate_to_human, callback_scheduled
- *   }
+ * Fee model (unbound):
+ *   5% of `amount` is deducted from caller's Arbitova agent balance on verdict.
+ *   Caller must pre-fund their Arbitova balance. Insufficient balance → 402.
+ *   Tip: transactions bound via POST /orders only pay 2% on dispute — direct integration
+ *   is the cheaper path for recurring use.
  */
 router.post('/external', requireApiKey, async (req, res, next) => {
   try {
     const {
+      amount,
       escrow_provider,
       dispute_id,
       requirements,
@@ -61,10 +64,28 @@ router.post('/external', requireApiKey, async (req, res, next) => {
     if (!delivery_evidence) return res.status(400).json({ error: 'delivery_evidence is required', code: 'MISSING_DELIVERY' });
     if (!dispute_reason)    return res.status(400).json({ error: 'dispute_reason is required', code: 'MISSING_DISPUTE_REASON' });
 
+    const amt = parseFloat(amount);
+    if (!amt || amt <= 0 || Number.isNaN(amt)) {
+      return res.status(400).json({ error: 'amount is required and must be > 0 (disputed transaction value in USDC)', code: 'MISSING_AMOUNT' });
+    }
+    const fee = parseFloat((amt * EXTERNAL_ARB_RATE).toFixed(6));
+
+    // Pre-check caller's Arbitova balance
+    const caller = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (!caller || parseFloat(caller.balance) < fee) {
+      return res.status(402).json({
+        error: 'Insufficient Arbitova balance for external arbitration fee',
+        code: 'INSUFFICIENT_BALANCE',
+        required_fee: fee,
+        balance: parseFloat(caller?.balance || 0),
+        hint: 'Top up your Arbitova balance or bind this transaction via POST /orders to pay only 2% on dispute.',
+      });
+    }
+
     // Build synthetic order/dispute/delivery objects for the arbitration engine
     const syntheticOrder = {
       buyer_id:     '__external_buyer__',
-      amount:       0,
+      amount:       amt,
       requirements: requirements,
       status:       'disputed',
       deadline:     new Date().toISOString(),
@@ -89,6 +110,10 @@ router.post('/external', requireApiKey, async (req, res, next) => {
       dispute:  syntheticDispute,
       delivery: syntheticDelivery,
     });
+
+    // Deduct fee from caller balance + credit platform_revenue
+    await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [fee, req.agent.id]);
+    await creditPlatformFee(fee);
 
     const arbitrationId = uuidv4();
 
@@ -120,6 +145,9 @@ router.post('/external', requireApiKey, async (req, res, next) => {
       arbitration_id:         arbitrationId,
       dispute_id:             dispute_id || null,
       escrow_provider:        escrow_provider || null,
+      amount:                 amt,
+      fee:                    fee,
+      fee_rate:               EXTERNAL_ARB_RATE,
       winner:                 verdict.winner,
       confidence:             verdict.confidence,
       method:                 verdict.method,
@@ -164,17 +192,38 @@ router.post('/batch', requireApiKey, async (req, res, next) => {
       return res.status(400).json({ error: 'Maximum 10 disputes per batch' });
     }
 
+    // Pre-validate amounts and compute total fee
+    const totalFee = disputes.reduce((sum, d) => {
+      const a = parseFloat(d.amount);
+      return sum + (a > 0 ? a * EXTERNAL_ARB_RATE : 0);
+    }, 0);
+    if (totalFee <= 0) {
+      return res.status(400).json({ error: 'each dispute requires amount > 0 (disputed transaction value in USDC)', code: 'MISSING_AMOUNT' });
+    }
+    const caller = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
+    if (!caller || parseFloat(caller.balance) < totalFee) {
+      return res.status(402).json({
+        error: 'Insufficient Arbitova balance for external arbitration batch',
+        code: 'INSUFFICIENT_BALANCE',
+        required_fee: parseFloat(totalFee.toFixed(6)),
+        balance: parseFloat(caller?.balance || 0),
+      });
+    }
+
     const results = await Promise.allSettled(disputes.map(async (d, idx) => {
-      const { escrow_provider, dispute_id, requirements, delivery_evidence, dispute_reason, callback_url } = d;
+      const { amount, escrow_provider, dispute_id, requirements, delivery_evidence, dispute_reason, callback_url } = d;
 
       if (!requirements)      return { index: idx, dispute_id: dispute_id || null, error: 'requirements is required' };
       if (!delivery_evidence) return { index: idx, dispute_id: dispute_id || null, error: 'delivery_evidence is required' };
       if (!dispute_reason)    return { index: idx, dispute_id: dispute_id || null, error: 'dispute_reason is required' };
+      const amt = parseFloat(amount);
+      if (!amt || amt <= 0) return { index: idx, dispute_id: dispute_id || null, error: 'amount > 0 required' };
+      const fee = parseFloat((amt * EXTERNAL_ARB_RATE).toFixed(6));
 
       const verdict = await arbitrateDispute({
         order: {
           buyer_id: '__external_buyer__',
-          amount: 0,
+          amount: amt,
           requirements,
           status: 'disputed',
           deadline: new Date().toISOString(),
@@ -195,6 +244,10 @@ router.post('/batch', requireApiKey, async (req, res, next) => {
       });
 
       const arbitrationId = uuidv4();
+
+      // Deduct this verdict's fee from caller balance + credit platform_revenue
+      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [fee, req.agent.id]);
+      await creditPlatformFee(fee);
 
       if (callback_url) {
         setImmediate(async () => {
@@ -219,6 +272,8 @@ router.post('/batch', requireApiKey, async (req, res, next) => {
         arbitration_id:         arbitrationId,
         dispute_id:             dispute_id || null,
         escrow_provider:        escrow_provider || null,
+        amount:                 amt,
+        fee:                    fee,
         winner:                 verdict.winner,
         confidence:             verdict.confidence,
         method:                 verdict.method,

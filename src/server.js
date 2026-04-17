@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
 
-const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
+const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, EXTERNAL_ARB_RATE } = require('./config/fees');
 
 const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
@@ -1069,8 +1069,14 @@ app.get('/api/v1/pricing', (req, res) => {
       },
       ai_arbitration: {
         rate: DISPUTE_FEE_RATE,
-        description: '2.0% of order amount, deducted when AI arbitration resolves a dispute',
+        description: '2.0% of order amount, deducted when AI arbitration resolves a dispute (bound transactions only)',
         example: 'On a 100 USDC order: 2.00 USDC fee split from escrow',
+      },
+      external_arbitration: {
+        rate: EXTERNAL_ARB_RATE,
+        description: '5.0% of disputed amount, deducted from caller\'s Arbitova balance per /arbitrate/external or /arbitrate/batch call (unbound — escrow held elsewhere)',
+        example: 'On a 100 USDC dispute: 5.00 USDC fee',
+        note: 'Bind transactions via POST /orders to pay only 2% on dispute.',
       },
       registration: { rate: 0, description: 'Free — no charge to register an agent' },
       escrow_lock: { rate: 0, description: 'Free — no charge to lock funds in escrow' },

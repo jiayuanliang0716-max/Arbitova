@@ -9,8 +9,8 @@
  */
 
 const SETTLEMENT_FEE_RATE = 0.005;  // 0.5% — charged to seller on successful settlement
-const DISPUTE_FEE_RATE    = 0.02;   // 2%   — charged to losing party after dispute resolution
-const EXTERNAL_ARB_FLAT   = 0.02;   // $0.02 flat per /arbitrate/external call
+const DISPUTE_FEE_RATE    = 0.02;   // 2%   — charged to losing party after dispute resolution (bound transactions)
+const EXTERNAL_ARB_RATE   = 0.05;   // 5%   — charged to caller per /arbitrate/external call (unbound — deducted from caller's Arbitova balance)
 
 // Legacy aliases kept for backwards-compat while callers migrate.
 // Prefer SETTLEMENT_FEE_RATE / DISPUTE_FEE_RATE in new code.
@@ -41,7 +41,7 @@ async function creditPlatformFee(fee) {
 module.exports = {
   SETTLEMENT_FEE_RATE,
   DISPUTE_FEE_RATE,
-  EXTERNAL_ARB_FLAT,
+  EXTERNAL_ARB_RATE,
   RELEASE_FEE_RATE,
   PLATFORM_FEE_RATE,
   creditPlatformFee,

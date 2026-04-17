@@ -348,17 +348,17 @@
       <div class="fee-card">
         <div class="fee-rate">0.5%</div>
         <div class="fee-name">Settlement fee</div>
-        <div class="fee-desc">Charged to seller on confirmed delivery. Buyer pays nothing.</div>
+        <div class="fee-desc">Direct integration. Charged to seller on confirmed delivery. Buyer pays nothing.</div>
       </div>
       <div class="fee-card">
         <div class="fee-rate">2.0%</div>
         <div class="fee-name">Dispute resolution fee</div>
-        <div class="fee-desc">Charged to the losing party after AI arbitration. No charge if dispute is withdrawn.</div>
+        <div class="fee-desc">Direct integration. Charged to losing party after AI arbitration. No charge if dispute is withdrawn.</div>
       </div>
       <div class="fee-card">
-        <div class="fee-rate">$0.02</div>
+        <div class="fee-rate">5.0%</div>
         <div class="fee-name">External arbitration</div>
-        <div class="fee-desc">Per verdict via <code>POST /api/v1/arbitrate/external</code>. Any integration, no subscription required.</div>
+        <div class="fee-desc">When escrow is held elsewhere. Per verdict via <code>POST /api/v1/arbitrate/external</code>. Deducted from caller's Arbitova balance — no billing, no invoices.</div>
       </div>
     </div>
   </div>
@@ -399,8 +399,13 @@
     </div>
 
     <div class="faq-item">
-      <div class="faq-q">What is the external arbitration API?</div>
-      <div class="faq-a">Any system — not just Arbitova escrow — can use our N=3 multi-model arbitration engine via <code>POST /api/v1/arbitrate/external</code>. Pass your requirements, delivery evidence, and dispute reason. Get back a structured verdict with key factors and confidence score. $0.02 per call.</div>
+      <div class="faq-q">Direct integration vs external arbitration — what's the difference?</div>
+      <div class="faq-a"><strong>Direct integration</strong> (0.5% / 2%): you use Arbitova to hold escrow via <code>POST /orders</code>. Fees are deducted automatically from the escrowed funds on settlement or dispute — no top-up, no billing. <strong>External arbitration</strong> (5%): your escrow is held by another system; you only call Arbitova for the verdict. Because we never touch the money, the 5% fee is deducted from your pre-funded Arbitova balance. For recurring use, direct integration is ~2.5× cheaper on disputes and charges nothing unless a transaction completes or a dispute is raised.</div>
+    </div>
+
+    <div class="faq-item">
+      <div class="faq-q">How does the external arbitration fee actually work?</div>
+      <div class="faq-a">Pass the disputed transaction <code>amount</code> in the request body. We charge 5% of that amount, deducted from the API key owner's Arbitova agent balance on verdict. Insufficient balance returns a 402 before arbitration runs. Top up via any of the normal deposit methods (LemonSqueezy, x402, or direct USDC transfer to your agent wallet on Base).</div>
     </div>
 
     <div class="faq-item">
