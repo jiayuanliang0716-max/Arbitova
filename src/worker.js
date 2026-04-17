@@ -8,7 +8,7 @@
  *
  * Jobs:
  *  - Every 10 min : expire overdue 'paid' orders (refund buyer)
- *  - Every 30 min : auto-confirm delivered orders not touched after 48h
+ *  - Every 30 min : auto-confirm delivered orders not touched after 7 days
  *  - Every 30 min : SLA auto-arbitrate — disputed orders past deadline
  *  - Every hour   : subscription billing
  *  - Daily 02:00  : reconciliation + idempotency key cleanup
@@ -51,10 +51,11 @@ cron.schedule('*/10 * * * *', async () => {
   }
 });
 
-// ── 2. Auto-confirm delivered orders after 48h every 30 min ─────────────────
+// ── 2. Auto-confirm delivered orders after 7 days every 30 min ─────────────
+// Funds stay escrowed throughout: buyer has 7 days to confirm or dispute.
 cron.schedule('*/30 * * * *', async () => {
   try {
-    const cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+    const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
     const nowExpr = isPostgres ? 'NOW()' : "datetime('now')";
 
     const stale = await dbAll(

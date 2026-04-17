@@ -22,7 +22,7 @@ router.post('/', requireApiKey, async (req, res, next) => {
     if (!name || !price) return res.status(400).json({ error: 'name and price are required' });
     if (name.length > 100) return res.status(400).json({ error: 'name must be 100 characters or less' });
     if (description && description.length > 1000) return res.status(400).json({ error: 'description must be 1000 characters or less' });
-    if (price <= 0) return res.status(400).json({ error: 'price must be positive' });
+    if (parseFloat(price) < 0.01) return res.status(400).json({ error: 'price must be at least 0.01 USDC' });
 
     // Sellers listing services with a min_seller_stake gate must also meet their own gate
     const minStake = parseFloat(min_seller_stake || 0);

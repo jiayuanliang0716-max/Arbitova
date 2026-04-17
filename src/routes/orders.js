@@ -9,7 +9,7 @@ const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
 const { idempotency } = require('../middleware/idempotency');
 const { getTrustScore } = require('../utils/trust');
-const { RELEASE_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee } = require('../config/fees');
+const { RELEASE_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee, debitPlatformFee } = require('../config/fees');
 
 const router = express.Router();
 
@@ -1173,7 +1173,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       status: 'delivered',
       auto_verified: hasContract && verification.ok ? 'eligible_but_manual' : false,
       oracle_pending: !!order.release_oracle_url,
-      message: 'Delivery submitted. Buyer has 24 hours to confirm or dispute.'
+      message: 'Delivery submitted. Buyer has 7 days to confirm or dispute.'
     });
   } catch (err) { next(err); }
 });
@@ -1223,8 +1223,8 @@ router.post('/:id/partial-confirm', requireApiKey, async (req, res, next) => {
   try {
     const { percent, note } = req.body;
     const pct = parseFloat(percent);
-    if (!(pct > 0 && pct < 100)) {
-      return res.status(400).json({ error: 'percent must be between 0 and 100 (exclusive). Use confirm for 100%.' });
+    if (!(pct >= 1 && pct < 100)) {
+      return res.status(400).json({ error: 'percent must be between 1 and 100 (exclusive). Use confirm for 100%.' });
     }
 
     const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
@@ -1291,6 +1291,25 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
     }
     const existing = await dbGet(`SELECT id FROM disputes WHERE order_id = ${p(1)} AND status = 'open'`, [order.id]);
     if (existing) return res.status(400).json({ error: 'A dispute is already open for this order' });
+
+    // Seller cooldown: cannot raise a dispute within 24h of delivering. Prevents
+    // a seller from racing the buyer to arbitration the moment they submit delivery.
+    if (req.agent.id === order.seller_id && order.status === 'delivered') {
+      const delivery = await dbGet(
+        `SELECT delivered_at FROM deliveries WHERE order_id = ${p(1)} ORDER BY delivered_at DESC LIMIT 1`,
+        [order.id]
+      );
+      if (delivery?.delivered_at) {
+        const hoursSinceDelivery = (Date.now() - new Date(delivery.delivered_at).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceDelivery < 24) {
+          return res.status(400).json({
+            error: 'Seller must wait 24 hours after delivery before raising a dispute.',
+            code: 'seller_cooldown_active',
+            hours_remaining: (24 - hoursSinceDelivery).toFixed(2),
+          });
+        }
+      }
+    }
 
     // Calculate and lock dispute bond
     const orderAmount = parseFloat(order.amount) || 0;
@@ -1745,23 +1764,39 @@ router.post('/:id/appeal', requireApiKey, async (req, res, next) => {
       });
     }
 
-    // Re-execute verdict
-    const originalFee = parseFloat(order.amount) * RELEASE_FEE_RATE;
-    if (newWinner === 'buyer') {
-      // Reverse seller payment if they were paid, refund buyer
-      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [parseFloat(order.amount) - originalFee, order.seller_id]);
-      await dbRun(`UPDATE agents SET escrow = escrow + ${p(1)}, balance = balance + ${p(2)} WHERE id = ${p(3)}`, [0, parseFloat(order.amount), order.buyer_id]);
+    // Re-execute verdict. Four cases: no-change (buyer/buyer or seller/seller)
+    // and two reversals. Original fee was DISPUTE_FEE_RATE (the dispute path),
+    // and it was credited to platform_revenue only if the seller originally won.
+    const originalWinner = order.status === 'refunded' ? 'buyer' : 'seller';
+    const amount = parseFloat(order.amount);
+    const fee = amount * DISPUTE_FEE_RATE;
+    const sellerReceives = amount - fee;
+    const verdictChanged = originalWinner !== newWinner;
+
+    if (!verdictChanged) {
+      // Restore the original terminal status — order was set to 'disputed' earlier to re-arbitrate.
+      const restoredStatus = originalWinner === 'buyer' ? 'refunded' : 'completed';
+      await dbRun(`UPDATE orders SET status = ${p(1)}, completed_at = ${now} WHERE id = ${p(2)}`, [restoredStatus, order.id]);
+    } else if (originalWinner === 'seller' && newWinner === 'buyer') {
+      // Reversal: claw back seller payout, refund buyer, debit platform fee.
+      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [amount, order.buyer_id]);
+      await debitPlatformFee(fee);
       await dbRun(`UPDATE orders SET status = 'refunded', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     } else {
+      // Reversal: claw back buyer refund, pay seller (net of fee), credit platform fee.
+      await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [amount, order.buyer_id]);
+      await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
+      await creditPlatformFee(fee);
       await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     }
 
     res.json({
       appeal_result: 're_arbitrated',
       order_id: order.id,
-      original_winner: dispute.resolution?.includes('buyer') ? 'buyer' : 'seller',
+      original_winner: originalWinner,
       new_winner: newWinner,
-      verdict_changed: true, // simplistic - buyer could evaluate
+      verdict_changed: verdictChanged,
       confidence, method, votes,
       message: `Appeal re-arbitration complete. Winner: ${newWinner}.`,
     });

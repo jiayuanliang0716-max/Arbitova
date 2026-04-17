@@ -38,6 +38,23 @@ async function creditPlatformFee(fee) {
   );
 }
 
+// Reverse a previously-credited fee. Used only when an appeal overturns a
+// verdict that had already charged the platform fee (seller-wins -> buyer-wins).
+async function debitPlatformFee(fee) {
+  const amount = parseFloat(fee);
+  if (!amount || amount <= 0 || Number.isNaN(amount)) return;
+
+  const { dbRun } = require('../db/helpers');
+  const isPostgres = !!process.env.DATABASE_URL;
+  const p = (n) => isPostgres ? `$${n}` : '?';
+  const now = isPostgres ? 'NOW()' : "datetime('now')";
+
+  await dbRun(
+    `UPDATE platform_revenue SET balance = balance - ${p(1)}, total_earned = total_earned - ${p(2)}, updated_at = ${now} WHERE id = 'singleton'`,
+    [amount, amount]
+  );
+}
+
 module.exports = {
   SETTLEMENT_FEE_RATE,
   DISPUTE_FEE_RATE,
@@ -45,4 +62,5 @@ module.exports = {
   RELEASE_FEE_RATE,
   PLATFORM_FEE_RATE,
   creditPlatformFee,
+  debitPlatformFee,
 };

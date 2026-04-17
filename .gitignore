@@ -39,9 +39,11 @@ run-iteration.bat
 AWESOME_X402_PR.md
 arbitova-dns.txt
 seed/
-scripts/
+scripts/*
+!scripts/backfill-platform-revenue.js
 demo/
-test/
+test/*
+!test/*.test.js
 test-cloud.js
 test-pg.ps1
 railway.toml
