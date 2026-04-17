@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pricing — Arbitova</title>
-  <meta name="description" content="Simple, usage-based pricing for Arbitova. 0.5% on settlements, 2% on disputes. No monthly minimums on the free tier.">
+  <meta name="description" content="Simple, usage-based pricing for Arbitova. 0.5% on settlements, 2% on disputes. No monthly fees, no minimums.">
   <meta property="og:title" content="Pricing — Arbitova">
   <meta property="og:description" content="0.5% settlement fee. 2% dispute fee. Free tier available. No hidden costs.">
   <meta property="og:image" content="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=675&fit=crop&q=80">
@@ -338,64 +338,7 @@
 <div class="page">
 
   <h1>Simple, transparent pricing</h1>
-  <p class="subtitle">Pay only when transactions happen. No monthly minimums on the free tier.</p>
-
-  <!-- Plans -->
-  <div class="plans">
-
-    <div class="plan">
-      <div class="plan-name">Free</div>
-      <div class="plan-price">$0<span>/mo</span></div>
-      <div class="plan-desc">For builders testing integrations and early-stage projects.</div>
-      <ul class="plan-features">
-        <li>Up to 100 orders/month</li>
-        <li>N=3 AI arbitration</li>
-        <li>Webhook delivery</li>
-        <li>API Keys (up to 3)</li>
-        <li>Community support</li>
-        <li class="muted">External arbitration API</li>
-        <li class="muted">Priority support</li>
-        <li class="muted">SLA guarantee</li>
-      </ul>
-      <a href="/" class="btn btn-outline">Start building</a>
-    </div>
-
-    <div class="plan featured">
-      <div class="plan-badge">Most Popular</div>
-      <div class="plan-name">Pro</div>
-      <div class="plan-price">$29<span>/mo</span></div>
-      <div class="plan-desc">For production systems with real transaction volume.</div>
-      <ul class="plan-features">
-        <li>Unlimited orders</li>
-        <li>N=3 multi-model arbitration</li>
-        <li>External arbitration API</li>
-        <li>Webhook delivery + retry logs</li>
-        <li>Unlimited API Keys</li>
-        <li>Priority email support</li>
-        <li>99.9% uptime SLA</li>
-        <li class="muted">Dedicated instance</li>
-      </ul>
-      <a href="mailto:dev@arbitova.com?subject=Pro plan" class="btn btn-primary">Get started</a>
-    </div>
-
-    <div class="plan">
-      <div class="plan-name">Scale</div>
-      <div class="plan-price">Custom</div>
-      <div class="plan-desc">For platforms processing high volumes or requiring custom arbitration rules.</div>
-      <ul class="plan-features">
-        <li>Everything in Pro</li>
-        <li>Dedicated infrastructure</li>
-        <li>Custom arbitration prompts</li>
-        <li>White-label arbitration API</li>
-        <li>Volume fee discounts</li>
-        <li>Dedicated support channel</li>
-        <li>Custom SLA</li>
-        <li>On-chain settlement options</li>
-      </ul>
-      <a href="mailto:dev@arbitova.com?subject=Scale plan inquiry" class="btn btn-outline">Contact us</a>
-    </div>
-
-  </div>
+  <p class="subtitle">Pay only when transactions happen. No monthly fees, no minimums.</p>
 
   <!-- Usage fees -->
   <div class="fees">
@@ -415,7 +358,7 @@
       <div class="fee-card">
         <div class="fee-rate">$0.02</div>
         <div class="fee-name">External arbitration</div>
-        <div class="fee-desc">Per verdict via <code>POST /api/v1/arbitrate/external</code>. Pro plan and above.</div>
+        <div class="fee-desc">Per verdict via <code>POST /api/v1/arbitrate/external</code>. Any integration, no subscription required.</div>
       </div>
     </div>
   </div>
@@ -451,18 +394,18 @@
     </div>
 
     <div class="faq-item">
-      <div class="faq-q">How does the free tier work?</div>
-      <div class="faq-a">Free tier allows up to 100 orders per month with full access to escrow, AI arbitration, and webhooks. No credit card required. Usage fees (0.5% settlement, 2% dispute) still apply.</div>
+      <div class="faq-q">Do I need to sign up or pay anything upfront?</div>
+      <div class="faq-a">No. Create an API key, start integrating, and you only pay when transactions settle or disputes resolve. No credit card, no monthly fee.</div>
     </div>
 
     <div class="faq-item">
       <div class="faq-q">What is the external arbitration API?</div>
-      <div class="faq-a">Any system — not just Arbitova escrow — can use our N=3 multi-model arbitration engine via <code>POST /api/v1/arbitrate/external</code>. Pass your requirements, delivery evidence, and dispute reason. Get back a structured verdict with key factors and confidence score. $0.02 per call on Pro and above.</div>
+      <div class="faq-a">Any system — not just Arbitova escrow — can use our N=3 multi-model arbitration engine via <code>POST /api/v1/arbitrate/external</code>. Pass your requirements, delivery evidence, and dispute reason. Get back a structured verdict with key factors and confidence score. $0.02 per call.</div>
     </div>
 
     <div class="faq-item">
       <div class="faq-q">Is there a volume discount?</div>
-      <div class="faq-a">Yes, on the Scale plan. Contact us at <a href="mailto:dev@arbitova.com">dev@arbitova.com</a> with your expected monthly volume and we will work out custom rates.</div>
+      <div class="faq-a">Yes. Contact us at <a href="mailto:dev@arbitova.com">dev@arbitova.com</a> with your expected monthly volume and we will work out custom rates.</div>
     </div>
 
     <div class="faq-item">
