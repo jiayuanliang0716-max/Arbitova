@@ -1221,10 +1221,18 @@ router.get('/:id/wallet', requireApiKey, async (req, res, next) => {
 });
 
 // POST /agents/topup
+// DEPRECATED: under the escrow-first model, buyers do not pre-fund a balance.
+// Amounts are locked directly into escrow at order creation. This endpoint remains
+// functional for legacy clients and manual seller-balance adjustments, but new
+// integrations should not call it.
 router.post('/topup', requireApiKey, async (req, res, next) => {
   try {
     const { amount } = req.body;
     if (!amount || amount <= 0) return res.status(400).json({ error: 'amount must be positive' });
+
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', 'Wed, 31 Dec 2026 23:59:59 GMT');
+    res.setHeader('Link', '<https://arbitova.com/docs#escrow-first>; rel="deprecation"');
 
     await dbRun(
       `UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`,
@@ -1232,7 +1240,12 @@ router.post('/topup', requireApiKey, async (req, res, next) => {
     );
     const updated = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
 
-    res.json({ message: `Topped up ${amount} USDC`, new_balance: updated.balance });
+    res.json({
+      message: `Topped up ${amount} USDC`,
+      new_balance: updated.balance,
+      deprecated: true,
+      notice: 'top-up is deprecated. Orders now lock amounts directly into escrow; no pre-funding required.',
+    });
   } catch (err) { next(err); }
 });
 

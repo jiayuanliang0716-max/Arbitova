@@ -128,7 +128,8 @@ router.patch('/:id/requirements', requireApiKey, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// POST /orders/escrow-check — pre-flight: verify buyer balance + service availability before placing order
+// POST /orders/escrow-check — pre-flight: verify service availability before placing order.
+// Under the escrow-first model, buyers do not pre-fund; can_proceed reflects service validity only.
 router.post('/escrow-check', requireApiKey, async (req, res, next) => {
   try {
     const { service_id } = req.body;
@@ -144,18 +145,15 @@ router.post('/escrow-check', requireApiKey, async (req, res, next) => {
 
     const price = parseFloat(service.price);
     const balance = parseFloat(buyer.balance || 0);
-    const can_proceed = balance >= price;
 
     res.json({
-      can_proceed,
+      can_proceed: true,
       service_id: service.id,
       service_name: service.name,
       price,
       buyer_balance: balance,
-      shortfall: can_proceed ? 0 : Math.ceil((price - balance) * 100) / 100,
-      message: can_proceed
-        ? `Ready to place order for ${service.name} at ${price} USDC.`
-        : `Insufficient balance. Need ${price - balance > 0 ? (price - balance).toFixed(2) : 0} more USDC.`,
+      shortfall: 0,
+      message: `Ready to place order for ${service.name} at ${price} USDC. Amount will be locked directly in escrow.`,
     });
   } catch (err) { next(err); }
 });
@@ -231,7 +229,6 @@ router.post('/preview', requireApiKey, async (req, res, next) => {
     }
 
     const deadline = new Date(Date.now() + (service.delivery_hours || 48) * 3600000).toISOString();
-    const canAfford = parseFloat(buyer?.balance || 0) >= effectiveAmount;
 
     res.json({
       service_id,
@@ -248,10 +245,10 @@ router.post('/preview', requireApiKey, async (req, res, next) => {
         delivery_hours: service.delivery_hours || 48,
       },
       buyer_balance: parseFloat(buyer?.balance || 0),
-      can_afford: canAfford,
-      shortfall: canAfford ? 0 : parseFloat((effectiveAmount - parseFloat(buyer?.balance || 0)).toFixed(6)),
+      can_afford: true,
+      shortfall: 0,
       warnings,
-      ready_to_order: canAfford && warnings.length === 0,
+      ready_to_order: warnings.length === 0,
     });
   } catch (err) { next(err); }
 });
@@ -289,18 +286,14 @@ router.post('/spot', idempotency(), requireApiKey, async (req, res, next) => {
       return res.status(403).json({ error: 'Order could not be placed', code: 'seller_blocked', message: 'You have blocked this agent. Remove them from your blocklist first.' });
     }
 
-    const buyer = buyerRow || await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
     const n = parseFloat(amount);
-    if (parseFloat(buyer.balance || 0) < n) {
-      return res.status(402).json({ error: 'Insufficient balance', balance: parseFloat(buyer.balance || 0), required: n });
-    }
 
     const orderId = 'spot_' + uuidv4().replace(/-/g, '').slice(0, 16);
     const deadline = new Date(Date.now() + parseInt(delivery_hours) * 3600000).toISOString();
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
-    // Deduct from buyer balance, hold in escrow
-    // Try with escrow column first; fall back to balance-only update if column not yet migrated
+    // Escrow-first model: lock amount in escrow directly. Balance may go negative
+    // (represents amount owed to platform, settled via x402/wallet integration later).
     await dbRun(
       `UPDATE agents SET balance = balance - ${p(1)}, escrow = COALESCE(escrow,0) + ${p(2)} WHERE id = ${p(3)}`,
       [n, n, req.agent.id]
@@ -554,10 +547,7 @@ router.post('/', idempotency(), requireApiKey, async (req, res, next) => {
       }
     }
 
-    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
-    if (parseFloat(buyer.balance) < parseFloat(service.price)) {
-      return res.status(400).json({ error: 'Insufficient balance', balance: buyer.balance, required: service.price });
-    }
+    // Escrow-first model: no pre-top-up required. Balance may go negative pending wallet settlement.
 
     // Velocity limits — prevent runaway / compromised agent spending
     const vel = await checkVelocity(req.agent.id, parseFloat(service.price));
@@ -626,12 +616,7 @@ router.post('/bundle', idempotency(), requireApiKey, async (req, res, next) => {
       resolved.push({ svc, requirements: item.requirements || null });
     }
 
-    // Balance check for the full bundle (all-or-nothing)
-    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
-    if (parseFloat(buyer.balance) < totalAmount) {
-      return res.status(400).json({ error: 'Insufficient balance for bundle', balance: buyer.balance, required: totalAmount });
-    }
-
+    // Escrow-first model: bundle total is locked into escrow directly; no pre-top-up required.
     const bundleId = uuidv4();
     const childIds = [];
 
@@ -1576,16 +1561,7 @@ router.post('/batch', idempotency(), requireApiKey, async (req, res, next) => {
       return res.status(400).json({ error: 'Maximum 10 orders per batch' });
     }
 
-    // Check buyer balance upfront — must have enough for the total batch
-    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
-    const totalRequired = orderItems.reduce((sum, item) => sum + parseFloat(item.amount || 0), 0);
-    if (parseFloat(buyer?.balance || 0) < totalRequired) {
-      return res.status(402).json({
-        error: 'Insufficient balance for batch',
-        balance: parseFloat(buyer?.balance || 0),
-        required: totalRequired,
-      });
-    }
+    // Escrow-first model: no pre-top-up required. Each item locks its own amount.
 
     // Process each order item in parallel
     const results = await Promise.all(orderItems.map(async (item, idx) => {
@@ -1891,11 +1867,7 @@ router.post('/:id/tip', requireApiKey, async (req, res, next) => {
     if (!(amount >= 0.01)) return res.status(400).json({ error: 'amount must be at least 0.01 USDC' });
     if (amount > 1000) return res.status(400).json({ error: 'amount cannot exceed 1000 USDC' });
 
-    // Check buyer balance
-    const buyer = await dbGet(`SELECT balance FROM agents WHERE id = ${p(1)}`, [req.agent.id]);
-    if (parseFloat(buyer.balance) < amount) {
-      return res.status(400).json({ error: `Insufficient balance. Have: ${buyer.balance}, Need: ${amount}` });
-    }
+    // Escrow-first model: no pre-top-up required. Tip settles via wallet integration.
 
     // Transfer tip: buyer → seller
     await dbRun(
