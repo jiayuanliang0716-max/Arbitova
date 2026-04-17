@@ -63,7 +63,7 @@ const TOOLS = [
       properties: {
         service_id: {
           type: 'string',
-          description: 'The service ID to purchase (from arbitova_search_services)',
+          description: 'The service ID of the seller you want to hire',
         },
         requirements: {
           type: 'string',
@@ -135,27 +135,6 @@ const TOOLS = [
         },
       },
       required: ['order_id'],
-    },
-  },
-  {
-    name: 'arbitova_search_services',
-    description: 'Search for available agent services. Returns a list of services with IDs, prices, and descriptions.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        q: {
-          type: 'string',
-          description: 'Search query keyword',
-        },
-        category: {
-          type: 'string',
-          description: 'Filter by category (e.g. writing, coding, research, data)',
-        },
-        max_price: {
-          type: 'number',
-          description: 'Maximum price in USD',
-        },
-      },
     },
   },
   {
@@ -290,19 +269,6 @@ const TOOLS = [
     },
   },
   {
-    name: 'arbitova_recommend',
-    description: 'Get AI-powered service recommendations based on a task description. Returns up to 3 matching services with reasoning.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        task: { type: 'string', description: 'Describe the task you need help with' },
-        budget: { type: 'number', description: 'Maximum budget in USDC (optional)' },
-        category: { type: 'string', enum: ['general', 'writing', 'analysis', 'coding', 'data', 'research'], description: 'Filter by category (optional)' },
-      },
-      required: ['task'],
-    },
-  },
-  {
     name: 'arbitova_simulate',
     description: 'Dry-run a complete order lifecycle to test integration logic. No real balance changes are made.',
     inputSchema: {
@@ -317,21 +283,6 @@ const TOOLS = [
     name: 'arbitova_platform_stats',
     description: 'Get public platform KPIs: agents registered, orders completed, total volume, completion rate, avg rating. No auth required.',
     inputSchema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'arbitova_discover',
-    description: 'Discover agents and services by capability, trust score, and price. The primary A2A agent discovery tool — find who can do a task, at what cost, with what trust level. No auth required.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        capability: { type: 'string', description: 'Natural language description of the task or keyword (e.g. "summarize documents", "write Python code")' },
-        category:   { type: 'string', description: 'Service category filter (e.g. coding, writing, research, data, design)' },
-        max_price:  { type: 'number', description: 'Maximum price in USDC' },
-        min_trust:  { type: 'number', description: 'Minimum trust score 0-100. Use 70 for Trusted+, 90 for Elite only.' },
-        sort:       { type: 'string', enum: ['trust', 'price', 'reputation'], description: 'Sort order (default: trust)' },
-        limit:      { type: 'number', description: 'Max results (default 10)' },
-      },
-    },
   },
   {
     name: 'arbitova_capabilities',
@@ -355,71 +306,6 @@ const TOOLS = [
         page:     { type: 'number', description: 'Page number (default 1)' },
         limit:    { type: 'number', description: 'Items per page (default 20, max 100)' },
         reason:   { type: 'string', description: 'Filter by event reason (e.g. order_completed, dispute_lost)' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_post_request',
-    description: 'Post a task request to the public RFP board (as buyer). Sellers browse and apply with their services. You then accept the best application — escrow is created automatically. Use this when you want sellers to compete for your task rather than searching for a service yourself.',
-    inputSchema: {
-      type: 'object',
-      required: ['title', 'description', 'budget_usdc'],
-      properties: {
-        title:            { type: 'string', description: 'Short task title (e.g. "Summarize 5 research papers")' },
-        description:      { type: 'string', description: 'Full task description and requirements' },
-        budget_usdc:      { type: 'number', description: 'Maximum budget in USDC you are willing to pay' },
-        category:         { type: 'string', description: 'Service category (coding, writing, research, data, design)' },
-        delivery_hours:   { type: 'number', description: 'Expected delivery time in hours' },
-        expires_in_hours: { type: 'number', description: 'How long to keep request open (default 72h, max 720h)' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_browse_requests',
-    description: 'Browse the public RFP board as a seller. Find task requests from buyers that match your capabilities. Returns open requests sorted by recency.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        category: { type: 'string', description: 'Filter by category' },
-        q:        { type: 'string', description: 'Keyword search in title/description' },
-        limit:    { type: 'number', description: 'Max results (default 20)' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_apply_request',
-    description: 'Apply to a buyer\'s task request as a seller. Link one of your active services and optionally propose a custom price. Buyer reviews all applications and accepts the best one.',
-    inputSchema: {
-      type: 'object',
-      required: ['request_id', 'service_id'],
-      properties: {
-        request_id:     { type: 'string', description: 'Request ID to apply to' },
-        service_id:     { type: 'string', description: 'Your service ID to offer' },
-        proposed_price: { type: 'number', description: 'Custom price in USDC (default: service price)' },
-        message:        { type: 'string', description: 'Cover message to the buyer' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_accept_application',
-    description: 'Accept a seller\'s application on your request (buyer only). Escrow is automatically created and funds are locked. Use arbitova_get_request_applications first to see available applications.',
-    inputSchema: {
-      type: 'object',
-      required: ['request_id', 'application_id'],
-      properties: {
-        request_id:     { type: 'string', description: 'Your request ID' },
-        application_id: { type: 'string', description: 'Application ID to accept' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_get_request_applications',
-    description: 'View all applications on your posted request (buyer only). Shows seller reputation, proposed price, and service details to help you decide.',
-    inputSchema: {
-      type: 'object',
-      required: ['request_id'],
-      properties: {
-        request_id: { type: 'string', description: 'Your request ID' },
       },
     },
   },
@@ -469,23 +355,6 @@ const TOOLS = [
       required: ['agent_id'],
       properties: {
         agent_id: { type: 'string', description: 'Agent ID to evaluate' },
-      },
-    },
-  },
-
-  // v2.0.0: Oracle-based Escrow Release
-  {
-    name: 'arbitova_create_oracle_escrow',
-    description: 'Create an escrow order with an external oracle verifier URL. After seller delivers, Arbitova POSTs the delivery to your oracle; oracle responds { release: true/false }. release=true → auto-complete (0.5% fee), release=false → auto-dispute, oracle error → manual confirm fallback. Use CI pipelines, ML models, test runners, or any HTTPS endpoint as your verifier.',
-    inputSchema: {
-      type: 'object',
-      required: ['service_id', 'release_oracle_url'],
-      properties: {
-        service_id:            { type: 'string', description: 'Service to purchase' },
-        requirements:          { type: 'string', description: 'Task requirements for the seller' },
-        release_oracle_url:    { type: 'string', description: 'HTTPS URL of your oracle/verifier endpoint' },
-        release_oracle_secret: { type: 'string', description: 'Optional secret included in oracle payload for authentication' },
-        expected_hash:         { type: 'string', description: 'Optional SHA-256 pre-commitment hash (can combine with oracle)' },
       },
     },
   },
@@ -602,18 +471,6 @@ const TOOLS = [
     },
   },
   {
-    name: 'arbitova_trending_services',
-    description: 'Get services trending by recent order volume. Returns top services ranked by orders placed in the last N days. No auth required — great for buyers discovering high-demand, proven sellers.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        days: { type: 'integer', description: 'Lookback window in days (default 7, max 30)', default: 7 },
-        limit: { type: 'integer', description: 'Max results to return (default 20)', default: 20 },
-        category: { type: 'string', description: 'Filter by service category (optional)' },
-      },
-    },
-  },
-  {
     name: 'arbitova_scorecard',
     description: 'Get a concise seller performance scorecard for any agent. Returns completion rate, dispute rate, avg rating, credentials, trust level, and an overall grade (A/B/C/D). No auth required — call before placing high-value orders.',
     inputSchema: {
@@ -669,23 +526,6 @@ const TOOLS = [
     },
   },
   {
-    name: 'arbitova_declare_capabilities',
-    description: 'Declare or update capability tags for your agent. Tags are matched by A2A discover for buyer-to-seller routing. Up to 30 freeform tags (50 chars each). Example tags: ["python", "summarization", "code-review", "sql", "data-analysis"].',
-    inputSchema: {
-      type: 'object',
-      required: ['tags'],
-      properties: {
-        tags: {
-          type: 'array',
-          items: { type: 'string' },
-          maxItems: 30,
-          description: 'Capability tags (freeform strings)',
-        },
-        description: { type: 'string', description: 'Optional natural-language capability description (max 500 chars)' },
-      },
-    },
-  },
-  {
     name: 'arbitova_mutual_connections',
     description: 'Find mutual counterparties between two agents. Returns agents both parties have transacted with — social proof trust validation. Use this to verify a new seller has worked with agents you already trust.',
     inputSchema: {
@@ -707,16 +547,6 @@ const TOOLS = [
         agent_id: { type: 'string', description: 'Agent ID' },
         limit: { type: 'integer', description: 'Max portfolio items (default 12, max 20)', default: 12 },
         category: { type: 'string', description: 'Filter by category (optional)' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_marketplace_digest',
-    description: 'Get a marketplace digest summarizing activity over the last N days. Returns new agents, top categories by volume, top sellers, and order stats. No auth required — useful for injecting current market context into your agent decisions.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        days: { type: 'integer', description: 'Lookback window in days (default 7, max 30)', default: 7 },
       },
     },
   },
@@ -787,20 +617,6 @@ const TOOLS = [
       required: ['agent_id'],
       properties: {
         agent_id: { type: 'string', description: 'Agent ID to unblock' },
-      },
-    },
-  },
-  {
-    name: 'arbitova_recommend_services',
-    description: 'Find the best matching services for a task description using keyword-score + trust-weighted ranking. Returns ranked candidates with relevance scores.',
-    inputSchema: {
-      type: 'object',
-      required: ['task'],
-      properties: {
-        task:            { type: 'string', description: 'Natural language description of what you need' },
-        max_price_usdc:  { type: 'number', description: 'Maximum price you are willing to pay in USDC' },
-        category:        { type: 'string', description: 'Filter by service category' },
-        limit:           { type: 'number', description: 'Number of results to return (default 5, max 20)' },
       },
     },
   },
@@ -940,16 +756,6 @@ async function handleTool(name, args) {
       };
     }
 
-    case 'arbitova_search_services': {
-      const params = new URLSearchParams();
-      if (args.q)          params.set('q', args.q);
-      if (args.category)   params.set('category', args.category);
-      if (args.max_price)  params.set('max_price', args.max_price);
-      const query = params.toString() ? `?${params}` : '';
-      const result = await apiRequest('GET', `/services/search${query}`, null);
-      return result;
-    }
-
     case 'arbitova_get_order': {
       const order = await apiRequest('GET', `/orders/${args.order_id}`, null);
       return order;
@@ -1033,18 +839,6 @@ async function handleTool(name, args) {
       };
     }
 
-    case 'arbitova_recommend': {
-      const result = await apiRequest('POST', '/recommend', { task: args.task, ...(args.budget ? { budget: args.budget } : {}), ...(args.category ? { category: args.category } : {}) });
-      const recs = result.recommendations || [];
-      return {
-        task: result.task,
-        method: result.method,
-        count: recs.length,
-        recommendations: recs,
-        message: recs.length > 0 ? `Found ${recs.length} service(s) for: "${result.task}"` : `No services found for: "${result.task}"`,
-      };
-    }
-
     case 'arbitova_simulate': {
       const result = await apiRequest('POST', '/simulate', { ...(args.service_id ? { service_id: args.service_id } : {}), ...(args.scenario ? { scenario: args.scenario } : {}) });
       return {
@@ -1058,25 +852,6 @@ async function handleTool(name, args) {
       return {
         ...result,
         message: `Arbitova platform: ${result.agents_registered} agents, ${result.orders_completed} completed orders, ${result.total_volume_usdc} USDC volume, ${result.completion_rate}% completion rate.`,
-      };
-    }
-
-    case 'arbitova_discover': {
-      const qs = new URLSearchParams();
-      if (args.capability) qs.set('capability', args.capability);
-      if (args.category)   qs.set('category', args.category);
-      if (args.max_price !== undefined) qs.set('max_price', args.max_price);
-      if (args.min_trust !== undefined) qs.set('min_trust', args.min_trust);
-      if (args.sort)  qs.set('sort', args.sort);
-      if (args.limit) qs.set('limit', args.limit);
-      const q = qs.toString();
-      const result = await apiRequest('GET', `/agents/discover${q ? `?${q}` : ''}`, null);
-      const top = result.results?.[0];
-      return {
-        ...result,
-        message: top
-          ? `Found ${result.count} match(es). Top result: "${top.service.name}" by ${top.agent_name} @ ${top.service.price_usdc} USDC (trust: ${top.trust_level} ${top.trust_score}/100).`
-          : `No agents found matching the criteria.`,
       };
     }
 
@@ -1098,65 +873,6 @@ async function handleTool(name, args) {
       return {
         ...result,
         message: `${result.name}: current score ${result.current_score}, ${result.pagination.total} total reputation events (page ${result.pagination.page}/${result.pagination.pages}).`,
-      };
-    }
-
-    case 'arbitova_post_request': {
-      const result = await apiRequest('POST', '/requests', {
-        title: args.title,
-        description: args.description,
-        budget_usdc: args.budget_usdc,
-        ...(args.category         ? { category: args.category }                 : {}),
-        ...(args.delivery_hours   ? { delivery_hours: args.delivery_hours }     : {}),
-        ...(args.expires_in_hours ? { expires_in_hours: args.expires_in_hours } : {}),
-      });
-      return {
-        ...result,
-        message: `Request posted (ID: ${result.id}). Budget: ${result.budget_usdc} USDC. Expires: ${result.expires_at}. Sellers can now apply.`,
-      };
-    }
-
-    case 'arbitova_browse_requests': {
-      const qs = new URLSearchParams();
-      if (args.category) qs.set('category', args.category);
-      if (args.q)        qs.set('q', args.q);
-      if (args.limit)    qs.set('limit', args.limit);
-      const q = qs.toString();
-      const result = await apiRequest('GET', `/requests${q ? `?${q}` : ''}`, null);
-      const top3 = (result.requests || []).slice(0, 3);
-      return {
-        ...result,
-        message: `Found ${result.count} open request(s). Top: ${top3.map(r => `"${r.title}" (${r.budget_usdc} USDC, ${r.application_count} applicant(s))`).join('; ') || 'none'}`,
-      };
-    }
-
-    case 'arbitova_apply_request': {
-      const result = await apiRequest('POST', `/requests/${args.request_id}/apply`, {
-        service_id: args.service_id,
-        ...(args.proposed_price !== undefined ? { proposed_price: args.proposed_price } : {}),
-        ...(args.message ? { message: args.message } : {}),
-      });
-      return {
-        ...result,
-        message: `Applied to request ${args.request_id}. Application ID: ${result.application_id}. Proposed price: ${result.proposed_price} USDC.`,
-      };
-    }
-
-    case 'arbitova_accept_application': {
-      const result = await apiRequest('POST', `/requests/${args.request_id}/accept`, {
-        application_id: args.application_id,
-      });
-      return {
-        ...result,
-        message: `Application accepted. Escrow order created: ${result.order_id} for ${result.amount} USDC. Seller can now deliver.`,
-      };
-    }
-
-    case 'arbitova_get_request_applications': {
-      const result = await apiRequest('GET', `/requests/${args.request_id}/applications`, null);
-      return {
-        ...result,
-        message: `${result.count} application(s) for "${result.request_title}". ${result.applications?.map(a => `${a.seller_name} @ ${a.proposed_price} USDC (rep: ${a.seller_reputation})`).join(', ') || 'None yet.'}`,
       };
     }
 
@@ -1197,24 +913,6 @@ async function handleTool(name, args) {
       return {
         ...result,
         message: `Due diligence on ${result.name}: Trust ${result.trust?.score}/100 (${result.trust?.level}). Risk: ${r?.risk_level}. ${r?.recommendation}`,
-      };
-    }
-
-    case 'arbitova_create_oracle_escrow': {
-      const order = await apiRequest('POST', '/orders', {
-        service_id:            args.service_id,
-        requirements:          args.requirements,
-        release_oracle_url:    args.release_oracle_url,
-        release_oracle_secret: args.release_oracle_secret,
-        expected_hash:         args.expected_hash,
-      });
-      return {
-        order_id: order.id,
-        status: order.status,
-        amount: order.amount,
-        deadline: order.deadline,
-        oracle_url: args.release_oracle_url,
-        message: `Oracle escrow created. Order ID: ${order.id}. After delivery, oracle at ${args.release_oracle_url} will auto-release or auto-dispute.`,
       };
     }
 
@@ -1326,21 +1024,6 @@ async function handleTool(name, args) {
       };
     }
 
-    case 'arbitova_trending_services': {
-      const qs = new URLSearchParams();
-      if (args.days)     qs.set('days', String(args.days));
-      if (args.limit)    qs.set('limit', String(args.limit));
-      if (args.category) qs.set('category', args.category);
-      const query = qs.toString() ? `?${qs}` : '';
-      const result = await apiRequest('GET', `/services/trending${query}`);
-      return {
-        ...result,
-        hint: result.count > 0
-          ? `Top trending: "${result.services[0]?.name}" (${result.services[0]?.recent_orders} orders in ${result.period_days}d). Use arbitova_create_escrow with the service ID to hire.`
-          : `No trending services found for the given filters.`,
-      };
-    }
-
     case 'arbitova_scorecard': {
       const result = await apiRequest('GET', `/agents/${args.agent_id}/scorecard`);
       const { grade, trust, performance, reviews } = result;
@@ -1385,14 +1068,6 @@ async function handleTool(name, args) {
       return result;
     }
 
-    case 'arbitova_declare_capabilities': {
-      const result = await apiRequest('POST', '/agents/me/capabilities', {
-        tags: args.tags,
-        description: args.description,
-      });
-      return result;
-    }
-
     case 'arbitova_mutual_connections': {
       const result = await apiRequest('GET', `/agents/${args.agent_id}/mutual?with=${encodeURIComponent(args.with_id)}`);
       const hint = result.mutual_count > 0
@@ -1410,14 +1085,6 @@ async function handleTool(name, args) {
       const hint = result.portfolio_count > 0
         ? `${result.portfolio_count} completed jobs. Avg rating: ${result.avg_rating ?? 'N/A'}/5. Top service: ${result.portfolio[0]?.service_name ?? 'N/A'}.`
         : 'No completed orders in portfolio yet.';
-      return { ...result, hint };
-    }
-
-    case 'arbitova_marketplace_digest': {
-      const days = args.days || 7;
-      const result = await apiRequest('GET', `/marketplace/digest?days=${days}`);
-      const topCat = result.top_categories?.[0];
-      const hint = `Last ${days}d: ${result.new_agents} new agents, ${result.orders?.completed} completed orders, ${result.orders?.volume_usdc} USDC volume. Top category: ${topCat?.category ?? 'N/A'}.`;
       return { ...result, hint };
     }
 
@@ -1461,14 +1128,6 @@ async function handleTool(name, args) {
       return result;
     }
 
-    case 'arbitova_recommend_services': {
-      const qs = new URLSearchParams({ task: args.task });
-      if (args.max_price_usdc) qs.set('max_price_usdc', args.max_price_usdc);
-      if (args.category) qs.set('category', args.category);
-      if (args.limit) qs.set('limit', args.limit);
-      return apiRequest('GET', `/services/recommend?${qs}`);
-    }
-
     case 'arbitova_get_settings': {
       return apiRequest('GET', '/agents/me/settings');
     }
@@ -1499,7 +1158,7 @@ async function handleTool(name, args) {
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '3.3.0' },
+  { name: 'arbitova', version: '3.4.0' },
   { capabilities: { tools: {} } }
 );
 

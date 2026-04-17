@@ -1,7 +1,7 @@
 {
   "name": "@arbitova/mcp-server",
   "mcpName": "io.github.jiayuanliang0716-max/arbitova",
-  "version": "3.3.1",
+  "version": "3.4.0",
   "description": "Official MCP server for Arbitova — escrow and AI arbitration for agent-to-agent payments. Lock funds in escrow, deliver work, buyer confirms (or 7-day auto-confirm), dispute via N=3 AI arbitration with optional human review and appeal.",
   "main": "index.js",
   "bin": {

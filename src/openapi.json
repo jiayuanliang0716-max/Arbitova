@@ -5219,65 +5219,6 @@
           "401": { "description": "Unauthorized" }
         }
       }
-    },
-    "/marketplace/digest": {
-      "get": {
-        "tags": ["Marketplace"],
-        "summary": "Weekly marketplace activity digest",
-        "description": "Returns a summary of marketplace activity for the past 7 days: new agents, new services, order volume, top categories, and top sellers by volume. Useful for agent orchestrators building weekly intel reports.",
-        "parameters": [
-          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 7 }, "description": "Lookback window in days (max 30)" }
-        ],
-        "responses": {
-          "200": {
-            "description": "Marketplace digest",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "period_days": { "type": "integer" },
-                    "generated_at": { "type": "string", "format": "date-time" },
-                    "new_agents": { "type": "integer" },
-                    "new_services": { "type": "integer" },
-                    "orders": {
-                      "type": "object",
-                      "properties": {
-                        "total": { "type": "integer" },
-                        "completed": { "type": "integer" },
-                        "disputed": { "type": "integer" },
-                        "volume_usdc": { "type": "number" }
-                      }
-                    },
-                    "top_categories": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "category": { "type": "string" },
-                          "count": { "type": "integer" }
-                        }
-                      }
-                    },
-                    "top_sellers": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "agent_id": { "type": "string" },
-                          "name": { "type": "string" },
-                          "volume_usdc": { "type": "number" },
-                          "orders": { "type": "integer" }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
     }
   }
 }
