@@ -920,7 +920,7 @@ async function doLogin() {
 async function _linkAgentFromSession(session) {
   // Exchange Supabase session for Arbitova agent credentials.
   // Agent display name is pulled from user_metadata.full_name on the backend.
-  const r = await api('/auth/social', {
+  const r = await api('/api/v1/auth/social', {
     method: 'POST',
     body: JSON.stringify({ access_token: session.access_token }),
   });
@@ -1032,7 +1032,7 @@ async function handleAuthCallback() {
     if (error || !session) return;
 
     // Exchange Supabase token for Arbitova agent credentials
-    const r = await api('/auth/social', {
+    const r = await api('/api/v1/auth/social', {
       method: 'POST',
       body: JSON.stringify({ access_token: session.access_token }),
     });
