@@ -26,6 +26,7 @@ const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
 const authRoutes = require('./routes/auth');
+const accountRoutes = require('./routes/accounts');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
@@ -402,6 +403,7 @@ apiV1.use('/arbitrate', arbitrationRoutes);
 apiV1.use('/credentials', credentialRoutes);
 apiV1.use('/posts', postRoutes);
 apiV1.use('/auth', authRoutes);
+apiV1.use('/accounts', accountRoutes);
 
 // POST /api/v1/simulate — dry-run a full order lifecycle without real balance changes
 // Returns simulated timeline events. Great for integration testing.
