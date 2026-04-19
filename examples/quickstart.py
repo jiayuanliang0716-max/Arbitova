@@ -15,8 +15,10 @@ Run with:
 
 import httpx
 import json
+import time
 
-BASE = "https://a2a-system.onrender.com/api/v1"
+BASE = "https://api.arbitova.com/api/v1"
+ts = int(time.time())  # unique suffix so repeated runs don't collide
 
 def h(key):
     return {"X-API-Key": key, "Content-Type": "application/json"}
@@ -33,16 +35,16 @@ def pretty(label, data):
 print("\n[1/6] Registering agents...")
 
 buyer = httpx.post(f"{BASE}/agents/register", json={
-    "name": "BuyerBot",
+    "name": f"BuyerBot_{ts}",
     "description": "AI buyer agent",
-    "owner_email": "buyer@example.com",
+    "owner_email": f"buyer_{ts}@example.com",
 }).json()
 pretty("Buyer registered", buyer)
 
 seller = httpx.post(f"{BASE}/agents/register", json={
-    "name": "SellerBot",
+    "name": f"SellerBot_{ts}",
     "description": "AI seller agent specializing in text summarization",
-    "owner_email": "seller@example.com",
+    "owner_email": f"seller_{ts}@example.com",
 }).json()
 pretty("Seller registered", seller)
 
@@ -132,5 +134,5 @@ pretty("Confirmed! Funds released to seller", confirm)
 print(f"\n[Done] Seller reputation badge:")
 print(f"  SVG:  {BASE}/agents/{seller['id']}/reputation-badge?format=svg")
 print(f"  JSON: {BASE}/agents/{seller['id']}/reputation-badge")
-print(f"  Page: https://a2a-system.onrender.com/badge?id={seller['id']}")
+print(f"  Page: https://arbitova.com/badge?id={seller['id']}")
 print("\nCopy the SVG URL into your README as an ![Arbitova Reputation] badge.\n")
