@@ -747,22 +747,26 @@ async function loadLandingBlogPosts() {
 function showRegisterModal() {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2 style="margin:0 0 8px;padding-right:32px">${t('auth_register_title')}</h2>
-    <p class="mdesc">${t('auth_register_sub')}</p>
+    <h2 style="margin:0 0 8px;padding-right:32px">Create your account</h2>
+    <p class="mdesc">Sign up in seconds. An agent is created automatically.</p>
     ${socialButtonsHtml()}
-    <form onsubmit="event.preventDefault(); doRegister(this)">
-      <div class="form-group" style="margin-bottom:16px">
-        <label class="form-label">${t('auth_name_label')}</label>
-        <input type="text" name="name" class="form-input" placeholder="${t('auth_name_placeholder') || 'e.g. MyDataAgent'}" required>
+    <form onsubmit="event.preventDefault(); doEmailSignup(this)">
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" placeholder="At least 8 characters" minlength="8" required autocomplete="new-password">
       </div>
       <div class="form-group" style="margin-bottom:16px">
-        <label class="form-label">Email <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
-        <input type="email" name="owner_email" class="form-input" placeholder="you@example.com">
+        <label class="form-label">Agent name <span style="color:var(--text-tertiary);font-weight:400">(optional)</span></label>
+        <input type="text" name="name" class="form-input" placeholder="e.g. MyDataAgent">
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">${t('auth_register_btn') || 'Create Account'}</button>
+      <button type="submit" class="btn btn-primary" style="width:100%;margin-top:4px">Create account</button>
     </form>
     <p class="auth-switch">
-      Already have an account? <button class="btn btn-ghost btn-sm" onclick="closeModal();showLoginModal()">Sign In</button>
+      Already have an account? <button class="btn btn-ghost btn-sm" onclick="closeModal();showLoginModal()">Sign in</button>
     </p>
   `);
 }
@@ -770,21 +774,34 @@ function showRegisterModal() {
 function showLoginModal() {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
-    <h2 style="margin:0 0 8px;padding-right:32px">${t('auth_login_title')}</h2>
-    <p class="mdesc">${t('auth_login_sub')}</p>
+    <h2 style="margin:0 0 8px;padding-right:32px">Sign in</h2>
+    <p class="mdesc">Welcome back.</p>
     ${socialButtonsHtml()}
-    <div class="form-group" style="margin-bottom:16px">
-      <label class="form-label">${t('auth_id_label') || 'Agent ID'}</label>
-      <input type="text" id="login-id" class="form-input" placeholder="agent_...">
-    </div>
-    <div class="form-group" style="margin-bottom:16px">
-      <label class="form-label">${t('auth_key_label') || 'API Key'}</label>
-      <input type="password" id="login-key" class="form-input" placeholder="sk_...">
-    </div>
-    <button id="login-btn" class="btn btn-primary" style="width:100%" onclick="doLogin()">${t('auth_login_btn') || 'Sign In'}</button>
-    <p style="margin-top:10px;font-size:12px;color:var(--text-tertiary);text-align:center">${t('auth_login_note')}</p>
+    <form onsubmit="event.preventDefault(); doEmailSignin(this)">
+      <div class="form-group" style="margin-bottom:12px">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
+      </div>
+      <div class="form-group" style="margin-bottom:16px">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" placeholder="Your password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%">Sign in</button>
+    </form>
+    <details style="margin-top:16px;font-size:12px;color:var(--text-tertiary)">
+      <summary style="cursor:pointer;user-select:none">Developer login (Agent ID + API Key)</summary>
+      <div style="margin-top:12px">
+        <div class="form-group" style="margin-bottom:10px">
+          <input type="text" id="login-id" class="form-input" placeholder="agent_..." autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <input type="password" id="login-key" class="form-input" placeholder="sk_..." autocomplete="off">
+        </div>
+        <button id="login-btn" class="btn btn-ghost btn-sm" style="width:100%" onclick="doLogin()">Sign in with API key</button>
+      </div>
+    </details>
     <p class="auth-switch">
-      New here? <button class="btn btn-ghost btn-sm" onclick="closeModal();showRegisterModal()">Create Account</button>
+      New here? <button class="btn btn-ghost btn-sm" onclick="closeModal();showRegisterModal()">Create account</button>
     </p>
   `);
 }
@@ -798,6 +815,10 @@ document.addEventListener('click', (e) => {
   switch (action) {
     case 'get-api-key':
       if (isLoggedIn()) { showDashboard(); switchPanel('apikeys'); }
+      else showRegisterModal();
+      break;
+    case 'signup':
+      if (isLoggedIn()) showDashboard();
       else showRegisterModal();
       break;
     case 'login':
@@ -892,6 +913,86 @@ async function doLogin() {
     toast(friendlyError(e.message), 'error');
   }
   if (btn) btnRestore(btn);
+}
+
+// ================= Email + Password (via Supabase) =================
+
+async function _linkAgentFromSession(session) {
+  // Exchange Supabase session for Arbitova agent credentials.
+  // Agent display name is pulled from user_metadata.full_name on the backend.
+  const r = await api('/auth/social', {
+    method: 'POST',
+    body: JSON.stringify({ access_token: session.access_token }),
+  });
+  setAuth(r.id, r.api_key, r.name);
+  return r;
+}
+
+async function doEmailSignup(formEl) {
+  if (!formEl) return;
+  const sb = await initSupabase();
+  if (!sb) { toast('Auth is not configured yet.', 'warn'); return; }
+  const f = new FormData(formEl);
+  const email = (f.get('email') || '').trim();
+  const password = f.get('password') || '';
+  const name = (f.get('name') || '').trim();
+  if (!email || password.length < 8) { toast('Enter a valid email and 8+ char password.', 'warn'); return; }
+
+  const btn = formEl.querySelector('button[type="submit"]');
+  if (btn) btnLoading(btn, 'Creating account...');
+  try {
+    const { data, error } = await sb.auth.signUp({
+      email,
+      password,
+      options: { data: name ? { full_name: name } : undefined },
+    });
+    if (error) throw error;
+
+    if (data.session) {
+      await _linkAgentFromSession(data.session);
+      closeModal();
+      toast('Welcome to Arbitova!', 'success');
+      showDashboard();
+    } else {
+      // Email confirmation required
+      modal(`
+        <button class="close" onclick="closeModal()">&times;</button>
+        <h2 style="margin:0 0 8px;padding-right:32px">Check your email</h2>
+        <p class="mdesc">We sent a confirmation link to <b>${escapeHtml(email)}</b>. Click it to finish signing up, then come back and sign in.</p>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="closeModal();showLoginModal()">Go to sign in</button>
+      `);
+    }
+  } catch (e) {
+    toast(e.message || 'Sign up failed', 'error');
+  } finally {
+    if (btn) btnRestore(btn);
+  }
+}
+
+async function doEmailSignin(formEl) {
+  if (!formEl) return;
+  const sb = await initSupabase();
+  if (!sb) { toast('Auth is not configured yet.', 'warn'); return; }
+  const f = new FormData(formEl);
+  const email = (f.get('email') || '').trim();
+  const password = f.get('password') || '';
+  if (!email || !password) { toast('Enter email and password.', 'warn'); return; }
+
+  const btn = formEl.querySelector('button[type="submit"]');
+  if (btn) btnLoading(btn, 'Signing in...');
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    if (!data.session) throw new Error('No session returned');
+    await _linkAgentFromSession(data.session);
+    closeModal();
+    toast('Welcome back!', 'success');
+    showDashboard();
+  } catch (e) {
+    toast(e.message || 'Sign in failed', 'error');
+  } finally {
+    if (btn) btnRestore(btn);
+  }
 }
 
 // ================= Social Login =================
