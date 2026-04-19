@@ -347,6 +347,47 @@ if (DATABASE_URL) {
       CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
     `);
 
+    // ============================================================
+    // Account/Agent Refactor (Phase 1: shadow add, no break)
+    // accounts = human identity, agents = execution identity,
+    // wallets = settlement. Linked via agents.account_id FK.
+    // No data is migrated here — Phase 2 backfill script handles that.
+    // ============================================================
+    await pool.query(`
+      CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+      CREATE TABLE IF NOT EXISTS accounts (
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        supabase_user_id TEXT UNIQUE NOT NULL,
+        email            TEXT UNIQUE NOT NULL,
+        display_name     TEXT,
+        auth_provider    TEXT,
+        created_at       TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_accounts_supabase_user ON accounts(supabase_user_id);
+
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES accounts(id) ON DELETE CASCADE;
+      ALTER TABLE agents ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+      CREATE INDEX IF NOT EXISTS idx_agents_account ON agents(account_id);
+
+      CREATE TABLE IF NOT EXISTS wallets (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        agent_id      TEXT NOT NULL REFERENCES agents(id) ON DELETE CASCADE,
+        currency      TEXT NOT NULL DEFAULT 'USD',
+        balance       NUMERIC(18,6) DEFAULT 0,
+        escrow        NUMERIC(18,6) DEFAULT 0,
+        address       TEXT,
+        encrypted_key TEXT,
+        UNIQUE (agent_id, currency)
+      );
+      CREATE INDEX IF NOT EXISTS idx_wallets_agent ON wallets(agent_id);
+
+      ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS label TEXT;
+      ALTER TABLE api_keys ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_api_keys_hash_active
+        ON api_keys(key_hash) WHERE revoked_at IS NULL;
+    `);
+
     console.log('PostgreSQL schema initialized');
   }
 
@@ -709,6 +750,39 @@ if (DATABASE_URL) {
 
   // Dispute bond column (P2-1 upgrade)
   addColIfMissing('disputes', 'bond_amount', 'REAL DEFAULT 0');
+
+  // ============================================================
+  // Account/Agent Refactor (Phase 1: shadow add, no break)
+  // ============================================================
+  try {
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS accounts (
+        id               TEXT PRIMARY KEY,
+        supabase_user_id TEXT UNIQUE NOT NULL,
+        email            TEXT UNIQUE NOT NULL,
+        display_name     TEXT,
+        auth_provider    TEXT,
+        created_at       TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_accounts_supabase_user ON accounts(supabase_user_id);
+
+      CREATE TABLE IF NOT EXISTS wallets (
+        id            TEXT PRIMARY KEY,
+        agent_id      TEXT NOT NULL REFERENCES agents(id),
+        currency      TEXT NOT NULL DEFAULT 'USD',
+        balance       REAL DEFAULT 0,
+        escrow        REAL DEFAULT 0,
+        address       TEXT,
+        encrypted_key TEXT,
+        UNIQUE (agent_id, currency)
+      );
+      CREATE INDEX IF NOT EXISTS idx_wallets_agent ON wallets(agent_id);
+    `);
+  } catch(e) { console.error('Migration warn (account refactor):', e.message); }
+  addColIfMissing('agents', 'account_id', 'TEXT');
+  addColIfMissing('agents', 'status', "TEXT DEFAULT 'active'");
+  addColIfMissing('api_keys', 'label', 'TEXT');
+  addColIfMissing('api_keys', 'revoked_at', 'TEXT');
 
   console.log('SQLite schema initialized');
 
