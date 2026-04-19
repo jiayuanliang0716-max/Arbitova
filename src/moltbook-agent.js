@@ -103,7 +103,7 @@ async function classifyPostRelevance(post) {
       content: `Is this MoltBook post about A2A (agent-to-agent) transactions, agent payment protocols, agent economic models, task contracts between agents, or delivery/trust issues in agent commerce?
 
 Title: ${post.title}
-Content: ${post.content.slice(0, 400)}
+Content: ${(post.content || '').slice(0, 400)}
 
 Reply with ONLY one of: YES_CORE, YES_ADJACENT, NO
 
