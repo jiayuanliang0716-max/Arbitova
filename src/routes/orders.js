@@ -1808,9 +1808,13 @@ router.post('/:id/cancel', requireApiKey, async (req, res, next) => {
     ).catch(() => {});
 
     // Fire webhook
-    const { fireWebhookEvent } = require('../webhooks');
-    await fireWebhookEvent(order.buyer_id, 'order.cancelled', { order_id: order.id, amount: order.amount, refunded_to: order.buyer_id }).catch(() => {});
-    await fireWebhookEvent(order.seller_id, 'order.cancelled', { order_id: order.id, amount: order.amount }).catch(() => {});
+    fire([order.buyer_id, order.seller_id], EVENTS.ORDER_CANCELLED, {
+      order_id: order.id,
+      amount: order.amount,
+      refunded_to: order.buyer_id,
+      buyer_id: order.buyer_id,
+      seller_id: order.seller_id,
+    });
 
     res.json({
       id: order.id,
@@ -1893,8 +1897,9 @@ router.post('/:id/tip', requireApiKey, async (req, res, next) => {
     );
 
     // Fire webhook
-    const { fireWebhookEvent } = require('../webhooks');
-    await fireWebhookEvent(order.seller_id, 'order.tip_received', { order_id: order.id, tip_id: tipId, amount, from: req.agent.id }).catch(() => {});
+    fire([order.seller_id, order.buyer_id], EVENTS.ORDER_TIP_RECEIVED, {
+      order_id: order.id, tip_id: tipId, amount, from: req.agent.id,
+    });
 
     res.json({
       id: tipId,

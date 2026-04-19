@@ -390,4 +390,11 @@ async function arbitrateDispute({ order, service, dispute, delivery }) {
   };
 }
 
-module.exports = { arbitrateDispute, HUMAN_ESCALATION_THRESHOLD };
+module.exports = {
+  arbitrateDispute,
+  HUMAN_ESCALATION_THRESHOLD,
+  // Exported for unit testing of prompt-injection defense and constitutional rules.
+  sanitizeClaim,
+  constitutionalCheck,
+  buildEvidenceBundle,
+};

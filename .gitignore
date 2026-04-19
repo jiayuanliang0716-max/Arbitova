@@ -42,9 +42,12 @@ seed/
 scripts/*
 !scripts/backfill-platform-revenue.js
 !scripts/reset-platform-revenue.js
+!scripts/reconcile.js
 demo/
 test/*
 !test/*.test.js
+!test/helpers/
+!test/helpers/*.js
 test-cloud.js
 test-pg.ps1
 railway.toml
