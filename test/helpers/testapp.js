@@ -20,6 +20,8 @@ delete process.env.DATABASE_URL;
 // Disable rate-limit for deterministic parallel tests.
 process.env.DISABLE_RATE_LIMIT = '1';
 process.env.NODE_ENV = 'test';
+// Admin key for /resolve-dispute tests.
+process.env.ADMIN_KEY = 'test-admin-key';
 
 const express = require('express');
 require('../../src/db/schema');

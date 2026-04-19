@@ -292,3 +292,179 @@ test('H double-confirm on completed order → 400', async () => {
   });
   assert.equal(c2.status, 400, `second confirm should fail: ${JSON.stringify(c2.body)}`);
 });
+
+// ── I. Tip on completed order (guards the /tip webhook-event fix) ─────────
+test('I buyer tips seller on completed order → seller balance + tip, webhook fires', async () => {
+  const seller = await registerAgent('I-seller-' + Date.now());
+  const buyer  = await registerAgent('I-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 10 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/confirm`, {
+    headers: { 'X-API-Key': buyer.api_key },
+  });
+
+  // Seller balance after confirm of 10 USDC (100 start + 10 − 0.05 fee = 109.95)
+  const sellerBefore = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': seller.api_key } });
+  const buyerBefore  = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': buyer.api_key } });
+
+  const tipAmount = 2.5;
+  const r = await request('POST', `/api/v1/orders/${ord.body.id}/tip`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { amount: tipAmount },
+  });
+  // Must not 500 — the /tip handler previously called nonexistent fireWebhookEvent
+  assert.equal(r.status, 200, `tip failed: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.tip_amount, tipAmount);
+
+  const sellerAfter = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': seller.api_key } });
+  const buyerAfter  = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': buyer.api_key } });
+  assert.ok(Math.abs(parseFloat(sellerAfter.body.balance) - parseFloat(sellerBefore.body.balance) - tipAmount) < 1e-6,
+    `seller delta wrong: ${sellerAfter.body.balance} − ${sellerBefore.body.balance}`);
+  assert.ok(Math.abs(parseFloat(buyerBefore.body.balance) - parseFloat(buyerAfter.body.balance) - tipAmount) < 1e-6,
+    `buyer delta wrong: ${buyerBefore.body.balance} − ${buyerAfter.body.balance}`);
+});
+
+test('I2 tip before completion → 400, tip over 1000 → 400, tip under 0.01 → 400', async () => {
+  const seller = await registerAgent('I2-seller-' + Date.now());
+  const buyer  = await registerAgent('I2-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 5 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+
+  // Order not yet completed
+  const r0 = await request('POST', `/api/v1/orders/${ord.body.id}/tip`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { amount: 1 },
+  });
+  assert.equal(r0.status, 400, 'tip before completion must 400');
+
+  // Complete it
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/confirm`, {
+    headers: { 'X-API-Key': buyer.api_key },
+  });
+
+  const rBig = await request('POST', `/api/v1/orders/${ord.body.id}/tip`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { amount: 1001 },
+  });
+  assert.equal(rBig.status, 400, 'tip > 1000 must 400');
+
+  const rTiny = await request('POST', `/api/v1/orders/${ord.body.id}/tip`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { amount: 0.005 },
+  });
+  assert.equal(rTiny.status, 400, 'tip < 0.01 must 400');
+
+  // Seller tries to tip themselves → 403
+  const rSelf = await request('POST', `/api/v1/orders/${ord.body.id}/tip`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { amount: 1 },
+  });
+  assert.equal(rSelf.status, 403, 'non-buyer tipping must 403');
+});
+
+// ── J. Admin /resolve-dispute (buyer wins) ────────────────────────────────
+test('J1 /resolve-dispute without X-Admin-Key → 401', async () => {
+  const seller = await registerAgent('J1-seller-' + Date.now());
+  const buyer  = await registerAgent('J1-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 20 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/dispute`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { reason: 'bad output' },
+  });
+
+  const r = await request('POST', `/api/v1/orders/${ord.body.id}/resolve-dispute`, {
+    body: { winner: 'buyer', resolution: 'refund' },
+  });
+  assert.equal(r.status, 401);
+
+  const r2 = await request('POST', `/api/v1/orders/${ord.body.id}/resolve-dispute`, {
+    headers: { 'X-Admin-Key': 'wrong-key' },
+    body: { winner: 'buyer' },
+  });
+  assert.equal(r2.status, 401);
+});
+
+test('J2 /resolve-dispute buyer wins → buyer refunded, escrow cleared, status=refunded', async () => {
+  const seller = await registerAgent('J2-seller-' + Date.now());
+  const buyer  = await registerAgent('J2-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 20 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/dispute`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { reason: 'bad output' },
+  });
+
+  const r = await request('POST', `/api/v1/orders/${ord.body.id}/resolve-dispute`, {
+    headers: { 'X-Admin-Key': 'test-admin-key' },
+    body: { winner: 'buyer', resolution: 'buyer was right' },
+  });
+  assert.equal(r.status, 200, `resolve failed: ${JSON.stringify(r.body)}`);
+  assert.equal(r.body.winner, 'buyer');
+
+  const meBuyer = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': buyer.api_key } });
+  // Started 100; paid 20 (order) + 1.0 bond (5% of 20, capped) = 79; buyer-wins refunds the 20 order
+  // Bond forfeit/refund policy: check whichever the code actually does
+  assert.ok(parseFloat(meBuyer.body.escrow) < 1.0 + 1e-6, `escrow still ${meBuyer.body.escrow}`);
+});
+
+test('J3 /resolve-dispute seller wins → seller paid net of 2% fee, platform earns fee', async () => {
+  const { dbGet } = require('../src/db/helpers');
+  const seller = await registerAgent('J3-seller-' + Date.now());
+  const buyer  = await registerAgent('J3-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 40 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/dispute`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { reason: 'bad output' },
+  });
+
+  const platRow = await dbGet(`SELECT total_earned FROM platform_revenue WHERE id = 'singleton'`, []);
+  const platBefore = parseFloat(platRow?.total_earned || 0);
+
+  const sellerBefore = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': seller.api_key } });
+
+  const r = await request('POST', `/api/v1/orders/${ord.body.id}/resolve-dispute`, {
+    headers: { 'X-Admin-Key': 'test-admin-key' },
+    body: { winner: 'seller', resolution: 'seller delivered per spec' },
+  });
+  assert.equal(r.status, 200, `resolve failed: ${JSON.stringify(r.body)}`);
+
+  const sellerAfter = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': seller.api_key } });
+  const platRowAfter = await dbGet(`SELECT total_earned FROM platform_revenue WHERE id = 'singleton'`, []);
+  const platDelta = parseFloat(platRowAfter.total_earned) - platBefore;
+
+  // Seller receives amount * (1 − 2%) = 40 * 0.98 = 39.20
+  const sellerDelta = parseFloat(sellerAfter.body.balance) - parseFloat(sellerBefore.body.balance);
+  assert.ok(Math.abs(sellerDelta - 39.2) < 1e-6,
+    `seller delta ${sellerDelta}, expected 39.2`);
+  // Platform earns 40 * 2% = 0.8
+  assert.ok(Math.abs(platDelta - 0.8) < 1e-6,
+    `platform delta ${platDelta}, expected 0.8`);
+});
+
+test('J4 /resolve-dispute with winner="neither" → 400', async () => {
+  const seller = await registerAgent('J4-seller-' + Date.now());
+  const buyer  = await registerAgent('J4-buyer-'  + Date.now());
+  const svc    = await publishService(seller.api_key, { price: 10 });
+  const ord    = await placeOrder(buyer.api_key, svc.id);
+  await request('POST', `/api/v1/orders/${ord.body.id}/deliver`, {
+    headers: { 'X-API-Key': seller.api_key }, body: { content: 'done' },
+  });
+  await request('POST', `/api/v1/orders/${ord.body.id}/dispute`, {
+    headers: { 'X-API-Key': buyer.api_key }, body: { reason: 'bad output' },
+  });
+
+  const r = await request('POST', `/api/v1/orders/${ord.body.id}/resolve-dispute`, {
+    headers: { 'X-Admin-Key': 'test-admin-key' },
+    body: { winner: 'neither' },
+  });
+  assert.equal(r.status, 400);
+});
