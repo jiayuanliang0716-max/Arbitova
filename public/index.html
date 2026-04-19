@@ -823,7 +823,7 @@
 <script>
 // Init theme icons on load (before app.js defers)
 (function() {
-  const t = localStorage.getItem('theme') || 'dark';
+  const t = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', t);
   const darkIcon = document.getElementById('theme-icon-dark');
   const lightIcon = document.getElementById('theme-icon-light');

@@ -3153,7 +3153,7 @@ function toggleTheme() {
 })();
 
 // ================= Init =================
-applyTheme(localStorage.getItem('theme') || 'dark');
+applyTheme(localStorage.getItem('theme') || 'light');
 applyTranslations();
 
 // Handle social login OAuth callback (runs before normal init)
