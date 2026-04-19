@@ -2752,33 +2752,6 @@ async function doStake(action) {
   } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
 }
 
-function openTopupModal() {
-  modal(`
-    <button class="close" onclick="closeModal()">&times;</button>
-    <h2>${t('topup_title')}</h2>
-    <p class="mdesc">${t('topup_desc')}</p>
-    <label>${t('topup_label')}</label>
-    <input id="topup-amt" type="number" step="0.01" min="0.01" value="50" class="plain">
-    <div class="btn-row" style="margin-top:12px">
-      <button class="btn btn-primary" onclick="doTopup()">${t('topup_confirm')}</button>
-      <button class="btn btn-ghost" onclick="closeModal()">&times;</button>
-    </div>
-  `);
-}
-
-async function doTopup() {
-  const amount = parseFloat(document.getElementById('topup-amt').value);
-  if (!(amount > 0)) return toast(t('toast_fill_positive'), 'warn');
-  const btn = document.querySelector('#modalBody .btn-primary');
-  btnLoading(btn, t('common_processing'));
-  try {
-    const r = await api('/agents/topup', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ amount }) });
-    toast(r.message, 'success');
-    closeModal();
-    loadOverview();
-  } catch (e) { toast(friendlyError(e.message), 'error'); btnRestore(btn); }
-}
-
 function openWithdrawModal() {
   modal(`
     <button class="close" onclick="closeModal()">&times;</button>
