@@ -928,6 +928,153 @@ async function _linkAgentFromSession(session) {
   return r;
 }
 
+// Return the current Supabase session's access token (or null if not signed in).
+async function getSessionToken() {
+  const sb = await initSupabase();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  return data?.session?.access_token || null;
+}
+
+// Wrapper for session-authed API calls (accounts/me/*).
+async function sessionApi(path, opts = {}) {
+  const token = await getSessionToken();
+  if (!token) throw new Error('Not signed in');
+  return api(path, {
+    ...opts,
+    headers: {
+      ...(opts.headers || {}),
+      Authorization: `Bearer ${token}`,
+    },
+  });
+}
+
+// ── Account Home — list of agents owned by the signed-in account ──────────
+async function showAccountHome() {
+  const landing = document.getElementById('landing');
+  const dashboard = document.getElementById('dashboard');
+  if (landing) landing.style.display = 'none';
+  if (dashboard) dashboard.style.display = 'none';
+
+  // Ensure container exists
+  let home = document.getElementById('account-home');
+  if (!home) {
+    home = document.createElement('div');
+    home.id = 'account-home';
+    home.className = 'container';
+    home.style.cssText = 'padding:40px 20px;max-width:900px;margin:0 auto';
+    document.body.appendChild(home);
+  }
+  home.style.display = '';
+  home.innerHTML = `<p style="text-align:center;opacity:.6">Loading your agents...</p>`;
+
+  try {
+    const { agents } = await sessionApi('/api/v1/accounts/me/agents');
+    home.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+        <h1 style="margin:0">Your Agents</h1>
+        <div>
+          <button class="btn btn-ghost" onclick="signOutAndHome()">Sign out</button>
+          <button class="btn btn-primary" onclick="newAgentModal()">+ New Agent</button>
+        </div>
+      </div>
+      ${agents.length === 0
+        ? `<div style="text-align:center;padding:40px;border:1px dashed #ccc;border-radius:8px">
+             <p style="opacity:.7;margin-bottom:16px">You don't have any agents yet.</p>
+             <button class="btn btn-primary" onclick="newAgentModal()">Create your first agent</button>
+           </div>`
+        : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+             ${agents.map(a => `
+               <div style="border:1px solid #e5e7eb;border-radius:8px;padding:16px;background:#fff">
+                 <h3 style="margin:0 0 4px;font-size:16px">${escapeHtml(a.name)}</h3>
+                 <p style="margin:0 0 12px;font-size:12px;opacity:.6">${escapeHtml(a.description || '—')}</p>
+                 <div style="display:flex;gap:12px;font-size:12px;margin-bottom:12px">
+                   <span>Balance: <b>$${Number(a.balance).toFixed(2)}</b></span>
+                   <span>Escrow: <b>$${Number(a.escrow).toFixed(2)}</b></span>
+                 </div>
+                 <div style="display:flex;gap:8px">
+                   <button class="btn btn-primary btn-sm" style="flex:1" onclick="openAgent('${a.id}','${escapeHtml(a.name).replace(/'/g,"\\'")}')">Open</button>
+                 </div>
+               </div>
+             `).join('')}
+           </div>`
+      }
+    `;
+  } catch (e) {
+    home.innerHTML = `<p style="color:#c00">Failed to load agents: ${escapeHtml(e.message)}</p>
+                       <button class="btn btn-ghost" onclick="signOutAndHome()">Sign out</button>`;
+  }
+}
+
+// Pick an existing agent: rotate a fresh API key for this session, then open dashboard.
+async function openAgent(agentId, name) {
+  try {
+    const r = await sessionApi(`/api/v1/accounts/me/agents/${agentId}/keys`, {
+      method: 'POST',
+      body: JSON.stringify({ label: 'web-session' }),
+    });
+    setAuth(agentId, r.key, name);
+    document.getElementById('account-home').style.display = 'none';
+    showDashboard();
+  } catch (e) {
+    toast('Failed to open agent: ' + e.message, 'error');
+  }
+}
+
+function newAgentModal() {
+  modal(`
+    <button class="close" onclick="closeModal()">&times;</button>
+    <h2 style="margin:0 0 16px;padding-right:32px">New Agent</h2>
+    <form onsubmit="event.preventDefault();createAgent(this)">
+      <label>Name<input name="name" required maxlength="100" placeholder="e.g. SummarizerBot"></label>
+      <label style="margin-top:12px;display:block">Description <small style="opacity:.6">(optional)</small>
+        <textarea name="description" rows="3" maxlength="500" placeholder="What does this agent do?"></textarea>
+      </label>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px" type="submit">Create agent</button>
+    </form>
+  `);
+}
+
+async function createAgent(formEl) {
+  const f = new FormData(formEl);
+  const name = (f.get('name') || '').trim();
+  const description = (f.get('description') || '').trim();
+  if (!name) { toast('Name required', 'warn'); return; }
+  const btn = formEl.querySelector('button[type=submit]');
+  btnLoading(btn, 'Creating...');
+  try {
+    const r = await sessionApi('/api/v1/accounts/me/agents', {
+      method: 'POST',
+      body: JSON.stringify({ name, description: description || undefined }),
+    });
+    setAuth(r.id, r.api_key, r.name);
+    closeModal();
+    toast('Agent created. Save your API key!', 'success');
+    // Show the key ONCE
+    modal(`
+      <h2 style="margin:0 0 8px">Save your API key</h2>
+      <p style="margin:0 0 12px;opacity:.7">This is shown <b>once</b>. Store it somewhere safe.</p>
+      <code style="display:block;padding:12px;background:#f4f4f5;border-radius:4px;font-size:12px;word-break:break-all">${escapeHtml(r.api_key)}</code>
+      <button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="copyText('${r.api_key}')">Copy</button>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px" onclick="closeModal();document.getElementById('account-home').style.display='none';showDashboard()">Go to dashboard</button>
+    `);
+  } catch (e) {
+    toast(e.message || 'Create failed', 'error');
+  } finally {
+    btnRestore(btn);
+  }
+}
+
+async function signOutAndHome() {
+  const sb = await initSupabase();
+  if (sb) await sb.auth.signOut().catch(() => {});
+  clearAuth();
+  const home = document.getElementById('account-home');
+  if (home) home.style.display = 'none';
+  const landing = document.getElementById('landing');
+  if (landing) landing.style.display = '';
+}
+
 async function doEmailSignup(formEl) {
   if (!formEl) return;
   const sb = await initSupabase();
@@ -952,7 +1099,7 @@ async function doEmailSignup(formEl) {
       await _linkAgentFromSession(data.session);
       closeModal();
       toast('Welcome to Arbitova!', 'success');
-      showDashboard();
+      showAccountHome();
     } else {
       // Email confirmation required
       modal(`
@@ -987,7 +1134,7 @@ async function doEmailSignin(formEl) {
     await _linkAgentFromSession(data.session);
     closeModal();
     toast('Welcome back!', 'success');
-    showDashboard();
+    showAccountHome();
   } catch (e) {
     toast(e.message || 'Sign in failed', 'error');
   } finally {
@@ -1066,7 +1213,7 @@ async function handleAuthCallback() {
       `);
     } else {
       toast('Welcome back, ' + (r.name || 'Agent') + '!', 'success');
-      showDashboard();
+      showAccountHome();
     }
   } catch (e) {
     console.error('Social auth callback error:', e);

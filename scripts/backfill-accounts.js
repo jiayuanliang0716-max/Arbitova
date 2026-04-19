@@ -27,6 +27,10 @@ require('../src/db/schema');
 const { dbAll, dbGet, dbRun } = require('../src/db/helpers');
 const crypto = require('crypto');
 
+function hashKey(k) {
+  return crypto.createHash('sha256').update(k).digest('hex');
+}
+
 const isPostgres = !!process.env.DATABASE_URL;
 const apply = process.argv.includes('--apply');
 
@@ -52,7 +56,8 @@ async function run() {
 
   const cols = await agentColumns();
   const selectCols = ['id', 'name', 'owner_email', 'balance', 'escrow',
-                      'wallet_address', 'wallet_encrypted_key', 'account_id', 'status'];
+                      'wallet_address', 'wallet_encrypted_key', 'account_id', 'status',
+                      'api_key'];
   if (cols.has('supabase_user_id')) selectCols.push('supabase_user_id');
   if (cols.has('auth_provider')) selectCols.push('auth_provider');
 
@@ -71,6 +76,7 @@ async function run() {
   let linkedAgents = 0;
   let orphaned = 0;
   let createdWallets = 0;
+  let createdApiKeys = 0;
 
   for (const a of agents) {
     const log = [];
@@ -109,6 +115,26 @@ async function run() {
       }
     }
 
+    // ── api_keys (hash the legacy plaintext key) ────────────────────────
+    if (a.api_key) {
+      const keyHash = hashKey(a.api_key);
+      const existing = await dbGet(
+        `SELECT id FROM api_keys WHERE key_hash = ${ph(1)}`,
+        [keyHash]
+      );
+      if (!existing) {
+        if (apply) {
+          await dbRun(
+            `INSERT INTO api_keys (id, agent_id, key_hash, key_prefix, label, scope, is_active)
+             VALUES (${ph(1)}, ${ph(2)}, ${ph(3)}, ${ph(4)}, 'migrated', 'full', ${isPostgres ? 'TRUE' : '1'})`,
+            [uuid(), a.id, keyHash, a.api_key.slice(0, 10)]
+          );
+        }
+        createdApiKeys++;
+        log.push(`hash api_key`);
+      }
+    }
+
     // ── wallets ─────────────────────────────────────────────────────────
     const wallet = await dbGet(
       `SELECT id FROM wallets WHERE agent_id = ${ph(1)} AND currency = 'USD'`,
@@ -135,6 +161,7 @@ async function run() {
   console.log(`  agents linked:     ${linkedAgents}`);
   console.log(`  agents orphaned:   ${orphaned}`);
   console.log(`  wallets created:   ${createdWallets}`);
+  console.log(`  api_keys migrated: ${createdApiKeys}`);
 
   if (!apply) {
     console.log(`\n  (dry-run — nothing was written. Re-run with --apply to commit.)`);

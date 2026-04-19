@@ -187,6 +187,14 @@ async function requireAccountSession(req, res, next) {
       };
     }
 
+    // Link any agents created via legacy /auth/social (which only set
+    // supabase_user_id but not account_id) into this account.
+    await dbRun(
+      `UPDATE agents SET account_id = ${p(1)}
+       WHERE supabase_user_id = ${p(2)} AND account_id IS NULL`,
+      [account.id, supaUser.id]
+    ).catch(() => { /* column missing on very old DBs */ });
+
     req.account = account;
     next();
   } catch (err) { next(err); }
