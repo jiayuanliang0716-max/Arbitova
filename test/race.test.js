@@ -27,7 +27,7 @@
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { startTestApp, stopTestApp, request } = require('./helpers/testapp');
-const { dbGet } = require('../src/db/helpers');
+const { dbGet, p } = require('../src/db/helpers');
 
 let base;
 before(async () => { ({ base } = await startTestApp()); });
@@ -176,7 +176,7 @@ test('R4 /deliver + /cancel race: final status is one of {cancelled, delivered},
     request('POST', `/api/v1/orders/${ord.id}/cancel`, { headers: { 'X-API-Key': buyer.api_key } }),
   ]);
 
-  const final = await dbGet(`SELECT status FROM orders WHERE id = ?`, [ord.id]);
+  const final = await dbGet(`SELECT status FROM orders WHERE id = ${p(1)}`, [ord.id]);
   assert.ok(['cancelled', 'delivered'].includes(final.status),
     `unexpected final status: ${final.status} (deliver=${rd.status}, cancel=${rc.status})`);
 
@@ -215,7 +215,7 @@ test('R5 /dispute + /confirm race: exactly one wins, no double-settlement', asyn
     }),
   ]);
 
-  const final = await dbGet(`SELECT status FROM orders WHERE id = ?`, [ord.id]);
+  const final = await dbGet(`SELECT status FROM orders WHERE id = ${p(1)}`, [ord.id]);
   assert.ok(['disputed', 'completed'].includes(final.status),
     `unexpected status: ${final.status}`);
 

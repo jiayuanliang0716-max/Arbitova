@@ -13,9 +13,13 @@ if (DATABASE_URL) {
   // PostgreSQL 模式（Railway 部署）
   const { Pool } = require('pg');
 
+  // Local Postgres (Docker, test fixtures) doesn't serve SSL; managed hosts
+  // (Render, Supabase, Railway) require it. Pick based on hostname.
+  const isLocalPg = /@(localhost|127\.0\.0\.1|::1)[:\/]/i.test(DATABASE_URL)
+    || /\bsslmode=disable\b/i.test(DATABASE_URL);
   const pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    ssl: isLocalPg ? false : { rejectUnauthorized: false },
     family: 4
   });
 

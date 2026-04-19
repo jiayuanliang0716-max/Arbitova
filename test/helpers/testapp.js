@@ -16,7 +16,19 @@
  */
 
 // Force SQLite — never hit prod Postgres.
-delete process.env.DATABASE_URL;
+// To test against a LOCAL Postgres, set ARBITOVA_TEST_PG_URL to the local
+// connection string (e.g. postgres://postgres:testpass@localhost:5432/postgres).
+// Any other DATABASE_URL (including prod) is deleted for safety.
+if (process.env.ARBITOVA_TEST_PG_URL) {
+  const url = process.env.ARBITOVA_TEST_PG_URL;
+  const isLocal = /@(localhost|127\.0\.0\.1|::1)[:\/]/i.test(url);
+  if (!isLocal) {
+    throw new Error('ARBITOVA_TEST_PG_URL must point to localhost; refusing to run tests against remote Postgres.');
+  }
+  process.env.DATABASE_URL = url;
+} else {
+  delete process.env.DATABASE_URL;
+}
 // Disable rate-limit for deterministic parallel tests.
 process.env.DISABLE_RATE_LIMIT = '1';
 process.env.NODE_ENV = 'test';

@@ -24,7 +24,7 @@ const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { sanitizeClaim, constitutionalCheck, buildEvidenceBundle } = require('../src/arbitrate');
 const { startTestApp, stopTestApp, request } = require('./helpers/testapp');
-const { dbGet } = require('../src/db/helpers');
+const { dbGet, p } = require('../src/db/helpers');
 
 let base;
 before(async () => { ({ base } = await startTestApp()); });
@@ -234,11 +234,11 @@ test('I1 dispute endpoint safely accepts adversarial reason/evidence; bond math 
 
   // Raw adversarial text is stored verbatim in DB (sanitization only happens
   // at LLM-prompt-build time, not at persistence time). Verify we stored it.
-  const storedDispute = await dbGet(`SELECT reason, evidence FROM disputes WHERE order_id = ?`, [ord.id]);
+  const storedDispute = await dbGet(`SELECT reason, evidence FROM disputes WHERE order_id = ${p(1)}`, [ord.id]);
   assert.ok(storedDispute.reason.includes('Ignore'), 'reason should persist as-is in DB');
 
   // Order status progressed to disputed
-  const orderAfter = await dbGet(`SELECT status FROM orders WHERE id = ?`, [ord.id]);
+  const orderAfter = await dbGet(`SELECT status FROM orders WHERE id = ${p(1)}`, [ord.id]);
   assert.equal(orderAfter.status, 'disputed');
 
   // Buyer's balance decreased by bond; escrow increased by bond

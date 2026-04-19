@@ -29,10 +29,11 @@ async function dbAll(sql, params = []) {
 
 async function dbRun(sql, params = []) {
   if (db.type === 'pg') {
-    await db.pool.query(sql, params);
-  } else {
-    db.prepare(sql).run(...params);
+    const res = await db.pool.query(sql, params);
+    return { changes: res.rowCount || 0 };
   }
+  const res = db.prepare(sql).run(...params);
+  return { changes: res.changes || 0 };
 }
 
 async function dbTransaction(fn) {
@@ -63,4 +64,8 @@ async function dbTransaction(fn) {
   }
 }
 
-module.exports = { dbGet, dbAll, dbRun, dbTransaction, normalizeService };
+// Portable placeholder helper for callers that need to write DB-agnostic SQL.
+// Usage: `WHERE id = ${p(1)}` → `$1` on Postgres, `?` on SQLite.
+const p = (n) => (db.type === 'pg' ? `$${n}` : '?');
+
+module.exports = { dbGet, dbAll, dbRun, dbTransaction, normalizeService, p };

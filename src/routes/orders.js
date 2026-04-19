@@ -875,10 +875,18 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     if (order.seller_id !== req.agent.id) return res.status(403).json({ error: 'Only the seller can deliver' });
     if (order.status !== 'paid') return res.status(400).json({ error: `Cannot deliver: status is ${order.status}` });
 
+    // Atomic transition first: prevents deliver+cancel race from leaving the
+    // order in 'cancelled' state while a delivery row is also inserted.
+    const transition = await dbRun(
+      `UPDATE orders SET status = 'delivered' WHERE id = ${p(1)} AND status = 'paid'`,
+      [order.id]
+    );
+    if (!transition.changes) {
+      return res.status(400).json({ error: 'Cannot deliver: order state changed concurrently' });
+    }
+
     const deliveryId = uuidv4();
     await dbRun(`INSERT INTO deliveries (id, order_id, content) VALUES (${p(1)},${p(2)},${p(3)})`, [deliveryId, order.id, content]);
-
-    await dbRun(`UPDATE orders SET status = 'delivered' WHERE id = ${p(1)}`, [order.id]);
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DELIVERED, {
       order_id: order.id, delivery_id: deliveryId,
@@ -908,9 +916,21 @@ router.post('/:id/confirm', requireApiKey, async (req, res, next) => {
     const sellerReceives = parseFloat(order.amount) - fee;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
+    // Atomic state transition: guarantees only one concurrent confirm wins.
+    // Without this, two simultaneous requests both pass the status check above
+    // and both run the money ops — a TOCTOU that double-charges the fee and
+    // double-pays the seller. SQLite hid this with its single-writer lock.
+    const transition = await dbRun(
+      `UPDATE orders SET status = 'completed', completed_at = ${now}
+        WHERE id = ${p(1)} AND status IN ('delivered', 'paid')`,
+      [order.id]
+    );
+    if (!transition.changes) {
+      return res.status(400).json({ error: 'Cannot confirm: order already settled or state changed' });
+    }
+
     await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [order.amount, order.buyer_id]);
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-    await dbRun(`UPDATE orders SET status = 'completed', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
     await creditPlatformFee(fee);
 
     // Reputation: successful delivery confirmed by buyer
@@ -956,11 +976,21 @@ router.post('/:id/partial-confirm', requireApiKey, async (req, res, next) => {
     const sellerReceives = releaseAmount - fee;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
-    // Reduce escrow by released portion, credit seller
+    // Atomic state transition: amount acts as the optimistic-lock version.
+    // If another concurrent partial-confirm already ran, amount has changed
+    // and rowCount is 0. Without this check, two parallel 60% releases
+    // would drain 120% of escrow on Postgres.
+    const transition = await dbRun(
+      `UPDATE orders SET amount = ${p(1)}, status = 'paid'
+        WHERE id = ${p(2)} AND amount = ${p(3)} AND status IN ('delivered','paid')`,
+      [remaining, order.id, order.amount]
+    );
+    if (!transition.changes) {
+      return res.status(400).json({ error: 'Cannot partial-confirm: order state changed concurrently' });
+    }
+
     await dbRun(`UPDATE agents SET escrow = escrow - ${p(1)} WHERE id = ${p(2)}`, [releaseAmount, order.buyer_id]);
     await dbRun(`UPDATE agents SET balance = balance + ${p(1)} WHERE id = ${p(2)}`, [sellerReceives, order.seller_id]);
-    // Update order amount to remaining (locked portion)
-    await dbRun(`UPDATE orders SET amount = ${p(1)}, status = 'paid' WHERE id = ${p(2)}`, [remaining, order.id]);
     await creditPlatformFee(fee);
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_COMPLETED, {
@@ -992,9 +1022,16 @@ const DISPUTE_BOND_RATE  = 0.05;
 const DISPUTE_BOND_MIN   = 0.01;
 const DISPUTE_BOND_MAX   = 2.0;
 
+// Strip NUL bytes — Postgres TEXT rejects them (invalid UTF8), SQLite accepts.
+// Any persisted user-input field passes through here so both backends behave
+// the same and a malicious payload cannot 500 the endpoint.
+const stripNulls = (s) => (typeof s === 'string' ? s.replace(/\u0000/g, '') : s);
+
 router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
   try {
-    const { reason, evidence } = req.body;
+    let { reason, evidence } = req.body;
+    reason = stripNulls(reason);
+    evidence = stripNulls(evidence);
     if (!reason) return res.status(400).json({ error: 'reason is required' });
 
     const order = await dbGet(`SELECT * FROM orders WHERE id = ${p(1)}`, [req.params.id]);
@@ -1044,6 +1081,17 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
       });
     }
 
+    // Atomic transition first: prevents dispute+confirm race from both
+    // settling the order while also locking the bond.
+    const transition = await dbRun(
+      `UPDATE orders SET status = 'disputed'
+        WHERE id = ${p(1)} AND status IN ('paid','delivered')`,
+      [order.id]
+    );
+    if (!transition.changes) {
+      return res.status(400).json({ error: 'Cannot dispute: order state changed concurrently' });
+    }
+
     // Lock bond: deduct from balance, add to escrow
     await dbRun(
       `UPDATE agents SET balance = balance - ${p(1)}, escrow = escrow + ${p(2)} WHERE id = ${p(3)}`,
@@ -1055,7 +1103,6 @@ router.post('/:id/dispute', requireApiKey, async (req, res, next) => {
       `INSERT INTO disputes (id, order_id, raised_by, reason, evidence, bond_amount) VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)})`,
       [disputeId, order.id, req.agent.id, reason, evidence || null, bondAmount]
     );
-    await dbRun(`UPDATE orders SET status = 'disputed' WHERE id = ${p(1)}`, [order.id]);
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DISPUTED, {
       order_id: order.id, dispute_id: disputeId,
@@ -1793,7 +1840,15 @@ router.post('/:id/cancel', requireApiKey, async (req, res, next) => {
     if (order.status !== 'paid') return res.status(400).json({ error: `Cannot cancel order in status '${order.status}'. Only 'paid' orders can be cancelled.` });
 
     const now = isPostgres ? 'NOW()' : "datetime('now')";
-    await dbRun(`UPDATE orders SET status = 'cancelled', completed_at = ${now} WHERE id = ${p(1)}`, [order.id]);
+    // Atomic transition: prevents deliver+cancel race from double-refunding.
+    const transition = await dbRun(
+      `UPDATE orders SET status = 'cancelled', completed_at = ${now}
+        WHERE id = ${p(1)} AND status = 'paid'`,
+      [order.id]
+    );
+    if (!transition.changes) {
+      return res.status(400).json({ error: 'Cannot cancel: order state changed concurrently' });
+    }
 
     // Refund escrow to buyer
     await dbRun(

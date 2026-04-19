@@ -66,7 +66,7 @@ test('A happy path: register → publish → order → deliver → confirm', asy
   const ord = await placeOrder(buyer.api_key, svc.id);
   assert.equal(ord.status, 201, `order failed: ${JSON.stringify(ord.body)}`);
   assert.equal(ord.body.status, 'paid');
-  assert.equal(ord.body.amount, 10);
+  assert.equal(parseFloat(ord.body.amount), 10);
 
   // Buyer balance should drop by 10, escrow should rise
   const meBuyer = await request('GET', '/api/v1/agents/me', { headers: { 'X-API-Key': buyer.api_key } });
