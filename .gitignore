@@ -42,6 +42,7 @@ seed/
 scripts/*
 !scripts/backfill-platform-revenue.js
 !scripts/reset-platform-revenue.js
+!scripts/backfill-accounts.js
 demo/
 test/*
 !test/*.test.js
