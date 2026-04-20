@@ -133,7 +133,7 @@ app.get('/api/stats', async (req, res) => {
     const p = (n) => isPostgres ? `$${n}` : '?';
     const [agents, services, completed, disputed, total_vol] = await Promise.all([
       dbAll('SELECT COUNT(*) as count FROM agents', []),
-      dbAll('SELECT COUNT(*) as count FROM services WHERE is_active = true OR is_active = 1', []),
+      dbAll(`SELECT COUNT(*) as count FROM services WHERE is_active = ${isPostgres ? 'TRUE' : '1'}`, []),
       dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as vol FROM orders WHERE status = ${p(1)}`, ['completed']),
       dbAll(`SELECT COUNT(*) as count FROM orders WHERE status = ${p(1)}`, ['disputed']),
       dbAll(`SELECT COALESCE(SUM(amount), 0) as vol FROM orders WHERE status NOT IN (${p(1)},${p(2)})`, ['cancelled', 'refunded']),
