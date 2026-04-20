@@ -11,8 +11,9 @@
  */
 
 const express = require('express');
+const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun } = require('../db/helpers');
-const { getPlatformWalletAddress, transferFromPlatform, isChainMode } = require('../wallet');
+const { getPlatformWalletAddress, transferFromPlatform, transferUsdc, isChainMode } = require('../wallet');
 const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, creditPlatformFee } = require('../config/fees');
 
 const router = express.Router();
@@ -611,6 +612,165 @@ router.delete('/announcements/:id', requireAdminKey, async (req, res) => {
     await dbRun('DELETE FROM announcements WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Emergency recovery endpoints ─────────────────────────────────────────
+// One-shot tools to recover funds from test/orphan agents. Admin-gated. After
+// the stuck funds are out, these can be deleted safely.
+
+// GET /admin/agents/:id/full — full agent state including ALL orders (even spot)
+router.get('/agents/:id/full', async (req, res) => {
+  try {
+    const agent = await dbGet(
+      `SELECT id, name, description, owner_email, balance, escrow, wallet_address,
+              (wallet_encrypted_key IS NOT NULL) AS has_encrypted_key
+       FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'agent not found' });
+    const orders = await dbAll(
+      `SELECT id, status, amount, buyer_id, seller_id, service_id, deadline, created_at, completed_at
+       FROM orders
+       WHERE buyer_id = ${p(1)} OR seller_id = ${p(1)}
+       ORDER BY created_at DESC`,
+      [agent.id]
+    );
+    res.json({
+      agent: {
+        id: agent.id, name: agent.name, description: agent.description,
+        owner_email: agent.owner_email,
+      },
+      wallet: {
+        balance: parseFloat(agent.balance || 0),
+        escrow: parseFloat(agent.escrow || 0),
+        address: agent.wallet_address || null,
+        has_encrypted_key: !!agent.has_encrypted_key,
+      },
+      orders: orders.map(o => ({
+        id: o.id,
+        status: o.status,
+        amount: parseFloat(o.amount),
+        is_spot: !o.service_id,
+        role: o.buyer_id === agent.id ? 'buyer' : 'seller',
+        counterparty_id: o.buyer_id === agent.id ? o.seller_id : o.buyer_id,
+        deadline: o.deadline,
+        created_at: o.created_at,
+        completed_at: o.completed_at,
+      })),
+    });
+  } catch (err) {
+    console.error('[admin] full-state error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/agents/:id/force-cancel-orders
+// Body: { dry_run? }
+// Cancels every non-completed order where this agent is buyer or seller.
+// Refunds buyer escrow; for spot orders, also releases seller-side escrow.
+router.post('/agents/:id/force-cancel-orders', async (req, res) => {
+  try {
+    const dry_run = !!(req.body && req.body.dry_run);
+    const orders = await dbAll(
+      `SELECT id, status, amount, buyer_id, seller_id, service_id
+       FROM orders
+       WHERE (buyer_id = ${p(1)} OR seller_id = ${p(1)})
+         AND status NOT IN ('completed','refunded','cancelled')`,
+      [req.params.id]
+    );
+    const actions = [];
+    for (const o of orders) {
+      const amount = parseFloat(o.amount);
+      const isSpot = !o.service_id;
+      if (dry_run) {
+        actions.push({
+          order_id: o.id, status: o.status, amount, is_spot: isSpot,
+          would: isSpot
+            ? 'refund buyer escrow + refund seller escrow + cancel'
+            : 'refund buyer escrow + cancel',
+        });
+        continue;
+      }
+      // Release buyer escrow back to buyer balance
+      await dbRun(
+        `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(1)} WHERE id = ${p(2)}`,
+        [amount, o.buyer_id]
+      );
+      // For spot orders, seller also had mirrored escrow — return it to seller balance
+      if (isSpot) {
+        await dbRun(
+          `UPDATE agents SET balance = balance + ${p(1)}, escrow = escrow - ${p(1)} WHERE id = ${p(2)}`,
+          [amount, o.seller_id]
+        );
+      }
+      const nowExpr = isPostgres ? 'NOW()' : "datetime('now')";
+      await dbRun(
+        `UPDATE orders SET status = 'cancelled', completed_at = ${nowExpr} WHERE id = ${p(1)}`,
+        [o.id]
+      );
+      actions.push({ order_id: o.id, amount, is_spot: isSpot, action: 'cancelled' });
+    }
+    res.json({ dry_run, orders_found: orders.length, actions });
+  } catch (err) {
+    console.error('[admin] force-cancel error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /admin/agents/:id/sweep
+// Body: { to_address, dry_run? }
+// Transfers the agent's entire free balance on-chain to to_address,
+// then debits the balance to 0. Does NOT touch escrow.
+router.post('/agents/:id/sweep', async (req, res) => {
+  try {
+    const { to_address } = req.body || {};
+    const dry_run = !!(req.body && req.body.dry_run);
+    if (!to_address || !/^0x[0-9a-fA-F]{40}$/.test(to_address)) {
+      return res.status(400).json({ error: 'valid to_address required' });
+    }
+    const agent = await dbGet(
+      `SELECT id, name, balance, wallet_address, wallet_encrypted_key
+       FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'agent not found' });
+    const bal = parseFloat(agent.balance || 0);
+    if (bal <= 0) return res.status(400).json({ error: 'zero balance, nothing to sweep' });
+    if (dry_run) {
+      return res.json({
+        dry_run: true, agent_id: agent.id, agent_name: agent.name,
+        would_transfer_usdc: bal,
+        from_wallet: agent.wallet_address,
+        to_address,
+      });
+    }
+    if (!isChainMode()) return res.status(400).json({ error: 'chain mode is off' });
+    if (!agent.wallet_encrypted_key) return res.status(400).json({ error: 'agent has no wallet_encrypted_key' });
+
+    const result = await transferUsdc(agent.wallet_encrypted_key, to_address, bal);
+    await dbRun(`UPDATE agents SET balance = balance - ${p(1)} WHERE id = ${p(2)}`, [bal, agent.id]);
+    const withdrawalId = uuidv4();
+    const nowExpr = isPostgres ? 'NOW()' : "datetime('now')";
+    await dbRun(
+      `INSERT INTO withdrawals (id, agent_id, amount, to_address, tx_hash, status, completed_at)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},'completed',${nowExpr})`,
+      [withdrawalId, agent.id, bal, to_address, result.txHash]
+    ).catch(() => {});
+    res.json({
+      success: true,
+      agent_id: agent.id,
+      agent_name: agent.name,
+      amount_transferred: bal,
+      from_wallet: agent.wallet_address,
+      to_address,
+      tx_hash: result.txHash,
+      block_number: result.blockNumber,
+      explorer_url: `https://basescan.org/tx/${result.txHash}`,
+    });
+  } catch (err) {
+    console.error('[admin] sweep error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
