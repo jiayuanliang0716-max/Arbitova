@@ -1046,7 +1046,7 @@ async function handleAuthCallback() {
       modal(`
         <button class="close" onclick="closeModal()">&times;</button>
         <h2>Welcome to Arbitova</h2>
-        <div class="success-box" style="margin-bottom:16px">Account created via ${r.provider || 'social login'}. You got 100 test credits.</div>
+        <div class="success-box" style="margin-bottom:16px">Account created via ${r.provider || 'social login'}. Deposit USDC on Base to your wallet address to start transacting.</div>
         <div style="background:var(--warn-bg);border:1px solid var(--warn);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
           <b>Save your API Key</b><br>You will need it for API access. It won't be shown again.
         </div>

@@ -36,7 +36,7 @@ const LANG = {
     landing_how_title: 'How It Works',
     landing_how_sub: 'Three API calls from registration to settlement',
     landing_step1_t: '1. Register Agent',
-    landing_step1_d: 'POST /agents/register — get your Agent ID and API key. 100 test USDC included.',
+    landing_step1_d: 'POST /agents/register — get your Agent ID and API key. Deposit USDC on Base to fund your wallet.',
     landing_step2_t: '2. Place Order',
     landing_step2_d: 'POST /orders — funds move to escrow automatically. Buyer and seller are both protected.',
     landing_step3_t: '3. Deliver & Settle',
@@ -49,7 +49,7 @@ const LANG = {
     landing_pricing_sub: 'No monthly fees. Pay only when transactions complete.',
     landing_pricing_fee: '2.5% per transaction',
     landing_pricing_free: 'Free to register',
-    landing_pricing_test: '100 test USDC included',
+    landing_pricing_test: 'USDC on Base mainnet',
     landing_pricing_no_monthly: 'No monthly charges',
 
     landing_footer_copy: 'Arbitova. Built for the agent economy.',
@@ -61,7 +61,7 @@ const LANG = {
 
     // ── Auth ──
     auth_register_title: 'Create Developer Account',
-    auth_register_sub: 'Free to join — get 100 test USDC to start building',
+    auth_register_sub: 'Free to register — deposit USDC on Base to start transacting',
     auth_name_label: 'Agent Name',
     auth_name_hint: 'e.g. PayBot, My Trading Agent',
     auth_name_placeholder: 'Enter a name for your agent',
@@ -75,7 +75,7 @@ const LANG = {
 
     auth_success_title: 'Account Created',
     auth_success_desc: 'Your credentials have been saved in the browser. <b style="color:var(--warn)">The API key is shown only once</b> — copy it to a safe place.',
-    auth_got_credits: 'You received 100 test USDC. Start integrating with the API.',
+    auth_got_credits: 'Registration complete. Deposit USDC to your wallet address on Base to start transacting.',
     auth_save_warn_title: 'Save your API Key!',
     auth_save_warn_body: 'This key is the only way to authenticate. Store it securely — we cannot recover it.',
     auth_agent_id: 'Agent ID',
@@ -369,7 +369,7 @@ const LANG = {
     landing_how_title: '怎麼運作',
     landing_how_sub: '三個 API 呼叫，從註冊到結算',
     landing_step1_t: '1. 註冊 Agent',
-    landing_step1_d: 'POST /agents/register — 取得 Agent ID 和 API 金鑰，附贈 100 測試 USDC。',
+    landing_step1_d: 'POST /agents/register — 取得 Agent ID 和 API 金鑰，到 Base 主網儲值 USDC 即可使用。',
     landing_step2_t: '2. 下單',
     landing_step2_d: 'POST /orders — 資金自動進入託管。買賣雙方皆受保障。',
     landing_step3_t: '3. 交付結算',
@@ -382,7 +382,7 @@ const LANG = {
     landing_pricing_sub: '無月費。只在交易完成時收費。',
     landing_pricing_fee: '每筆交易 2.5%',
     landing_pricing_free: '免費註冊',
-    landing_pricing_test: '附贈 100 測試 USDC',
+    landing_pricing_test: 'USDC 於 Base 主網結算',
     landing_pricing_no_monthly: '無月費',
 
     landing_footer_copy: 'Arbitova. 為 Agent 經濟而生。',
@@ -394,7 +394,7 @@ const LANG = {
 
     // ── Auth ──
     auth_register_title: '建立開發者帳號',
-    auth_register_sub: '免費加入 — 立即獲得 100 測試 USDC',
+    auth_register_sub: '免費註冊 — 到 Base 主網存入 USDC 即可開始交易',
     auth_name_label: 'Agent 名稱',
     auth_name_hint: '例如：PayBot、我的交易 Agent',
     auth_name_placeholder: '輸入 Agent 名稱',
@@ -408,7 +408,7 @@ const LANG = {
 
     auth_success_title: '帳號已建立',
     auth_success_desc: '您的憑證已儲存在瀏覽器中。<b style="color:var(--warn)">API 金鑰只會顯示一次</b>，請複製到安全的地方。',
-    auth_got_credits: '已收到 100 測試 USDC，可以開始使用 API 整合了。',
+    auth_got_credits: '註冊完成。請至 Base 主網將 USDC 存入你的 wallet 地址即可開始交易。',
     auth_save_warn_title: '請保存 API 金鑰！',
     auth_save_warn_body: '這是您唯一的認證方式。請安全保管 — 我們無法為您恢復。',
     auth_agent_id: 'Agent ID',
