@@ -136,7 +136,7 @@ app.get('/api/stats', async (req, res) => {
       dbAll('SELECT COUNT(*) as count FROM services WHERE is_active = true OR is_active = 1', []),
       dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as vol FROM orders WHERE status = ${p(1)}`, ['completed']),
       dbAll(`SELECT COUNT(*) as count FROM orders WHERE status = ${p(1)}`, ['disputed']),
-      dbAll(`SELECT COALESCE(SUM(amount), 0) as vol FROM orders WHERE status NOT IN (${p(2)},${p(3)})`, ['cancelled', 'refunded']),
+      dbAll(`SELECT COALESCE(SUM(amount), 0) as vol FROM orders WHERE status NOT IN (${p(1)},${p(2)})`, ['cancelled', 'refunded']),
     ]);
     statsCache = {
       agents: parseInt(agents[0].count),
