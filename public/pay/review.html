@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buyer inbox · Arbitova Pay</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+  .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+  .wallet-badge.on .dot { background: var(--brand); }
+
+  .wrap { max-width: 820px; margin: 0 auto; padding: 48px 32px 80px; }
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lede { font-size: 14px; color: var(--text-secondary); margin: 0 0 32px; line-height: 1.6; }
+
+  .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+  .alert.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); }
+  .alert a { color: inherit; text-decoration: underline; }
+
+  .empty { background: var(--bg-surface); border: 1px dashed var(--border-default); border-radius: var(--radius-md); padding: 40px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+
+  .escrow-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px; margin-bottom: 14px; }
+  .escrow-card.urgent { border-color: var(--warning-border); }
+  .escrow-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+  .escrow-id { font-family: var(--font-mono); font-size: 13px; color: var(--text-secondary); }
+  .escrow-id strong { color: var(--text-primary); font-size: 16px; display: block; margin-top: 2px; }
+  .chip { font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; }
+  .chip.created { background: var(--warning-bg); color: var(--warning); }
+  .chip.delivered { background: var(--brand-dim); color: var(--brand); }
+  .chip.released, .chip.resolved, .chip.cancelled { background: var(--neutral-bg); color: var(--text-secondary); }
+  .chip.disputed { background: var(--danger-bg); color: var(--danger); }
+
+  .escrow-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; font-size: 12px; }
+  @media (max-width: 560px) { .escrow-meta { grid-template-columns: 1fr 1fr; } }
+  .meta-item .k { color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; margin-bottom: 3px; }
+  .meta-item .v { font-family: var(--font-mono); color: var(--text-primary); }
+
+  .countdown { font-family: var(--font-mono); font-size: 13px; padding: 10px 14px; background: var(--bg-raised); border-radius: var(--radius-sm); margin-bottom: 14px; }
+  .countdown.warn { background: var(--warning-bg); color: var(--warning); }
+  .countdown.danger { background: var(--danger-bg); color: var(--danger); }
+
+  .actions { display: flex; gap: 8px; flex-wrap: wrap; border-top: 1px solid var(--border-subtle); padding-top: 14px; }
+  .btn { font-family: var(--font-ui); font-size: 13px; font-weight: 500; padding: 8px 16px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all var(--duration) var(--ease); }
+  .btn-primary { background: var(--brand); color: #000; border-color: var(--brand); }
+  .btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
+  .btn-danger { background: transparent; color: var(--danger); border-color: var(--danger-border); }
+  .btn-danger:hover:not(:disabled) { background: var(--danger-bg); }
+  .btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--brand-border); color: var(--brand); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .dispute-form { margin-top: 12px; padding: 14px; background: var(--bg-base); border: 1px solid var(--danger-border); border-radius: var(--radius-sm); display: none; }
+  .dispute-form.show { display: block; }
+  .dispute-form textarea { width: 100%; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary); padding: 8px 10px; font-family: var(--font-ui); font-size: 13px; margin-bottom: 10px; resize: vertical; min-height: 70px; }
+  .dispute-form .hint { font-size: 11px; color: var(--text-tertiary); margin-bottom: 10px; line-height: 1.5; }
+
+  .spinner { display: inline-block; width: 40px; height: 40px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/pay/new.html">New escrow</a>
+      <a href="/pay/seller.html">Seller inbox</a>
+      <a href="/pay/review.html" class="active">Buyer inbox</a>
+    </div>
+    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+  </nav>
+
+  <div class="wrap">
+    <h1>Buyer inbox</h1>
+    <p class="lede">Your escrows. Confirm delivery to release funds to the seller, or dispute if the work doesn't match the spec. Silence past the review window routes to dispute — it does <em>not</em> auto-release.</p>
+
+    <div id="notConnected" class="alert warn">Please connect your wallet first — <a href="/pay/">back to dashboard</a>.</div>
+    <div id="content" style="display:none"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    const notConnected = document.getElementById('notConnected');
+    const content = document.getElementById('content');
+    const badge = document.getElementById('walletBadge');
+    const text = document.getElementById('walletText');
+
+    async function init() {
+      try { await PathB.connect(); } catch (e) {}
+      const acct = PathB.getAccount();
+      if (!acct) return;
+      badge.classList.add('on');
+      text.textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
+      notConnected.style.display = 'none';
+      content.style.display = '';
+      render();
+    }
+    init();
+
+    function countdownLine(e) {
+      if (e.state === 'CREATED') {
+        return `<div class="countdown">Seller has until ${PathB.formatDeadline(e.deliveryDeadline)} to deliver.</div>`;
+      }
+      if (e.state === 'DELIVERED') {
+        const now = Date.now() / 1000;
+        const secs = e.reviewDeadline - now;
+        const cls = secs < 3600 ? 'danger' : secs < 86400 ? 'warn' : '';
+        return `<div class="countdown ${cls}">Review closes ${PathB.formatDeadline(e.reviewDeadline)}. Confirm to release, dispute if the work is wrong.</div>`;
+      }
+      return '';
+    }
+
+    async function render() {
+      content.innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top:12px">Scanning escrows…</div></div>';
+      try {
+        const list = await PathB.listEscrowsForAddress('buyer');
+        if (list.length === 0) {
+          content.innerHTML = `<div class="empty">No escrows yet. <a href="/pay/new.html">Create one →</a></div>`;
+          return;
+        }
+        list.sort((a, b) => {
+          const order = { DELIVERED: 0, CREATED: 1, DISPUTED: 2, RESOLVED: 3, RELEASED: 4, CANCELLED: 5 };
+          return (order[a.state] || 99) - (order[b.state] || 99) || Number(b.id) - Number(a.id);
+        });
+        content.innerHTML = list.map(renderCard).join('');
+        list.forEach(wireCard);
+      } catch (err) {
+        content.innerHTML = `<div class="alert err">Failed to load: ${err.message}</div>`;
+      }
+    }
+
+    function renderCard(e) {
+      const stateClass = e.state.toLowerCase();
+      const urgent = e.state === 'DELIVERED';
+      const canReview = e.state === 'DELIVERED';
+
+      const reviewActions = canReview ? `
+        <div class="actions">
+          <button class="btn btn-primary" id="confirm-${e.id}">Confirm delivery — release funds</button>
+          <button class="btn btn-danger" id="dispute-${e.id}">Dispute</button>
+          <a class="btn btn-secondary" href="/pay/status.html?id=${e.id}">Details</a>
+          <a class="btn btn-secondary" href="${e.verificationURI}" target="_blank" rel="noopener">Verification spec</a>
+        </div>
+        <div class="dispute-form" id="df-${e.id}">
+          <textarea id="reason-${e.id}" placeholder="Why is this delivery rejected? Be specific (which acceptance criterion failed)…"></textarea>
+          <div class="hint">Your reason is recorded on-chain. The arbiter reads it against the verification spec and splits the funds.</div>
+          <button class="btn btn-danger" id="submit-dispute-${e.id}">Submit dispute</button>
+          <span id="msg-${e.id}"></span>
+        </div>
+      ` : `
+        <div class="actions">
+          <a class="btn btn-secondary" href="/pay/status.html?id=${e.id}">Details</a>
+          <a class="btn btn-secondary" href="${e.verificationURI}" target="_blank" rel="noopener">Verification spec</a>
+        </div>
+      `;
+
+      return `
+        <div class="escrow-card ${urgent ? 'urgent' : ''}">
+          <div class="escrow-head">
+            <div class="escrow-id">escrow <strong>#${e.id}</strong></div>
+            <span class="chip ${stateClass}">${e.state}</span>
+          </div>
+          <div class="escrow-meta">
+            <div class="meta-item"><div class="k">Amount</div><div class="v">${e.amount} ${env.usdcSymbol}</div></div>
+            <div class="meta-item"><div class="k">Seller</div><div class="v"><a href="${PathB.explorerAddr(e.seller)}" target="_blank">${e.seller.slice(0,6)}…${e.seller.slice(-4)}</a></div></div>
+            <div class="meta-item"><div class="k">State</div><div class="v">${e.state}</div></div>
+          </div>
+          ${countdownLine(e)}
+          ${reviewActions}
+        </div>
+      `;
+    }
+
+    function wireCard(e) {
+      if (e.state !== 'DELIVERED') return;
+      const confirmBtn = document.getElementById(`confirm-${e.id}`);
+      const disputeBtn = document.getElementById(`dispute-${e.id}`);
+      const df = document.getElementById(`df-${e.id}`);
+      const submitDispute = document.getElementById(`submit-dispute-${e.id}`);
+      const reason = document.getElementById(`reason-${e.id}`);
+      const msg = document.getElementById(`msg-${e.id}`);
+
+      confirmBtn.addEventListener('click', async () => {
+        if (!confirm(`Release ${e.amount} ${env.usdcSymbol} to the seller? This cannot be undone.`)) return;
+        confirmBtn.disabled = true; confirmBtn.textContent = 'Signing…';
+        try {
+          const res = await PathB.confirmDelivery({ escrowId: e.id });
+          alert(`Released. Tx: ${res.txHash}`);
+          render();
+        } catch (err) {
+          alert(err.shortMessage || err.message);
+          confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm delivery — release funds';
+        }
+      });
+
+      disputeBtn.addEventListener('click', () => df.classList.toggle('show'));
+
+      submitDispute.addEventListener('click', async () => {
+        const r = reason.value.trim();
+        if (r.length < 10) { msg.innerHTML = '<span style="color:var(--danger);font-size:12px;margin-left:8px">Please write a clear reason (≥10 chars).</span>'; return; }
+        submitDispute.disabled = true; submitDispute.textContent = 'Signing…';
+        try {
+          const res = await PathB.dispute({ escrowId: e.id, reason: r });
+          msg.innerHTML = `<span style="color:var(--brand);font-size:12px;margin-left:8px">Disputed. <a href="${PathB.explorerTx(res.txHash)}" target="_blank">tx</a></span>`;
+          setTimeout(render, 3000);
+        } catch (err) {
+          msg.innerHTML = `<span style="color:var(--danger);font-size:12px;margin-left:8px">${err.shortMessage || err.message}</span>`;
+          submitDispute.disabled = false; submitDispute.textContent = 'Submit dispute';
+        }
+      });
+    }
+
+    document.addEventListener('pathb:account', render);
+  </script>
+</body>
+</html>

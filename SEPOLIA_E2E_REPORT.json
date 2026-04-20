@@ -1,0 +1,90 @@
+{
+  "startedAt": "2026-04-20T23:19:26.636Z",
+  "network": "Base Sepolia (84532)",
+  "contracts": {
+    "MOCK_USDC": "0xe5FC9d9D89817268b87C4ECcfd0A01CAea8c011e",
+    "ESCROW": "0x331cE65982Dd879920fA00195e70bF77f18AB61A",
+    "deployer": "0xbB79E21f8561238DB10d839bC3D8D5e07DEA738c"
+  },
+  "flows": [
+    {
+      "name": "happy_path",
+      "steps": [
+        {
+          "step": "create",
+          "escrowId": "5",
+          "txHash": "0x2b25719ed4a491e5282334216fdab92ab53bf5ec14b3e9fbb4c4b84f8dc82aa5",
+          "approveTxHash": "0x92cb8b5fc17fb905ed1448f30762cc1e45eec4e234237d69bfb34f84c721e8e6"
+        },
+        {
+          "step": "markDelivered",
+          "txHash": "0x38372276c5aa85f01b7b81044dab7ce2999717e51e3334cfaf15e45f5b953f2d"
+        },
+        {
+          "step": "confirmDelivery",
+          "txHash": "0xdcf6c6ad69e8edf1c312bd673373c4b3a1beeff3ee638d9af7ed785f5e2aba4c"
+        }
+      ],
+      "result": {
+        "escrowId": "5",
+        "buyerSpent": 10,
+        "sellerGained": 9.95,
+        "feeGained": 0.05,
+        "expectedSeller": 9.95,
+        "expectedFee": 0.05,
+        "pass": true
+      }
+    },
+    {
+      "name": "dispute_path",
+      "steps": [
+        {
+          "step": "create",
+          "escrowId": "6",
+          "txHash": "0x43871d7b8dc6dfd58cf09b346dc28f5e645ebd2df44f5aa8d1e4252bbc0993cd"
+        },
+        {
+          "step": "markDelivered",
+          "txHash": "0x5255213f172b30311a118d04c1b2ef5a1b86dca2238eeaaca3fd2c683185e07b"
+        },
+        {
+          "step": "dispute",
+          "txHash": "0xa1e237d73cc178d42c6a9d8486143e32447259c2950c3bbec26c54633cdf07f1"
+        },
+        {
+          "step": "resolve",
+          "txHash": "0x882bbae7aea44a4b1ef3281ad4aea4ee9595e8fda29357c47321eb91b5057d31",
+          "verdictHash": "0x1b33f2ca4ca955774968c9da5752ac7d5818346d0ba5ac66e35e3716b2699d02"
+        }
+      ],
+      "result": {
+        "escrowId": "6",
+        "buyerRefund": 13.72,
+        "sellerGained": 5.88,
+        "feeGained": 0.4,
+        "expected": {
+          "buyerRefund": 13.72,
+          "sellerGained": 5.88,
+          "feeGained": 0.4
+        },
+        "pass": true
+      }
+    }
+  ],
+  "wallets": {
+    "buyer": "0xec7447a2D72aC0fE3B6fF23873a3026Eb0c7D054",
+    "seller": "0x5A8c1645a5B152B5234D4caBAC07f5E3Cdb3AaD3",
+    "arbiter": "0xbB79E21f8561238DB10d839bC3D8D5e07DEA738c"
+  },
+  "setup": {
+    "fundBuyer": "0xe9aee508ccf2cfe21895ffdb3861ecd0879b92d52831171eb497ae7fabaf45da",
+    "fundSeller": "0x72f9d3e352d970f976a25e7929c9f36f52fe9061fc628dcc99bebc6fac39f348",
+    "mintUsdc": "0x61a44b22b21e9d85bd88bd7da4c1f06668499a89b5eb111787c56d3cd6e4b1a6"
+  },
+  "completedAt": "2026-04-20T23:20:07.704Z",
+  "summary": {
+    "flow1Pass": true,
+    "flow2Pass": true,
+    "allPass": true
+  }
+}

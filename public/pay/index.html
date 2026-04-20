@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Arbitova Pay · Dashboard</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+  a:hover { color: var(--brand-hover); }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+
+  .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+  .wallet-badge.on .dot { background: var(--brand); }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 48px 32px 80px; }
+
+  .hero { margin-bottom: 40px; }
+  .hero h1 { font-size: 32px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .hero p { font-size: 15px; color: var(--text-secondary); margin: 0; max-width: 560px; line-height: 1.6; }
+
+  .env-pill { display: inline-block; font-size: 11px; font-family: var(--font-mono); padding: 4px 10px; border-radius: var(--radius-full); background: var(--brand-dim); color: var(--brand); margin-bottom: 16px; }
+  .env-pill.test { background: var(--warning-bg); color: var(--warning); }
+
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 32px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+  .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; text-decoration: none; color: inherit; display: block; transition: border-color var(--duration) var(--ease), transform var(--duration) var(--ease); }
+  .card:hover { border-color: var(--brand-border); transform: translateY(-2px); }
+  .card .role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 8px; }
+  .card h3 { font-size: 18px; font-weight: 600; margin: 0 0 6px; }
+  .card p { font-size: 13px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
+  .card .cta { font-size: 13px; color: var(--brand); font-weight: 500; }
+
+  .connect-block { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 28px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  .connect-block .info { flex: 1; min-width: 260px; }
+  .connect-block h4 { font-size: 15px; font-weight: 600; margin: 0 0 6px; }
+  .connect-block p { font-size: 13px; color: var(--text-secondary); margin: 0; }
+
+  .btn { font-family: var(--font-ui); font-size: 14px; font-weight: 500; padding: 10px 20px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all var(--duration) var(--ease); white-space: nowrap; }
+  .btn-primary { background: var(--brand); color: #000; border-color: var(--brand); }
+  .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+  .btn-secondary:hover { border-color: var(--brand-border); color: var(--brand); }
+
+  .balance-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+  @media (max-width: 560px) { .balance-row { grid-template-columns: 1fr; } }
+  .metric { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px 20px; }
+  .metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin-bottom: 6px; }
+  .metric .value { font-size: 20px; font-weight: 600; font-family: var(--font-mono); }
+  .metric .sub { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; font-family: var(--font-mono); }
+
+  .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-tertiary); }
+  .foot a { color: var(--text-secondary); margin-right: 16px; }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/" class="active">Pay</a>
+      <a href="/pay/new.html">New escrow</a>
+      <a href="/pay/seller.html">Seller inbox</a>
+      <a href="/pay/review.html">Buyer inbox</a>
+    </div>
+    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+  </nav>
+
+  <div class="wrap">
+    <div id="envPill" class="env-pill">Base Sepolia · Circle USDC</div>
+    <div class="hero">
+      <h1>Arbitova Pay</h1>
+      <p>On-chain escrow for any two parties. Buyer locks USDC, seller delivers, contract releases. If the buyer disputes, an arbiter splits the funds. No custody, no trust.</p>
+    </div>
+
+    <div class="connect-block">
+      <div class="info">
+        <h4>Connect your wallet</h4>
+        <p id="connectHint">You'll need MetaMask (or any EIP-1193 wallet) on Base Sepolia. Funds stay in your wallet until you lock an escrow.</p>
+      </div>
+      <button id="connectBtn" class="btn btn-primary">Connect wallet</button>
+    </div>
+
+    <div id="metrics" class="balance-row" style="display:none">
+      <div class="metric"><div class="label">Your address</div><div class="value" id="mAddr">—</div></div>
+      <div class="metric"><div class="label" id="mUsdcLabel">USDC</div><div class="value" id="mUsdc">—</div><div class="sub">available</div></div>
+      <div class="metric"><div class="label">Allowance</div><div class="value" id="mAllow">—</div><div class="sub">approved for escrow</div></div>
+    </div>
+
+    <div class="grid">
+      <a href="/pay/new.html" class="card">
+        <div class="role">Buyer</div>
+        <h3>Create an escrow</h3>
+        <p>Lock USDC against a seller's address. Set delivery and review windows. The contract holds the funds until delivery is confirmed.</p>
+        <div class="cta">Start →</div>
+      </a>
+      <a href="/pay/seller.html" class="card">
+        <div class="role">Seller</div>
+        <h3>Mark delivered</h3>
+        <p>See every escrow where you are the seller. Attach a delivery payload URI when the work is done.</p>
+        <div class="cta">Open seller inbox →</div>
+      </a>
+      <a href="/pay/review.html" class="card">
+        <div class="role">Buyer</div>
+        <h3>Review deliveries</h3>
+        <p>For escrows the seller marked delivered — confirm to release funds, or dispute if the work doesn't match.</p>
+        <div class="cta">Open buyer inbox →</div>
+      </a>
+      <a href="/pay/status.html" class="card">
+        <div class="role">Either</div>
+        <h3>Look up an escrow</h3>
+        <p>Enter an escrow ID to see its current state, on-chain history, and deadlines.</p>
+        <div class="cta">Open lookup →</div>
+      </a>
+    </div>
+
+    <div class="foot">
+      <a href="/architecture.html">Architecture</a>
+      <a href="/verdicts.html">Verdicts</a>
+      <a href="/status.html">Status</a>
+      <span id="contractLink"></span>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const q = new URLSearchParams(location.search);
+    const env = PathB.getEnvInfo();
+    const envPill = document.getElementById('envPill');
+    envPill.textContent = env.label;
+    if (q.get('env') === 'test') envPill.classList.add('test');
+
+    document.getElementById('contractLink').innerHTML =
+      `<a href="${PathB.explorerAddr(env.escrow)}" target="_blank" rel="noopener">Contract on Basescan →</a>`;
+
+    const badge = document.getElementById('walletBadge');
+    const text = document.getElementById('walletText');
+    const metrics = document.getElementById('metrics');
+
+    async function refresh() {
+      const acct = PathB.getAccount();
+      if (!acct) {
+        badge.classList.remove('on');
+        text.textContent = 'Not connected';
+        metrics.style.display = 'none';
+        return;
+      }
+      badge.classList.add('on');
+      text.textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
+      document.getElementById('mAddr').textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
+      document.getElementById('mUsdcLabel').textContent = env.usdcSymbol;
+      metrics.style.display = '';
+      try {
+        const [bal, allow] = await Promise.all([
+          PathB.getUsdcBalance(acct),
+          PathB.getUsdcAllowance(acct),
+        ]);
+        document.getElementById('mUsdc').textContent = Number(bal).toFixed(2);
+        document.getElementById('mAllow').textContent = Number(allow).toFixed(2);
+      } catch (e) {
+        document.getElementById('mUsdc').textContent = '—';
+        document.getElementById('mAllow').textContent = '—';
+      }
+    }
+
+    document.getElementById('connectBtn').addEventListener('click', async () => {
+      try {
+        await PathB.connect();
+        document.getElementById('connectBtn').textContent = 'Connected';
+        document.getElementById('connectHint').textContent = 'Wallet connected. Balances refresh automatically when your account changes.';
+        refresh();
+      } catch (e) {
+        alert(e.message || String(e));
+      }
+    });
+
+    document.addEventListener('pathb:account', refresh);
+  </script>
+</body>
+</html>
