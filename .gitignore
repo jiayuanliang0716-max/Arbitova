@@ -53,3 +53,6 @@ test-pg.ps1
 railway.toml
 render.yaml
 .tools/
+.claude/.env
+path_b_verdicts/
+contracts/.env

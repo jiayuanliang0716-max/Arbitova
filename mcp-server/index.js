@@ -24,7 +24,12 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
 } = require('@modelcontextprotocol/sdk/types.js');
+
+const fs = require('fs');
+const path = require('path');
 
 const BASE_URL = process.env.ARBITOVA_BASE_URL || 'https://a2a-system.onrender.com/api/v1';
 const API_KEY  = process.env.ARBITOVA_API_KEY;
@@ -1155,16 +1160,86 @@ async function handleTool(name, args) {
   }
 }
 
+// ── Path B resource definitions ───────────────────────────────────────────────
+
+const PROMPTS_DIR = path.join(__dirname, 'prompts');
+const CONTRACTS_ABI_PATH = path.join(__dirname, '..', 'contracts', 'out', 'EscrowV1.sol', 'EscrowV1.json');
+
+const PATH_B_RESOURCES = [
+  {
+    uri: 'arbitova://prompts/buyer-verification',
+    name: 'Buyer Verification Protocol',
+    description: 'Step-by-step checklist for buyer agents: how to fetch, evaluate, and act on a delivery (confirm or dispute). Load this prompt into your agent before handling Delivered events.',
+    mimeType: 'text/markdown',
+  },
+  {
+    uri: 'arbitova://prompts/seller-delivery',
+    name: 'Seller Delivery Protocol',
+    description: 'Step-by-step checklist for seller agents: how to complete work, upload to a stable URL, and submit delivery correctly. Load this prompt before calling arbitova_mark_delivered.',
+    mimeType: 'text/markdown',
+  },
+  {
+    uri: 'arbitova://prompts/arbitrator-self-check',
+    name: 'Arbitrator Self-Check Protocol',
+    description: 'Structured protocol for LLM-as-arbitrator use cases: gather evidence, evaluate criteria, produce a fair allocation verdict. Includes self-check and bias-prevention rules.',
+    mimeType: 'text/markdown',
+  },
+  {
+    uri: 'arbitova://resources/escrow-abi',
+    name: 'EscrowV1 Contract ABI',
+    description: 'Full ABI for the Arbitova EscrowV1 smart contract. Use this to interact with the contract directly via ethers.js, viem, web3.py, or any EVM library.',
+    mimeType: 'application/json',
+  },
+];
+
+function readPromptFile(filename) {
+  return fs.readFileSync(path.join(PROMPTS_DIR, filename), 'utf8');
+}
+
+function readEscrowAbi() {
+  const full = JSON.parse(fs.readFileSync(CONTRACTS_ABI_PATH, 'utf8'));
+  return JSON.stringify(full.abi, null, 2);
+}
+
 // ── MCP Server setup ───────────────────────────────────────────────────────────
 
 const server = new Server(
   { name: 'arbitova', version: '3.4.0' },
-  { capabilities: { tools: {} } }
+  { capabilities: { tools: {}, resources: {} } }
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: TOOLS,
 }));
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: PATH_B_RESOURCES,
+}));
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params;
+  try {
+    let text;
+    if (uri === 'arbitova://prompts/buyer-verification') {
+      text = readPromptFile('buyer-verification.md');
+    } else if (uri === 'arbitova://prompts/seller-delivery') {
+      text = readPromptFile('seller-delivery.md');
+    } else if (uri === 'arbitova://prompts/arbitrator-self-check') {
+      text = readPromptFile('arbitrator-self-check.md');
+    } else if (uri === 'arbitova://resources/escrow-abi') {
+      text = readEscrowAbi();
+    } else {
+      throw new Error(`Unknown resource URI: ${uri}`);
+    }
+    return {
+      contents: [{ uri, mimeType: uri.endsWith('abi') ? 'application/json' : 'text/markdown', text }],
+    };
+  } catch (err) {
+    return {
+      contents: [{ uri, mimeType: 'text/plain', text: `Error: ${err.message}` }],
+    };
+  }
+});
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;

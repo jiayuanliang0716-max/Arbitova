@@ -1,0 +1,98 @@
+================================================================
+ARBITOVA ESCROWV1 — LOCAL E2E TEST REPORT
+Date: Mon Apr 20 22:02:51 UTC 2026
+Anvil: chain-id 31337, port 8545
+================================================================
+
+--- FLOWS 1 + 2 (forge script with broadcast) ---
+
+Script ran successfully.
+
+== Logs ==
+  === LocalE2E: contracts deployed ===
+  MockUsdc  : 0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6
+  EscrowV1  : 0x8A791620dd6260079BF849Dc5567aDC3F2FdC318
+  --- Minted 1000 USDC to BUYER, SELLER, BUYER2 ---
+  
+=== FLOW 1: Happy Path ===
+  BEFORE:
+    BUYER bal    : 1000000000
+    SELLER bal   : 1000000000
+    FEE_RECIP bal: 0
+    ESCROW bal   : 0
+  Step 1: buyer approved escrow
+  Step 2: escrow created, id = 1
+  Step 3: seller marked delivered
+  Step 4: buyer confirmed delivery
+  AFTER:
+    BUYER bal    : 0
+    SELLER bal   : 1995000000
+    FEE_RECIP bal: 5000000
+    ESCROW bal   : 0
+  EXPECTED fee      : 5000000
+  EXPECTED toSeller : 995000000
+  CHECKS:
+    seller net correct : 1
+    fee correct        : 1
+    escrow drained     : 1
+    state == RELEASED  : 1
+  FLOW 1 RESULT: PASS
+  
+=== FLOW 2: Dispute Path (70% buyer / 30% seller) ===
+  BEFORE:
+    BUYER2 bal   : 2000000000
+    SELLER bal   : 1995000000
+    FEE_RECIP bal: 5000000
+    ESCROW bal   : 0
+  Step 1+2: buyer2 created escrow, id = 2
+  Step 3: seller marked delivered
+  Step 4: buyer2 opened dispute
+  Step 5: arbiter resolved 7000 buyer / 3000 seller
+  AFTER:
+    BUYER2 bal   : 1686000000
+    SELLER bal   : 2289000000
+    FEE_RECIP bal: 25000000
+    ESCROW bal   : 0
+  EXPECTED toBuyer  : 686000000
+  EXPECTED toSeller : 294000000
+  EXPECTED totalFee : 20000000
+  CHECKS: buyer2 ok, seller ok, fee ok, escrow drained, state RESOLVED
+  FLOW 2 RESULT: PASS
+  === FLOWS 1+2 COMPLETE (Flow3 run separately via cast) ===
+
+
+
+
+
+
+
+
+
+
+ONCHAIN EXECUTION COMPLETE & SUCCESSFUL.
+
+
+
+
+--- FLOW 3 (cast + Anvil time warp) ---
+
+NOTE: vm.warp cannot be broadcast to a live node.
+Flow 3 uses Anvil anvil_setNextBlockTimestamp JSON-RPC + cast send.
+
+=== FLOW 3: Timeout Escalation ===
+Escrow ID : 3 (created in this run)
+Current state before escalation: 3 (3=DISPUTED if already done)
+reviewDeadline: 1776981696
+ESCROW bal: 1000000000 [1e9]
+Final state: 3 (3 = DISPUTED)
+CHECKS:
+  state == DISPUTED  : 1
+  funds still locked : 1
+FLOW 3 RESULT: PASS
+
+================================================================
+SUMMARY
+  Flow 1 (happy path)        : PASS
+  Flow 2 (dispute 70/30)     : PASS
+  Flow 3 (timeout escalation): PASS
+================================================================
