@@ -617,11 +617,16 @@ router.delete('/announcements/:id', requireAdminKey, async (req, res) => {
 });
 
 // ─── Emergency recovery endpoints ─────────────────────────────────────────
-// One-shot tools to recover funds from test/orphan agents. Admin-gated. After
-// the stuck funds are out, these can be deleted safely.
+// Disabled by default. Set ENABLE_EMERGENCY_ADMIN=true on Render to re-enable.
+function requireEmergencyEnabled(req, res, next) {
+  if (process.env.ENABLE_EMERGENCY_ADMIN !== 'true') {
+    return res.status(410).json({ error: 'emergency endpoint disabled' });
+  }
+  next();
+}
 
 // GET /admin/agents/:id/full — full agent state including ALL orders (even spot)
-router.get('/agents/:id/full', async (req, res) => {
+router.get('/agents/:id/full', requireEmergencyEnabled, async (req, res) => {
   try {
     const agent = await dbGet(
       `SELECT id, name, description, owner_email, balance, escrow, wallet_address,
@@ -670,7 +675,7 @@ router.get('/agents/:id/full', async (req, res) => {
 // Body: { dry_run? }
 // Cancels every non-completed order where this agent is buyer or seller.
 // Refunds buyer escrow; for spot orders, also releases seller-side escrow.
-router.post('/agents/:id/force-cancel-orders', async (req, res) => {
+router.post('/agents/:id/force-cancel-orders', requireEmergencyEnabled, async (req, res) => {
   try {
     const dry_run = !!(req.body && req.body.dry_run);
     const orders = await dbAll(
@@ -723,7 +728,7 @@ router.post('/agents/:id/force-cancel-orders', async (req, res) => {
 // Body: { dry_run? }
 // Moves all escrow back to balance, but ONLY if the agent has zero open orders.
 // Fixes the ghost-escrow bug where escrow column didn't drain on old settlement paths.
-router.post('/agents/:id/release-orphan-escrow', async (req, res) => {
+router.post('/agents/:id/release-orphan-escrow', requireEmergencyEnabled, async (req, res) => {
   try {
     const dry_run = !!(req.body && req.body.dry_run);
     const agent = await dbGet(
@@ -774,7 +779,7 @@ router.post('/agents/:id/release-orphan-escrow', async (req, res) => {
 // Body: { to_address, dry_run? }
 // Transfers the agent's entire free balance on-chain to to_address,
 // then debits the balance to 0. Does NOT touch escrow.
-router.post('/agents/:id/sweep', async (req, res) => {
+router.post('/agents/:id/sweep', requireEmergencyEnabled, async (req, res) => {
   try {
     const { to_address } = req.body || {};
     const dry_run = !!(req.body && req.body.dry_run);
