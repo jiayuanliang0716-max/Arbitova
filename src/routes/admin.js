@@ -719,6 +719,57 @@ router.post('/agents/:id/force-cancel-orders', async (req, res) => {
   }
 });
 
+// POST /admin/agents/:id/release-orphan-escrow
+// Body: { dry_run? }
+// Moves all escrow back to balance, but ONLY if the agent has zero open orders.
+// Fixes the ghost-escrow bug where escrow column didn't drain on old settlement paths.
+router.post('/agents/:id/release-orphan-escrow', async (req, res) => {
+  try {
+    const dry_run = !!(req.body && req.body.dry_run);
+    const agent = await dbGet(
+      `SELECT id, name, balance, escrow FROM agents WHERE id = ${p(1)}`,
+      [req.params.id]
+    );
+    if (!agent) return res.status(404).json({ error: 'agent not found' });
+    const openOrders = await dbAll(
+      `SELECT id, status FROM orders
+       WHERE (buyer_id = ${p(1)} OR seller_id = ${p(1)})
+         AND status NOT IN ('completed','refunded','cancelled','disputed','under_review')`,
+      [agent.id]
+    );
+    if (openOrders.length > 0) {
+      return res.status(400).json({
+        error: 'agent still has open orders — cannot release escrow safely',
+        open_orders: openOrders,
+        hint: 'run /force-cancel-orders first',
+      });
+    }
+    const esc = parseFloat(agent.escrow || 0);
+    if (esc <= 0) return res.status(400).json({ error: 'no escrow to release', escrow: esc });
+    if (dry_run) {
+      return res.json({
+        dry_run: true, agent_id: agent.id, agent_name: agent.name,
+        would_release: esc,
+        current_balance: parseFloat(agent.balance || 0),
+        would_become: parseFloat(agent.balance || 0) + esc,
+      });
+    }
+    await dbRun(
+      `UPDATE agents SET balance = balance + ${p(1)}, escrow = 0 WHERE id = ${p(2)}`,
+      [esc, agent.id]
+    );
+    res.json({
+      success: true,
+      agent_id: agent.id,
+      released_to_balance: esc,
+      new_balance: parseFloat(agent.balance || 0) + esc,
+    });
+  } catch (err) {
+    console.error('[admin] release-orphan-escrow error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /admin/agents/:id/sweep
 // Body: { to_address, dry_run? }
 // Transfers the agent's entire free balance on-chain to to_address,
