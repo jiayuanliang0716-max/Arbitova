@@ -1,7 +1,7 @@
 {
   "name": "@arbitova/sdk",
-  "version": "0.1.0",
-  "description": "JS/TS SDK for Arbitova — non-custodial USDC escrow for agent-to-agent payments on Base.",
+  "version": "3.0.0",
+  "description": "Non-custodial USDC escrow for agent-to-agent payments on Base. v3 is a rewrite — see MIGRATION.md.",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -9,7 +9,7 @@
     "./constants": "./src/constants.js",
     "./events": "./src/events.js"
   },
-  "files": ["src", "README.md"],
+  "files": ["src", "README.md", "MIGRATION.md"],
   "scripts": {
     "test": "node --test test/*.test.js"
   },
