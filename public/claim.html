@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claim escrow · Arbitova</title>
+<meta name="description" content="Someone locked funds in an Arbitova escrow with your wallet as the counterparty. Review the terms and act on-chain.">
+<meta property="og:title" content="You have an Arbitova escrow waiting">
+<meta property="og:description" content="Funds locked on-chain. Connect your wallet to deliver or review.">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover { color: var(--text-primary); }
+  .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+  .wallet-badge.on .dot { background: var(--brand); }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  .hero { text-align: center; margin-bottom: 32px; }
+  .hero-eyebrow { font-size: 11px; font-family: var(--font-mono); color: var(--brand); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 12px; }
+  .hero h1 { font-size: 30px; font-weight: 700; margin: 0 0 12px; letter-spacing: -0.02em; line-height: 1.2; }
+  .hero .amount { color: var(--brand); }
+  .hero-sub { font-size: 14px; color: var(--text-secondary); margin: 0; line-height: 1.6; }
+
+  .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+  .alert.ok { background: var(--brand-dim); border: 1px solid var(--brand-border); color: var(--brand); }
+  .alert.err { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); }
+  .alert.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); }
+  .alert a { color: inherit; text-decoration: underline; }
+
+  .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; margin-bottom: 18px; }
+  .card h2 { font-size: 13px; font-weight: 600; margin: 0 0 16px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.08em; }
+
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 13px; }
+  @media (max-width: 520px) { .meta-grid { grid-template-columns: 1fr; } }
+  .meta-item .k { color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; margin-bottom: 4px; }
+  .meta-item .v { font-family: var(--font-mono); color: var(--text-primary); word-break: break-all; }
+  .meta-item .v.big { font-size: 18px; font-weight: 600; color: var(--brand); font-family: var(--font-ui); }
+
+  .chip { display: inline-block; font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; }
+  .chip.created { background: var(--warning-bg); color: var(--warning); }
+  .chip.delivered { background: var(--brand-dim); color: var(--brand); }
+  .chip.released { background: var(--neutral-bg); color: var(--text-secondary); }
+  .chip.disputed { background: var(--danger-bg); color: var(--danger); }
+  .chip.resolved { background: var(--neutral-bg); color: var(--text-secondary); }
+  .chip.cancelled { background: var(--neutral-bg); color: var(--text-secondary); }
+
+  .role-hint { background: var(--brand-dim); border: 1px solid var(--brand-border); padding: 14px 16px; border-radius: var(--radius-sm); font-size: 13px; color: var(--brand); margin-bottom: 14px; line-height: 1.5; }
+  .role-hint strong { font-weight: 600; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-ui); font-size: 13px; font-weight: 500; padding: 10px 18px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all var(--duration) var(--ease); text-decoration: none; }
+  .btn-primary { background: var(--brand); color: #000; border-color: var(--brand); }
+  .btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
+  .btn-secondary { background: transparent; color: var(--text-primary); border-color: var(--border-strong); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--brand-border); color: var(--brand); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+  pre.code { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 14px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); overflow-x: auto; margin: 0 0 10px; }
+  .copy-row { display: flex; gap: 8px; align-items: center; }
+  .copy-row .btn { font-size: 11px; padding: 6px 12px; }
+
+  .share-box { background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary); word-break: break-all; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 0; }
+  .tab { padding: 8px 14px; font-size: 12px; font-weight: 500; color: var(--text-tertiary); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .spinner { display: inline-block; width: 36px; height: 36px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading { text-align: center; padding: 80px 20px; color: var(--text-secondary); }
+
+  .cta-footer { text-align: center; margin-top: 32px; font-size: 12px; color: var(--text-tertiary); }
+  .cta-footer a { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/docs">Docs</a>
+      <a href="/pricing">Fees</a>
+      <a href="/pay/">Dashboard</a>
+    </div>
+    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+  </nav>
+
+  <div class="wrap" id="wrap">
+    <div id="loader" class="loading"><div class="spinner"></div><div style="margin-top:14px">Looking up escrow…</div></div>
+    <div id="body" style="display:none"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    const loader = document.getElementById('loader');
+    const body = document.getElementById('body');
+    const badge = document.getElementById('walletBadge');
+    const walletText = document.getElementById('walletText');
+
+    function getQueryId() {
+      return new URLSearchParams(location.search).get('id');
+    }
+
+    function shortAddr(a) { return a ? a.slice(0, 6) + '…' + a.slice(-4) : '—'; }
+
+    function copy(text, btn) {
+      navigator.clipboard.writeText(text);
+      const old = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(() => { btn.textContent = old; }, 1200);
+    }
+
+    function renderError(msg) {
+      loader.style.display = 'none';
+      body.style.display = '';
+      body.innerHTML = `
+        <div class="hero">
+          <div class="hero-eyebrow">Arbitova escrow</div>
+          <h1>Can't load this escrow</h1>
+          <p class="hero-sub">${msg}</p>
+        </div>
+        <div style="text-align:center"><a class="btn btn-secondary" href="/">Back to home</a></div>
+      `;
+    }
+
+    function renderEscrow(e, connectedAddr) {
+      loader.style.display = 'none';
+      body.style.display = '';
+
+      const me = (connectedAddr || '').toLowerCase();
+      const isBuyer = me && me === e.buyer.toLowerCase();
+      const isSeller = me && me === e.seller.toLowerCase();
+      const role = isBuyer ? 'buyer' : isSeller ? 'seller' : 'observer';
+
+      const stateClass = e.state.toLowerCase();
+      const deadlineLabel = e.state === 'CREATED'
+        ? `Delivery due ${PathB.formatDeadline(e.deliveryDeadline)}`
+        : e.state === 'DELIVERED'
+        ? `Review closes ${PathB.formatDeadline(e.reviewDeadline)}`
+        : '—';
+
+      const whoFor = isSeller
+        ? 'You are the seller on this escrow.'
+        : isBuyer
+        ? 'You are the buyer on this escrow.'
+        : `The seller is <strong>${shortAddr(e.seller)}</strong>. Connect that wallet to act.`;
+
+      let actionPanel = '';
+      if (isSeller && e.state === 'CREATED') {
+        actionPanel = `
+          <div class="card">
+            <h2>Deliver</h2>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5">Submit the URI of your delivered work. It's hashed on-chain as proof. Buyer then has ${PathB.formatDeadline(e.reviewDeadline || (e.deliveryDeadline + 86400))} to review.</p>
+            <div class="btn-row">
+              <a class="btn btn-primary" href="/pay/seller.html">Open seller inbox</a>
+            </div>
+          </div>
+        `;
+      } else if (isBuyer && e.state === 'DELIVERED') {
+        actionPanel = `
+          <div class="card">
+            <h2>Review delivery</h2>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0 0 14px;line-height:1.5">The seller marked this delivered. Confirm to release funds, or dispute if it does not match your verification spec.</p>
+            <div class="btn-row">
+              <a class="btn btn-primary" href="/pay/review.html">Open buyer inbox</a>
+            </div>
+          </div>
+        `;
+      } else if (['RELEASED', 'RESOLVED', 'CANCELLED'].includes(e.state)) {
+        actionPanel = `
+          <div class="card">
+            <h2>Settled</h2>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0;line-height:1.5">This escrow is already <strong>${e.state}</strong>. Full history on <a href="${PathB.explorerAddr(env.escrow)}" target="_blank">BaseScan</a>.</p>
+          </div>
+        `;
+      } else {
+        actionPanel = `
+          <div class="card">
+            <h2>Current state</h2>
+            <p style="font-size:13px;color:var(--text-secondary);margin:0;line-height:1.5">State is <strong>${e.state}</strong>. Connect the counterparty wallet (${shortAddr(isSeller ? e.buyer : e.seller)}) to continue.</p>
+          </div>
+        `;
+      }
+
+      body.innerHTML = `
+        <div class="hero">
+          <div class="hero-eyebrow">Arbitova escrow #${e.id}</div>
+          <h1>${shortAddr(e.buyer)} locked <span class="amount">${e.amount} ${env.usdcSymbol}</span><br>for ${shortAddr(e.seller)}</h1>
+          <p class="hero-sub">${whoFor}</p>
+        </div>
+
+        <div class="role-hint">
+          <strong>${role === 'buyer' ? 'You are the buyer.' : role === 'seller' ? 'You are the seller.' : 'Connect wallet to check your role.'}</strong>
+          ${role === 'observer' ? ' Your wallet address does not match buyer or seller on this escrow.' : ''}
+        </div>
+
+        <div class="card">
+          <h2>Terms</h2>
+          <div class="meta-grid">
+            <div class="meta-item"><div class="k">Amount</div><div class="v big">${e.amount} ${env.usdcSymbol}</div></div>
+            <div class="meta-item"><div class="k">State</div><div class="v"><span class="chip ${stateClass}">${e.state}</span></div></div>
+            <div class="meta-item"><div class="k">Buyer</div><div class="v"><a href="${PathB.explorerAddr(e.buyer)}" target="_blank">${shortAddr(e.buyer)}</a></div></div>
+            <div class="meta-item"><div class="k">Seller</div><div class="v"><a href="${PathB.explorerAddr(e.seller)}" target="_blank">${shortAddr(e.seller)}</a></div></div>
+            <div class="meta-item"><div class="k">Timing</div><div class="v">${deadlineLabel}</div></div>
+            <div class="meta-item"><div class="k">Verification spec</div><div class="v">${e.verificationURI ? `<a href="${e.verificationURI}" target="_blank">Open spec</a>` : '—'}</div></div>
+          </div>
+        </div>
+
+        ${actionPanel}
+
+        <div class="card">
+          <h2>Or act via your agent</h2>
+          <p style="font-size:13px;color:var(--text-secondary);margin:0 0 12px;line-height:1.5">Arbitova ships as an A2A tool set. If you run an agent, point it at this escrow:</p>
+          <div class="tabs">
+            <div class="tab active" data-tab="mcp">MCP (Smithery)</div>
+            <div class="tab" data-tab="sdk">Claude Agent SDK</div>
+          </div>
+          <div class="tab-panel active" id="panel-mcp">
+            <pre class="code" id="code-mcp">npx -y @smithery/cli install jiayuanliang0716/arbitova --client claude</pre>
+            <div class="copy-row"><button class="btn btn-secondary" onclick="copy(document.getElementById('code-mcp').innerText, this)">Copy</button><a class="btn btn-secondary" href="https://smithery.ai/server/jiayuanliang0716/arbitova" target="_blank">View on Smithery</a></div>
+          </div>
+          <div class="tab-panel" id="panel-sdk">
+            <pre class="code" id="code-sdk">pip install arbitova-sdk
+# then in your agent:
+from arbitova import arbitova_confirm_delivery, arbitova_dispute
+# escrow_id = ${e.id}</pre>
+            <div class="copy-row"><button class="btn btn-secondary" onclick="copy(document.getElementById('code-sdk').innerText, this)">Copy</button><a class="btn btn-secondary" href="/docs">Docs</a></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>Invite your counterparty</h2>
+          <p style="font-size:13px;color:var(--text-secondary);margin:0 0 10px;line-height:1.5">Share this link so the other side can see the same escrow — no account required.</p>
+          <div class="share-box" id="shareUrl">${location.origin}/claim?id=${e.id}</div>
+          <div class="copy-row" style="margin-top:10px"><button class="btn btn-secondary" onclick="copy(document.getElementById('shareUrl').innerText, this)">Copy link</button></div>
+        </div>
+
+        <div class="cta-footer">
+          Escrow contract: <a href="${PathB.explorerAddr(env.escrow)}" target="_blank">${shortAddr(env.escrow)}</a> · Network: ${env.label}
+        </div>
+      `;
+
+      document.querySelectorAll('.tab').forEach(t => {
+        t.addEventListener('click', () => {
+          document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+          document.querySelectorAll('.tab-panel').forEach(x => x.classList.remove('active'));
+          t.classList.add('active');
+          document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+        });
+      });
+    }
+
+    async function init() {
+      const id = getQueryId();
+      if (!id || !/^\d+$/.test(id)) {
+        renderError('Missing or invalid escrow id. Expected <code>/claim?id=&lt;number&gt;</code>.');
+        return;
+      }
+
+      // Opportunistic wallet connect (no throw)
+      let connectedAddr = null;
+      try {
+        if (window.ethereum && window.ethereum.selectedAddress) {
+          await PathB.connect();
+          connectedAddr = PathB.getAccount();
+          badge.classList.add('on');
+          walletText.textContent = shortAddr(connectedAddr);
+        }
+      } catch (_) {}
+
+      try {
+        const e = await PathB.getEscrow(id);
+        renderEscrow(e, connectedAddr);
+      } catch (err) {
+        renderError('Escrow #' + id + ' not found on ' + env.label + '. ' + (err.shortMessage || err.message || ''));
+      }
+    }
+
+    document.addEventListener('pathb:account', () => {
+      const acct = PathB.getAccount();
+      if (acct) { badge.classList.add('on'); walletText.textContent = shortAddr(acct); }
+    });
+
+    init();
+  </script>
+</body>
+</html>

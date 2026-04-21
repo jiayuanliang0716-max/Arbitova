@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Seller inbox · Arbitova Pay</title>
+<title>Seller inbox · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
@@ -20,6 +20,9 @@
   .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
   .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
   .wallet-badge.on .dot { background: var(--brand); }
+
+  .testnet-banner { background: var(--warning-bg); color: var(--warning); border-bottom: 1px solid var(--warning-border); padding: 10px 32px; font-size: 13px; text-align: center; line-height: 1.5; }
+  .testnet-banner strong { color: var(--warning); }
 
   .wrap { max-width: 820px; margin: 0 auto; padding: 48px 32px 80px; }
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
@@ -68,6 +71,9 @@
 </style>
 </head>
 <body>
+  <div class="testnet-banner" role="alert">
+    <strong>Testnet only.</strong> You are on Base Sepolia. USDC here is a worthless test token — <strong>do not send real money to addresses you see here</strong>.
+  </div>
   <nav class="nav">
     <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
     <div class="nav-links">
@@ -83,12 +89,17 @@
     <h1>Seller inbox</h1>
     <p class="lede">Every escrow where you're listed as the seller. Mark delivered once your work matches the buyer's verification spec.</p>
 
+    <div class="alert warn" style="margin-bottom:20px;font-size:13px;line-height:1.65">
+      <strong>Heads-up on disputes:</strong> if the buyer&rsquo;s <code>verificationURI</code> is empty or vague, the arbiter has no written spec to hold the buyer to &mdash; so disputes tend to <strong>favor the buyer</strong> by default. Before you mark delivered, open the escrow&rsquo;s <code>verificationURI</code> and make sure it describes acceptance criteria you actually met. If it&rsquo;s blank, ask the buyer to publish one or walk away &mdash; don&rsquo;t deliver work you can&rsquo;t defend on-chain. <a href="/arbiter" style="color:var(--warning)">How the arbiter decides &rarr;</a>
+    </div>
+
     <div id="notConnected" class="alert warn">Please connect your wallet first — <a href="/pay/">back to dashboard</a>.</div>
     <div id="content" style="display:none"></div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script src="/js/path-b-sdk.js"></script>
+  <script src="/js/flow-ui.js"></script>
   <script>
     const env = PathB.getEnvInfo();
     const notConnected = document.getElementById('notConnected');
@@ -164,11 +175,30 @@
       btn.addEventListener('click', async () => {
         const deliveryPayloadURI = uriInput.value.trim();
         if (!deliveryPayloadURI) { msg.innerHTML = '<span style="color:var(--danger);font-size:12px;margin-left:8px">URI required</span>'; return; }
+        const ok = await FlowUI.preflight({
+          key: 'mark-delivered',
+          title: 'Commit this delivery on-chain?',
+          subtitle: 'You&rsquo;re about to sign one wallet popup. The contract stores <code>keccak256(URI)</code> as proof &mdash; the URI itself is not on-chain, but the hash is tamper-proof.',
+          steps: [
+            { title: 'Mark delivered', body: `Hash of "${deliveryPayloadURI}" goes on-chain. State moves to DELIVERED and the review window opens for the buyer.` },
+          ],
+          confirmLabel: 'Yes, mark delivered',
+        });
+        if (!ok) return;
         btn.disabled = true; btn.textContent = 'Signing…';
         try {
           const res = await PathB.markDelivered({ escrowId: e.id, deliveryPayloadURI });
-          msg.innerHTML = `<span style="color:var(--brand);font-size:12px;margin-left:8px">Delivered. <a href="${PathB.explorerTx(res.txHash)}" target="_blank">tx</a></span>`;
-          setTimeout(render, 3000);
+          FlowUI.receipt(msg, {
+            action: 'Delivered',
+            headline: `Delivery committed on-chain`,
+            escrowId: e.id,
+            txHash: res.txHash,
+            actions: [
+              { label: 'View on Basescan', href: PathB.explorerTx(res.txHash), target: '_blank' },
+              { label: 'Open status page', href: `/pay/status.html?id=${e.id}` },
+            ],
+          });
+          setTimeout(render, 3500);
         } catch (err) {
           msg.innerHTML = `<span style="color:var(--danger);font-size:12px;margin-left:8px">${err.shortMessage || err.message}</span>`;
           btn.disabled = false; btn.textContent = 'Mark delivered';

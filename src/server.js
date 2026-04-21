@@ -117,69 +117,9 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 }));
 
 // Clean URL aliases for standalone pages
-app.get('/profile',  (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'profile.html')));
-app.get('/badge',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'badge.html')));
 app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'verdicts.html')));
 app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
 app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
-
-// Stats endpoint — 30s in-memory cache to reduce DB load
-let statsCache = null;
-let statsCacheAt = 0;
-app.get('/api/stats', async (req, res) => {
-  try {
-    if (statsCache && Date.now() - statsCacheAt < 30000) return res.json(statsCache);
-    const isPostgres = !!process.env.DATABASE_URL;
-    const p = (n) => isPostgres ? `$${n}` : '?';
-    const [agents, services, completed, disputed, total_vol] = await Promise.all([
-      dbAll('SELECT COUNT(*) as count FROM agents', []),
-      dbAll(`SELECT COUNT(*) as count FROM services WHERE is_active = ${isPostgres ? 'TRUE' : '1'}`, []),
-      dbAll(`SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as vol FROM orders WHERE status = ${p(1)}`, ['completed']),
-      dbAll(`SELECT COUNT(*) as count FROM orders WHERE status = ${p(1)}`, ['disputed']),
-      dbAll(`SELECT COALESCE(SUM(amount), 0) as vol FROM orders WHERE status NOT IN (${p(1)},${p(2)})`, ['cancelled', 'refunded']),
-    ]);
-    statsCache = {
-      agents: parseInt(agents[0].count),
-      services: parseInt(services[0].count),
-      completed_orders: parseInt(completed[0].count),
-      active_disputes: parseInt(disputed[0].count),
-      total_volume: parseFloat(total_vol[0].vol || 0),
-      platform_fees: parseFloat(completed[0].vol || 0) * SETTLEMENT_FEE_RATE,
-    };
-    statsCacheAt = Date.now();
-    res.json(statsCache);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Internal AI generation endpoint — requires valid agent API key
-app.post('/api/generate', async (req, res) => {
-  try {
-    const apiKey = req.headers['x-api-key'];
-    if (!apiKey) return res.status(401).json({ error: 'Missing X-API-Key' });
-    const { dbGet } = require('./db/helpers');
-    const isPostgres = !!process.env.DATABASE_URL;
-    const agent = await dbGet(
-      isPostgres ? 'SELECT id FROM agents WHERE api_key = $1' : 'SELECT id FROM agents WHERE api_key = ?',
-      [apiKey]
-    );
-    if (!agent) return res.status(401).json({ error: 'Invalid API key' });
-
-    const { prompt } = req.body;
-    if (!prompt) return res.status(400).json({ error: 'prompt is required' });
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI not configured on server' });
-
-    const Anthropic = require('@anthropic-ai/sdk');
-    const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const msg = await anthropic.messages.create({
-      model: 'claude-opus-4-6',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    res.json({ result: msg.content[0].text });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
 
 // Mode check (no sensitive data exposed)
 app.get('/api/mode', (req, res) => {
@@ -202,189 +142,105 @@ app.get('/architecture', (req, res) => res.sendFile(path.join(__dirname, '..', '
 
 // Pricing
 app.get('/pricing', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'pricing.html')));
+app.get('/fees', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'pricing.html')));
+app.get('/claim', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'claim.html')));
 app.get('/blog', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'blog.html')));
-app.get('/feedback', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'feedback.html')));
+app.get('/arbiter', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'arbiter.html')));
 
-// ── Contact Form ─────────────────────────────────────────────────────────────
-const contactLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, message: { error: 'Too many messages. Try again in an hour.' } });
+// ── SSE event stream (EscrowV1 events, fanned out by address) ────────────────
+const { sseHandler: arbitovaSSEHandler } = require('./events_sse');
+app.get('/events', arbitovaSSEHandler);
 
-const CATEGORY_TAGS = { bug: 'Bug', feature: 'Feature', question: 'Question', other: 'Other', contact: 'Contact' };
-
-app.post('/contact', contactLimiter, async (req, res) => {
-  try {
-    const { name, email, subject, message, category } = req.body;
-    if (!name || !email || !message) {
-      return res.status(400).json({ error: 'name, email, and message are required' });
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return res.status(400).json({ error: 'Invalid email address' });
-    }
-    if (message.length > 5000) {
-      return res.status(400).json({ error: 'Message too long (max 5000 characters)' });
-    }
-
-    if (!process.env.BREVO_SMTP_KEY || !process.env.BREVO_SMTP_NAME) {
-      console.error('Contact form: BREVO_SMTP_KEY or BREVO_SMTP_NAME not set');
-      return res.status(503).json({ error: 'Email service not configured' });
-    }
-
-    const transporter = nodemailer.createTransport({
-      host: 'smtp-relay.brevo.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: process.env.BREVO_SMTP_NAME,
-        pass: process.env.BREVO_SMTP_KEY,
-      },
-    });
-
-    const tag = CATEGORY_TAGS[String(category || 'contact').toLowerCase()] || 'Contact';
-    await transporter.sendMail({
-      from: `"Arbitova Contact" <dev@arbitova.com>`,
-      to: 'dev@arbitova.com',
-      replyTo: `"${name}" <${email}>`,
-      subject: `[${tag}] ${subject || 'New message from ' + name}`,
-      text: `Category: ${tag}\nName: ${name}\nEmail: ${email}\n\n${message}`,
-      html: `<p><strong>Category:</strong> ${tag}</p><p><strong>Name:</strong> ${name}</p><p><strong>Email:</strong> ${email}</p><hr/><p>${message.replace(/\n/g, '<br>')}</p>`,
-    });
-
-    res.json({ success: true, message: 'Message sent. We will get back to you shortly.' });
-  } catch (err) {
-    console.error('Contact form error:', err.message);
-    res.status(500).json({ error: 'Failed to send message. Please try again.' });
-  }
+// ── Demo seller bot (opt-in via env) ─────────────────────────────────────────
+// Publishes bot address + max amount so the UI can offer a "Use our demo seller"
+// pill on /pay/new.html, letting users test the full flow without a counterparty.
+app.get('/demo-seller-info', (req, res) => {
+  const enabled = process.env.DEMO_SELLER_ENABLED === '1'
+    && !!process.env.DEMO_SELLER_PK
+    && !!process.env.DEMO_SELLER_ADDR;
+  res.json({
+    enabled,
+    address: enabled ? process.env.DEMO_SELLER_ADDR : null,
+    maxUsdc: Number(process.env.DEMO_MAX_USDC || '10'),
+    description: enabled
+      ? 'An Arbitova-operated demo seller that auto-delivers within 30–90s. Use to test the full flow end-to-end with a single wallet. Testnet only.'
+      : null,
+  });
 });
 
-// ── Google A2A Protocol v0.2 — Agent Card ─────────────────────────────────────
-const BASE = process.env.API_BASE_URL || 'https://api.arbitova.com';
+// ── Agent Card ────────────────────────────────────────────────────────────────
+// Describes Arbitova to agent crawlers. Source of truth: EscrowV1 on Base Sepolia.
+const BASE = process.env.API_BASE_URL || 'https://arbitova.com';
+const ESCROW_V1_PROD = '0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC';
+const USDC_PROD      = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
 app.get('/.well-known/agent.json', (req, res) => {
   res.json({
     name: 'Arbitova',
-    x402: {
-      payTo: PLATFORM_ADDRESS,
-      endpoints: [
-        { path: '/api/v1/x402/services', price: '$0.001', network: 'base-sepolia' },
-        { path: '/api/v1/x402/topup', price: '$1.00', network: 'base-sepolia' },
-      ],
-    },
-    description: 'Escrow and AI arbitration for agent-to-agent payments. Agents lock funds in escrow, the buyer confirms delivery (or 7-day auto-confirm), and disputes resolve via N=3 AI arbitration with optional human review and appeal.',
+    description: 'Non-custodial USDC escrow for agent-to-agent payments. Buyer locks USDC into an on-chain contract on Base, seller delivers, the contract releases. If disputed, a designated arbiter splits the funds with a public verdict hash.',
     url: BASE,
-    version: '1.0.0',
+    version: '2.0.0',
     documentationUrl: `${BASE}/docs`,
     provider: { organization: 'Arbitova', url: 'https://arbitova.com' },
-    capabilities: {
-      streaming: true,
-      pushNotifications: true,
-      stateTransitionHistory: true,
+    contract: {
+      chain: 'base-sepolia',
+      chainId: 84532,
+      escrow: ESCROW_V1_PROD,
+      usdc: USDC_PROD,
+      fees: { releaseBps: 50, resolveBps: 200 },
     },
     authentication: {
-      schemes: ['ApiKey'],
+      schemes: ['EthereumSignature'],
       credentials: {
-        header: 'X-API-Key',
-        description: 'Register at /api/v1/agents/register to get an API key.',
+        description: 'No registration, no API keys. Agents sign transactions from their own Ethereum address using any EIP-1193 wallet or private key.',
       },
     },
     defaultInputModes: ['application/json'],
     defaultOutputModes: ['application/json'],
     skills: [
       {
-        id: 'register_agent',
-        name: 'Register Agent',
-        description: 'Create a new agent identity. Returns agent ID and API key.',
-        tags: ['identity', 'onboarding'],
-        examples: ['Register me as an agent called TradingBot'],
+        id: 'create_escrow',
+        name: 'Create Escrow',
+        description: 'Buyer approves USDC, then calls createEscrow(seller, amount, deliveryWindowSec, reviewWindowSec, verificationURI). Funds move from buyer wallet into EscrowV1. Returns escrow id.',
+        tags: ['buyer', 'escrow'],
+        examples: ['Lock 5 USDC to 0xSeller, 24h delivery, 24h review, spec at ipfs://...'],
       },
       {
-        id: 'publish_service',
-        name: 'Publish Service',
-        description: 'Register a service you perform (name, price, delivery hours). Other agents place orders against it. Arbitova does not host products — services describe work, not goods.',
-        tags: ['seller', 'registration'],
-        examples: ['Publish a code review service at 0.25 USDC per review'],
+        id: 'mark_delivered',
+        name: 'Mark Delivered',
+        description: 'Seller calls markDelivered(id, deliveryHash). deliveryHash is keccak256 of the payload URI. Opens the review window.',
+        tags: ['seller', 'delivery'],
+        examples: ['Mark escrow 17 delivered with hash 0x...'],
       },
       {
-        id: 'escrow_payment',
-        name: 'Escrow Payment',
-        description: 'Place an order for a service. Funds are immediately locked in Arbitova escrow and stay locked until the buyer confirms delivery or a dispute is resolved.',
-        tags: ['payment', 'escrow', 'a2a'],
-        examples: ['Pay 1.0 USDC into escrow for service srv_summarize-v2'],
+        id: 'confirm_delivery',
+        name: 'Confirm Delivery',
+        description: 'Buyer calls confirmDelivery(id). Contract pays seller (minus 0.5% release fee) atomically. Happy path settlement.',
+        tags: ['buyer', 'settlement'],
+        examples: ['Confirm delivery on escrow 17'],
       },
       {
-        id: 'deliver_order',
-        name: 'Deliver Order',
-        description: 'Seller submits delivery content for an order. Order moves to delivered; buyer then confirms or disputes.',
-        tags: ['delivery', 'fulfillment'],
-        examples: ['Deliver content for order ord_abc123'],
-      },
-      {
-        id: 'confirm_order',
-        name: 'Confirm Order',
-        description: 'Buyer confirms delivery and releases escrow funds to the seller (minus 0.5% platform fee). After 7 days of inactivity, delivered orders auto-confirm.',
-        tags: ['settlement', 'payment'],
-        examples: ['Confirm order ord_abc123 is complete'],
-      },
-      {
-        id: 'partial_confirm',
-        name: 'Partial Confirm',
-        description: 'Buyer releases a percentage of escrow funds now; the remainder stays locked pending full delivery.',
-        tags: ['settlement', 'escrow'],
-        examples: ['Release 60% of escrow on order ord_abc123'],
-      },
-      {
-        id: 'dispute_order',
-        name: 'Dispute Order',
-        description: 'Open a dispute on an order. Funds stay locked until resolved via counter-offer, arbitration, or human review.',
+        id: 'dispute',
+        name: 'Dispute',
+        description: 'Either party calls dispute(id, reason) during the review window. Funds stay locked until the arbiter calls resolve(). Reason is emitted in the Disputed event.',
         tags: ['dispute'],
-        examples: ['Dispute order ord_abc123 — delivery did not match requirements'],
+        examples: ['Dispute escrow 17 — delivery does not match spec'],
       },
       {
-        id: 'counter_offer',
-        name: 'Counter-Offer',
-        description: 'On a disputed order, the seller can propose a partial refund. Buyer accepts (closes dispute) or declines (dispute continues). Rate-limited to one proposal per hour while pending.',
-        tags: ['dispute', 'negotiation'],
-        examples: ['On ord_abc123, propose refunding 90 USDC and keeping 10 USDC'],
+        id: 'cancel_if_not_delivered',
+        name: 'Cancel If Not Delivered',
+        description: 'Buyer calls cancelIfNotDelivered(id) after the delivery deadline if seller never marked delivered. Full refund to buyer.',
+        tags: ['buyer', 'timeout'],
+        examples: ['Cancel escrow 17 — seller did not deliver in time'],
       },
       {
-        id: 'arbitrate_order',
-        name: 'AI Arbitration',
-        description: 'Trigger N=3 AI arbitration on a disputed order. Three independent AI verdicts vote; low-confidence cases escalate to human review. 2% fee charged to the losing side.',
-        tags: ['arbitration', 'dispute-resolution'],
-        examples: ['Arbitrate order ord_abc123'],
-      },
-      {
-        id: 'appeal_verdict',
-        name: 'Appeal Verdict',
-        description: 'Appeal an arbitration verdict. Requires a bond; refunded if the appeal succeeds and original verdict is overturned.',
-        tags: ['arbitration', 'appeal'],
-        examples: ['Appeal the verdict on order ord_abc123 with evidence'],
-      },
-      {
-        id: 'get_reputation',
-        name: 'Get Reputation',
-        description: 'Fetch an agent reputation score and per-category breakdown, based on settlement and dispute history.',
-        tags: ['reputation', 'trust'],
-        examples: ['Get reputation score for agent agnt_abc123'],
+        id: 'escalate_if_expired',
+        name: 'Escalate If Expired',
+        description: 'Anyone calls escalateIfExpired(id) after the review deadline on a DELIVERED escrow. Contract pays seller (minus 0.5% release fee). Prevents deadlock when buyer goes silent.',
+        tags: ['auto-release'],
+        examples: ['Escalate escrow 17 — buyer did not confirm or dispute in time'],
       },
     ],
   });
-});
-
-// ── A2A Task endpoint — POST /tasks/send ─────────────────────────────────────
-app.post('/tasks/send', async (req, res) => {
-  try {
-    const { id, message } = req.body || {};
-    if (!id || !message) return res.status(400).json({ error: 'id and message required' });
-    const text = (message.parts || []).map(p => p.text || '').join(' ').trim();
-    res.json({
-      id,
-      status: { state: 'completed', timestamp: new Date().toISOString() },
-      artifacts: [{
-        parts: [{
-          type: 'text',
-          text: `Arbitova A2A — I received: "${text}"\n\nAvailable actions: register_agent, publish_service, escrow_payment, deliver_order, confirm_order, partial_confirm, dispute_order, counter_offer, arbitrate_order, appeal_verdict, get_reputation.\n\nFull API: ${BASE}/docs\nRegister: POST ${BASE}/api/v1/agents/register`,
-        }],
-      }],
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Routes — v1 (canonical, SDK points here)
@@ -837,13 +693,8 @@ app.use('/api/v1', apiV1);
 // MCP HTTP endpoint for Smithery.ai and HTTP-based MCP clients
 app.use('/mcp', mcpHttpRoutes);
 
-// Legacy routes — kept for backward compatibility with existing frontend
-app.use('/agents', agentRoutes);
-app.use('/services', serviceRoutes);
-app.use('/orders', orderRoutes);
-app.use('/withdrawals', withdrawalRoutes);
+// Alchemy Address Activity webhook (Path A agent-wallet inbound deposits)
 app.use('/webhook', webhookRouter);
-app.use('/admin', adminRoutes);
 
 // Health check — detailed system status
 const { dbGet: healthDbGet } = require('./db/helpers');
@@ -992,6 +843,10 @@ app.use((err, req, res, next) => {
 // ── Background jobs (cron) — runs in-process on free hosting ─────────────────
 // To separate: run "node src/worker.js" as a second service (requires paid plan)
 require('./worker');
+
+// ── Demo seller bot (auto-deliver for single-wallet testing) ─────────────────
+const { startDemoSellerBot } = require('./demo_seller_bot');
+startDemoSellerBot();
 
 app.listen(PORT, () => {
   console.log(`Arbitova running on http://localhost:${PORT}`);

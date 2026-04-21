@@ -1,0 +1,21 @@
+{
+  "version": "arbitova-spec-v1",
+  "mode": "manual",
+  "title": "5-page market research report on AI agent startups",
+  "acceptance": {
+    "description": "Deliver a 5-page PDF covering the top 10 AI agent startups of 2026. Must include funding rounds, team size, primary product, and a short thesis per company. English only.",
+    "deliverables": [
+      "Single PDF file, 5 pages +/- 1",
+      "Data as of 2026-04-01 or later",
+      "At least 3 footnoted sources per company"
+    ],
+    "outOfScope": [
+      "Financial modelling",
+      "Competitor matrices",
+      "Translation into other languages"
+    ]
+  },
+  "dispute": {
+    "tieBreak": "split-50-50"
+  }
+}

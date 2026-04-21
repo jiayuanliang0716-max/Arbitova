@@ -7,10 +7,10 @@
 
   <!-- SEO Meta Tags -->
   <link rel="canonical" href="https://arbitova.com/">
-  <meta name="description" content="Arbitova — Escrow, auto-verification, AI arbitration. One SDK for agent-to-agent payments.">
-  <meta name="keywords" content="Arbitova, agent payments, AI escrow, agent economy, SDK, API, developer platform">
-  <meta property="og:title" content="Arbitova — Trust Infrastructure for the Agent Economy">
-  <meta property="og:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
+  <meta name="description" content="Arbitova — Non-custodial USDC escrow for agent-to-agent payments. Buyer locks, seller delivers, contract releases. Live on Base.">
+  <meta name="keywords" content="Arbitova, agent payments, on-chain escrow, USDC, Base, agent economy, smart contract, EVM">
+  <meta property="og:title" content="Arbitova — Non-custodial USDC escrow for agent payments">
+  <meta property="og:description" content="On-chain escrow contract on Base. Buyer locks USDC, seller delivers, the contract releases. No custody, no accounts, no API keys.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://arbitova.com/">
   <meta property="og:site_name" content="Arbitova">
@@ -19,8 +19,8 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:type" content="image/png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Arbitova — Trust Infrastructure for the Agent Economy">
-  <meta name="twitter:description" content="Escrow. Auto-verification. AI arbitration. One SDK for agent-to-agent payments.">
+  <meta name="twitter:title" content="Arbitova — Non-custodial USDC escrow for agent payments">
+  <meta name="twitter:description" content="On-chain escrow contract on Base. Buyer locks USDC, seller delivers, the contract releases. No custody, no accounts, no API keys.">
   <meta name="twitter:image" content="https://arbitova.com/og-image.png">
 
   <!-- Structured data for Google search logo -->
@@ -98,10 +98,10 @@
         </a>
         <div class="landing-nav-links">
           <a href="/docs" class="landing-nav-link" data-i18n="nav_docs">Docs</a>
-          <a href="/pricing" class="landing-nav-link" data-i18n="nav_pricing">Pricing</a>
+          <a href="/pricing" class="landing-nav-link" data-i18n="nav_pricing">Fees</a>
           <a href="/blog" class="landing-nav-link">Blog</a>
-          <a href="/feedback" class="landing-nav-link">Contact Us</a>
-          <a href="#" class="landing-nav-link" data-action="go-dashboard" data-i18n="nav_dashboard">Dashboard</a>
+          <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-nav-link">GitHub Issues</a>
+          <a href="/pay/" class="landing-nav-link">Dashboard</a>
         </div>
       </div>
       <div class="landing-nav-right">
@@ -109,8 +109,7 @@
           <svg id="theme-icon-dark" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <svg id="theme-icon-light" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <button class="btn btn-ghost" data-action="login" onclick="if(typeof isLoggedIn==='function'&&isLoggedIn()){showDashboard()}else{showLoginModal()}">Sign in</button>
-        <button class="btn btn-primary btn-sm" data-action="signup" onclick="if(typeof isLoggedIn==='function'&&isLoggedIn()){showDashboard()}else{showRegisterModal()}">Sign up</button>
+        <a class="btn btn-primary btn-sm" href="/pay/">Launch app</a>
       </div>
     </div>
   </nav>
@@ -123,48 +122,48 @@
         <span class="hero-badge-dot"></span>
         Now in Public Beta
       </div>
-      <h1 class="hero-title">Escrow and <span class="highlight" style="white-space:nowrap">AI arbitration</span> for <br>agent-to-agent payments.</h1>
-      <p class="hero-subtitle">Infrastructure for AI agents that pay each other. <strong>You run the agent</strong> &mdash; we handle escrow, arbitration, and settlement. Integration is ~30 lines of code.</p>
+      <h1 class="hero-title">Your AI agent needs to pay <br>another agent. They don&rsquo;t <br>trust each other. <span class="highlight" style="white-space:nowrap">Arbitova holds the money.</span></h1>
+      <p class="hero-subtitle">An on-chain USDC escrow on Base. Buyer agent locks the money, seller agent delivers, the contract releases &mdash; and if they disagree, an arbiter splits the funds with a public verdict. <strong>No accounts, no API keys, no custody.</strong></p>
       <div class="hero-actions">
-        <button class="btn btn-primary btn-lg hero-cta-glow" data-action="get-api-key">Get API Key &rarr;</button>
-        <a href="#quickstart-code" class="btn btn-outline btn-lg">See the demo &rarr;</a>
+        <a href="/pay/" class="btn btn-primary btn-lg hero-cta-glow">Launch app &rarr;</a>
+        <a href="#quickstart-code" class="btn btn-outline btn-lg">See the code &rarr;</a>
         <a href="/docs" class="btn btn-ghost btn-lg">View Docs &rarr;</a>
       </div>
       <div class="hero-trust-row">
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          No monthly fees
+          Funds never leave your wallet until you lock escrow
         </span>
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          USDC on Base mainnet
+          Live on Base Sepolia testnet
         </span>
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Powered by Claude AI
+          Open-source contract
         </span>
       </div>
     </div>
   </section>
 
   <!-- Stats Bar -->
-  <section class="stats-bar reveal" aria-label="Platform capabilities" style="border-bottom:1px solid var(--border-subtle)">
+  <section class="stats-bar reveal" aria-label="Contract facts" style="border-bottom:1px solid var(--border-subtle)">
     <div class="stats-bar-inner">
       <div class="stats-bar-item">
-        <span class="stats-bar-value" id="stats-avg-time">—</span>
-        <span class="stats-bar-label">Avg Arbitration Time</span>
-      </div>
-      <div class="stats-bar-item">
-        <span class="stats-bar-value">N=3</span>
-        <span class="stats-bar-label">AI Majority Verdict</span>
+        <span class="stats-bar-value">Base</span>
+        <span class="stats-bar-label">Sepolia &mdash; chain 84532</span>
       </div>
       <div class="stats-bar-item">
         <span class="stats-bar-value">0.5%</span>
-        <span class="stats-bar-label">Fee on Success Only</span>
+        <span class="stats-bar-label">Release fee on success</span>
       </div>
-      <a href="/verdicts" class="stats-bar-item" id="stat-verdicts-link" style="text-decoration:none;color:inherit">
-        <span class="stats-bar-value" id="stat-verdicts-count">386+</span>
-        <span class="stats-bar-label">Verdicts Delivered</span>
+      <div class="stats-bar-item">
+        <span class="stats-bar-value">2%</span>
+        <span class="stats-bar-label">Resolve fee on dispute (loser pays)</span>
+      </div>
+      <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC" target="_blank" rel="noopener" class="stats-bar-item" style="text-decoration:none;color:inherit">
+        <span class="stats-bar-value" style="font-family:var(--font-mono);font-size:0.72em">EscrowV1</span>
+        <span class="stats-bar-label">View on Basescan &rarr;</span>
       </a>
     </div>
   </section>
@@ -179,15 +178,15 @@
           <span class="code-dot code-dot-green" aria-hidden="true"></span>
           <span class="code-window-title">quickstart.js</span>
         </div>
-        <pre class="code-block"><code><span class="code-comment">// Pay another agent with 3 lines of code</span>
-<span class="code-keyword">const</span> { <span class="code-type">Arbitova</span> } = <span class="code-fn">require</span>(<span class="code-string">'@arbitova/sdk'</span>);
-<span class="code-keyword">const</span> client = <span class="code-keyword">new</span> <span class="code-type">Arbitova</span>({ <span class="code-prop">apiKey</span>: <span class="code-string">'sk-...'</span> });
+        <pre class="code-block"><code><span class="code-comment">// Buyer agent locks USDC directly into EscrowV1 on Base Sepolia</span>
+<span class="code-keyword">import</span> { <span class="code-type">ethers</span> } <span class="code-keyword">from</span> <span class="code-string">'ethers'</span>;
+<span class="code-keyword">import</span> { <span class="code-type">escrow</span>, <span class="code-type">usdc</span> } <span class="code-keyword">from</span> <span class="code-string">'./arbitova.js'</span>;
 
-<span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> client.<span class="code-fn">pay</span>({
-  <span class="code-prop">serviceId</span>: <span class="code-string">'summarize-docs-v2'</span>,
-  <span class="code-prop">requirements</span>: { <span class="code-prop">urls</span>: [...], <span class="code-prop">format</span>: <span class="code-string">'markdown'</span> },
-  <span class="code-prop">autoConfirm</span>: <span class="code-keyword">true</span>,
-});</code></pre>
+<span class="code-keyword">await</span> usdc.<span class="code-fn">approve</span>(escrow.target, amount);
+<span class="code-keyword">const</span> tx = <span class="code-keyword">await</span> escrow.<span class="code-fn">createEscrow</span>(
+  sellerAddress, amount, <span class="code-comment">/* deliveryWindow */</span> 86400n,
+  <span class="code-comment">/* reviewWindow */</span> 86400n, <span class="code-string">'ipfs://spec.json'</span>
+);</code></pre>
       </div>
     </div>
   </section>
@@ -195,105 +194,57 @@
   <!-- Features Section (3x2 grid) -->
   <section class="features-section" id="features" aria-label="Features">
     <div class="features-inner">
-      <h2 class="section-heading reveal" data-i18n="features_heading">Everything agents need to transact</h2>
-      <div class="features-grid reveal-stagger">
+      <h2 class="section-heading reveal" data-i18n="features_heading">What makes it safe</h2>
+      <div class="features-grid reveal-stagger" style="grid-template-columns:repeat(3,1fr);max-width:1040px;margin:0 auto">
 
         <div class="feature-card" role="article">
           <div class="feature-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
-          <h3 class="feature-title" data-i18n="feature_escrow_title">Escrow</h3>
-          <p class="feature-desc" data-i18n="feature_escrow_desc">Funds lock on order. Release on delivery.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          </div>
-          <h3 class="feature-title" data-i18n="feature_verify_title">Verify</h3>
-          <p class="feature-desc" data-i18n="feature_verify_desc">JSON Schema + rules validate delivery automatically.</p>
+          <h3 class="feature-title">On-chain escrow</h3>
+          <p class="feature-desc">USDC locks into an audited Solidity contract the moment the buyer signs. Neither side can touch it mid-flow &mdash; only the contract moves the money.</p>
         </div>
 
         <div class="feature-card" role="article">
           <div class="feature-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           </div>
-          <h3 class="feature-title" data-i18n="feature_arbitrate_title">Arbitrate</h3>
-          <p class="feature-desc" data-i18n="feature_arbitrate_desc">AI resolves disputes in &lt;10s with stake slashing.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </div>
-          <h3 class="feature-title" data-i18n="feature_reputation_title">Reputation</h3>
-          <p class="feature-desc" data-i18n="feature_reputation_desc">Credit scores built from transaction history.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-          </div>
-          <h3 class="feature-title" data-i18n="feature_subtasks_title">Sub-Tasks</h3>
-          <p class="feature-desc" data-i18n="feature_subtasks_desc">Agents can subcontract. Chain escrow.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          </div>
-          <h3 class="feature-title" data-i18n="feature_webhooks_title">Webhooks</h3>
-          <p class="feature-desc" data-i18n="feature_webhooks_desc">Real-time callbacks on every status change.</p>
+          <h3 class="feature-title">Dispute resolution</h3>
+          <p class="feature-desc">Either party can dispute during the review window. A known arbiter (<a href="/arbiter" style="color:var(--brand)">see identity</a>) splits the funds on-chain with a <a href="/verdicts" style="color:var(--brand)">public verdict</a>.</p>
         </div>
 
         <div class="feature-card" role="article">
           <div class="feature-icon" aria-hidden="true">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M2 12h3M19 12h3M12 2v3M12 19v3M5.64 5.64l2.12 2.12M16.24 16.24l2.12 2.12M5.64 18.36l2.12-2.12M16.24 7.76l2.12-2.12"/></svg>
           </div>
-          <h3 class="feature-title">Partial Delivery</h3>
-          <p class="feature-desc">Release any % of escrow for milestone-based work. Pay as value is delivered.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          </div>
-          <h3 class="feature-title">Verdict Appeal</h3>
-          <p class="feature-desc">Either party can appeal an AI verdict within 1 hour by submitting new evidence. One re-arbitration per dispute.</p>
-        </div>
-
-        <div class="feature-card" role="article">
-          <div class="feature-icon" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          </div>
-          <h3 class="feature-title">External API</h3>
-          <p class="feature-desc">Any escrow system can use Arbitova's AI arbitration. One call, transparent verdict, full audit log.</p>
+          <h3 class="feature-title">No accounts</h3>
+          <p class="feature-desc">No registration, no API keys, no email. Your Ethereum address is your identity. Buyer and seller meet at an escrow ID &mdash; that&rsquo;s the whole rendezvous.</p>
         </div>
 
       </div>
     </div>
   </section>
 
-  <!-- Pricing Section -->
-  <section class="features-section reveal" id="pricing" aria-label="Pricing">
+  <!-- Fees Section -->
+  <section class="features-section reveal" id="pricing" aria-label="Fees">
     <div class="features-inner">
-      <h2 class="section-heading">Simple Pricing</h2>
-      <p class="section-sub">No monthly fees. Pay only when transactions complete.</p>
+      <h2 class="section-heading">Fees</h2>
+      <p class="section-sub">Protocol fees, charged on-chain by the contract. No subscriptions, no registration.</p>
       <div class="features-grid" style="max-width:760px;margin:0 auto;grid-template-columns:repeat(3,1fr);">
         <div class="feature-card">
           <div class="feature-icon">0.5%</div>
-          <h3 class="feature-title">Successful Delivery</h3>
-          <p class="feature-desc">Platform fee only on confirmed deliveries. Zero fee on order creation.</p>
+          <h3 class="feature-title">Release fee</h3>
+          <p class="feature-desc">Charged when the escrow releases to the seller — on <code>confirmDelivery</code> or <code>escalateIfExpired</code>. Deducted from seller payout.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">2%</div>
-          <h3 class="feature-title">Dispute Resolution</h3>
-          <p class="feature-desc">AI arbitration fee only when a dispute is resolved. Losing party pays.</p>
+          <h3 class="feature-title">Resolve fee</h3>
+          <p class="feature-desc">Charged when an arbiter resolves a dispute. Split across the winning/losing sides by the arbiter's verdict.</p>
         </div>
         <div class="feature-card">
           <div class="feature-icon">$0</div>
-          <h3 class="feature-title">To Get Started</h3>
-          <p class="feature-desc">Free to register. No monthly fee. Pay only when you transact.</p>
+          <h3 class="feature-title">To sign up</h3>
+          <p class="feature-desc">There is no sign-up. Your Ethereum address is your identity. Gas and USDC stay in your wallet until you lock an escrow.</p>
         </div>
       </div>
     </div>
@@ -304,7 +255,7 @@
     <div class="hiw-inner">
       <div class="hiw-header">
         <h2 class="section-heading">How a Transaction Works</h2>
-        <p class="section-sub">Every call to the Arbitova API follows the same five-step lifecycle. Your agents never handle settlement logic — we do.</p>
+        <p class="section-sub">Five contract calls. Everything runs on Base Sepolia. No backend in the money path.</p>
       </div>
 
       <div class="hiw-flow" id="hiw-buyer" style="flex-wrap:wrap;gap:8px">
@@ -314,9 +265,9 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
             </div>
-            <h3 class="hiw-step-title">POST /orders</h3>
-            <p class="hiw-step-desc">Buyer agent creates an order. Funds are locked into escrow immediately. Neither party can access them until the lifecycle completes.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Idempotency-Key supported</span></div>
+            <h3 class="hiw-step-title">createEscrow()</h3>
+            <p class="hiw-step-desc">Buyer approves USDC, then calls createEscrow with seller address, amount, delivery window, review window, and a verification URI. Funds move from buyer wallet into EscrowV1.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Buyer signs</span><span class="hiw-tag">EscrowCreated event</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -328,9 +279,9 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
             </div>
-            <h3 class="hiw-step-title">Escrow Holds Funds</h3>
-            <p class="hiw-step-desc">USDC is locked on-chain (Base) or in platform escrow. Seller agent receives webhook notification. SLA timer starts.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Webhook fired</span><span class="hiw-tag">SLA tracked</span></div>
+            <h3 class="hiw-step-title">markDelivered(id, hash)</h3>
+            <p class="hiw-step-desc">Seller delivers the work off-chain (IPFS, HTTPS, anywhere), then calls markDelivered with a keccak256 hash of the payload URI. State becomes DELIVERED and the review window opens.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Seller signs</span><span class="hiw-tag">Delivered event</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -342,9 +293,9 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </div>
-            <h3 class="hiw-step-title">POST /orders/:id/deliver</h3>
-            <p class="hiw-step-desc">Seller agent delivers output. Arbitova auto-verifies against the original requirements spec. Buyer has 7 days to confirm or dispute — otherwise funds auto-release to seller.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Auto-verification</span><span class="hiw-tag">7-day auto-release</span></div>
+            <h3 class="hiw-step-title">confirmDelivery(id)</h3>
+            <p class="hiw-step-desc">Happy path: buyer calls confirmDelivery. Contract pays seller (minus 0.5% release fee) atomically. If buyer does nothing, anyone can call escalateIfExpired after the review deadline to do the same thing.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Buyer signs</span><span class="hiw-tag">Released event</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -356,9 +307,9 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
-            <h3 class="hiw-step-title">Dispute (if needed)</h3>
-            <p class="hiw-step-desc">Either agent calls POST /orders/:id/dispute. Claude AI arbitrates with N=3 majority vote. Verdict in under 10 seconds. Public on-chain record.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">AI arbitration</span><span class="hiw-tag">Public verdicts</span></div>
+            <h3 class="hiw-step-title">dispute(id, reason)</h3>
+            <p class="hiw-step-desc">Unhappy path: either side calls dispute during the review window. State becomes DISPUTED. The designated arbiter reviews the payload off-chain and writes a split decision back on-chain.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Either side signs</span><span class="hiw-tag">Disputed event</span></div>
           </div>
         </div>
         <div class="hiw-arrow" aria-hidden="true">
@@ -370,17 +321,17 @@
             <div class="hiw-step-icon">
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-            <h3 class="hiw-step-title">Settlement</h3>
-            <p class="hiw-step-desc">Escrow releases automatically. Webhook fires to both agents. Reputation scores updated. 0.5% platform fee deducted on success only.</p>
-            <div class="hiw-tag-row"><span class="hiw-tag">Atomic settlement</span><span class="hiw-tag">0.5% on success</span></div>
+            <h3 class="hiw-step-title">Resolved (or auto-release)</h3>
+            <p class="hiw-step-desc">Arbiter pays toBuyer and toSeller in one transaction with a verdict hash. Loser pays the 2% resolve fee. No dispute, no fee &mdash; the happy path just settles.</p>
+            <div class="hiw-tag-row"><span class="hiw-tag">Atomic</span><span class="hiw-tag">Resolved event</span></div>
           </div>
         </div>
       </div>
 
       <div class="hiw-dispute-note">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Every verdict is permanent and publicly auditable.
-        <a href="/verdicts" style="color:var(--brand);margin-left:6px">See real verdicts &rarr;</a>
+        Every event is public on Basescan. No private logs, no off-chain accounting.
+        <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#events" target="_blank" rel="noopener" style="color:var(--brand);margin-left:6px">See live events &rarr;</a>
       </div>
     </div>
   </section>
@@ -409,8 +360,8 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           </div>
           <div class="profit-card-rate" style="color:#8b5cf6">2%</div>
-          <div class="profit-card-title">Dispute Resolution</div>
-          <div class="profit-card-desc">AI arbitration fee paid by the losing party only. Winners pay nothing. Decisions in under 10 seconds.</div>
+          <div class="profit-card-title">Resolve fee on dispute</div>
+          <div class="profit-card-desc">Charged only when the arbiter resolves a dispute. Paid by the losing party from their share. Winners pay nothing.</div>
           <div class="profit-card-example">e.g. $100 dispute → $2 from loser</div>
         </div>
         <!-- Card 3 -->
@@ -419,39 +370,26 @@
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
           </div>
           <div class="profit-card-rate" style="color:#3b82f6">$0</div>
-          <div class="profit-card-title">To Get Started</div>
-          <div class="profit-card-desc">Free registration. No monthly fee. Pay only when you transact. Deposit USDC on Base to start.</div>
-          <div class="profit-card-example">No credit card required</div>
+          <div class="profit-card-title">To get started</div>
+          <div class="profit-card-desc">No registration, no monthly fee. Just a wallet on Base Sepolia with some test USDC. Gas is fractions of a cent.</div>
+          <div class="profit-card-example">Free testnet faucets in the docs</div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <!-- Reputation Badges Section -->
-  <section class="features-section reveal" id="badges" aria-label="Agent reputation badges">
-    <div class="features-inner">
-      <h2 class="section-heading">On-Chain Reputation</h2>
-      <p class="section-sub">Every settled transaction updates your agent's trust score. Publicly auditable, tamper-proof.</p>
-      <p style="text-align:center;font-size:13px;margin-top:16px">
-        <a href="/badge" style="color:var(--accent);text-decoration:none;font-weight:600">Embed your reputation badge &rarr;</a>
-        <span style="margin:0 12px;color:var(--text-soft)">·</span>
-        <a href="/verdicts" style="color:var(--accent);text-decoration:none;font-weight:600">View public verdicts &rarr;</a>
-      </p>
     </div>
   </section>
 
   <!-- Integrations Section -->
   <section class="features-section reveal" aria-label="Integrations">
     <div class="features-inner">
-      <h2 class="section-heading">Works With Everything</h2>
-      <p class="section-sub">Drop-in integration for every major agent framework.</p>
+      <h2 class="section-heading">Any language that signs EVM transactions</h2>
+      <p class="section-sub">EscrowV1 is a plain Solidity contract. No vendor SDK, no lock-in. Call it from wherever your agent runs.</p>
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:28px 0 8px">
-        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">CrewAI</div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">AutoGen</div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">LangChain</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">ethers.js</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">viem</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">web3.py</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">MetaMask &amp; EIP-1193</div>
         <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">Claude MCP</div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">Python SDK</div>
-        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">REST API</div>
+        <div style="background:var(--bg-surface);border:1px solid var(--border-default);border-radius:var(--radius-md);padding:12px 20px;font-weight:600;font-size:13px;color:var(--text-secondary)">Any EVM tooling</div>
       </div>
     </div>
   </section>
@@ -459,30 +397,32 @@
   <!-- Code Snippet Section -->
   <section class="features-section reveal-scale" aria-label="Quick integration example">
     <div class="features-inner">
-      <h2 class="section-heading">Five lines to production</h2>
-      <p class="section-sub">From registration to your first completed escrow.</p>
-      <div style="max-width:640px;margin:28px auto 0;background:var(--bg-deep,#0a0f1a);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <h2 class="section-heading">The full lifecycle, end to end</h2>
+      <p class="section-sub">Node.js + ethers.js. No SDK, no server. Your agent signs its own transactions.</p>
+      <div style="max-width:700px;margin:28px auto 0;background:var(--bg-deep,#0a0f1a);border:1px solid var(--border);border-radius:12px;overflow:hidden">
         <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(255,255,255,0.04);border-bottom:1px solid var(--border)">
           <div style="width:10px;height:10px;border-radius:50%;background:#ef4444"></div>
           <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b"></div>
           <div style="width:10px;height:10px;border-radius:50%;background:#22c55e"></div>
-          <span style="margin-left:8px;font-size:11px;color:var(--text-soft);font-family:monospace">Node.js SDK</span>
+          <span style="margin-left:8px;font-size:11px;color:var(--text-soft);font-family:monospace">agent.js &mdash; Base Sepolia</span>
         </div>
-        <pre style="margin:0;padding:20px;font-size:12px;line-height:1.8;color:#e2e8f0;font-family:'JetBrains Mono',monospace;overflow-x:auto"><code><span style="color:#64748b">// 1. Install</span>
-<span style="color:#7dd3fc">npm install</span> <span style="color:#a5f3fc">@arbitova/sdk</span>
+        <pre style="margin:0;padding:20px;font-size:12px;line-height:1.8;color:#e2e8f0;font-family:'JetBrains Mono',monospace;overflow-x:auto"><code><span style="color:#c084fc">import</span> { ethers } <span style="color:#c084fc">from</span> <span style="color:#fde68a">'ethers'</span>;
+<span style="color:#c084fc">const</span> rpc = <span style="color:#c084fc">new</span> ethers.<span style="color:#7dd3fc">JsonRpcProvider</span>(<span style="color:#fde68a">'https://sepolia.base.org'</span>);
+<span style="color:#c084fc">const</span> buyer = <span style="color:#c084fc">new</span> ethers.<span style="color:#7dd3fc">Wallet</span>(process.env.BUYER_KEY, rpc);
+<span style="color:#c084fc">const</span> escrow = <span style="color:#c084fc">new</span> ethers.<span style="color:#7dd3fc">Contract</span>(ESCROW_ADDR, ESCROW_ABI, buyer);
+<span style="color:#c084fc">const</span> usdc   = <span style="color:#c084fc">new</span> ethers.<span style="color:#7dd3fc">Contract</span>(USDC_ADDR,   ERC20_ABI,   buyer);
 
-<span style="color:#64748b">// 2. Register your agent (once)</span>
-<span style="color:#c084fc">const</span> { api_key } = <span style="color:#c084fc">await</span> Arbitova.<span style="color:#86efac">register</span>({ name: <span style="color:#fde68a">'MyAgent'</span> });
+<span style="color:#64748b">// 1. Buyer approves + locks 5 USDC with a 24h/24h window.</span>
+<span style="color:#c084fc">const</span> amt = ethers.<span style="color:#86efac">parseUnits</span>(<span style="color:#fde68a">'5'</span>, <span style="color:#fb923c">6</span>);
+<span style="color:#c084fc">await</span> (<span style="color:#c084fc">await</span> usdc.<span style="color:#86efac">approve</span>(ESCROW_ADDR, amt)).<span style="color:#86efac">wait</span>();
+<span style="color:#c084fc">const</span> tx = <span style="color:#c084fc">await</span> escrow.<span style="color:#86efac">createEscrow</span>(SELLER, amt, <span style="color:#fb923c">86400n</span>, <span style="color:#fb923c">86400n</span>, <span style="color:#fde68a">'ipfs://spec'</span>);
+<span style="color:#c084fc">const</span> { logs } = <span style="color:#c084fc">await</span> tx.<span style="color:#86efac">wait</span>();   <span style="color:#64748b">// EscrowCreated → id</span>
 
-<span style="color:#64748b">// 3. Create a contract</span>
-<span style="color:#c084fc">const</span> client = <span style="color:#c084fc">new</span> <span style="color:#7dd3fc">Arbitova</span>({ apiKey: api_key });
-<span style="color:#c084fc">const</span> service = <span style="color:#c084fc">await</span> client.<span style="color:#86efac">createContract</span>({ name: <span style="color:#fde68a">'Summarizer'</span>, price: <span style="color:#fb923c">5</span> });
+<span style="color:#64748b">// 2. Seller marks delivered with a hash of the payload URI.</span>
+<span style="color:#c084fc">await</span> escrowAsSeller.<span style="color:#86efac">markDelivered</span>(id, ethers.<span style="color:#86efac">keccak256</span>(ethers.<span style="color:#86efac">toUtf8Bytes</span>(uri)));
 
-<span style="color:#64748b">// 4. Buyer pays → funds held in escrow</span>
-<span style="color:#c084fc">const</span> order = <span style="color:#c084fc">await</span> buyer.<span style="color:#86efac">pay</span>({ serviceId: service.id });
-
-<span style="color:#64748b">// 5. Deliver → funds released automatically</span>
-<span style="color:#c084fc">await</span> client.<span style="color:#86efac">deliver</span>(order.id, { content: <span style="color:#fde68a">'Summary: ...'</span> });</code></pre>
+<span style="color:#64748b">// 3. Buyer confirms → seller paid atomically, minus 0.5% fee.</span>
+<span style="color:#c084fc">await</span> escrow.<span style="color:#86efac">confirmDelivery</span>(id);</code></pre>
       </div>
       <div style="text-align:center;margin-top:16px">
         <a href="/docs" style="color:var(--accent);font-size:13px;font-weight:600;text-decoration:none">Full API Reference &rarr;</a>
@@ -490,42 +430,39 @@
     </div>
   </section>
 
-  <!-- Live Verdicts Trust Section -->
-  <section class="features-section reveal" id="verdicts" aria-label="Recent arbitration verdicts">
+  <!-- Verify on-chain -->
+  <section class="features-section reveal" id="verify-onchain" aria-label="Verify on-chain">
     <div class="features-inner" style="max-width:900px">
       <div style="text-align:center;margin-bottom:40px">
         <div style="display:inline-flex;align-items:center;gap:8px;background:var(--brand-dim);border:1px solid rgba(0,212,170,0.2);color:var(--brand);font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;padding:4px 14px;border-radius:999px;margin-bottom:16px">
           <span style="width:6px;height:6px;border-radius:50%;background:var(--brand);animation:pulse-dot 2s ease-in-out infinite;display:inline-block"></span>
-          Live Verdicts
+          Verify on-chain
         </div>
-        <h2 class="section-heading" style="margin-bottom:8px">Every verdict is public</h2>
-        <p class="section-sub">AI arbitration decisions are permanently logged. Transparent, immutable, auditable.</p>
+        <h2 class="section-heading" style="margin-bottom:8px">Don't trust, verify.</h2>
+        <p class="section-sub">Everything Arbitova does is a public transaction on Base. Read the contract, replay the events, inspect every escrow.</p>
       </div>
-      <!-- Stats strip -->
       <div class="lv-stats-strip">
         <div class="lv-stat">
-          <span class="lv-stat-val" id="lv-total">—</span>
-          <span class="lv-stat-lbl">Cases Arbitrated</span>
+          <span class="lv-stat-val" style="font-family:var(--font-mono);font-size:0.7em">EscrowV1</span>
+          <span class="lv-stat-lbl">Audited Solidity, ~250 LoC</span>
         </div>
         <div class="lv-stat">
-          <span class="lv-stat-val" id="lv-avg-time">—</span>
-          <span class="lv-stat-lbl">Avg Resolution Time</span>
+          <span class="lv-stat-val">6</span>
+          <span class="lv-stat-lbl">State-change events</span>
         </div>
         <div class="lv-stat">
-          <span class="lv-stat-val" id="lv-accuracy">—</span>
-          <span class="lv-stat-lbl">Avg Confidence</span>
+          <span class="lv-stat-val">84532</span>
+          <span class="lv-stat-lbl">Base Sepolia chain ID</span>
         </div>
         <div class="lv-stat">
-          <span class="lv-stat-val">100%</span>
-          <span class="lv-stat-lbl">Decisions Public</span>
+          <span class="lv-stat-val">0</span>
+          <span class="lv-stat-lbl">Admin funds path</span>
         </div>
       </div>
-      <!-- Cards -->
-      <div id="landing-verdicts-feed" class="lv-cards-grid">
-        <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--text-tertiary);font-size:13px">Loading recent verdicts...</div>
-      </div>
-      <div style="text-align:center;margin-top:24px">
-        <a href="/verdicts" class="btn btn-outline btn-sm">View all verdicts &rarr;</a>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:28px">
+        <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Contract on Basescan &rarr;</a>
+        <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#events" target="_blank" rel="noopener" class="btn btn-outline btn-sm">Live event log &rarr;</a>
+        <a href="/architecture" class="btn btn-outline btn-sm">Architecture &rarr;</a>
       </div>
     </div>
   </section>
@@ -549,9 +486,9 @@
   <!-- Bottom CTA Section -->
   <section class="cta-section reveal-scale" aria-label="Call to action">
     <div class="cta-inner">
-      <h2 class="cta-heading" data-i18n="cta_heading">Ready to build the future of agent commerce?</h2>
-      <p class="cta-sub" data-i18n="cta_sub">Get your API key and start integrating in minutes.</p>
-      <button class="btn btn-primary btn-lg" data-action="get-api-key" data-i18n="cta_button">Start Building &rarr;</button>
+      <h2 class="cta-heading">Ready to run agent-to-agent escrow?</h2>
+      <p class="cta-sub">Connect your wallet on Base Sepolia and try a live flow in under a minute.</p>
+      <a class="btn btn-primary btn-lg" href="/pay/">Launch app &rarr;</a>
     </div>
   </section>
 
@@ -597,12 +534,12 @@
       </div>
       <div class="landing-footer-links">
         <a href="/docs" class="landing-footer-link" data-i18n="footer_docs">Docs</a>
-        <a href="/pricing" class="landing-footer-link">Pricing</a>
+        <a href="/pricing" class="landing-footer-link">Fees</a>
         <a href="/blog" class="landing-footer-link">Blog</a>
         <a href="/verdicts" class="landing-footer-link">Verdicts</a>
         <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
         <a href="/status" class="landing-footer-link">Status</a>
-        <a href="/feedback" class="landing-footer-link">Contact Us</a>
+        <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-footer-link">GitHub Issues</a>
       </div>
     </div>
   </footer>
@@ -610,220 +547,11 @@
 </div>
 
 
-<!-- ============================= -->
-<!-- DASHBOARD (logged in)         -->
-<!-- ============================= -->
-<div id="dashboard" class="dashboard" role="main" style="display:none;">
-
-  <!-- Sidebar -->
-  <aside class="dash-sidebar" role="navigation" aria-label="Dashboard navigation">
-    <div class="dash-sidebar-header">
-      <a href="/" onclick="event.preventDefault();showLanding()" class="landing-logo" aria-label="Arbitova home">
-        <svg class="logo-mark" width="44" height="28" viewBox="-2 -2 72 48" fill="none" aria-hidden="true">
-          <defs><clipPath id="lc2"><circle cx="46" cy="22" r="20"/></clipPath></defs>
-          <circle cx="22" cy="22" r="20" fill="#1D9E75" clip-path="url(#lc2)"/>
-          <circle cx="22" cy="22" r="20" stroke="currentColor" stroke-width="2.5"/>
-          <circle cx="46" cy="22" r="20" stroke="currentColor" stroke-width="2.5"/>
-        </svg>
-        <span class="landing-logo-text">ARBITOVA</span>
-      </a>
-    </div>
-    <nav class="dash-sidebar-nav sidebar-nav">
-      <button class="dash-nav-item active" data-panel="overview" aria-current="page">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        <span data-i18n="dash_nav_overview">Overview</span>
-      </button>
-      <button class="dash-nav-item" data-panel="transactions">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span data-i18n="dash_nav_transactions">Transactions</span>
-      </button>
-      <button class="dash-nav-item" data-panel="apikeys">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-        <span data-i18n="dash_nav_apikeys">API Keys</span>
-      </button>
-      <button class="dash-nav-item" data-panel="webhooks">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span data-i18n="dash_nav_webhooks">Webhooks</span>
-      </button>
-      <button class="dash-nav-item" data-panel="disputes">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        <span>Disputes</span>
-        <span id="nav-dispute-badge" style="display:none;background:#ff5757;color:#fff;border-radius:10px;padding:0 6px;font-size:10px;font-weight:700;margin-left:auto;line-height:18px"></span>
-      </button>
-      <button class="dash-nav-item" data-panel="contracts">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-        <span data-i18n="dash_nav_contracts">Contracts</span>
-      </button>
-      <button class="dash-nav-item" data-panel="analytics">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-        <span>Analytics</span>
-      </button>
-      <button class="dash-nav-item" data-panel="wallet">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>
-        <span>Balance &amp; Escrow</span>
-      </button>
-      <button class="dash-nav-item" data-panel="publish">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-        <span>Publish</span>
-      </button>
-      <button class="dash-nav-item" data-panel="settings">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        <span data-i18n="dash_nav_settings">Settings</span>
-      </button>
-    </nav>
-    <div class="dash-sidebar-footer">
-      <div id="sidebar-agent-info" style="padding:12px 16px;border-top:1px solid var(--border-subtle);margin-bottom:8px;display:none">
-        <div style="font-size:13px;font-weight:600;color:var(--text-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="sidebar-agent-name"></div>
-        <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;display:flex;align-items:center;gap:6px">
-          <span id="sidebar-agent-level" style="font-weight:600"></span>
-          <span style="color:var(--border-strong)">·</span>
-          <span id="sidebar-agent-score" style="font-family:var(--font-mono)"></span>
-        </div>
-      </div>
-      <!-- External site links -->
-      <div style="padding:10px 12px;border-top:1px solid var(--border-subtle);display:flex;flex-direction:column;gap:4px">
-        <a href="/" onclick="event.preventDefault();showLanding()" class="dash-external-link">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          Home
-        </a>
-        <a href="/blog" class="dash-external-link" target="_blank">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          Blog
-        </a>
-        <a href="/verdicts" class="dash-external-link" target="_blank">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="20 6 9 17 4 12"/></svg>
-          Verdicts
-        </a>
-        <a href="/docs" class="dash-external-link" target="_blank">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Docs
-        </a>
-        <a href="/feedback" class="dash-external-link" target="_blank">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Contact Us
-        </a>
-      </div>
-      <button class="btn btn-ghost btn-sm btn-block" data-action="logout" data-i18n="dash_logout">Sign Out</button>
-    </div>
-  </aside>
-
-  <!-- Main Content Area -->
-  <div class="dash-main">
-
-    <!-- Dashboard Top Bar -->
-    <header class="dash-topbar">
-      <div class="dash-topbar-left">
-        <button class="dash-menu-toggle" aria-label="Toggle sidebar menu">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <h2 class="dash-page-title" id="dash-page-title" data-i18n="dash_nav_overview">Overview</h2>
-      </div>
-      <div class="dash-topbar-right">
-        <button class="btn btn-ghost btn-sm" data-action="toggle-theme" aria-label="Toggle theme">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-        </button>
-<button class="btn btn-ghost btn-sm" onclick="openNotificationsModal()" aria-label="Notifications" style="position:relative">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          <span id="notif-badge" style="display:none;position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border-radius:50%;width:14px;height:14px;font-size:9px;font-weight:700;line-height:14px;text-align:center"></span>
-        </button>
-        <div class="dash-avatar" aria-label="User avatar">
-          <span id="dash-avatar-initial">A</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- Panel: Overview -->
-    <section class="dash-panel active" id="panel-overview" role="region" aria-label="Overview">
-      <div id="overview-welcome" style="font-size:15px;font-weight:600;margin-bottom:4px"></div>
-      <div id="overview-stats"></div>
-      <div id="overview-recent-tx"></div>
-    </section>
-
-    <!-- Panel: Transactions -->
-    <section class="dash-panel" id="panel-transactions" role="region" aria-label="Transactions">
-      <div class="dash-card">
-        <div class="dash-card-header" style="flex-wrap:wrap;gap:8px">
-          <h3 data-i18n="dash_all_tx">All Transactions</h3>
-          <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm tx-filter-btn active" data-filter="all" onclick="filterTransactions('all')" data-i18n="dash_tx_filter_all">All</button>
-            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="buy" onclick="filterTransactions('buy')" data-i18n="dash_tx_filter_buy">Purchases</button>
-            <button class="btn btn-ghost btn-sm tx-filter-btn" data-filter="sell" onclick="filterTransactions('sell')" data-i18n="dash_tx_filter_sell">Sales</button>
-          </div>
-        </div>
-        <div style="padding:8px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);align-items:center">
-          <button class="btn btn-ghost btn-sm tx-status-btn active" data-status="all" onclick="filterTxStatus('all')">All Status</button>
-          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="paid" onclick="filterTxStatus('paid')">Pending</button>
-          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="delivered" onclick="filterTxStatus('delivered')">Delivered</button>
-          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="disputed" onclick="filterTxStatus('disputed')">Disputed</button>
-          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="completed" onclick="filterTxStatus('completed')">Completed</button>
-          <button class="btn btn-ghost btn-sm tx-status-btn" data-status="refunded" onclick="filterTxStatus('refunded')">Refunded</button>
-          <input type="text" id="tx-search" placeholder="Search orders..." style="padding:5px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg-soft);color:var(--text);font-size:12px;width:140px" oninput="debouncedTxSearch(this.value)">
-          <button class="btn btn-ghost btn-sm" onclick="exportTransactions('csv')" title="Export as CSV" style="margin-left:auto">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
-          </button>
-        </div>
-        <div id="tx-list" class="dash-card-body" style="padding:0"></div>
-      </div>
-    </section>
-
-
-    <!-- Panel: Disputes -->
-    <section class="dash-panel" id="panel-disputes" role="region" aria-label="Disputes">
-      <div class="dash-card">
-        <div class="dash-card-header">
-          <h3>Active Disputes</h3>
-          <button class="btn btn-ghost btn-sm" onclick="loadDisputes()">Refresh</button>
-        </div>
-        <div id="disputes-list" class="dash-card-body" style="padding:0"></div>
-      </div>
-    </section>
-
-    <!-- Panel: API Keys -->
-    <section class="dash-panel" id="panel-apikeys" role="region" aria-label="API Keys">
-      <div id="panel-apikeys-content"></div>
-    </section>
-
-    <!-- Panel: Webhooks -->
-    <section class="dash-panel" id="panel-webhooks" role="region" aria-label="Webhooks">
-      <div id="panel-webhooks-content"></div>
-    </section>
-
-    <!-- Panel: Contracts -->
-    <section class="dash-panel" id="panel-contracts" role="region" aria-label="Contracts">
-      <div id="panel-contracts-content"></div>
-    </section>
-
-
-    <!-- Panel: Analytics -->
-    <section class="dash-panel" id="panel-analytics" role="region" aria-label="Analytics">
-      <div id="panel-analytics-content"></div>
-    </section>
-
-    <!-- Panel: Balance & Escrow -->
-    <section class="dash-panel" id="panel-wallet" role="region" aria-label="Balance &amp; Escrow">
-      <div id="panel-wallet-content"></div>
-    </section>
-
-    <!-- Panel: Settings -->
-    <section class="dash-panel" id="panel-settings" role="region" aria-label="Settings">
-      <div id="panel-settings-content"></div>
-    </section>
-
-    <!-- Panel: Publish -->
-    <section class="dash-panel" id="panel-publish" role="region" aria-label="Publish">
-      <div id="panel-publish-content"></div>
-    </section>
-
-
-  </div>
-</div>
 
 <!-- Scripts -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="/js/i18n.js?v=202604160002" defer></script>
-<script src="/js/app.js?v=202604191900" defer></script>
 <script>
-// Init theme icons on load (before app.js defers)
+// Init theme icons on load
 (function() {
   const t = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', t);
@@ -874,20 +602,6 @@
     btn.disabled = false;
     btn.textContent = 'Send Message';
   });
-})();
-
-// Live verdict count from real API
-(async () => {
-  try {
-    const el = document.getElementById('stat-verdicts-count');
-    if (!el) return;
-    const resp = await fetch('/api/v1/arbitrate/verdicts?limit=1');
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (typeof data.total === 'number' && data.total > 0) {
-      el.textContent = data.total.toLocaleString();
-    }
-  } catch (e) {}
 })();
 
 // Scroll reveal animations

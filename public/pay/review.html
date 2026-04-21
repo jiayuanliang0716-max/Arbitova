@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Buyer inbox · Arbitova Pay</title>
+<title>Buyer inbox · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
@@ -20,6 +20,9 @@
   .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
   .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
   .wallet-badge.on .dot { background: var(--brand); }
+
+  .testnet-banner { background: var(--warning-bg); color: var(--warning); border-bottom: 1px solid var(--warning-border); padding: 10px 32px; font-size: 13px; text-align: center; line-height: 1.5; }
+  .testnet-banner strong { color: var(--warning); }
 
   .wrap { max-width: 820px; margin: 0 auto; padding: 48px 32px 80px; }
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
@@ -72,6 +75,9 @@
 </style>
 </head>
 <body>
+  <div class="testnet-banner" role="alert">
+    <strong>Testnet only.</strong> You are on Base Sepolia. USDC here is a worthless test token — <strong>do not send real money to addresses you see here</strong>.
+  </div>
   <nav class="nav">
     <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
     <div class="nav-links">
@@ -85,7 +91,7 @@
 
   <div class="wrap">
     <h1>Buyer inbox</h1>
-    <p class="lede">Your escrows. Confirm delivery to release funds to the seller, or dispute if the work doesn't match the spec. Silence past the review window routes to dispute — it does <em>not</em> auto-release.</p>
+    <p class="lede">Your escrows. Confirm delivery to release funds to the seller, or dispute if the work doesn't match the spec. <strong>If you stay silent past the review deadline, anyone can call <code>escalateIfExpired</code> and the seller auto-receives the funds.</strong> Act before the timer ends.</p>
 
     <div id="notConnected" class="alert warn">Please connect your wallet first — <a href="/pay/">back to dashboard</a>.</div>
     <div id="content" style="display:none"></div>
@@ -93,6 +99,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script src="/js/path-b-sdk.js"></script>
+  <script src="/js/flow-ui.js"></script>
   <script>
     const env = PathB.getEnvInfo();
     const notConnected = document.getElementById('notConnected');
@@ -196,14 +203,33 @@
       const msg = document.getElementById(`msg-${e.id}`);
 
       confirmBtn.addEventListener('click', async () => {
-        if (!confirm(`Release ${e.amount} ${env.usdcSymbol} to the seller? This cannot be undone.`)) return;
+        const ok = await FlowUI.preflight({
+          key: 'confirm-delivery',
+          title: `Release ${e.amount} ${env.usdcSymbol} to the seller?`,
+          subtitle: 'You&rsquo;re about to sign one wallet popup. This is final &mdash; funds leave escrow and cannot be recalled.',
+          steps: [
+            { title: 'Pay the seller now', body: `Seller gets ${(parseFloat(e.amount) * 0.995).toFixed(4)} ${env.usdcSymbol} (0.5% fee). Escrow closes in the same tx.` },
+          ],
+          confirmLabel: 'Yes, release funds',
+        });
+        if (!ok) return;
         confirmBtn.disabled = true; confirmBtn.textContent = 'Signing…';
         try {
           const res = await PathB.confirmDelivery({ escrowId: e.id });
-          alert(`Released. Tx: ${res.txHash}`);
-          render();
+          FlowUI.receipt(document.getElementById(`msg-${e.id}`), {
+            action: 'Released',
+            headline: `Funds released to seller`,
+            escrowId: e.id,
+            txHash: res.txHash,
+            actions: [
+              { label: 'View on Basescan', href: PathB.explorerTx(res.txHash), target: '_blank' },
+              { label: 'Open status page', href: `/pay/status.html?id=${e.id}` },
+            ],
+          });
+          setTimeout(render, 3500);
         } catch (err) {
-          alert(err.shortMessage || err.message);
+          const msg = document.getElementById(`msg-${e.id}`);
+          if (msg) msg.innerHTML = `<span style="color:var(--danger);font-size:12px;margin-left:8px">${err.shortMessage || err.message}</span>`;
           confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm delivery — release funds';
         }
       });
@@ -213,11 +239,26 @@
       submitDispute.addEventListener('click', async () => {
         const r = reason.value.trim();
         if (r.length < 10) { msg.innerHTML = '<span style="color:var(--danger);font-size:12px;margin-left:8px">Please write a clear reason (≥10 chars).</span>'; return; }
+        const hasSpec = e.verificationURI && !/^https?:\/\/\s*$/.test(e.verificationURI.trim());
+        const warning = hasSpec
+          ? `You are disputing escrow #${e.id}.\n\nThe arbiter will compare your reason against the verification spec:\n${e.verificationURI}\n\nResolve fee is 2% of the escrow amount, deducted from the losing side.\n\nContinue?`
+          : `You are disputing escrow #${e.id}.\n\nNo verification URI was set at creation. Without a written spec the arbiter has to rely on the reason you write here plus the delivery payload.\n\nResolve fee is 2% of the escrow amount, deducted from the losing side.\n\nContinue?`;
+        if (!window.confirm(warning)) return;
         submitDispute.disabled = true; submitDispute.textContent = 'Signing…';
         try {
           const res = await PathB.dispute({ escrowId: e.id, reason: r });
-          msg.innerHTML = `<span style="color:var(--brand);font-size:12px;margin-left:8px">Disputed. <a href="${PathB.explorerTx(res.txHash)}" target="_blank">tx</a></span>`;
-          setTimeout(render, 3000);
+          FlowUI.receipt(msg, {
+            action: 'Disputed',
+            headline: `Dispute opened — arbiter will review`,
+            escrowId: e.id,
+            txHash: res.txHash,
+            actions: [
+              { label: 'View on Basescan', href: PathB.explorerTx(res.txHash), target: '_blank' },
+              { label: 'How the arbiter decides', href: '/arbiter' },
+              { label: 'Past verdicts', href: '/verdicts' },
+            ],
+          });
+          setTimeout(render, 3500);
         } catch (err) {
           msg.innerHTML = `<span style="color:var(--danger);font-size:12px;margin-left:8px">${err.shortMessage || err.message}</span>`;
           submitDispute.disabled = false; submitDispute.textContent = 'Submit dispute';

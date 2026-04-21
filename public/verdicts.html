@@ -3,533 +3,286 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Arbitova — Arbitration Verdicts</title>
+  <title>Verdicts · Arbitova</title>
   <link rel="canonical" href="https://arbitova.com/verdicts">
-  <meta name="description" content="Public ledger of AI arbitration verdicts. Every dispute resolved by Arbitova's N=3 AI panel is logged here anonymously.">
+  <meta name="description" content="Every dispute resolved on Arbitova's EscrowV1, on-chain and verifiable. Each row links to the Basescan transaction and the published verdict reasoning.">
   <link rel="icon" href="/favicon.ico" sizes="any">
-  <link rel="icon" type="image/png" href="/logo-192.png">
-  <link rel="apple-touch-icon" href="/logo-192.png">
-  <link rel="stylesheet" href="/css/tokens.css?v=202604131200">
+  <link rel="stylesheet" href="/css/tokens.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; }
+    body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+    a { color: var(--brand); text-decoration: none; }
 
-    body {
-      font-family: var(--font-ui);
-      background: var(--bg-base);
-      color: var(--text-primary);
-      min-height: 100vh;
-    }
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .nav-brand span { color: var(--brand); }
+    .nav-links { display: flex; gap: 24px; font-size: 13px; }
+    .nav-links a { color: var(--text-secondary); }
+    .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
 
-    a { color: inherit; text-decoration: none; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 48px 32px 80px; }
+    h1 { font-size: 28px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+    .lede { font-size: 15px; color: var(--text-secondary); line-height: 1.65; margin: 0 0 24px; max-width: 760px; }
+    .lede code { font-family: var(--font-mono); background: var(--bg-surface); padding: 1px 6px; border-radius: 3px; font-size: 12.5px; }
 
-    /* ── Nav ── */
-    nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 18px 32px;
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    .logo {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--text-primary);
-    }
-    .logo span { color: var(--brand); }
-    .nav-links { display: flex; gap: 24px; font-size: 14px; color: var(--text-secondary); }
-    .nav-links a:hover { color: var(--text-primary); }
+    .meta-row { display: flex; gap: 12px; margin-bottom: 28px; font-size: 12px; color: var(--text-tertiary); flex-wrap: wrap; }
+    .meta-row a { color: var(--text-secondary); border-bottom: 1px dotted var(--border-default); }
 
-    /* ── Hero ── */
-    .hero {
-      text-align: center;
-      padding: 64px 24px 48px;
-      max-width: 760px;
-      margin: 0 auto;
-    }
-    .hero h1 {
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: var(--text-primary);
-      margin-bottom: 12px;
-    }
-    .hero p {
-      font-size: 15px;
-      color: var(--text-secondary);
-      line-height: 1.6;
-    }
-    .badge-ai {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 12px;
-      color: var(--brand);
-      margin-bottom: 20px;
-    }
-    .badge-ai::before { content: ''; display: inline-block; width: 7px; height: 7px; background: var(--brand); border-radius: 50%; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    .stat { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 16px; }
+    .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 4px; }
+    .stat .v { font-family: var(--font-mono); font-size: 20px; font-weight: 600; color: var(--text-primary); }
 
-    /* ── Stats bar ── */
-    .stats-bar {
-      display: flex;
-      justify-content: center;
-      gap: 48px;
-      padding: 24px;
-      border-top: 1px solid var(--border-subtle);
-      border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: 32px;
-    }
-    .stat { text-align: center; }
-    .stat-value { font-size: 28px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
-    .stat-label { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.6px; }
-
-    /* ── Filters ── */
-    .filters {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      max-width: 900px;
-      margin: 0 auto 24px;
-      padding: 0 24px;
-      flex-wrap: wrap;
-    }
-    .filter-label { font-size: 13px; color: var(--text-tertiary); }
-    .filter-btn {
-      padding: 6px 14px;
-      border-radius: var(--radius-md);
-      border: 1px solid var(--border-default);
-      background: transparent;
-      color: var(--text-secondary);
-      font-size: 13px;
-      cursor: pointer;
-      transition: all var(--duration) var(--ease);
-    }
-    .filter-btn:hover { border-color: var(--brand); color: var(--text-primary); }
+    .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .filter-btn { padding: 6px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font-size: 13px; cursor: pointer; font-family: var(--font-ui); }
+    .filter-btn:hover { border-color: var(--brand-border); color: var(--text-primary); }
     .filter-btn.active { background: var(--brand); border-color: var(--brand); color: #000; font-weight: 600; }
 
-    /* ── Table ── */
-    .table-wrap {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 0 24px 64px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 14px;
-    }
-    thead th {
-      text-align: left;
-      padding: 10px 12px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text-tertiary);
-      border-bottom: 1px solid var(--border-subtle);
-    }
-    tbody tr {
-      border-bottom: 1px solid var(--border-subtle);
-      transition: background var(--duration) var(--ease);
-      cursor: pointer;
-    }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { text-align: left; padding: 10px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); border-bottom: 1px solid var(--border-subtle); font-weight: 500; }
+    tbody tr { border-bottom: 1px solid var(--border-subtle); }
     tbody tr:hover { background: var(--bg-surface); }
-    td {
-      padding: 14px 12px;
-      vertical-align: top;
-    }
+    td { padding: 14px 12px; vertical-align: top; }
 
-    .case-num { color: var(--text-tertiary); font-size: 12px; font-family: var(--font-mono); }
-    .verdict-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .verdict-buyer  { background: var(--success-bg); color: var(--success); border: 1px solid var(--success-border); }
-    .verdict-seller { background: var(--warning-bg); color: var(--warning); border: 1px solid var(--warning-border); }
-    .verdict-unknown { background: var(--neutral-bg); color: var(--text-secondary); border: 1px solid var(--border-default); }
+    .escrow-id { font-family: var(--font-mono); font-weight: 600; color: var(--text-primary); }
+    .split { font-family: var(--font-mono); font-size: 12px; }
+    .split .b { color: var(--brand); }
+    .split .s { color: var(--warning); }
+    .chip { display: inline-block; font-size: 11px; font-family: var(--font-mono); padding: 2px 8px; border-radius: var(--radius-full); font-weight: 500; }
+    .chip.buyer { background: var(--brand-dim); color: var(--brand); }
+    .chip.seller { background: var(--warning-bg); color: var(--warning); }
+    .chip.split { background: var(--neutral-bg); color: var(--text-secondary); }
+    .reason { font-size: 12px; color: var(--text-secondary); line-height: 1.5; max-width: 280px; }
+    .hash { font-family: var(--font-mono); font-size: 11px; color: var(--text-tertiary); }
+    .hash a { color: var(--text-secondary); }
+    .date { font-size: 12px; color: var(--text-tertiary); white-space: nowrap; }
 
-    .confidence-bar-wrap { display: flex; align-items: center; gap: 8px; }
-    .confidence-bar {
-      width: 60px; height: 4px; background: var(--bg-raised); border-radius: 2px; overflow: hidden;
-    }
-    .confidence-fill { height: 100%; border-radius: 2px; }
-    .conf-high { background: var(--brand); }
-    .conf-mid  { background: var(--warning); }
-    .conf-low  { background: var(--danger); }
-    .confidence-pct { font-size: 12px; color: var(--text-secondary); width: 30px; font-family: var(--font-mono); }
+    .loading, .empty { text-align: center; padding: 60px 20px; color: var(--text-secondary); font-size: 13px; }
+    .spinner { display: inline-block; width: 32px; height: 32px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    .dispute-type {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: var(--radius-sm);
-      font-size: 11px;
-      background: var(--bg-surface);
-      color: var(--text-secondary);
-      border: 1px solid var(--border-default);
-    }
-    .reasoning-text {
-      font-size: 13px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      max-width: 320px;
-    }
-    .amount-tag { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); }
-    .date-text  { font-size: 12px; color: var(--text-tertiary); }
-
-    /* ── Detail modal ── */
-    .modal-overlay {
-      display: none;
-      position: fixed; inset: 0;
-      background: rgba(0,0,0,0.75);
-      z-index: 100;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal {
-      background: var(--bg-surface);
-      border: 1px solid var(--border-default);
-      border-radius: var(--radius-lg);
-      max-width: 600px;
-      width: 100%;
-      max-height: 80vh;
-      overflow-y: auto;
-      padding: 28px;
-    }
-    .modal h2 { font-size: 17px; color: var(--text-primary); margin-bottom: 16px; font-weight: 700; }
-    .modal-close {
-      float: right;
-      background: none;
-      border: none;
-      color: var(--text-tertiary);
-      font-size: 20px;
-      cursor: pointer;
-      line-height: 1;
-    }
-    .modal-close:hover { color: var(--text-primary); }
-    .modal-section { margin-bottom: 18px; }
-    .modal-section label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-tertiary); margin-bottom: 6px; }
-    .modal-section p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
-    .votes-list { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
-    .vote-chip {
-      padding: 3px 10px;
-      border-radius: 10px;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .vote-buyer  { background: var(--success-bg); color: var(--success); }
-    .vote-seller { background: var(--warning-bg); color: var(--warning); }
-
-    /* ── Loading / empty ── */
-    .loading { text-align: center; padding: 80px; color: var(--text-tertiary); }
-    .empty   { text-align: center; padding: 60px; color: var(--text-tertiary); font-size: 14px; }
-    .load-more { display: block; margin: 24px auto 0; padding: 10px 28px; border-radius: var(--radius-md); border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font-size: 14px; cursor: pointer; transition: all var(--duration) var(--ease); }
-    .load-more:hover { border-color: var(--brand); color: var(--text-primary); }
-    .load-more:disabled { opacity: 0.4; cursor: default; }
-    .range-btn {
-      padding: 6px 12px; border-radius: var(--radius-md);
-      border: 1px solid var(--border-default); background: transparent;
-      color: var(--text-secondary); font-size: 12px; cursor: pointer;
-      transition: all var(--duration) var(--ease);
-    }
-    .range-btn:hover { border-color: var(--brand); color: var(--text-primary); }
-    .range-btn.active { background: var(--bg-surface); border-color: var(--border-default); color: var(--text-primary); font-weight: 600; }
-    #search-input:focus { border-color: var(--brand); }
+    .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
+    .alert.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); }
   </style>
 </head>
 <body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/docs">Docs</a>
+      <a href="/verdicts" class="active">Verdicts</a>
+      <a href="/arbiter">Arbiter</a>
+    </div>
+  </nav>
 
-<nav>
-  <div class="logo">Arbit<span>ova</span></div>
-  <div class="nav-links">
-    <a href="/">Home</a>
-    <a href="/verdicts" style="color:#fff">Verdicts</a>
-    <a href="https://api.arbitova.com/docs" target="_blank">API Docs</a>
+  <div class="wrap">
+    <h1>Verdicts</h1>
+    <p class="lede">Every dispute resolved by the Arbitova arbiter is on-chain. This page queries the <code>Resolved</code> event log of <a href="/arbiter">EscrowV1</a> directly — no intermediary database, no hidden cases. Each verdict links to its Basescan transaction.</p>
+
+    <div class="meta-row">
+      <span>Source: <a id="contractLink" target="_blank" rel="noopener">EscrowV1 on Basescan →</a></span>
+      <span>·</span>
+      <span>Who resolves: <a href="/arbiter">see arbiter identity and process</a></span>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="k">Total resolved</div><div class="v" id="statTotal">—</div></div>
+      <div class="stat"><div class="k">Buyer-favored</div><div class="v" id="statBuyer" style="color:var(--brand)">—</div></div>
+      <div class="stat"><div class="k">Seller-favored</div><div class="v" id="statSeller" style="color:var(--warning)">—</div></div>
+      <div class="stat"><div class="k">Split</div><div class="v" id="statSplit">—</div></div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-filter="all">All</button>
+      <button class="filter-btn" data-filter="buyer">Buyer-favored</button>
+      <button class="filter-btn" data-filter="seller">Seller-favored</button>
+      <button class="filter-btn" data-filter="split">Split</button>
+    </div>
+
+    <div id="loadingState" class="loading"><div class="spinner"></div><div style="margin-top:12px">Scanning Resolved events…</div></div>
+
+    <table id="verdictsTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Escrow</th>
+          <th>Outcome</th>
+          <th>Split</th>
+          <th>Dispute reason</th>
+          <th>Verdict hash</th>
+          <th>Tx</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+      <tbody id="verdictsBody"></tbody>
+    </table>
+
+    <div class="empty" id="emptyState" style="display:none">No disputes have been resolved yet. The <a href="/arbiter">arbiter</a> has been quiet.</div>
   </div>
-</nav>
 
-<div class="hero">
-  <div class="badge-ai">N=3 AI Arbitration Panel</div>
-  <h1>Arbitration Verdicts</h1>
-  <p>Every dispute resolved by Arbitova's AI panel is logged here anonymously.<br>
-     Three independent AI judges vote — majority rules. Full reasoning shown.</p>
-  <p style="margin-top:10px;font-size:12px;color:var(--text-tertiary,#6b7280);">
-    Includes simulated cases generated for system testing and demonstration purposes.
-  </p>
-</div>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    document.getElementById('contractLink').href = `${env.explorer}/address/${env.escrow}`;
 
-<div class="stats-bar" id="statsBar">
-  <div class="stat"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Cases Resolved</div></div>
-  <div class="stat"><div class="stat-value" id="statBuyer" style="color:#34d399">—</div><div class="stat-label">Buyer Wins</div></div>
-  <div class="stat"><div class="stat-value" id="statSeller" style="color:#fbbf24">—</div><div class="stat-label">Seller Wins</div></div>
-  <div class="stat"><div class="stat-value" id="statAvgConf">—</div><div class="stat-label">Avg Confidence</div></div>
-</div>
+    const ABI = [
+      'event Resolved(uint256 indexed id, uint256 toBuyer, uint256 toSeller, uint256 feePaid, bytes32 verdictHash)',
+      'event Disputed(uint256 indexed id, address by, string reason)',
+    ];
 
-<div class="filters">
-  <input type="text" id="search-input" placeholder="Search case # or dispute type..." style="padding:6px 12px;border:1px solid var(--border-default);border-radius:var(--radius-md);background:var(--bg-surface);color:var(--text-primary);font-size:13px;font-family:var(--font-ui);outline:none;width:220px;" oninput="debouncedSearch()">
-  <span class="filter-label">Winner:</span>
-  <button class="filter-btn active" data-filter="all">All</button>
-  <button class="filter-btn" data-filter="buyer">Buyer</button>
-  <button class="filter-btn" data-filter="seller">Seller</button>
-  <span class="filter-label" style="margin-left:8px">Range:</span>
-  <button class="range-btn active" data-days="0">All time</button>
-  <button class="range-btn" data-days="30">30d</button>
-  <button class="range-btn" data-days="7">7d</button>
-</div>
+    let verdicts = [];
+    let currentFilter = 'all';
 
-<div class="table-wrap">
-  <div class="loading" id="loadingState">Loading verdicts...</div>
-
-  <table id="verdictsTable" style="display:none">
-    <thead>
-      <tr>
-        <th>#</th>
-        <th>Dispute Type</th>
-        <th>Verdict</th>
-        <th>Confidence</th>
-        <th>Reasoning</th>
-        <th>Amount</th>
-        <th>Date</th>
-      </tr>
-    </thead>
-    <tbody id="verdictsBody"></tbody>
-  </table>
-
-  <div class="empty" id="emptyState" style="display:none">No verdicts found.</div>
-  <button class="load-more" id="loadMore" style="display:none">Load more</button>
-</div>
-
-<!-- Detail modal -->
-<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-  <div class="modal" id="modalBox">
-    <button class="modal-close" onclick="closeModal()">&times;</button>
-    <h2>Case Detail</h2>
-    <div id="modalContent"></div>
-  </div>
-</div>
-
-<script>
-  const API = 'https://api.arbitova.com/api/v1/arbitrate/verdicts';
-  let currentFilter = 'all';
-  let currentDays   = 0;   // 0 = all time
-  let currentSearch = '';
-  let searchTimer;
-  let currentPage   = 0;
-  let allVerdicts   = [];
-  let total         = 0;
-  const PAGE_SIZE   = 50;
-
-  const DISPUTE_LABELS = {
-    incomplete_delivery: 'Incomplete Delivery',
-    format_mismatch:     'Format Mismatch',
-    deadline_violation:  'Deadline Violation',
-    quality_dispute:     'Quality Dispute',
-    missing_sections:    'Missing Sections',
-    no_delivery:         'No Delivery',
-    spec_mismatch:       'Spec Mismatch',
-    scope_dispute:       'Scope Dispute',
-    general:             'General',
-  };
-
-  function debouncedSearch() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      currentSearch = document.getElementById('search-input').value.trim().toLowerCase();
-      renderTable(filterLocal(allVerdicts));
-    }, 200);
-  }
-
-  function filterLocal(verdicts) {
-    if (!currentSearch) return verdicts;
-    return verdicts.filter(v => {
-      const type = (v.dispute_type || '').toLowerCase();
-      const label = (DISPUTE_LABELS[v.dispute_type] || '').toLowerCase();
-      const caseNum = String(v.case_number || '');
-      return type.includes(currentSearch) || label.includes(currentSearch) || caseNum.includes(currentSearch);
-    });
-  }
-
-  async function loadVerdicts(page = 0, append = false) {
-    const params = new URLSearchParams({ page, limit: PAGE_SIZE });
-    if (currentFilter !== 'all') params.set('winner', currentFilter);
-    if (currentDays > 0) {
-      const since = new Date(Date.now() - currentDays * 86400000).toISOString();
-      params.set('since', since);
+    function classify(v) {
+      if (v.toBuyer > 0n && v.toSeller === 0n) return 'buyer';
+      if (v.toSeller > 0n && v.toBuyer === 0n) return 'seller';
+      return 'split';
     }
 
-    try {
-      const res  = await fetch(`${API}?${params}`);
-      const data = await res.json();
+    function fmt(raw) {
+      try { return ethers.formatUnits(raw, 6); } catch { return String(raw); }
+    }
 
-      total = data.total;
-      document.getElementById('statTotal').textContent  = data.total;
-      document.getElementById('statBuyer').textContent  = data.buyer_wins;
-      document.getElementById('statSeller').textContent = data.seller_wins;
+    function escapeHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
-      // compute avg confidence
-      const allConf = data.verdicts.filter(v => v.confidence !== null).map(v => v.confidence);
-      const avgConf = allConf.length ? Math.round(allConf.reduce((a,b) => a+b,0) / allConf.length * 100) : null;
-      document.getElementById('statAvgConf').textContent = avgConf ? avgConf + '%' : '—';
+    // Base Sepolia public RPC allows 10,000-block ranges for eth_getLogs;
+    // the Alchemy Free tier caps at 10 blocks and returns 400 on wider queries.
+    // Query in 10k chunks from EscrowV1 deploy block so the "read chain directly" claim stays true.
+    const PUBLIC_RPC = 'https://sepolia.base.org';
+    const START_BLOCK = 40478709;
+    const CHUNK = 10000;
 
-      if (append) {
-        allVerdicts = allVerdicts.concat(data.verdicts);
-      } else {
-        allVerdicts = data.verdicts;
+    async function queryFilterChunked(contract, eventName, fromBlock, toBlock) {
+      const out = [];
+      for (let lo = fromBlock; lo <= toBlock; lo += CHUNK) {
+        const hi = Math.min(lo + CHUNK - 1, toBlock);
+        const chunk = await contract.queryFilter(eventName, lo, hi);
+        if (chunk.length) out.push(...chunk);
+      }
+      return out;
+    }
+
+    async function load() {
+      try {
+        const provider = new ethers.JsonRpcProvider(PUBLIC_RPC);
+        const contract = new ethers.Contract(env.escrow, ABI, provider);
+        const latest = await provider.getBlockNumber();
+
+        const resolvedLogs = await queryFilterChunked(contract, 'Resolved', START_BLOCK, latest);
+        if (resolvedLogs.length === 0) {
+          document.getElementById('loadingState').style.display = 'none';
+          document.getElementById('emptyState').style.display = 'block';
+          renderStats([]);
+          return;
+        }
+
+        const disputedLogs = await queryFilterChunked(contract, 'Disputed', START_BLOCK, latest);
+        const reasonById = new Map();
+        for (const log of disputedLogs) {
+          reasonById.set(log.args.id.toString(), log.args.reason);
+        }
+
+        const blocks = new Map();
+        for (const log of resolvedLogs) {
+          if (!blocks.has(log.blockNumber)) {
+            blocks.set(log.blockNumber, provider.getBlock(log.blockNumber));
+          }
+        }
+        const blockResults = await Promise.all(blocks.values());
+        const blockMap = new Map();
+        [...blocks.keys()].forEach((bn, i) => blockMap.set(bn, blockResults[i]));
+
+        verdicts = resolvedLogs.map((log) => {
+          const id = log.args.id.toString();
+          const block = blockMap.get(log.blockNumber);
+          return {
+            id,
+            toBuyer: log.args.toBuyer,
+            toSeller: log.args.toSeller,
+            fee: log.args.feePaid,
+            verdictHash: log.args.verdictHash,
+            reason: reasonById.get(id) || '',
+            tx: log.transactionHash,
+            blockNumber: log.blockNumber,
+            timestamp: block ? block.timestamp : null,
+          };
+        }).sort((a, b) => b.blockNumber - a.blockNumber);
+
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('verdictsTable').style.display = 'table';
+        renderStats(verdicts);
+        renderRows();
+      } catch (err) {
+        document.getElementById('loadingState').innerHTML = `
+          <div class="alert warn">Failed to load from RPC: ${escapeHtml(err.message || String(err))}.
+          You can still read the raw event log on <a href="${env.explorer}/address/${env.escrow}#events" target="_blank" rel="noopener">Basescan</a>.</div>`;
+      }
+    }
+
+    function renderStats(list) {
+      document.getElementById('statTotal').textContent = list.length;
+      const b = list.filter((v) => classify(v) === 'buyer').length;
+      const s = list.filter((v) => classify(v) === 'seller').length;
+      const sp = list.filter((v) => classify(v) === 'split').length;
+      document.getElementById('statBuyer').textContent = b;
+      document.getElementById('statSeller').textContent = s;
+      document.getElementById('statSplit').textContent = sp;
+    }
+
+    function renderRows() {
+      const tbody = document.getElementById('verdictsBody');
+      const filtered = currentFilter === 'all'
+        ? verdicts
+        : verdicts.filter((v) => classify(v) === currentFilter);
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:40px;text-align:center;color:var(--text-secondary);font-size:13px">No verdicts match this filter.</td></tr>`;
+        return;
       }
 
-      renderTable(filterLocal(allVerdicts));
-      document.getElementById('loadingState').style.display = 'none';
+      tbody.innerHTML = filtered.map((v) => {
+        const cls = classify(v);
+        const chipText = cls === 'buyer' ? 'Buyer refund' : cls === 'seller' ? 'Seller paid' : 'Split';
+        const short = v.verdictHash.slice(0, 10) + '…' + v.verdictHash.slice(-6);
+        const txShort = v.tx.slice(0, 10) + '…' + v.tx.slice(-6);
+        const date = v.timestamp
+          ? new Date(v.timestamp * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          : '—';
+        const reasonText = v.reason
+          ? (v.reason.length > 140 ? escapeHtml(v.reason.slice(0, 140)) + '…' : escapeHtml(v.reason))
+          : '<span style="color:var(--text-tertiary)">—</span>';
+        const verdictHashIsZero = v.verdictHash === ethers.ZeroHash;
 
-      const loadMoreBtn = document.getElementById('loadMore');
-      if (allVerdicts.length < total) {
-        loadMoreBtn.style.display = 'block';
-        loadMoreBtn.disabled = false;
-      } else {
-        loadMoreBtn.style.display = 'none';
-      }
-
-    } catch (e) {
-      document.getElementById('loadingState').textContent = 'Failed to load verdicts.';
+        return `
+          <tr>
+            <td><a class="escrow-id" href="/pay/status.html?id=${v.id}">#${v.id}</a></td>
+            <td><span class="chip ${cls}">${chipText}</span></td>
+            <td class="split">
+              <span class="b">→ buyer ${fmt(v.toBuyer)}</span><br>
+              <span class="s">→ seller ${fmt(v.toSeller)}</span>
+            </td>
+            <td class="reason">${reasonText}</td>
+            <td class="hash">${verdictHashIsZero ? '<span style="color:var(--text-tertiary)">—</span>' : escapeHtml(short)}</td>
+            <td class="hash"><a href="${env.explorer}/tx/${v.tx}" target="_blank" rel="noopener">${txShort} →</a></td>
+            <td class="date">${date}</td>
+          </tr>`;
+      }).join('');
     }
-  }
 
-  function renderTable(verdicts) {
-    const tbody = document.getElementById('verdictsBody');
-    const table = document.getElementById('verdictsTable');
-    const empty = document.getElementById('emptyState');
-
-    if (!verdicts.length) {
-      table.style.display = 'none';
-      empty.style.display = 'block';
-      return;
-    }
-
-    empty.style.display = 'none';
-    table.style.display = 'table';
-
-    tbody.innerHTML = verdicts.map((v, idx) => {
-      const conf     = v.confidence !== null ? Math.round(v.confidence * 100) : null;
-      const confClass = conf >= 80 ? 'conf-high' : conf >= 60 ? 'conf-mid' : 'conf-low';
-      const winner   = v.winner || 'unknown';
-      const label    = DISPUTE_LABELS[v.dispute_type] || v.dispute_type;
-      const date     = v.resolved_at ? new Date(v.resolved_at).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'2-digit' }) : '—';
-      const reasoning = escHtml(v.reasoning || '—');
-
-      return `
-        <tr onclick="showDetail(${idx})">
-          <td class="case-num">#${v.case_number}</td>
-          <td><span class="dispute-type">${escHtml(label)}</span></td>
-          <td>
-            <span class="verdict-badge verdict-${winner}">
-              ${winner === 'buyer' ? 'Buyer wins' : winner === 'seller' ? 'Seller wins' : 'Unknown'}
-            </span>
-          </td>
-          <td>
-            ${conf !== null ? `
-              <div class="confidence-bar-wrap">
-                <div class="confidence-bar"><div class="confidence-fill ${confClass}" style="width:${conf}%"></div></div>
-                <span class="confidence-pct">${conf}%</span>
-              </div>` : '<span style="color:#475569">—</span>'}
-          </td>
-          <td class="reasoning-text">${reasoning.length > 120 ? reasoning.slice(0,120) + '...' : reasoning}</td>
-          <td class="amount-tag">${escHtml(v.amount_range || '—')}</td>
-          <td class="date-text">${date}</td>
-        </tr>`;
-    }).join('');
-  }
-
-  function showDetail(idx) {
-    const v = allVerdicts[idx];
-    if (!v) return;
-    const conf  = v.confidence !== null ? Math.round(v.confidence * 100) + '%' : '—';
-    const label = DISPUTE_LABELS[v.dispute_type] || v.dispute_type;
-    const winner = v.winner || 'unknown';
-    const votes  = (v.votes || []).map(vt => {
-      const w = vt.toLowerCase().startsWith('buyer') ? 'buyer' : 'seller';
-      return `<span class="vote-chip vote-${w}">${escHtml(vt)}</span>`;
-    }).join('');
-
-    document.getElementById('modalContent').innerHTML = `
-      <div class="modal-section">
-        <label>Case #${v.case_number} &nbsp;·&nbsp; ${escHtml(label)}</label>
-        <p>
-          <span class="verdict-badge verdict-${winner}" style="margin-right:8px">
-            ${winner === 'buyer' ? 'Buyer wins' : winner === 'seller' ? 'Seller wins' : 'Unknown'}
-          </span>
-          Confidence: <strong>${conf}</strong> &nbsp;·&nbsp; Amount: ${escHtml(v.amount_range || '—')}
-        </p>
-      </div>
-      ${votes ? `<div class="modal-section"><label>Panel Votes</label><div class="votes-list">${votes}</div></div>` : ''}
-      <div class="modal-section">
-        <label>Reasoning</label>
-        <p>${escHtml(v.reasoning || '—')}</p>
-      </div>
-      <div class="modal-section">
-        <label>Resolved</label>
-        <p>${v.resolved_at ? new Date(v.resolved_at).toLocaleString() : '—'}</p>
-      </div>
-    `;
-    document.getElementById('modalOverlay').classList.add('open');
-  }
-
-  function closeModal(e) {
-    if (!e || e.target === document.getElementById('modalOverlay') || e.currentTarget?.classList?.contains('modal-close')) {
-      document.getElementById('modalOverlay').classList.remove('open');
-    }
-  }
-
-  function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  // Winner filter buttons
-  document.querySelectorAll('.filter-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentFilter = btn.dataset.filter;
-      currentPage   = 0;
-      allVerdicts   = [];
-      document.getElementById('loadingState').style.display = 'block';
-      document.getElementById('verdictsTable').style.display = 'none';
-      loadVerdicts(0, false);
+    document.querySelectorAll('.filter-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentFilter = btn.dataset.filter;
+        renderRows();
+      });
     });
-  });
 
-  // Time range buttons
-  document.querySelectorAll('.range-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      currentDays = parseInt(btn.dataset.days, 10);
-      currentPage = 0;
-      allVerdicts = [];
-      document.getElementById('loadingState').style.display = 'block';
-      document.getElementById('verdictsTable').style.display = 'none';
-      loadVerdicts(0, false);
-    });
-  });
-
-  // Load more
-  document.getElementById('loadMore').addEventListener('click', () => {
-    currentPage++;
-    document.getElementById('loadMore').disabled = true;
-    loadVerdicts(currentPage, true);
-  });
-
-  // Keyboard close modal
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(e); });
-
-  loadVerdicts(0);
-</script>
+    load();
+  </script>
 </body>
 </html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spec schemas · Arbitova</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; padding: 48px 32px 80px; }
+  a { color: var(--brand); }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 8px; font-weight: 700; letter-spacing: -0.01em; }
+  h2 { font-size: 18px; margin: 40px 0 12px; }
+  h3 { font-size: 14px; margin: 24px 0 8px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+  .lede { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 24px; }
+  code { font-family: var(--font-mono); background: var(--bg-surface); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  pre { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 16px; overflow-x: auto; font-family: var(--font-mono); font-size: 12px; line-height: 1.55; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border-subtle); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); }
+  td code { font-size: 11px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Spec schemas</h1>
+  <p class="lede">Standard JSON schemas for the <code>verificationURI</code> attached to an Arbitova escrow. Both human arbiters and agent verifiers consume these. Writing your spec in this format makes disputes deterministic and lets automated verifiers plug in.</p>
+
+  <h2>arbitova-spec-v1</h2>
+  <p class="lede">Two modes: <strong>manual</strong> (prose for humans) and <strong>programmatic</strong> (HTTPS verifier endpoint).</p>
+  <table>
+    <tr><th>Resource</th><th>Path</th></tr>
+    <tr><td>JSON Schema</td><td><a href="/schemas/arbitova-spec-v1.json"><code>/schemas/arbitova-spec-v1.json</code></a></td></tr>
+    <tr><td>Manual example</td><td><a href="/schemas/examples/manual-simple.json"><code>/schemas/examples/manual-simple.json</code></a></td></tr>
+    <tr><td>Programmatic example</td><td><a href="/schemas/examples/programmatic-api.json"><code>/schemas/examples/programmatic-api.json</code></a></td></tr>
+  </table>
+
+  <h3>Minimal manual spec</h3>
+<pre>{
+  "version": "arbitova-spec-v1",
+  "mode": "manual",
+  "title": "One-line summary of the deliverable",
+  "acceptance": {
+    "description": "Prose criteria. Seller, buyer, and arbiter all read this."
+  }
+}</pre>
+
+  <h3>Programmatic spec — adds a verifier endpoint</h3>
+<pre>{
+  "version": "arbitova-spec-v1",
+  "mode": "programmatic",
+  "title": "...",
+  "acceptance": { "description": "..." },
+  "check": {
+    "endpoint": "https://verifier.example.com/arbitova/check",
+    "method": "POST",
+    "timeoutSeconds": 30
+  }
+}</pre>
+
+  <h3>Verifier endpoint contract</h3>
+  <p class="lede">When the buyer's agent wants to auto-decide confirm vs. dispute, it POSTs <code>{ escrowId, deliveryPayloadURI }</code> to <code>check.endpoint</code>. The verifier responds:</p>
+<pre>{
+  "pass": true,
+  "reasons": ["schema matches", "word count within range"],
+  "evidence": "ipfs://Qm.../report.json"
+}</pre>
+
+  <h3>How to host your spec</h3>
+  <p class="lede">Any HTTPS URL or IPFS CID works. Arbitova stores the URI on-chain via <code>createEscrow</code>. Once delivered, the seller commits <code>keccak256(deliveryPayloadURI)</code> — a tamper-proof link between the on-chain escrow and the off-chain delivery.</p>
+
+  <p style="margin-top:32px"><a href="/docs">← Back to docs</a> · <a href="/">arbitova.com</a></p>
+</div>
+</body>
+</html>

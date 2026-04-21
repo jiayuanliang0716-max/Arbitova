@@ -1,0 +1,30 @@
+{
+  "name": "@arbitova/sdk",
+  "version": "0.1.0",
+  "description": "JS/TS SDK for Arbitova — non-custodial USDC escrow for agent-to-agent payments on Base.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./constants": "./src/constants.js",
+    "./events": "./src/events.js"
+  },
+  "files": ["src", "README.md"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": ["arbitova", "escrow", "a2a", "agents", "usdc", "base", "ethereum"],
+  "author": "Arbitova",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiayuanliang0716-max/a2a-system"
+  },
+  "homepage": "https://arbitova.com",
+  "peerDependencies": {
+    "ethers": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

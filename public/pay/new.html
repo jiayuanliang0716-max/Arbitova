@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>New escrow · Arbitova Pay</title>
+<title>New escrow · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
@@ -20,6 +20,9 @@
   .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
   .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
   .wallet-badge.on .dot { background: var(--brand); }
+
+  .testnet-banner { background: var(--warning-bg); color: var(--warning); border-bottom: 1px solid var(--warning-border); padding: 10px 32px; font-size: 13px; text-align: center; line-height: 1.5; }
+  .testnet-banner strong { color: var(--warning); }
 
   .wrap { max-width: 640px; margin: 0 auto; padding: 48px 32px 80px; }
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
@@ -60,6 +63,9 @@
 </style>
 </head>
 <body>
+  <div class="testnet-banner" role="alert">
+    <strong>Testnet only.</strong> You are on Base Sepolia. USDC here is a worthless test token — <strong>do not send real money to addresses you see here</strong>.
+  </div>
   <nav class="nav">
     <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
     <div class="nav-links">
@@ -82,6 +88,10 @@
         <label>Seller address</label>
         <input id="seller" type="text" placeholder="0x…" spellcheck="false">
         <div class="hint">The Ethereum address that will receive funds once delivery is confirmed.</div>
+        <div id="demoSellerRow" style="display:none;margin-top:8px">
+          <button type="button" id="useDemoSeller" style="background:var(--brand-dim);color:var(--brand);border:1px solid var(--brand);border-radius:999px;padding:4px 12px;font-size:12px;cursor:pointer;font-family:inherit">Use our demo seller →</button>
+          <span id="demoSellerHint" style="display:block;margin-top:6px;font-size:11.5px;color:var(--text-secondary);line-height:1.5">An Arbitova-operated bot that auto-delivers within 30–90s so you can test the full flow with a single wallet. Testnet only, max <span id="demoMax">10</span> USDC.</span>
+        </div>
       </div>
 
       <div class="row">
@@ -111,12 +121,12 @@
             <option value="72">3 days</option>
             <option value="168">7 days</option>
           </select>
-          <div class="hint">After delivery, you have this long to confirm or dispute. Silence = auto-dispute.</div>
+          <div class="hint">After delivery, you must <strong>confirm</strong> or <strong>dispute</strong> before this expires. <strong>If you stay silent, anyone can trigger auto-release and the seller gets paid.</strong></div>
         </div>
         <div class="field">
-          <label>Verification URI</label>
+          <label>Verification URI <span style="text-transform:none;color:var(--text-tertiary);letter-spacing:0;">(optional)</span></label>
           <input id="verifyUri" type="text" placeholder="https://... or ipfs://...">
-          <div class="hint">Link to the deliverable spec (acceptance criteria).</div>
+          <div class="hint">Link to the deliverable spec / acceptance criteria. <strong>If left blank, disputes default to the buyer's interpretation.</strong> Recommended for anything over a few dollars.</div>
         </div>
       </div>
 
@@ -124,6 +134,7 @@
         <div class="summary-row"><span class="k">Amount locked</span><span class="v" id="sAmount">—</span></div>
         <div class="summary-row"><span class="k">Release fee (0.5%)</span><span class="v" id="sFee">—</span></div>
         <div class="summary-row"><span class="k">Seller receives (if confirmed)</span><span class="v" id="sSeller">—</span></div>
+        <div class="summary-row" style="border-top:1px dashed var(--border-subtle);padding-top:10px;margin-top:6px;font-size:11.5px;color:var(--text-tertiary)"><span class="k">If disputed &mdash; max you lose to fees</span><span class="v" id="sDisputeMax">—</span></div>
       </div>
 
       <div id="progress"></div>
@@ -135,6 +146,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script src="/js/path-b-sdk.js"></script>
+  <script src="/js/flow-ui.js"></script>
   <script>
     const env = PathB.getEnvInfo();
     document.getElementById('symLabel').textContent = env.usdcSymbol;
@@ -159,15 +171,36 @@
     }
     init();
 
+    // Demo seller pill — populate only if the bot is enabled server-side.
+    (async () => {
+      try {
+        const r = await fetch('/demo-seller-info');
+        if (!r.ok) return;
+        const info = await r.json();
+        if (!info.enabled || !info.address) return;
+        document.getElementById('demoMax').textContent = info.maxUsdc;
+        document.getElementById('demoSellerRow').style.display = '';
+        document.getElementById('useDemoSeller').addEventListener('click', () => {
+          document.getElementById('seller').value = info.address;
+          if (!document.getElementById('amount').value) {
+            document.getElementById('amount').value = '1';
+            recompute();
+          }
+        });
+      } catch {}
+    })();
+
     function recompute() {
       const amt = parseFloat(document.getElementById('amount').value);
       const sum = document.getElementById('summary');
       if (!isNaN(amt) && amt > 0) {
         const fee = amt * 0.005;
         const seller = amt - fee;
+        const disputeFee = amt * 0.02;
         document.getElementById('sAmount').textContent = amt.toFixed(2) + ' ' + env.usdcSymbol;
         document.getElementById('sFee').textContent = fee.toFixed(4) + ' ' + env.usdcSymbol;
         document.getElementById('sSeller').textContent = seller.toFixed(4) + ' ' + env.usdcSymbol;
+        document.getElementById('sDisputeMax').textContent = disputeFee.toFixed(4) + ' ' + env.usdcSymbol + ' (2% resolve fee, loser pays)';
         sum.style.display = '';
       } else { sum.style.display = 'none'; }
     }
@@ -190,7 +223,6 @@
 
       if (!/^0x[a-fA-F0-9]{40}$/.test(seller)) return setAlert('err', 'Seller address looks invalid.');
       if (!amount || amount <= 0) return setAlert('err', 'Amount must be positive.');
-      if (!verificationURI) return setAlert('err', 'Verification URI is required.');
 
       const btn = document.getElementById('submit');
       btn.disabled = true; btn.textContent = 'Working…';
@@ -199,6 +231,27 @@
       try {
         const allowance = parseFloat(await PathB.getUsdcAllowance());
         const needsApprove = allowance < amount;
+
+        const steps = needsApprove
+          ? [
+              { title: 'Approve USDC (popup 1 of 2)', body: `Lets the escrow contract pull ${amount} ${env.usdcSymbol} from your wallet. No money moves on this step — you're only authorizing the contract.` },
+              { title: 'Create escrow (popup 2 of 2)', body: `The contract pulls ${amount} ${env.usdcSymbol} and locks it until the seller delivers and you confirm or dispute.` },
+            ]
+          : [
+              { title: 'Create escrow', body: `The contract pulls ${amount} ${env.usdcSymbol} and locks it until the seller delivers and you confirm or dispute. USDC allowance is already sufficient, so only one popup.` },
+            ];
+        const ok = await FlowUI.preflight({
+          key: 'create-escrow',
+          title: 'You&rsquo;re about to sign ' + (needsApprove ? 'two wallet popups' : 'one wallet popup'),
+          subtitle: 'Arbitova never holds your funds. Each popup is a direct on-chain call — if you reject the first one, nothing happens.',
+          steps,
+          confirmLabel: 'Show me the popups',
+        });
+        if (!ok) {
+          btn.disabled = false; btn.textContent = 'Lock funds in escrow';
+          return;
+        }
+
         setProgress([
           { n: 1, label: needsApprove ? 'Approve USDC (1/2)' : 'Approve USDC — already sufficient', status: 'active' },
           { n: 2, label: 'Create escrow on-chain', status: '' },
@@ -210,11 +263,18 @@
           { n: 1, label: 'USDC approved', status: 'done' },
           { n: 2, label: 'Escrow created', status: 'done' },
         ]);
-        setAlert('ok',
-          `Escrow #${res.escrowId} created. ` +
-          `<a href="${PathB.explorerTx(res.txHash)}" target="_blank" rel="noopener">View on Basescan</a> · ` +
-          `<a href="/pay/status.html?id=${res.escrowId}">Open status page</a>`
-        );
+        setAlert('', '');
+        FlowUI.receipt(document.getElementById('alert'), {
+          action: 'Escrow created',
+          headline: `Escrow #${res.escrowId} is live on-chain`,
+          escrowId: res.escrowId,
+          txHash: res.txHash,
+          actions: [
+            { label: 'Open status page', href: `/pay/status.html?id=${res.escrowId}` },
+            { label: 'View on Basescan', href: PathB.explorerTx(res.txHash), target: '_blank' },
+            { label: 'Create another', href: '/pay/new.html' },
+          ],
+        });
         btn.textContent = 'Create another escrow';
         btn.disabled = false;
       } catch (e) {

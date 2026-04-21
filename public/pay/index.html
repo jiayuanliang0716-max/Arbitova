@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Arbitova Pay · Dashboard</title>
+<title>Dashboard · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
@@ -22,6 +22,9 @@
   .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
   .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
   .wallet-badge.on .dot { background: var(--brand); }
+
+  .testnet-banner { background: var(--warning-bg); color: var(--warning); border-bottom: 1px solid var(--warning-border); padding: 10px 32px; font-size: 13px; text-align: center; line-height: 1.5; }
+  .testnet-banner strong { color: var(--warning); }
 
   .wrap { max-width: 880px; margin: 0 auto; padding: 48px 32px 80px; }
 
@@ -62,16 +65,39 @@
 
   .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border-subtle); font-size: 12px; color: var(--text-tertiary); }
   .foot a { color: var(--text-secondary); margin-right: 16px; }
+
+  /* First-run checklist */
+  .checklist { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px; margin-top: 24px; }
+  .checklist-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+  .checklist-head h4 { font-size: 14px; font-weight: 600; margin: 0; }
+  .checklist-head .sub { font-size: 12px; color: var(--text-secondary); }
+  .step-row { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+  .step-row:last-child { border-bottom: none; }
+  .step-icon { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-family: var(--font-mono); color: var(--text-tertiary); flex-shrink: 0; }
+  .step-row.done .step-icon { background: var(--brand); color: #000; border-color: var(--brand); }
+  .step-row.active .step-icon { border-color: var(--brand); color: var(--brand); }
+  .step-text { flex: 1; font-size: 13px; color: var(--text-secondary); }
+  .step-row.done .step-text { color: var(--text-primary); }
+  .step-row .step-label { color: var(--text-primary); font-weight: 500; display: block; margin-bottom: 2px; }
+  .step-row .step-hint { font-size: 11px; color: var(--text-tertiary); }
+  .step-action { flex-shrink: 0; }
+  .grid.gated { opacity: 0.5; pointer-events: none; transition: opacity var(--duration) var(--ease); }
+  .gated-note { font-size: 12px; color: var(--text-tertiary); margin: 16px 0 0; text-align: center; }
 </style>
 </head>
 <body>
+  <div class="testnet-banner" role="alert">
+    <strong>Testnet only.</strong> You are on Base Sepolia. USDC here is a worthless test token — <strong>do not send real money to addresses you see here</strong>. When mainnet launches, we will announce it explicitly.
+  </div>
   <nav class="nav">
     <a href="/" class="nav-brand">Arbitova<span>.</span></a>
     <div class="nav-links">
-      <a href="/pay/" class="active">Pay</a>
+      <a href="/pay/" class="active">Dashboard</a>
       <a href="/pay/new.html">New escrow</a>
       <a href="/pay/seller.html">Seller inbox</a>
       <a href="/pay/review.html">Buyer inbox</a>
+      <a href="/docs">Docs</a>
+      <a href="/pricing">Fees</a>
     </div>
     <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
   </nav>
@@ -79,25 +105,73 @@
   <div class="wrap">
     <div id="envPill" class="env-pill">Base Sepolia · Circle USDC</div>
     <div class="hero">
-      <h1>Arbitova Pay</h1>
+      <h1>Dashboard</h1>
       <p>On-chain escrow for any two parties. Buyer locks USDC, seller delivers, contract releases. If the buyer disputes, an arbiter splits the funds. No custody, no trust.</p>
     </div>
 
-    <div class="connect-block">
-      <div class="info">
-        <h4>Connect your wallet</h4>
-        <p id="connectHint">You'll need MetaMask (or any EIP-1193 wallet) on Base Sepolia. Funds stay in your wallet until you lock an escrow.</p>
+    <div id="checklist" class="checklist">
+      <div class="checklist-head">
+        <h4>Get ready</h4>
+        <span class="sub" id="checklistStatus">Step 1 of 4</span>
       </div>
-      <button id="connectBtn" class="btn btn-primary">Connect wallet</button>
+      <div class="step-row" id="step-wallet">
+        <span class="step-icon">1</span>
+        <div class="step-text">
+          <span class="step-label">Wallet installed</span>
+          <span class="step-hint">MetaMask, Rabby, or any EIP-1193 wallet</span>
+        </div>
+        <div class="step-action">
+          <a href="https://metamask.io/download/" target="_blank" rel="noopener" class="btn btn-secondary" id="stepWalletAction">Install MetaMask →</a>
+        </div>
+      </div>
+      <div class="step-row" id="step-chain">
+        <span class="step-icon">2</span>
+        <div class="step-text">
+          <span class="step-label">On Base Sepolia (chain 84532)</span>
+          <span class="step-hint">One click to add & switch networks</span>
+        </div>
+        <div class="step-action">
+          <button class="btn btn-primary" id="stepChainAction">Connect & switch</button>
+        </div>
+      </div>
+      <div class="step-row" id="step-eth">
+        <span class="step-icon">3</span>
+        <div class="step-text">
+          <span class="step-label">Testnet ETH for gas</span>
+          <span class="step-hint" id="stepEthHint">You need a tiny amount to pay transaction gas. If one faucet rejects you, try the next.</span>
+        </div>
+        <div class="step-action">
+          <div class="faucet-group" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
+            <a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Alchemy →</a>
+            <a href="https://faucets.chain.link/base-sepolia" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Chainlink →</a>
+            <a href="https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Coinbase →</a>
+            <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues/new?title=Faucet+help+needed&body=All+Base+Sepolia+ETH+faucets+rejected+my+wallet+(0x...).+Please+send+me+some+test+ETH." target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:11.5px;padding:8px 12px;border-style:dashed" title="If every public faucet rejected your empty wallet, open a GitHub issue — we'll seed you manually within 24h.">All rejected? Ask us →</a>
+          </div>
+        </div>
+      </div>
+      <div class="step-row" id="step-usdc">
+        <span class="step-icon">4</span>
+        <div class="step-text">
+          <span class="step-label">Testnet USDC to escrow</span>
+          <span class="step-hint" id="stepUsdcHint">Circle's testnet USDC is what the contract actually escrows.</span>
+        </div>
+        <div class="step-action">
+          <div class="faucet-group" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
+            <a href="https://faucet.circle.com/" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Circle →</a>
+            <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues/new?title=USDC+faucet+help&body=Circle+faucet+rejected+my+wallet+(0x...).+Please+seed+me+with+some+testnet+USDC." target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:11.5px;padding:8px 12px;border-style:dashed">Ask us →</a>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div id="metrics" class="balance-row" style="display:none">
       <div class="metric"><div class="label">Your address</div><div class="value" id="mAddr">—</div></div>
       <div class="metric"><div class="label" id="mUsdcLabel">USDC</div><div class="value" id="mUsdc">—</div><div class="sub">available</div></div>
-      <div class="metric"><div class="label">Allowance</div><div class="value" id="mAllow">—</div><div class="sub">approved for escrow</div></div>
+      <div class="metric"><div class="label">ETH</div><div class="value" id="mEth">—</div><div class="sub">for gas</div></div>
     </div>
 
-    <div class="grid">
+    <p id="gatedNote" class="gated-note">Complete the checklist above to unlock these actions.</p>
+    <div class="grid gated" id="actionGrid">
       <a href="/pay/new.html" class="card">
         <div class="role">Buyer</div>
         <h3>Create an escrow</h3>
@@ -136,6 +210,42 @@
   <script src="/js/path-b-sdk.js"></script>
   <script>
     const q = new URLSearchParams(location.search);
+
+    // Persona router — first-time users pick their side.
+    (function personaGate() {
+      try {
+        if (q.get('persona') === 'skip') {
+          localStorage.setItem('arbitova.persona', 'skip');
+          return;
+        }
+        const persona = localStorage.getItem('arbitova.persona');
+        if (!persona) {
+          location.replace('/pay/welcome.html');
+          return;
+        }
+        // Reorder action cards to surface the persona-relevant action first.
+        // Buyer → Create, Review, Seller inbox, Lookup
+        // Seller → Seller inbox, Review, Create, Lookup
+        // Dev/skip → unchanged default order
+        document.addEventListener('DOMContentLoaded', () => {
+          const grid = document.getElementById('actionGrid');
+          if (!grid) return;
+          const cards = Array.from(grid.children);
+          const findBy = (href) => cards.find(c => c.getAttribute('href') === href);
+          const create = findBy('/pay/new.html');
+          const seller = findBy('/pay/seller.html');
+          const review = findBy('/pay/review.html');
+          const lookup = findBy('/pay/status.html');
+          let order = null;
+          if (persona === 'buyer')  order = [create, review, seller, lookup];
+          if (persona === 'seller') order = [seller, review, create, lookup];
+          if (order) {
+            order.filter(Boolean).forEach(el => grid.appendChild(el));
+          }
+        });
+      } catch {}
+    })();
+
     const env = PathB.getEnvInfo();
     const envPill = document.getElementById('envPill');
     envPill.textContent = env.label;
@@ -148,44 +258,114 @@
     const text = document.getElementById('walletText');
     const metrics = document.getElementById('metrics');
 
-    async function refresh() {
-      const acct = PathB.getAccount();
-      if (!acct) {
+    const rows = {
+      wallet: document.getElementById('step-wallet'),
+      chain:  document.getElementById('step-chain'),
+      eth:    document.getElementById('step-eth'),
+      usdc:   document.getElementById('step-usdc'),
+    };
+
+    function setStep(row, status) {
+      row.classList.remove('done', 'active');
+      if (status === 'done') row.classList.add('done');
+      if (status === 'active') row.classList.add('active');
+      const icon = row.querySelector('.step-icon');
+      if (status === 'done') icon.textContent = '✓';
+      else icon.textContent = row.id === 'step-wallet' ? '1'
+                           : row.id === 'step-chain'  ? '2'
+                           : row.id === 'step-eth'    ? '3' : '4';
+    }
+
+    async function runChecklist() {
+      let nextActive = null;
+
+      const hasWallet = PathB.hasWallet();
+      setStep(rows.wallet, hasWallet ? 'done' : 'active');
+      if (!hasWallet) nextActive = rows.wallet;
+
+      let chainOk = false, acct = null, ethBal = 0, usdcBal = 0;
+      if (hasWallet) {
+        try {
+          const cid = await PathB.getChainId();
+          chainOk = (cid === env.chainId);
+          acct = PathB.getAccount();
+          if (acct && chainOk) {
+            try { ethBal = Number(await PathB.getEthBalance(acct)); } catch {}
+            try { usdcBal = Number(await PathB.getUsdcBalance(acct)); } catch {}
+          }
+        } catch {}
+      }
+
+      const chainReady = hasWallet && chainOk && !!acct;
+      setStep(rows.chain, chainReady ? 'done' : (hasWallet && !nextActive ? 'active' : ''));
+      if (hasWallet && !chainReady && !nextActive) nextActive = rows.chain;
+
+      const ethReady = chainReady && ethBal > 0;
+      setStep(rows.eth, ethReady ? 'done' : (chainReady && !nextActive ? 'active' : ''));
+      if (chainReady && !ethReady && !nextActive) nextActive = rows.eth;
+      const ethHint = document.getElementById('stepEthHint');
+      if (chainReady) ethHint.textContent = `Current: ${ethBal.toFixed(4)} ETH`;
+
+      const usdcReady = ethReady && usdcBal > 0;
+      setStep(rows.usdc, usdcReady ? 'done' : (ethReady && !nextActive ? 'active' : ''));
+      if (ethReady && !usdcReady && !nextActive) nextActive = rows.usdc;
+      const usdcHint = document.getElementById('stepUsdcHint');
+      if (chainReady) usdcHint.textContent = `Current: ${usdcBal.toFixed(2)} ${env.usdcSymbol}`;
+
+      const allDone = hasWallet && chainReady && ethReady && usdcReady;
+      const status = document.getElementById('checklistStatus');
+      if (allDone) {
+        status.textContent = 'Ready ✓';
+        status.style.color = 'var(--brand)';
+        document.getElementById('actionGrid').classList.remove('gated');
+        document.getElementById('gatedNote').style.display = 'none';
+      } else {
+        const idx = !hasWallet ? 1 : !chainReady ? 2 : !ethReady ? 3 : 4;
+        status.textContent = `Step ${idx} of 4`;
+        document.getElementById('actionGrid').classList.add('gated');
+        document.getElementById('gatedNote').style.display = '';
+      }
+
+      if (chainReady) {
+        badge.classList.add('on');
+        const shortAcct = acct.slice(0, 6) + '…' + acct.slice(-4);
+        text.textContent = shortAcct;
+        text.title = `Signed in as ${acct} — click to copy`;
+        text.style.cursor = 'pointer';
+        text.onclick = () => {
+          try {
+            navigator.clipboard.writeText(acct);
+            const old = text.textContent;
+            text.textContent = 'Copied!';
+            setTimeout(() => { text.textContent = old; }, 1200);
+          } catch {}
+        };
+        const mAddr = document.getElementById('mAddr');
+        mAddr.textContent = shortAcct;
+        mAddr.title = acct;
+        document.getElementById('mUsdcLabel').textContent = env.usdcSymbol;
+        document.getElementById('mUsdc').textContent = usdcBal.toFixed(2);
+        document.getElementById('mEth').textContent = ethBal.toFixed(4);
+        metrics.style.display = '';
+      } else {
         badge.classList.remove('on');
         text.textContent = 'Not connected';
         metrics.style.display = 'none';
-        return;
-      }
-      badge.classList.add('on');
-      text.textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
-      document.getElementById('mAddr').textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
-      document.getElementById('mUsdcLabel').textContent = env.usdcSymbol;
-      metrics.style.display = '';
-      try {
-        const [bal, allow] = await Promise.all([
-          PathB.getUsdcBalance(acct),
-          PathB.getUsdcAllowance(acct),
-        ]);
-        document.getElementById('mUsdc').textContent = Number(bal).toFixed(2);
-        document.getElementById('mAllow').textContent = Number(allow).toFixed(2);
-      } catch (e) {
-        document.getElementById('mUsdc').textContent = '—';
-        document.getElementById('mAllow').textContent = '—';
       }
     }
 
-    document.getElementById('connectBtn').addEventListener('click', async () => {
+    document.getElementById('stepChainAction').addEventListener('click', async () => {
       try {
+        if (!PathB.hasWallet()) { window.open('https://metamask.io/download/', '_blank'); return; }
         await PathB.connect();
-        document.getElementById('connectBtn').textContent = 'Connected';
-        document.getElementById('connectHint').textContent = 'Wallet connected. Balances refresh automatically when your account changes.';
-        refresh();
+        runChecklist();
       } catch (e) {
-        alert(e.message || String(e));
+        alert(e.shortMessage || e.message || String(e));
       }
     });
 
-    document.addEventListener('pathb:account', refresh);
+    document.addEventListener('pathb:account', runChecklist);
+    runChecklist();
   </script>
 </body>
 </html>

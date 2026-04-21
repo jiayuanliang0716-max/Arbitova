@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Escrow lookup · Arbitova Pay</title>
+<title>Escrow lookup · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
@@ -20,6 +20,9 @@
   .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
   .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
   .wallet-badge.on .dot { background: var(--brand); }
+
+  .testnet-banner { background: var(--warning-bg); color: var(--warning); border-bottom: 1px solid var(--warning-border); padding: 10px 32px; font-size: 13px; text-align: center; line-height: 1.5; }
+  .testnet-banner strong { color: var(--warning); }
 
   .wrap { max-width: 720px; margin: 0 auto; padding: 48px 32px 80px; }
   h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
@@ -65,6 +68,9 @@
 </style>
 </head>
 <body>
+  <div class="testnet-banner" role="alert">
+    <strong>Testnet only.</strong> You are on Base Sepolia. USDC here is a worthless test token — <strong>do not send real money to addresses you see here</strong>.
+  </div>
   <nav class="nav">
     <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
     <div class="nav-links">
@@ -90,6 +96,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script src="/js/path-b-sdk.js"></script>
+  <script src="/js/next-action.js"></script>
   <script>
     const env = PathB.getEnvInfo();
     const result = document.getElementById('result');
@@ -140,7 +147,10 @@
       if (e.state === 'RESOLVED') tl.push({ t: 'Resolved', meta: 'Arbiter split funds · 2% fee', done: true });
       if (e.state === 'CANCELLED') tl.push({ t: 'Cancelled', meta: 'Seller did not deliver in time — buyer refunded', done: true });
 
+      const viewer = PathB.getAccount && PathB.getAccount();
+      const nextActionHtml = window.NextAction ? window.NextAction.render(e, viewer) : '';
       return `
+        ${nextActionHtml}
         <div class="card">
           <div class="status-big">
             <h2>escrow #${e.id}</h2>
