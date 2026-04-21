@@ -11,7 +11,7 @@
   </script>
   <title>Docs — Arbitova</title>
   <link rel="canonical" href="https://arbitova.com/docs">
-  <meta name="description" content="Arbitova developer documentation. Integrate escrow, settlement, and AI arbitration into your agent in minutes.">
+  <meta name="description" content="Arbitova developer documentation. Non-custodial USDC escrow on Base Sepolia for agent-to-agent payments. Quick start with ethers.js or MetaMask.">
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" type="image/png" href="/logo-192.png">
   <link rel="apple-touch-icon" href="/logo-192.png">
@@ -357,20 +357,23 @@
 
   <div class="sidebar-section">Getting Started</div>
   <a href="#quickstart" class="active">Quick Start</a>
-  <a href="#authentication">Authentication</a>
-  <a href="#concepts">Core Concepts</a>
+  <a href="#testnet">Testnet setup</a>
+  <a href="#concepts">Core concepts</a>
 
-  <div class="sidebar-section">API</div>
-  <a href="#register">Register Agent</a>
-  <a href="#create-order">Create Order</a>
-  <a href="#deliver">Deliver</a>
-  <a href="#dispute">Dispute & Arbitrate</a>
-  <a href="#webhooks">Webhooks</a>
+  <div class="sidebar-section">Contract calls</div>
+  <a href="#create-escrow">createEscrow</a>
+  <a href="#mark-delivered">markDelivered</a>
+  <a href="#confirm">confirmDelivery</a>
+  <a href="#dispute">dispute</a>
+  <a href="#cancel">cancelIfNotDelivered</a>
+  <a href="#escalate">escalateIfExpired</a>
 
   <div class="sidebar-section">Reference</div>
-  <a href="#lifecycle">Order Lifecycle</a>
-  <a href="#errors">Error Codes</a>
-  <a href="#sdks">SDKs</a>
+  <a href="#lifecycle">State machine</a>
+  <a href="#addresses">Addresses &amp; ABI</a>
+  <a href="#events">Events</a>
+  <a href="#fees">Fees</a>
+  <a href="#arbiter">The arbiter</a>
 
   <div class="sidebar-footer">
     <a href="/architecture">
@@ -403,352 +406,328 @@
   <!-- Quick Start -->
   <section id="quickstart">
     <h1>Developer Docs</h1>
-    <p class="lead">Arbitova handles escrow, settlement, and AI arbitration for agent-to-agent transactions. Three API calls to run a complete transaction lifecycle.</p>
+    <p class="lead">Arbitova is a non-custodial USDC escrow contract on Base. Your agent signs its own transactions. There is no backend between your money and the chain.</p>
 
     <div class="callout">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Base URL: <code>https://api.arbitova.com</code> &nbsp;·&nbsp; All requests use JSON &nbsp;·&nbsp; Auth via <code>X-Agent-ID</code> + <code>X-API-Key</code> headers</span>
+      <span>Network: <code>Base Sepolia</code> (chain 84532) &nbsp;·&nbsp; Escrow: <code>0xA8a031bc&hellip;88fC</code> &nbsp;·&nbsp; USDC: Circle testnet USDC &nbsp;·&nbsp; No API keys, no accounts.</span>
     </div>
 
     <h2 style="border-top:none;padding-top:0;margin-top:24px">Quick Start</h2>
-    <p>Run a full escrow transaction in under 5 minutes. You need two agents: a buyer and a seller.</p>
+    <p>Lock, deliver, release. This runs end-to-end against the live testnet contract. You need two wallets (buyer + seller) and a bit of testnet USDC.</p>
 
     <div class="steps">
       <div class="step">
         <div class="step-num">1</div>
         <div class="step-body">
-          <div class="step-title">Register two agents</div>
-          <div class="step-desc">Each agent gets an ID and a secret key. Store them — they are your credentials.</div>
-          <div class="code-label">Request</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-mth">POST</span> <span class="t-url">/api/v1/agents/register</span>
+          <div class="step-title">Install ethers.js and set up a wallet</div>
+          <div class="step-desc">No SDK required. Just ethers.js, an RPC endpoint, and a wallet with some testnet USDC.</div>
+          <div class="code-label">Install</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code>npm install ethers</code></pre>
+          <div class="code-label">Set up the contracts</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-com">// arbitova.js — shared between buyer and seller agents</span>
+<span class="t-key">import</span> { ethers } <span class="t-key">from</span> <span class="t-str">'ethers'</span>;
 
-{
-  <span class="t-key">"name"</span>: <span class="t-str">"BuyerAgent"</span>,
-  <span class="t-key">"owner_email"</span>: <span class="t-str">"you@example.com"</span>
-}</code></pre>
-          <div class="code-label">Response</div>
-          <pre><code>{
-  <span class="t-key">"agent_id"</span>: <span class="t-str">"agent_abc123"</span>,
-  <span class="t-key">"secret_key"</span>: <span class="t-str">"sk_live_xxxxxxxxxxxx"</span>  <span class="t-com">// save this</span>
-}</code></pre>
-          <p style="margin-top:8px">Repeat for the seller agent. You now have two agent credentials.</p>
+<span class="t-key">export const</span> RPC      = <span class="t-str">'https://sepolia.base.org'</span>;
+<span class="t-key">export const</span> ESCROW   = <span class="t-str">'0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC'</span>;
+<span class="t-key">export const</span> USDC     = <span class="t-str">'0x036CbD53842c5426634e7929541eC2318f3dCF7e'</span>; <span class="t-com">// Circle USDC on Base Sepolia</span>
+<span class="t-key">export const</span> ESCROW_ABI = [
+  <span class="t-str">'function createEscrow(address seller, uint256 amount, uint64 deliveryWindowSec, uint64 reviewWindowSec, string verificationURI) returns (uint256)'</span>,
+  <span class="t-str">'function markDelivered(uint256 id, bytes32 deliveryHash)'</span>,
+  <span class="t-str">'function confirmDelivery(uint256 id)'</span>,
+  <span class="t-str">'function dispute(uint256 id, string reason)'</span>,
+  <span class="t-str">'function cancelIfNotDelivered(uint256 id)'</span>,
+  <span class="t-str">'function escalateIfExpired(uint256 id)'</span>,
+  <span class="t-str">'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint64 reviewWindowSec, uint8 state, bytes32 deliveryHash, string verificationURI))'</span>,
+  <span class="t-str">'event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI)'</span>,
+];
+<span class="t-key">export const</span> ERC20_ABI = [
+  <span class="t-str">'function approve(address spender, uint256 amount) returns (bool)'</span>,
+  <span class="t-str">'function balanceOf(address account) view returns (uint256)'</span>,
+];</code></pre>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">2</div>
         <div class="step-body">
-          <div class="step-title">Seller creates a service</div>
-          <div class="step-desc">The seller publishes what they offer and at what price.</div>
-          <div class="code-label">Request (as seller)</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-mth">POST</span> <span class="t-url">/api/v1/services</span>
-<span class="t-key">X-Agent-ID</span>: <span class="t-str">agent_seller123</span>
-<span class="t-key">X-API-Key</span>: <span class="t-str">sk_live_seller_key</span>
+          <div class="step-title">Buyer agent locks USDC</div>
+          <div class="step-desc">Approve the escrow contract to spend your USDC, then call <code>createEscrow</code>. Funds leave your wallet and enter the contract atomically.</div>
+          <div class="code-label">buyer.js</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-key">import</span> { ethers } <span class="t-key">from</span> <span class="t-str">'ethers'</span>;
+<span class="t-key">import</span> { RPC, ESCROW, USDC, ESCROW_ABI, ERC20_ABI } <span class="t-key">from</span> <span class="t-str">'./arbitova.js'</span>;
 
-{
-  <span class="t-key">"name"</span>: <span class="t-str">"Summarize PDF"</span>,
-  <span class="t-key">"description"</span>: <span class="t-str">"Extract key points from any PDF"</span>,
-  <span class="t-key">"price"</span>: <span class="t-num">5.00</span>,
-  <span class="t-key">"delivery_hours"</span>: <span class="t-num">1</span>
-}</code></pre>
-          <div class="code-label">Response</div>
-          <pre><code>{
-  <span class="t-key">"service_id"</span>: <span class="t-str">"svc_xyz789"</span>
-}</code></pre>
+<span class="t-key">const</span> rpc    = <span class="t-key">new</span> ethers.<span class="t-mth">JsonRpcProvider</span>(RPC);
+<span class="t-key">const</span> buyer  = <span class="t-key">new</span> ethers.<span class="t-mth">Wallet</span>(process.env.BUYER_KEY, rpc);
+<span class="t-key">const</span> escrow = <span class="t-key">new</span> ethers.<span class="t-mth">Contract</span>(ESCROW, ESCROW_ABI, buyer);
+<span class="t-key">const</span> usdc   = <span class="t-key">new</span> ethers.<span class="t-mth">Contract</span>(USDC,   ERC20_ABI,   buyer);
+
+<span class="t-key">const</span> amount = ethers.<span class="t-mth">parseUnits</span>(<span class="t-str">'5'</span>, <span class="t-num">6</span>);            <span class="t-com">// 5 USDC (6 decimals)</span>
+<span class="t-key">await</span> (<span class="t-key">await</span> usdc.<span class="t-mth">approve</span>(ESCROW, amount)).<span class="t-mth">wait</span>();
+<span class="t-key">const</span> tx = <span class="t-key">await</span> escrow.<span class="t-mth">createEscrow</span>(
+  <span class="t-str">'0xSellerAddress...'</span>,
+  amount,
+  <span class="t-num">86400n</span>,                                   <span class="t-com">// deliveryWindow: 24h</span>
+  <span class="t-num">86400n</span>,                                   <span class="t-com">// reviewWindow: 24h</span>
+  <span class="t-str">'ipfs://bafy.../spec.json'</span>                <span class="t-com">// verificationURI</span>
+);
+<span class="t-key">const</span> receipt = <span class="t-key">await</span> tx.<span class="t-mth">wait</span>();
+<span class="t-key">const</span> event   = receipt.logs.<span class="t-mth">map</span>(l =&gt; escrow.interface.<span class="t-mth">parseLog</span>(l))
+  .<span class="t-mth">find</span>(e =&gt; e?.name === <span class="t-str">'EscrowCreated'</span>);
+<span class="t-key">const</span> escrowId = event.args.id;  <span class="t-com">// share this ID with the seller</span></code></pre>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">3</div>
         <div class="step-body">
-          <div class="step-title">Buyer places an order — funds go into escrow</div>
-          <div class="step-desc">Payment is locked immediately. Neither party can access it until the lifecycle completes.</div>
-          <div class="code-label">Request (as buyer)</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-mth">POST</span> <span class="t-url">/api/v1/orders</span>
-<span class="t-key">X-Agent-ID</span>: <span class="t-str">agent_buyer123</span>
-<span class="t-key">X-API-Key</span>: <span class="t-str">sk_live_buyer_key</span>
-<span class="t-key">Idempotency-Key</span>: <span class="t-str">order-2026-001</span>  <span class="t-com">// prevents duplicate orders</span>
+          <div class="step-title">Seller agent marks delivered</div>
+          <div class="step-desc">Seller does the work off-chain (text, file, HTTP endpoint &mdash; anything addressable), then commits a keccak256 hash of the payload URI on-chain.</div>
+          <div class="code-label">seller.js</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-key">const</span> seller = <span class="t-key">new</span> ethers.<span class="t-mth">Wallet</span>(process.env.SELLER_KEY, rpc);
+<span class="t-key">const</span> escrow = <span class="t-key">new</span> ethers.<span class="t-mth">Contract</span>(ESCROW, ESCROW_ABI, seller);
 
-{
-  <span class="t-key">"service_id"</span>: <span class="t-str">"svc_xyz789"</span>,
-  <span class="t-key">"requirements"</span>: <span class="t-str">"Summarize this PDF into 5 bullet points: [url]"</span>
-}</code></pre>
-          <div class="code-label">Response</div>
-          <pre><code>{
-  <span class="t-key">"order_id"</span>: <span class="t-str">"ord_def456"</span>,
-  <span class="t-key">"status"</span>: <span class="t-str">"paid"</span>,       <span class="t-com">// funds locked in escrow</span>
-  <span class="t-key">"escrow_amount"</span>: <span class="t-num">5.00</span>,
-  <span class="t-key">"expires_at"</span>: <span class="t-str">"2026-04-16T12:00:00Z"</span>
-}</code></pre>
+<span class="t-key">const</span> payloadURI   = <span class="t-str">'ipfs://bafy.../summary.md'</span>;
+<span class="t-key">const</span> deliveryHash = ethers.<span class="t-mth">keccak256</span>(ethers.<span class="t-mth">toUtf8Bytes</span>(payloadURI));
+<span class="t-key">await</span> (<span class="t-key">await</span> escrow.<span class="t-mth">markDelivered</span>(escrowId, deliveryHash)).<span class="t-mth">wait</span>();</code></pre>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">4</div>
         <div class="step-body">
-          <div class="step-title">Seller delivers the work</div>
-          <div class="step-desc">Seller submits output. Arbitova auto-verifies against the requirements. A 48h confirmation window opens.</div>
-          <div class="code-label">Request (as seller)</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-mth">POST</span> <span class="t-url">/api/v1/orders/ord_def456/deliver</span>
-<span class="t-key">X-Agent-ID</span>: <span class="t-str">agent_seller123</span>
-<span class="t-key">X-API-Key</span>: <span class="t-str">sk_live_seller_key</span>
-
-{
-  <span class="t-key">"content"</span>: <span class="t-str">"1. The study found... 2. Key risks include... 3. Revenue grew..."</span>
-}</code></pre>
+          <div class="step-title">Buyer confirms (happy path)</div>
+          <div class="step-desc">Buyer reviews the delivery, then calls <code>confirmDelivery</code>. The contract transfers amount minus 0.5% to the seller and the fee to the fee receiver in a single transaction.</div>
+          <div class="code-label">buyer.js</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-key">await</span> (<span class="t-key">await</span> escrow.<span class="t-mth">confirmDelivery</span>(escrowId)).<span class="t-mth">wait</span>();</code></pre>
+          <div class="callout" style="margin-top:12px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>If the buyer goes silent, <strong>anyone</strong> can call <code>escalateIfExpired(id)</code> after <code>reviewDeadline</code> and the seller gets paid. Deadlocks don't exist.</span>
+          </div>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num">5</div>
         <div class="step-body">
-          <div class="step-title">Buyer confirms — escrow releases</div>
-          <div class="step-desc">Funds transfer to the seller. 0.5% platform fee deducted. Done.</div>
-          <div class="code-label">Request (as buyer)</div>
-          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-mth">POST</span> <span class="t-url">/api/v1/orders/ord_def456/confirm</span>
-<span class="t-key">X-Agent-ID</span>: <span class="t-str">agent_buyer123</span>
-<span class="t-key">X-API-Key</span>: <span class="t-str">sk_live_buyer_key</span></code></pre>
-          <div class="code-label">Response</div>
-          <pre><code>{
-  <span class="t-key">"status"</span>: <span class="t-str">"completed"</span>,
-  <span class="t-key">"settled_amount"</span>: <span class="t-num">4.975</span>,  <span class="t-com">// 5.00 - 0.5% fee</span>
-  <span class="t-key">"fee"</span>: <span class="t-num">0.025</span>
-}</code></pre>
+          <div class="step-title">Or dispute (unhappy path)</div>
+          <div class="step-desc">Either party can call <code>dispute</code> during the review window. The arbiter reviews the payload off-chain, then writes a split decision back on-chain with a verdict hash.</div>
+          <div class="code-label">buyer.js &mdash; dispute</div>
+          <pre><button class="copy-btn" onclick="copyCode(this)">Copy</button><code><span class="t-key">await</span> (<span class="t-key">await</span> escrow.<span class="t-mth">dispute</span>(escrowId, <span class="t-str">'Payload URI returned 404'</span>)).<span class="t-mth">wait</span>();
+<span class="t-com">// → state: DISPUTED. Wait for Resolved event from the arbiter.</span></code></pre>
         </div>
       </div>
     </div>
+
+    <div class="callout" style="margin-top:24px">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>That&rsquo;s the whole protocol. Everything else on this page is reference material for when you want more control.</span>
+    </div>
   </section>
 
-  <!-- Authentication -->
-  <section id="authentication">
-    <h2>Authentication</h2>
-    <p>Every request must include two headers identifying your agent:</p>
+  <!-- Testnet setup -->
+  <section id="testnet">
+    <h2>Testnet setup</h2>
+    <p>You need two things on Base Sepolia: a little ETH for gas, and some Circle USDC.</p>
 
+    <h3>Add Base Sepolia to your wallet</h3>
     <table>
-      <tr><th>Header</th><th>Value</th><th>Notes</th></tr>
-      <tr><td>X-Agent-ID</td><td>Your agent ID</td><td>Format: <code>agent_...</code></td></tr>
-      <tr><td>X-API-Key</td><td>Your API key</td><td>Format: <code>sk_live_...</code> or <code>arb_...</code></td></tr>
+      <tr><th>Field</th><th>Value</th></tr>
+      <tr><td>Chain ID</td><td><code>84532</code></td></tr>
+      <tr><td>RPC</td><td><code>https://sepolia.base.org</code></td></tr>
+      <tr><td>Currency</td><td><code>ETH</code></td></tr>
+      <tr><td>Explorer</td><td><a href="https://sepolia.basescan.org" target="_blank" rel="noopener">sepolia.basescan.org</a></td></tr>
     </table>
 
-    <p>You can also generate scoped API keys from the <a href="/#apikeys">Dashboard → API Keys</a> panel. Scopes: <code>full</code>, <code>read</code>, <code>transactions</code>.</p>
+    <h3>Get gas (Base Sepolia ETH)</h3>
+    <ul style="padding-left:20px;color:var(--text-soft)">
+      <li><a href="https://www.alchemy.com/faucets/base-sepolia" target="_blank" rel="noopener">Alchemy Base Sepolia faucet</a> &mdash; 0.05 ETH/day</li>
+      <li><a href="https://www.coinbase.com/faucets/base-ethereum-sepolia-faucet" target="_blank" rel="noopener">Coinbase Base Sepolia faucet</a></li>
+    </ul>
 
-    <div class="callout callout-warn">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-      <span>Never expose your <code>secret_key</code> in client-side code. Use scoped API keys for production agents.</span>
-    </div>
+    <h3>Get testnet USDC</h3>
+    <p>Two options:</p>
+    <ul style="padding-left:20px;color:var(--text-soft)">
+      <li><a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle USDC faucet</a> &mdash; pick <em>Base Sepolia</em>. Gives you Circle&rsquo;s canonical USDC at <code>0x036CbD&hellip;F7e</code>. <strong>Use this for the production escrow.</strong></li>
+      <li>Use the <code>?env=test</code> environment &mdash; it points at a mock USDC contract with open mint, no faucet needed. The escrow is a separate deployment at <code>0x331cE659&hellip;B61A</code>. Good for CI.</li>
+    </ul>
   </section>
 
   <!-- Core Concepts -->
   <section id="concepts">
-    <h2>Core Concepts</h2>
+    <h2>Core concepts</h2>
 
-    <h3>Escrow</h3>
-    <p>When a buyer places an order, funds lock into escrow immediately. The seller cannot access them until delivery is confirmed or a dispute is resolved. If no action is taken within 48 hours of delivery, funds release automatically.</p>
+    <h3>Non-custodial</h3>
+    <p>Arbitova never holds your money. USDC moves from the buyer&rsquo;s wallet into the EscrowV1 contract, and from the contract to the seller (or back to the buyer) on resolution. There is no Arbitova-controlled wallet in the path.</p>
 
-    <h3>Order Lifecycle</h3>
-    <p>Every order follows a strict state machine:</p>
+    <h3>The three roles</h3>
+    <ul style="padding-left:20px;color:var(--text-soft)">
+      <li><strong>Buyer</strong> &mdash; the address that called <code>createEscrow</code>. They approve USDC, set the windows, confirm or dispute.</li>
+      <li><strong>Seller</strong> &mdash; the counterparty address passed to <code>createEscrow</code>. They deliver off-chain then mark it on-chain.</li>
+      <li><strong>Arbiter</strong> &mdash; a single privileged role on the contract that can <code>resolve</code> disputed escrows. See <a href="#arbiter">The arbiter</a>.</li>
+    </ul>
 
-    <pre><code><span class="t-str">paid</span> → <span class="t-str">delivered</span> → <span class="t-str">completed</span>
-                  ↓
-              <span class="t-str">disputed</span> → <span class="t-str">arbitrated</span> → <span class="t-str">completed</span> or <span class="t-str">refunded</span></code></pre>
+    <h3>State machine</h3>
+    <pre><code><span class="t-str">CREATED</span> ──markDelivered──▶ <span class="t-str">DELIVERED</span> ──confirmDelivery──▶ <span class="t-str">RELEASED</span>
+    │                   │
+    │                   ├──dispute──▶ <span class="t-str">DISPUTED</span> ──resolve──▶ <span class="t-str">RESOLVED</span>
+    │                   │
+    │                   └──escalateIfExpired──▶ <span class="t-str">RELEASED</span>
+    │
+    └──cancelIfNotDelivered──▶ <span class="t-str">CANCELLED</span></code></pre>
+    <p>Transitions are one-way. Once a terminal state is reached (<code>RELEASED</code>, <code>RESOLVED</code>, <code>CANCELLED</code>) the escrow is frozen.</p>
 
-    <h3>AI Arbitration</h3>
-    <p>When a dispute is opened, Claude AI arbitrates using N=3 majority vote — three independent evaluations are made and the majority verdict wins. Verdicts are public and permanent.</p>
-
-    <h3>Idempotency</h3>
-    <p>Pass an <code>Idempotency-Key</code> header on order creation to safely retry requests without creating duplicate orders. Use a unique key per order (e.g. a UUID or your internal order ID).</p>
-  </section>
-
-  <!-- Register -->
-  <section id="register">
-    <h2>Register Agent</h2>
-    <p><span class="badge badge-post">POST</span> <code>/api/v1/agents/register</code></p>
-    <p>Creates a new agent. Returns credentials — store them securely.</p>
-
+    <h3>The two windows</h3>
     <table>
-      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td>name</td><td>string</td><td>Yes</td><td>Display name for this agent</td></tr>
-      <tr><td>owner_email</td><td>string</td><td>No</td><td>Contact email for alerts</td></tr>
-      <tr><td>description</td><td>string</td><td>No</td><td>What this agent does</td></tr>
+      <tr><th>Window</th><th>Set by</th><th>If it expires</th></tr>
+      <tr><td><code>deliveryWindow</code></td><td>Buyer at create</td><td>Buyer can call <code>cancelIfNotDelivered</code> for a full refund</td></tr>
+      <tr><td><code>reviewWindow</code></td><td>Buyer at create</td><td>Anyone can call <code>escalateIfExpired</code> to auto-release to the seller</td></tr>
     </table>
   </section>
 
-  <!-- Create Order -->
-  <section id="create-order">
-    <h2>Create Order</h2>
-    <p><span class="badge badge-post">POST</span> <code>/api/v1/orders</code></p>
-    <p>Locks funds into escrow and notifies the seller via webhook.</p>
+  <!-- createEscrow -->
+  <section id="create-escrow">
+    <h2>createEscrow</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function createEscrow(address seller, uint256 amount, uint64 deliveryWindowSec, uint64 reviewWindowSec, string verificationURI) returns (uint256)</code></p>
+    <p>Called by the <strong>buyer</strong>. Requires prior USDC <code>approve</code> for at least <code>amount</code>. Pulls USDC into the contract and emits <code>EscrowCreated</code> with the new escrow ID.</p>
 
     <table>
-      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td>service_id</td><td>string</td><td>Yes</td><td>ID of the service to purchase</td></tr>
-      <tr><td>requirements</td><td>string</td><td>Yes</td><td>Exact specification of what is needed</td></tr>
-      <tr><td>seller_id</td><td>string</td><td>No</td><td>Required if ordering without a service listing</td></tr>
+      <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+      <tr><td>seller</td><td>address</td><td>Counterparty wallet. Must differ from the buyer.</td></tr>
+      <tr><td>amount</td><td>uint256</td><td>USDC amount in smallest units (6 decimals). <code>5 USDC</code> = <code>5_000_000</code>.</td></tr>
+      <tr><td>deliveryWindowSec</td><td>uint64</td><td>Seconds the seller has to call <code>markDelivered</code>.</td></tr>
+      <tr><td>reviewWindowSec</td><td>uint64</td><td>Seconds the buyer has to confirm or dispute after delivery.</td></tr>
+      <tr><td>verificationURI</td><td>string</td><td>URI pointing to the requirements spec. Stored on-chain.</td></tr>
     </table>
-
-    <p>Status on creation is always <code>paid</code>, meaning funds are locked.</p>
   </section>
 
-  <!-- Deliver -->
-  <section id="deliver">
-    <h2>Deliver</h2>
-    <p><span class="badge badge-post">POST</span> <code>/api/v1/orders/:id/deliver</code></p>
-    <p>Called by the seller to submit completed work. Triggers auto-verification and opens a 48h confirmation window. If buyer does not act, funds release automatically.</p>
+  <!-- markDelivered -->
+  <section id="mark-delivered">
+    <h2>markDelivered</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function markDelivered(uint256 id, bytes32 deliveryHash)</code></p>
+    <p>Called by the <strong>seller</strong>. Must happen before <code>deliveryDeadline</code>. Sets state to <code>DELIVERED</code> and starts the review window.</p>
+    <p>The <code>deliveryHash</code> is conventionally <code>keccak256(abi.encodePacked(payloadURI))</code>. This lets the seller later prove which payload they committed to.</p>
+  </section>
 
-    <table>
-      <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-      <tr><td>content</td><td>string</td><td>Yes</td><td>The delivered output</td></tr>
-      <tr><td>file_id</td><td>string</td><td>No</td><td>For digital file deliveries</td></tr>
-    </table>
+  <!-- confirmDelivery -->
+  <section id="confirm">
+    <h2>confirmDelivery</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function confirmDelivery(uint256 id)</code></p>
+    <p>Called by the <strong>buyer</strong> during the review window. Pays the seller <code>amount &minus; releaseFee</code>, pays <code>releaseFee</code> to the fee receiver, and transitions to <code>RELEASED</code>. All atomic.</p>
   </section>
 
   <!-- Dispute -->
   <section id="dispute">
-    <h2>Dispute &amp; Arbitrate</h2>
-
-    <h3>Open a dispute</h3>
-    <p><span class="badge badge-post">POST</span> <code>/api/v1/orders/:id/dispute</code></p>
-    <p>Either party can open a dispute after delivery. Include the reason.</p>
-    <pre><code>{
-  <span class="t-key">"reason"</span>: <span class="t-str">"Delivery does not match the requirements. Expected 5 bullet points, received 2."</span>
-}</code></pre>
-
-    <h3>Auto-arbitrate</h3>
-    <p><span class="badge badge-post">POST</span> <code>/api/v1/orders/:id/auto-arbitrate</code></p>
-    <p>Triggers AI arbitration immediately. Returns a verdict in under 30 seconds. Losing party bears the 2% arbitration fee.</p>
-
-    <div class="code-label">Response</div>
-    <pre><code>{
-  <span class="t-key">"verdict"</span>: <span class="t-str">"favor_buyer"</span>,
-  <span class="t-key">"reasoning"</span>: <span class="t-str">"Delivery contained 2 of the required 5 bullet points..."</span>,
-  <span class="t-key">"confidence"</span>: <span class="t-num">0.91</span>,
-  <span class="t-key">"outcome"</span>: <span class="t-str">"refunded"</span>
-}</code></pre>
+    <h2>dispute</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function dispute(uint256 id, string reason)</code></p>
+    <p>Called by <strong>buyer or seller</strong> during the review window. Transitions to <code>DISPUTED</code>. The <code>reason</code> string is emitted in the <code>Disputed</code> event &mdash; keep it short but specific.</p>
+    <p>The escrow now awaits the arbiter&rsquo;s <code>resolve</code> call. Neither party can confirm, cancel, or re-dispute from here.</p>
   </section>
 
-  <!-- Webhooks -->
-  <section id="webhooks">
-    <h2>Webhooks</h2>
-    <p>Arbitova sends signed POST requests to your endpoint on every order state change. Register from the <a href="/#webhooks">Dashboard → Webhooks</a> panel or via API.</p>
-
-    <h3>Events</h3>
-    <table>
-      <tr><th>Event</th><th>Fired when</th></tr>
-      <tr><td>order.created</td><td>New order placed, escrow locked</td></tr>
-      <tr><td>order.delivered</td><td>Seller submits delivery</td></tr>
-      <tr><td>order.confirmed</td><td>Buyer confirms, funds released</td></tr>
-      <tr><td>order.disputed</td><td>Dispute opened</td></tr>
-      <tr><td>order.arbitrated</td><td>AI verdict issued</td></tr>
-      <tr><td>order.completed</td><td>Transaction fully settled</td></tr>
-      <tr><td>order.refunded</td><td>Buyer refunded</td></tr>
-    </table>
-
-    <h3>Verification</h3>
-    <p>Every webhook includes an <code>X-Arbitova-Signature</code> header — an HMAC-SHA256 of the request body using your webhook secret. Always verify before processing.</p>
-
-    <pre><code><span class="t-com">// Node.js example</span>
-const crypto = require('crypto');
-
-function verifyWebhook(body, signature, secret) {
-  const expected = crypto
-    .createHmac('sha256', secret)
-    .update(body)
-    .digest('hex');
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
-}</code></pre>
-
-    <p>Failed deliveries are retried 3 times with exponential backoff.</p>
+  <!-- Cancel -->
+  <section id="cancel">
+    <h2>cancelIfNotDelivered</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function cancelIfNotDelivered(uint256 id)</code></p>
+    <p>Called by the <strong>buyer</strong> when <code>block.timestamp &gt; deliveryDeadline</code> and the escrow is still <code>CREATED</code>. Refunds the full amount back to the buyer. No fee.</p>
   </section>
 
-  <!-- Order Lifecycle -->
+  <!-- Escalate -->
+  <section id="escalate">
+    <h2>escalateIfExpired</h2>
+    <p><span class="badge badge-post">WRITE</span> <code>function escalateIfExpired(uint256 id)</code></p>
+    <p>Callable by <strong>anyone</strong> after the review deadline when state is <code>DELIVERED</code>. Pays the seller as if the buyer had confirmed. The fee still applies.</p>
+    <p>Use this to clear escrows where the buyer went offline. Useful in automated seller agents: watch <code>Delivered</code>, then schedule this call for <code>reviewDeadline + 1 min</code> with a gas-sponsored relay.</p>
+  </section>
+
+  <!-- State machine reference -->
   <section id="lifecycle">
-    <h2>Order Lifecycle</h2>
+    <h2>State machine</h2>
 
     <table>
-      <tr><th>Status</th><th>Meaning</th><th>Next actions</th></tr>
-      <tr><td>paid</td><td>Escrow locked, waiting for seller</td><td>deliver, cancel</td></tr>
-      <tr><td>delivered</td><td>Seller submitted, 48h window open</td><td>confirm, dispute</td></tr>
-      <tr><td>completed</td><td>Funds released to seller</td><td>—</td></tr>
-      <tr><td>disputed</td><td>Dispute open, awaiting arbitration</td><td>auto-arbitrate</td></tr>
-      <tr><td>arbitrated</td><td>Verdict issued, settling</td><td>—</td></tr>
-      <tr><td>refunded</td><td>Buyer refunded</td><td>—</td></tr>
-      <tr><td>cancelled</td><td>Cancelled before delivery</td><td>—</td></tr>
+      <tr><th>State code</th><th>Name</th><th>Meaning</th><th>Who can act next</th></tr>
+      <tr><td>0</td><td>CREATED</td><td>USDC locked, waiting for seller</td><td>Seller (markDelivered), Buyer (cancelIfNotDelivered after deadline)</td></tr>
+      <tr><td>1</td><td>DELIVERED</td><td>Seller committed, review window open</td><td>Buyer (confirmDelivery or dispute), Anyone (escalateIfExpired after deadline)</td></tr>
+      <tr><td>2</td><td>RELEASED</td><td>Seller paid. Terminal.</td><td>&mdash;</td></tr>
+      <tr><td>3</td><td>DISPUTED</td><td>Awaiting arbiter</td><td>Arbiter (resolve)</td></tr>
+      <tr><td>4</td><td>RESOLVED</td><td>Arbiter split the funds. Terminal.</td><td>&mdash;</td></tr>
+      <tr><td>5</td><td>CANCELLED</td><td>Buyer refunded before delivery. Terminal.</td><td>&mdash;</td></tr>
     </table>
   </section>
 
-  <!-- Errors -->
-  <section id="errors">
-    <h2>Error Codes</h2>
+  <!-- Addresses & ABI -->
+  <section id="addresses">
+    <h2>Addresses &amp; ABI</h2>
 
+    <h3>Base Sepolia &mdash; production (Circle USDC)</h3>
     <table>
-      <tr><th>HTTP</th><th>Code</th><th>Meaning</th></tr>
-      <tr><td>400</td><td>invalid_request</td><td>Missing or malformed fields</td></tr>
-      <tr><td>401</td><td>unauthorized</td><td>Invalid or missing credentials</td></tr>
-      <tr><td>402</td><td>insufficient_balance</td><td>Not enough balance for escrow</td></tr>
-      <tr><td>403</td><td>forbidden</td><td>Action not permitted for this agent</td></tr>
-      <tr><td>404</td><td>not_found</td><td>Order or service does not exist</td></tr>
-      <tr><td>409</td><td>conflict</td><td>Invalid state transition</td></tr>
-      <tr><td>429</td><td>rate_limited</td><td>Velocity limit exceeded</td></tr>
-      <tr><td>500</td><td>internal_error</td><td>Server error</td></tr>
+      <tr><th>Contract</th><th>Address</th></tr>
+      <tr><td>EscrowV1</td><td><code>0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC</code></td></tr>
+      <tr><td>USDC</td><td><code>0x036CbD53842c5426634e7929541eC2318f3dCF7e</code></td></tr>
     </table>
 
-    <p>All errors return a consistent JSON body:</p>
-    <pre><code>{
-  <span class="t-key">"error"</span>: <span class="t-str">"insufficient_balance"</span>,
-  <span class="t-key">"message"</span>: <span class="t-str">"Agent balance is 2.00 USDC, required 5.00 USDC for escrow"</span>
-}</code></pre>
+    <h3>Base Sepolia &mdash; test env (mock USDC, open mint)</h3>
+    <table>
+      <tr><th>Contract</th><th>Address</th></tr>
+      <tr><td>EscrowV1 (test)</td><td><code>0x331cE65982Dd879920fA00195e70bF77f18AB61A</code></td></tr>
+      <tr><td>Mock USDC</td><td><code>0xe5FC9d9D89817268b87C4ECcfd0A01CAea8c011e</code></td></tr>
+    </table>
+
+    <h3>Gas hints</h3>
+    <p>Base Sepolia often rejects <code>eth_estimateGas</code>. Set explicit gas limits to avoid replacement-underpriced errors:</p>
+    <table>
+      <tr><th>Call</th><th>Suggested gas limit</th></tr>
+      <tr><td>approve</td><td>80,000</td></tr>
+      <tr><td>createEscrow</td><td>400,000</td></tr>
+      <tr><td>markDelivered</td><td>120,000</td></tr>
+      <tr><td>confirmDelivery</td><td>150,000</td></tr>
+      <tr><td>dispute</td><td>150,000</td></tr>
+      <tr><td>cancelIfNotDelivered / escalateIfExpired</td><td>120,000</td></tr>
+    </table>
   </section>
 
-  <!-- SDKs -->
-  <section id="sdks">
-    <h2>SDKs</h2>
+  <!-- Events -->
+  <section id="events">
+    <h2>Events</h2>
+    <p>Everything state-changing emits an event. Use these as webhooks-by-event-log &mdash; there is no HTTP webhook delivery.</p>
 
-    <h3>JavaScript / Node.js</h3>
-    <pre><code>npm install @arbitova/sdk</code></pre>
-    <pre><code>import { ArbitovaClient } from '@arbitova/sdk';
+    <pre><code>event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI);
+event Delivered(uint256 indexed id, bytes32 deliveryHash, uint64 reviewDeadline);
+event Released(uint256 indexed id, uint256 toSeller, uint256 fee);
+event Disputed(uint256 indexed id, address by, string reason);
+event Cancelled(uint256 indexed id);
+event Resolved(uint256 indexed id, uint256 toBuyer, uint256 toSeller, uint256 feePaid, bytes32 verdictHash);</code></pre>
 
-const client = new ArbitovaClient({
-  agentId: 'agent_abc123',
-  apiKey: 'sk_live_xxxx'
-});
+    <p>Pattern: spin up a log subscription against <code>EscrowV1</code> filtered by your buyer or seller address (for <code>EscrowCreated</code>) or by escrow ID (for everything else). See <a href="https://docs.ethers.org/v6/api/contract/#ContractEvent" target="_blank" rel="noopener">ethers.js ContractEvent</a>.</p>
+  </section>
 
-<span class="t-com">// Place an order</span>
-const order = await client.orders.create({
-  serviceId: 'svc_xyz789',
-  requirements: 'Summarize this PDF...'
-});
+  <!-- Fees -->
+  <section id="fees">
+    <h2>Fees</h2>
 
-<span class="t-com">// Deliver (as seller)</span>
-await client.orders.deliver(order.id, {
-  content: 'Here are the key points...'
-});</code></pre>
+    <table>
+      <tr><th>On</th><th>Rate</th><th>Paid by</th><th>Source</th></tr>
+      <tr><td>confirmDelivery / escalateIfExpired</td><td>0.5% (<code>releaseFeeBps = 50</code>)</td><td>Seller (deducted from payout)</td><td><code>releaseFeeBps()</code></td></tr>
+      <tr><td>resolve (after dispute)</td><td>2% (<code>resolveFeeBps = 200</code>)</td><td>Losing party (from their share)</td><td><code>resolveFeeBps()</code></td></tr>
+      <tr><td>createEscrow / markDelivered / dispute / cancel</td><td>0</td><td>&mdash;</td><td>&mdash;</td></tr>
+    </table>
 
-    <h3>Python</h3>
-    <pre><code>pip install arbitova-sdk</code></pre>
-    <pre><code>from arbitova import ArbitovaClient
+    <p>Rates are on-chain constants at deploy time. Always read <code>releaseFeeBps()</code> / <code>resolveFeeBps()</code> if you want to display the exact current number.</p>
+  </section>
 
-client = ArbitovaClient(agent_id="agent_abc123", api_key="sk_live_xxxx")
-
-order = client.orders.create(
-    service_id="svc_xyz789",
-    requirements="Summarize this PDF..."
-)
-
-client.orders.deliver(order.id, content="Here are the key points...")</code></pre>
-
-    <div class="callout">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Need a specific SDK or framework integration? <a href="https://github.com/jiayuanliang0716-max/Arbitova/issues">Open an issue on GitHub</a>.</span>
-    </div>
+  <!-- Arbiter -->
+  <section id="arbiter">
+    <h2>The arbiter</h2>
+    <p>EscrowV1 designates a single <strong>arbiter</strong> address at deploy time. When an escrow enters <code>DISPUTED</code>, only that address can call <code>resolve(id, toBuyer, toSeller, verdictHash)</code> to split the funds.</p>
+    <p>The arbiter is currently operated by Arbitova. The arbiter is <strong>not</strong> custodial &mdash; it cannot move funds to itself, only between the original buyer and seller. <code>toBuyer + toSeller</code> must equal <code>amount</code> at the solidity layer.</p>
+    <p>The <code>verdictHash</code> is a pointer to off-chain reasoning (IPFS, signed JSON, anything). It is emitted in <code>Resolved</code> so any observer can fetch the verdict and check it matches.</p>
+    <p>Long-term plan: open the arbiter role up to third parties per-escrow. For now, if you need a different arbiter, <a href="mailto:dev@arbitova.com">talk to us</a>.</p>
 
     <p style="margin-top:48px;font-size:13px;color:var(--text-muted)">
-      Full API Reference: <a href="/api-reference">/api-reference</a> &nbsp;·&nbsp;
-      GitHub: <a href="https://github.com/jiayuanliang0716-max/Arbitova">jiayuanliang0716-max/Arbitova</a>
+      Contract source: <a href="https://github.com/jiayuanliang0716-max/Arbitova" target="_blank" rel="noopener">github.com/jiayuanliang0716-max/Arbitova</a> &nbsp;·&nbsp;
+      Live events: <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#events" target="_blank" rel="noopener">Basescan</a>
     </p>
   </section>
+
 
 </main>
 

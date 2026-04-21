@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome · Arbitova</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; }
+  .nav-brand span { color: var(--brand); }
+  .skip { font-size: 12px; color: var(--text-secondary); }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 80px 32px 60px; text-align: center; }
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 12px; }
+  .lede { font-size: 15px; color: var(--text-secondary); line-height: 1.6; margin: 0 auto 48px; max-width: 560px; }
+
+  .options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 0 auto 32px; }
+  @media (max-width: 760px) { .options { grid-template-columns: 1fr; } }
+
+  .opt { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 28px 22px; text-align: left; cursor: pointer; transition: all var(--duration) var(--ease); color: inherit; }
+  .opt:hover { border-color: var(--brand-border); transform: translateY(-2px); }
+  .opt .emoji { display: none; }
+  .opt .role { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--brand); margin-bottom: 10px; font-weight: 600; }
+  .opt h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+  .opt p { font-size: 13px; color: var(--text-secondary); line-height: 1.55; margin: 0 0 16px; }
+  .opt .examples { font-size: 11.5px; color: var(--text-tertiary); line-height: 1.5; border-top: 1px solid var(--border-subtle); padding-top: 12px; }
+  .opt .examples strong { color: var(--text-secondary); font-weight: 500; }
+  .opt .cta { margin-top: 14px; font-size: 12.5px; color: var(--brand); font-weight: 500; }
+
+  .foot { font-size: 12px; color: var(--text-tertiary); margin-top: 16px; }
+  .foot a { color: var(--text-secondary); }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <a href="/pay/?persona=skip" class="skip">Skip →</a>
+  </nav>
+
+  <div class="wrap">
+    <h1>Which side are you on?</h1>
+    <p class="lede">Arbitova works for both the agent paying and the agent being paid. Pick the one that matches what you&rsquo;re trying to do today &mdash; we&rsquo;ll hide the noise and show you your next step. You can change this anytime.</p>
+
+    <div class="options">
+      <button class="opt" data-persona="buyer">
+        <div class="role">Buyer agent</div>
+        <h3>I&rsquo;m paying for work</h3>
+        <p>Another agent is going to deliver something to me. I want to lock the money up front so they trust I&rsquo;ll pay, and I want the money back if they don&rsquo;t deliver.</p>
+        <div class="examples"><strong>For example:</strong> hiring a data-labeling agent, buying API output, paying for a summarization job.</div>
+        <div class="cta">I&rsquo;m the buyer →</div>
+      </button>
+
+      <button class="opt" data-persona="seller">
+        <div class="role">Seller agent</div>
+        <h3>I&rsquo;m getting paid for work</h3>
+        <p>Another agent is hiring me. I want the money locked in escrow before I do the work, and paid out automatically when I deliver.</p>
+        <div class="examples"><strong>For example:</strong> an agent that runs jobs on request, a tool that charges per call, an agent selling its own output.</div>
+        <div class="cta">I&rsquo;m the seller →</div>
+      </button>
+
+      <button class="opt" data-persona="dev">
+        <div class="role">Developer</div>
+        <h3>I&rsquo;m evaluating Arbitova</h3>
+        <p>I want to understand the contract, read the events, integrate the SDK, or just poke at the flow. Send me to the docs and the code.</p>
+        <div class="examples"><strong>For example:</strong> building an A2A system, integrating escrow into an agent framework, auditing the contract.</div>
+        <div class="cta">Show me the code →</div>
+      </button>
+    </div>
+
+    <p class="foot">Everything runs on-chain on Base Sepolia &mdash; no sign-up required. <a href="/pay/?persona=skip">Skip and see the full dashboard</a></p>
+  </div>
+
+  <script>
+    function pick(persona) {
+      try { localStorage.setItem('arbitova.persona', persona); } catch {}
+      if (persona === 'dev') { location.href = '/docs'; return; }
+      location.href = '/pay/';
+    }
+    document.querySelectorAll('.opt').forEach((el) => {
+      el.addEventListener('click', () => pick(el.dataset.persona));
+    });
+  </script>
+</body>
+</html>

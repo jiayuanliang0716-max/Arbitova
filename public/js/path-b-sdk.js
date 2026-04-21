@@ -288,6 +288,25 @@
     return out;
   }
 
+  async function getEthBalance(addr) {
+    const prov = readProvider();
+    const raw = await prov.getBalance(addr || account);
+    return ethers.formatEther(raw);
+  }
+
+  async function getChainId() {
+    if (!window.ethereum) return null;
+    const hex = await window.ethereum.request({ method: 'eth_chainId' });
+    return parseInt(hex, 16);
+  }
+
+  async function switchChain() {
+    if (!window.ethereum) throw new Error('No wallet found.');
+    await ensureChain();
+  }
+
+  function hasWallet() { return typeof window !== 'undefined' && !!window.ethereum; }
+
   function formatDeadline(ts) {
     if (!ts) return '—';
     const d = new Date(ts * 1000);
@@ -306,7 +325,8 @@
 
   global.PathB = {
     connect, isConnected, getAccount, getEnvInfo,
-    getUsdcBalance, getUsdcAllowance,
+    hasWallet, getChainId, switchChain,
+    getUsdcBalance, getUsdcAllowance, getEthBalance,
     getEscrow, getNextEscrowId, listEscrowsForAddress,
     createEscrow, markDelivered, confirmDelivery, dispute, cancelIfNotDelivered,
     explorerTx, explorerAddr, formatDeadline,

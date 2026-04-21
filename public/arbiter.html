@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The arbiter · Arbitova</title>
+<meta name="description" content="Who resolves disputes on Arbitova escrows, the on-chain arbiter address, response-time targets, and what the arbiter cannot do.">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 32px 80px; }
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 8px; }
+  h2 { font-size: 18px; font-weight: 600; margin: 40px 0 12px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-secondary); margin: 28px 0 10px; }
+  .lede { font-size: 15px; color: var(--text-secondary); line-height: 1.65; margin: 0 0 32px; }
+  p { font-size: 14px; color: var(--text-primary); line-height: 1.7; margin: 0 0 14px; }
+  code { font-family: var(--font-mono); background: var(--bg-surface); padding: 1px 6px; border-radius: 3px; font-size: 12.5px; }
+  .addr { font-family: var(--font-mono); background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; word-break: break-all; display: inline-block; }
+  .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 16px; }
+
+  .dl { display: grid; grid-template-columns: max-content 1fr; gap: 10px 20px; font-size: 13px; }
+  .dl dt { color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; padding-top: 2px; }
+  .dl dd { margin: 0; font-family: var(--font-mono); color: var(--text-primary); word-break: break-all; }
+
+  ul.limits { padding-left: 20px; margin: 0; }
+  ul.limits li { font-size: 14px; line-height: 1.7; margin-bottom: 6px; color: var(--text-primary); }
+  ul.limits li strong { color: var(--brand); }
+
+  .pill { display: inline-block; font-size: 11px; font-family: var(--font-mono); padding: 3px 10px; border-radius: var(--radius-full); background: var(--brand-dim); color: var(--brand); margin-right: 6px; }
+  .pill.warn { background: var(--warning-bg); color: var(--warning); }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/docs">Docs</a>
+      <a href="/verdicts">Verdicts</a>
+      <a href="/arbiter.html" class="active">Arbiter</a>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <h1>The arbiter</h1>
+    <p class="lede">When a buyer and seller can't agree, the arbiter splits the funds. Below is exactly who that is, what they can and cannot do, and how fast they respond. Everything here is verifiable on-chain.</p>
+
+    <div class="card">
+      <h3>Current arbiter</h3>
+      <dl class="dl">
+        <dt>On-chain address</dt>
+        <dd><span class="addr" id="arbAddr">Loading…</span></dd>
+        <dt>Operated by</dt>
+        <dd style="font-family:var(--font-ui);color:var(--text-primary)">Arbitova team (2026) · rotating to community arbiters in v3</dd>
+        <dt>Contract</dt>
+        <dd><a id="contractLink" target="_blank" rel="noopener">EscrowV1 on Basescan →</a></dd>
+      </dl>
+    </div>
+
+    <h2>How decisions are made</h2>
+    <p>When a dispute is opened on an escrow, Arbitova's arbiter process runs a three-stage resolution:</p>
+    <p><span class="pill">1</span><strong>Automated review.</strong> An AI reviewer (Claude) reads the on-chain <code>verificationURI</code>, the seller's <code>deliveryPayloadURI</code>, and the buyer's dispute <code>reason</code>. It outputs a proposed split with a confidence score.</p>
+    <p><span class="pill">2</span><strong>Confidence gate.</strong> If AI confidence is below 0.85, the case escalates to a human reviewer before any on-chain action. The AI never resolves low-confidence cases alone.</p>
+    <p><span class="pill">3</span><strong>On-chain resolve.</strong> The arbiter key calls <code>resolve(id, buyerBps, sellerBps, verdictHash)</code>. The <code>verdictHash</code> points to the published reasoning on <a href="/verdicts">/verdicts</a>.</p>
+
+    <h2>What the arbiter CANNOT do</h2>
+    <p>The contract bounds the arbiter's authority. Specifically:</p>
+    <ul class="limits">
+      <li>Cannot move funds to its own address. <strong>Period.</strong> <code>resolve()</code> only accepts a split between buyer and seller.</li>
+      <li>Cannot resolve an escrow before it enters <code>DISPUTED</code> state. It has no power over the happy path.</li>
+      <li>Cannot seize an escrow that is still <code>CREATED</code> or <code>DELIVERED</code>. Only <code>dispute(id, reason)</code> opens that door.</li>
+      <li>Cannot change fees, the seller address, the amount, or the verificationURI after creation.</li>
+      <li>Cannot block <code>cancelIfNotDelivered</code> or <code>escalateIfExpired</code> — those are permissionless safety valves.</li>
+    </ul>
+
+    <h2>Service levels</h2>
+    <div class="card">
+      <dl class="dl">
+        <dt>Target resolve time</dt>
+        <dd style="font-family:var(--font-ui);color:var(--text-primary)">72 hours from <code>Disputed</code> event</dd>
+        <dt>Refund if missed</dt>
+        <dd style="font-family:var(--font-ui);color:var(--text-primary)">Resolve fee (2%) waived if the arbiter exceeds 168h on any single case</dd>
+        <dt>Coverage</dt>
+        <dd style="font-family:var(--font-ui);color:var(--text-primary)">Testnet only — mainnet SLA will be announced when mainnet goes live</dd>
+      </dl>
+    </div>
+
+    <h2>Appeals</h2>
+    <p>A dispute resolution is on-chain and final from the contract's perspective. <strong>Off-chain appeals</strong> are handled by reaching out via <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener">GitHub Issues</a> with the escrow ID and the reason you believe the verdict was wrong. If the team agrees the verdict was mistaken, Arbitova can (at the team's discretion) compensate the losing party out of the protocol fee account — <em>without</em> reversing the on-chain state, which cannot be undone.</p>
+
+    <h2>Why a single arbiter (for now)</h2>
+    <p>Decentralizing arbitration introduces latency, coordination cost, and new attack surfaces (arbiter collusion, Sybil arbiter panels). For a v2 testnet, a single known arbiter under a public SLA is simpler, faster, and more honest than "decentralized" theater. When the system has enough volume and verdict history to justify a Kleros-style panel, we will migrate — publicly and on a timeline announced in advance.</p>
+
+    <p style="margin-top:40px;color:var(--text-tertiary);font-size:12px"><a href="/docs#arbiter">← Back to docs</a> · <a href="/verdicts">See all past verdicts →</a></p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    (async () => {
+      const env = PathB.getEnvInfo();
+      document.getElementById('contractLink').href = `${env.explorer}/address/${env.escrow}`;
+      try {
+        const provider = new ethers.JsonRpcProvider(env.rpc);
+        const abi = ['function arbiter() view returns (address)'];
+        const c = new ethers.Contract(env.escrow, abi, provider);
+        const addr = await c.arbiter();
+        const el = document.getElementById('arbAddr');
+        el.innerHTML = `<a href="${env.explorer}/address/${addr}" target="_blank" rel="noopener">${addr}</a>`;
+      } catch (e) {
+        document.getElementById('arbAddr').textContent = 'Unable to load — check Basescan directly';
+      }
+    })();
+  </script>
+</body>
+</html>

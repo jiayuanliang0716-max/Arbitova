@@ -1,0 +1,17 @@
+{
+  "version": "arbitova-spec-v1",
+  "mode": "programmatic",
+  "title": "Summarize URL → return 200-word JSON summary",
+  "acceptance": {
+    "description": "Given an input URL, the seller agent returns a JSON object { summary: string, wordCount: int, language: string } where summary is 180-220 words in the requested language.",
+    "deliverables": [
+      "JSON response matching the schema at https://example.com/summary-schema.json"
+    ]
+  },
+  "check": {
+    "endpoint": "https://verifier.example.com/arbitova/check",
+    "method": "POST",
+    "timeoutSeconds": 30,
+    "authScheme": "bearer"
+  }
+}

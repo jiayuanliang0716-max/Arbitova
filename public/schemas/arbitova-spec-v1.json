@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://arbitova.com/schemas/arbitova-spec-v1.json",
+  "title": "Arbitova Verification Spec v1",
+  "description": "Schema for the verificationURI that a buyer attaches to an escrow. Seller reads the spec to know what 'delivered' means. Arbiter reads it during disputes. Optional: a programmatic verifier endpoint can be declared so buyer agents evaluate delivery automatically.",
+  "type": "object",
+  "required": ["version", "mode", "acceptance"],
+  "additionalProperties": true,
+  "properties": {
+    "version": {
+      "const": "arbitova-spec-v1",
+      "description": "Schema version identifier. Must be literally 'arbitova-spec-v1'."
+    },
+    "mode": {
+      "enum": ["manual", "programmatic"],
+      "description": "manual = human reads the prose acceptance. programmatic = a verifier endpoint can judge delivery automatically."
+    },
+    "title": {
+      "type": "string",
+      "description": "One-line summary of the deliverable."
+    },
+    "buyer": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Buyer Ethereum address. Optional — informational only."
+    },
+    "seller": {
+      "type": "string",
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "description": "Seller Ethereum address. Optional — informational only."
+    },
+    "amount": {
+      "type": "string",
+      "description": "Decimal USDC amount agreed out of band. Informational."
+    },
+    "acceptance": {
+      "type": "object",
+      "required": ["description"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Prose criteria the seller must meet. Read by humans (buyer, seller, arbiter)."
+        },
+        "deliverables": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of expected artifacts / outputs."
+        },
+        "outOfScope": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Things the seller is explicitly NOT responsible for."
+        }
+      }
+    },
+    "check": {
+      "type": "object",
+      "description": "Only present when mode=programmatic. Defines how to automatically verify a delivery.",
+      "required": ["endpoint"],
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "HTTPS URL the buyer's verifier POSTs { escrowId, deliveryPayloadURI } to. Response: { pass: bool, reasons: string[], evidence?: string }."
+        },
+        "method": {
+          "enum": ["POST"],
+          "default": "POST"
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 600,
+          "default": 60
+        },
+        "authScheme": {
+          "enum": ["none", "bearer", "signature"],
+          "default": "none",
+          "description": "How the verifier authenticates the incoming check request."
+        }
+      }
+    },
+    "dispute": {
+      "type": "object",
+      "description": "Optional hints to the arbiter about how to resolve disputes on this spec.",
+      "properties": {
+        "tieBreak": {
+          "enum": ["buyer", "seller", "split-50-50"],
+          "description": "Default arbiter action if evidence is inconclusive. Non-binding guidance."
+        },
+        "evidenceURIs": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" },
+          "description": "Links to supporting docs the arbiter should consult."
+        }
+      }
+    }
+  }
+}

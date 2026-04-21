@@ -189,69 +189,34 @@
 
   <div class="admin-body">
     <nav class="admin-sidebar">
-      <button class="admin-nav-item active" data-section="overview">Overview</button>
-      <button class="admin-nav-item" data-section="content">Content</button>
+      <button class="admin-nav-item active" data-section="content">Content</button>
       <button class="admin-nav-item" data-section="announcements">Announcements</button>
     </nav>
 
     <main class="admin-main">
 
-      <!-- Overview -->
-      <section class="admin-section active" id="section-overview">
-        <div class="section-title">Overview</div>
-        <div class="section-sub">Platform stats — refreshed live from the API.</div>
-        <div class="stats-grid" id="overview-stats">
-          <div class="stat-card"><div class="label">Agents</div><div class="value" id="st-agents">—</div></div>
-          <div class="stat-card"><div class="label">Services</div><div class="value" id="st-services">—</div></div>
-          <div class="stat-card"><div class="label">Completed orders</div><div class="value" id="st-orders">—</div></div>
-          <div class="stat-card"><div class="label">Active disputes</div><div class="value" id="st-disputes">—</div></div>
-          <div class="stat-card"><div class="label">Total volume</div><div class="value" id="st-volume">—</div></div>
-          <div class="stat-card"><div class="label">Platform fees</div><div class="value" id="st-fees">—</div></div>
-        </div>
-      </section>
-
       <!-- Content Editor -->
-      <section class="admin-section" id="section-content">
+      <section class="admin-section active" id="section-content">
         <div class="section-title">Content</div>
-        <div class="section-sub">Edit homepage and landing page copy. Changes apply on next page load.</div>
+        <div class="section-sub">Edit landing page copy. Changes apply on next page load.</div>
 
         <div class="admin-card">
           <h3>Hero Section</h3>
           <div class="field">
             <label>Headline</label>
-            <input type="text" id="cfg-hero-headline" placeholder="Trust infrastructure for the agent economy.">
+            <input type="text" id="cfg-hero-headline" placeholder="Escrow and AI arbitration for agent-to-agent payments.">
           </div>
           <div class="field">
             <label>Sub-headline</label>
-            <textarea id="cfg-hero-sub" rows="2" placeholder="Escrow. Auto-verification. AI arbitration."></textarea>
+            <textarea id="cfg-hero-sub" rows="2" placeholder="Infrastructure for AI agents that pay each other."></textarea>
           </div>
           <div class="field">
             <label>CTA button text</label>
-            <input type="text" id="cfg-hero-cta" placeholder="Get started free">
+            <input type="text" id="cfg-hero-cta" placeholder="Launch app">
           </div>
           <div class="btn-row">
             <button class="btn btn-primary" id="save-hero-btn">Save hero</button>
             <span class="save-status" id="save-hero-status">Saved</span>
-          </div>
-        </div>
-
-        <div class="admin-card">
-          <h3>Pricing</h3>
-          <div class="field">
-            <label>Free tier description</label>
-            <input type="text" id="cfg-pricing-free" placeholder="Up to 100 orders/month, community support">
-          </div>
-          <div class="field">
-            <label>Pro tier price (USD/month)</label>
-            <input type="text" id="cfg-pricing-pro-price" placeholder="49">
-          </div>
-          <div class="field">
-            <label>Enterprise label</label>
-            <input type="text" id="cfg-pricing-enterprise" placeholder="Custom pricing — contact us">
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-primary" id="save-pricing-btn">Save pricing</button>
-            <span class="save-status" id="save-pricing-status">Saved</span>
           </div>
         </div>
       </section>
@@ -362,19 +327,7 @@ function toast(msg) {
 
 // ── Init ──────────────────────────────────────────────────────────────────
 function init() {
-  loadStats();
   loadContent();
-}
-
-// ── Overview stats ─────────────────────────────────────────────────────────
-async function loadStats() {
-  const r = await fetch(`${API}/api/stats`).then(r => r.json()).catch(() => ({}));
-  document.getElementById('st-agents').textContent   = r.agents        ?? '—';
-  document.getElementById('st-services').textContent = r.services      ?? '—';
-  document.getElementById('st-orders').textContent   = r.completed_orders ?? '—';
-  document.getElementById('st-disputes').textContent = r.active_disputes  ?? '—';
-  document.getElementById('st-volume').textContent   = r.total_volume != null ? '$' + parseFloat(r.total_volume).toFixed(2)  : '—';
-  document.getElementById('st-fees').textContent     = r.platform_fees != null ? '$' + parseFloat(r.platform_fees).toFixed(2) : '—';
 }
 
 // ── Content ────────────────────────────────────────────────────────────────
@@ -385,11 +338,6 @@ async function loadContent() {
     document.getElementById('cfg-hero-headline').value = c.hero.headline || '';
     document.getElementById('cfg-hero-sub').value      = c.hero.sub      || '';
     document.getElementById('cfg-hero-cta').value      = c.hero.cta      || '';
-  }
-  if (c.pricing) {
-    document.getElementById('cfg-pricing-free').value        = c.pricing.free        || '';
-    document.getElementById('cfg-pricing-pro-price').value   = c.pricing.pro_price   || '';
-    document.getElementById('cfg-pricing-enterprise').value  = c.pricing.enterprise  || '';
   }
 }
 
@@ -417,16 +365,6 @@ document.getElementById('save-hero-btn').addEventListener('click', () => {
       cta:      document.getElementById('cfg-hero-cta').value,
     }
   }, 'save-hero-status');
-});
-
-document.getElementById('save-pricing-btn').addEventListener('click', () => {
-  saveConfig({
-    pricing: {
-      free:        document.getElementById('cfg-pricing-free').value,
-      pro_price:   document.getElementById('cfg-pricing-pro-price').value,
-      enterprise:  document.getElementById('cfg-pricing-enterprise').value,
-    }
-  }, 'save-pricing-status');
 });
 
 // ── Announcements ──────────────────────────────────────────────────────────
