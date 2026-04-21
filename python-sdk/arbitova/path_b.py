@@ -51,6 +51,18 @@ ESCROW_ABI = [
         "stateMutability": "nonpayable",
     },
     {
+        "name": "resolve",
+        "type": "function",
+        "inputs": [
+            {"name": "id", "type": "uint256"},
+            {"name": "buyerBps", "type": "uint16"},
+            {"name": "sellerBps", "type": "uint16"},
+            {"name": "verdictHash", "type": "bytes32"},
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable",
+    },
+    {
         "name": "markDelivered",
         "type": "function",
         "inputs": [
@@ -98,9 +110,10 @@ ESCROW_ABI = [
                     {"name": "amount", "type": "uint256"},
                     {"name": "deliveryDeadline", "type": "uint64"},
                     {"name": "reviewDeadline", "type": "uint64"},
-                    {"name": "status", "type": "uint8"},
-                    {"name": "verificationURI", "type": "string"},
+                    {"name": "reviewWindowSec", "type": "uint64"},
+                    {"name": "state", "type": "uint8"},
                     {"name": "deliveryHash", "type": "bytes32"},
+                    {"name": "verificationURI", "type": "string"},
                 ],
             }
         ],
@@ -139,7 +152,7 @@ ESCROW_CREATED_TOPIC = Web3.keccak(
     text="EscrowCreated(uint256,address,address,uint256,uint64,string)"
 ).hex() if _WEB3_AVAILABLE else None
 
-STATUS_NAMES = ["PENDING", "DELIVERED", "CONFIRMED", "DISPUTED", "CANCELLED", "RESOLVED"]
+STATUS_NAMES = ["CREATED", "DELIVERED", "RELEASED", "DISPUTED", "RESOLVED", "CANCELLED"]
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -257,15 +270,29 @@ def arbitova_create_escrow(
         return _err(e, "Check USDC balance, RPC URL, and that seller address is valid.")
 
 
-def arbitova_mark_delivered(escrow_id: int, delivery_payload_uri: str) -> Dict[str, Any]:
+def arbitova_mark_delivered(
+    escrow_id: int,
+    delivery_payload_uri: str,
+    delivery_content_bytes: Optional[bytes] = None,
+) -> Dict[str, Any]:
     """
-    Seller marks delivery. Hashes deliveryPayloadURI and calls markDelivered on-chain.
+    Seller marks delivery. Pins a hash of the delivery CONTENT (not just the URI) so the
+    seller cannot swap the file after handover. If delivery_content_bytes is omitted,
+    falls back to hashing the URI — caller should always prefer content hashing.
+
     Returns {ok, tx_hash, delivery_hash} or {ok: False, error, hint}.
     """
     try:
         w3, account, escrow, _ = _get_web3_context()
 
-        delivery_hash = _keccak_uri(delivery_payload_uri)
+        if delivery_content_bytes is not None:
+            from eth_hash.auto import keccak
+            delivery_hash = keccak(delivery_content_bytes)
+            hash_basis = "content"
+        else:
+            delivery_hash = _keccak_uri(delivery_payload_uri)
+            hash_basis = "uri"
+
         receipt = _send_tx(w3, account, escrow.functions.markDelivered, escrow_id, delivery_hash)
 
         if receipt["status"] != 1:
@@ -275,6 +302,7 @@ def arbitova_mark_delivered(escrow_id: int, delivery_payload_uri: str) -> Dict[s
             "ok": True,
             "tx_hash": receipt["transactionHash"].hex(),
             "delivery_hash": "0x" + delivery_hash.hex(),
+            "hash_basis": hash_basis,
         }
     except Exception as e:
         return _err(
@@ -284,11 +312,41 @@ def arbitova_mark_delivered(escrow_id: int, delivery_payload_uri: str) -> Dict[s
         )
 
 
-def arbitova_confirm_delivery(escrow_id: int) -> Dict[str, Any]:
+def verify_delivery_hash(delivery_content_bytes: bytes, on_chain_delivery_hash: str) -> bool:
     """
-    Buyer confirms delivery after verifying all criteria.
+    Check that the content at delivery_uri still matches the hash the seller pinned on-chain.
+    Returns True if bytes keccak matches on_chain_delivery_hash (hex, 0x-prefixed).
+    """
+    from eth_hash.auto import keccak
+    local = keccak(delivery_content_bytes)
+    return ("0x" + local.hex()).lower() == on_chain_delivery_hash.lower()
+
+
+def arbitova_confirm_delivery(
+    escrow_id: int,
+    verified: bool = False,
+    verification_report: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Buyer releases funds to seller. The SDK refuses to call confirmDelivery unless
+    the caller passes verified=True AND a verification_report documenting that every
+    criterion in the listing was checked. This prevents thoughtless auto-release.
+
     Returns {ok, tx_hash} or {ok: False, error, hint}.
     """
+    if not verified:
+        return _err(
+            "refused: verified=False",
+            "confirm_delivery requires an explicit verified=True after the buyer has "
+            "checked the delivery against every criterion. If any criterion failed, "
+            "call arbitova_dispute instead.",
+        )
+    if not verification_report or not verification_report.get("all_criteria_passed"):
+        return _err(
+            "refused: verification_report missing or not all criteria passed",
+            "Pass verification_report={'all_criteria_passed': True, 'per_criterion': [...]}. "
+            "If any criterion failed, call arbitova_dispute instead.",
+        )
     try:
         w3, account, escrow, _ = _get_web3_context()
 
@@ -300,6 +358,50 @@ def arbitova_confirm_delivery(escrow_id: int) -> Dict[str, Any]:
         return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(e, "Only the buyer can confirm. Escrow must be in DELIVERED state and within review window.")
+
+
+def arbitova_resolve(
+    escrow_id: int,
+    buyer_bps: int,
+    seller_bps: int,
+    verdict_hash_hex: str,
+) -> Dict[str, Any]:
+    """
+    Arbiter settles a DISPUTED escrow by splitting funds buyer_bps/seller_bps (must sum to 10000).
+    verdict_hash_hex is a 0x-prefixed 32-byte hash of the arbiter's verdict metadata JSON
+    (prompt, evidence, AI output, confidence) — pinned on-chain for off-chain audit.
+
+    Caller must be the arbiter EOA set at contract deploy. Returns {ok, tx_hash}.
+    """
+    if buyer_bps + seller_bps != 10000:
+        return _err(
+            f"bps must sum to 10000, got {buyer_bps} + {seller_bps}",
+            "buyerBps + sellerBps must equal 10000 (100% in basis points).",
+        )
+    if not verdict_hash_hex.startswith("0x") or len(verdict_hash_hex) != 66:
+        return _err(
+            "verdict_hash_hex must be 0x-prefixed 32-byte hex",
+            "Compute keccak256(json_bytes) of the verdict document and pass as 0x-prefixed hex.",
+        )
+    try:
+        w3, account, escrow, _ = _get_web3_context()
+
+        verdict_hash = bytes.fromhex(verdict_hash_hex[2:])
+        receipt = _send_tx(
+            w3, account, escrow.functions.resolve,
+            escrow_id, buyer_bps, seller_bps, verdict_hash,
+        )
+
+        if receipt["status"] != 1:
+            return _err("resolve() reverted", "Only the arbiter can resolve. Escrow must be DISPUTED.")
+
+        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+    except Exception as e:
+        return _err(
+            e,
+            "Only the arbiter wallet (see contract deploy) can call resolve. "
+            "Ensure the escrow is in DISPUTED state and bps split sums to 10000.",
+        )
 
 
 def arbitova_dispute(escrow_id: int, reason: str) -> Dict[str, Any]:
@@ -333,8 +435,8 @@ def arbitova_get_escrow(escrow_id: int) -> Dict[str, Any]:
         w3, _, escrow, _ = _get_web3_context()
 
         data = escrow.functions.getEscrow(escrow_id).call()
-        # data is a tuple: (buyer, seller, amount, deliveryDeadline, reviewDeadline, status, verificationURI, deliveryHash)
-        buyer, seller, amount, delivery_deadline, review_deadline, status, verification_uri, delivery_hash = data
+        # data is a tuple: (buyer, seller, amount, deliveryDeadline, reviewDeadline, reviewWindowSec, state, deliveryHash, verificationURI)
+        buyer, seller, amount, delivery_deadline, review_deadline, _review_window, status, delivery_hash, verification_uri = data
 
         ZERO_HASH = b"\x00" * 32
         return {
