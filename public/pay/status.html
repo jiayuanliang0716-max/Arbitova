@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escrow lookup · Arbitova Pay</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+  .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+  .wallet-badge.on .dot { background: var(--brand); }
+
+  .wrap { max-width: 720px; margin: 0 auto; padding: 48px 32px 80px; }
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lede { font-size: 14px; color: var(--text-secondary); margin: 0 0 32px; line-height: 1.6; }
+
+  .lookup { display: flex; gap: 8px; margin-bottom: 24px; }
+  .lookup input { flex: 1; background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary); padding: 10px 12px; font-family: var(--font-mono); font-size: 13px; }
+  .lookup input:focus { outline: none; border-color: var(--brand-border); }
+  .btn { font-family: var(--font-ui); font-size: 14px; font-weight: 500; padding: 10px 18px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all var(--duration) var(--ease); }
+  .btn-primary { background: var(--brand); color: #000; border-color: var(--brand); }
+  .btn-primary:hover { background: var(--brand-hover); }
+
+  .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; margin-bottom: 16px; }
+  .status-big { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); }
+  .status-big h2 { font-size: 22px; margin: 0; font-family: var(--font-mono); }
+  .chip { font-size: 12px; font-family: var(--font-mono); padding: 4px 12px; border-radius: var(--radius-full); font-weight: 500; }
+  .chip.created { background: var(--warning-bg); color: var(--warning); }
+  .chip.delivered { background: var(--brand-dim); color: var(--brand); }
+  .chip.released, .chip.resolved, .chip.cancelled { background: var(--neutral-bg); color: var(--text-secondary); }
+  .chip.disputed { background: var(--danger-bg); color: var(--danger); }
+
+  dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; font-size: 13px; }
+  dt { color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; padding-top: 2px; }
+  dd { margin: 0; font-family: var(--font-mono); color: var(--text-primary); word-break: break-all; }
+  dd a { color: var(--brand); }
+
+  .timeline { list-style: none; padding: 0; margin: 0; }
+  .timeline li { position: relative; padding-left: 28px; padding-bottom: 18px; }
+  .timeline li:before { content: ''; position: absolute; left: 8px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
+  .timeline li:after { content: ''; position: absolute; left: 11px; top: 14px; width: 2px; height: calc(100% - 14px); background: var(--border-default); }
+  .timeline li:last-child:after { display: none; }
+  .timeline li.pending:before { background: var(--text-tertiary); }
+  .timeline .t-title { font-size: 13px; font-weight: 500; color: var(--text-primary); margin-bottom: 2px; }
+  .timeline .t-meta { font-size: 11px; color: var(--text-secondary); font-family: var(--font-mono); }
+
+  .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+  .alert.err { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); }
+  .alert.info { background: var(--brand-dim); border: 1px solid var(--brand-border); color: var(--brand); }
+
+  .loading { text-align: center; padding: 60px 20px; color: var(--text-secondary); }
+  .spinner { display: inline-block; width: 36px; height: 36px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/pay/new.html">New escrow</a>
+      <a href="/pay/seller.html">Seller inbox</a>
+      <a href="/pay/review.html">Buyer inbox</a>
+    </div>
+    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+  </nav>
+
+  <div class="wrap">
+    <h1>Escrow lookup</h1>
+    <p class="lede">Any escrow ID. Public — no wallet required to view state.</p>
+
+    <div class="lookup">
+      <input id="idInput" type="number" min="1" placeholder="Enter escrow ID (e.g. 5)" />
+      <button id="lookupBtn" class="btn btn-primary">Look up</button>
+    </div>
+
+    <div id="result"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    const result = document.getElementById('result');
+    const badge = document.getElementById('walletBadge');
+    const text = document.getElementById('walletText');
+
+    const q = new URLSearchParams(location.search);
+    if (q.get('id')) {
+      document.getElementById('idInput').value = q.get('id');
+      lookup(q.get('id'));
+    }
+
+    document.getElementById('lookupBtn').addEventListener('click', () => {
+      const id = document.getElementById('idInput').value.trim();
+      if (!id) return;
+      history.replaceState({}, '', `?id=${id}`);
+      lookup(id);
+    });
+    document.getElementById('idInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('lookupBtn').click();
+    });
+
+    (async () => {
+      try { await PathB.connect(); } catch (e) {}
+      const acct = PathB.getAccount();
+      if (acct) { badge.classList.add('on'); text.textContent = acct.slice(0,6)+'…'+acct.slice(-4); }
+    })();
+
+    async function lookup(id) {
+      result.innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top:12px">Fetching on-chain…</div></div>';
+      try {
+        const e = await PathB.getEscrow(id);
+        result.innerHTML = renderEscrow(e);
+      } catch (err) {
+        result.innerHTML = `<div class="alert err">Failed to load escrow #${id}: ${err.shortMessage || err.message}</div>`;
+      }
+    }
+
+    function renderEscrow(e) {
+      const stateClass = e.state.toLowerCase();
+      const tl = [];
+      tl.push({ t: 'Created', meta: `Buyer locked ${e.amount} ${env.usdcSymbol}`, done: true });
+      if (e.state === 'CREATED') tl.push({ t: 'Awaiting delivery', meta: `Seller must deliver ${PathB.formatDeadline(e.deliveryDeadline)}`, done: false });
+      if (['DELIVERED','RELEASED','DISPUTED','RESOLVED'].includes(e.state)) tl.push({ t: 'Delivered', meta: e.deliveryHash ? `hash ${e.deliveryHash.slice(0,18)}…` : 'hash on-chain', done: true });
+      if (e.state === 'DELIVERED') tl.push({ t: 'Under review', meta: `Buyer must confirm or dispute ${PathB.formatDeadline(e.reviewDeadline)}`, done: false });
+      if (e.state === 'RELEASED') tl.push({ t: 'Released', meta: 'Seller received 99.5% · fee 0.5%', done: true });
+      if (['DISPUTED','RESOLVED'].includes(e.state)) tl.push({ t: 'Disputed', meta: 'Buyer rejected — awaiting arbiter', done: true });
+      if (e.state === 'RESOLVED') tl.push({ t: 'Resolved', meta: 'Arbiter split funds · 2% fee', done: true });
+      if (e.state === 'CANCELLED') tl.push({ t: 'Cancelled', meta: 'Seller did not deliver in time — buyer refunded', done: true });
+
+      return `
+        <div class="card">
+          <div class="status-big">
+            <h2>escrow #${e.id}</h2>
+            <span class="chip ${stateClass}">${e.state}</span>
+          </div>
+          <dl>
+            <dt>Amount</dt><dd>${e.amount} ${env.usdcSymbol}</dd>
+            <dt>Buyer</dt><dd><a href="${PathB.explorerAddr(e.buyer)}" target="_blank">${e.buyer}</a></dd>
+            <dt>Seller</dt><dd><a href="${PathB.explorerAddr(e.seller)}" target="_blank">${e.seller}</a></dd>
+            <dt>Delivery deadline</dt><dd>${new Date(e.deliveryDeadline * 1000).toLocaleString()} (${PathB.formatDeadline(e.deliveryDeadline)})</dd>
+            <dt>Review deadline</dt><dd>${e.reviewDeadline ? new Date(e.reviewDeadline * 1000).toLocaleString() + ' (' + PathB.formatDeadline(e.reviewDeadline) + ')' : '— (not yet delivered)'}</dd>
+            <dt>Verification URI</dt><dd><a href="${e.verificationURI}" target="_blank" rel="noopener">${e.verificationURI}</a></dd>
+            ${e.deliveryHash ? `<dt>Delivery hash</dt><dd>${e.deliveryHash}</dd>` : ''}
+            <dt>Contract</dt><dd><a href="${PathB.explorerAddr(env.escrow)}" target="_blank">${env.escrow}</a></dd>
+          </dl>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 18px;font-size:13px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-secondary)">Timeline</h3>
+          <ul class="timeline">
+            ${tl.map(x => `<li class="${x.done ? '' : 'pending'}"><div class="t-title">${x.t}</div><div class="t-meta">${x.meta}</div></li>`).join('')}
+          </ul>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>

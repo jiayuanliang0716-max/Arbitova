@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New escrow · Arbitova Pay</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="stylesheet" href="/css/tokens.css">
+<style>
+  * { box-sizing: border-box; }
+  body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+  a { color: var(--brand); text-decoration: none; }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+  .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+  .nav-brand span { color: var(--brand); }
+  .nav-links { display: flex; gap: 24px; font-size: 13px; }
+  .nav-links a { color: var(--text-secondary); }
+  .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+  .wallet-badge { display: flex; align-items: center; gap: 10px; font-size: 12px; font-family: var(--font-mono); color: var(--text-secondary); }
+  .wallet-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-tertiary); }
+  .wallet-badge.on .dot { background: var(--brand); }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 48px 32px 80px; }
+  h1 { font-size: 26px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .lede { font-size: 14px; color: var(--text-secondary); margin: 0 0 32px; line-height: 1.6; }
+
+  .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 24px; }
+  .field { margin-bottom: 20px; }
+  .field label { display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .field input, .field textarea, .field select { width: 100%; background: var(--bg-base); border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary); padding: 10px 12px; font-family: var(--font-mono); font-size: 13px; }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--brand-border); }
+  .field .hint { font-size: 11px; color: var(--text-tertiary); margin-top: 6px; line-height: 1.5; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .row { grid-template-columns: 1fr; } }
+
+  .btn { font-family: var(--font-ui); font-size: 14px; font-weight: 500; padding: 12px 24px; border-radius: var(--radius-sm); border: 1px solid transparent; cursor: pointer; transition: all var(--duration) var(--ease); width: 100%; }
+  .btn-primary { background: var(--brand); color: #000; border-color: var(--brand); }
+  .btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .summary { background: var(--bg-raised); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 16px; margin-bottom: 20px; font-size: 13px; }
+  .summary-row { display: flex; justify-content: space-between; padding: 4px 0; font-family: var(--font-mono); }
+  .summary-row .k { color: var(--text-secondary); }
+  .summary-row .v { color: var(--text-primary); }
+
+  .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; margin-bottom: 16px; line-height: 1.5; }
+  .alert.ok { background: var(--brand-dim); border: 1px solid var(--brand-border); color: var(--brand); }
+  .alert.err { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger); }
+  .alert.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); }
+  .alert a { color: inherit; text-decoration: underline; }
+
+  .step { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-secondary); padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+  .step:last-child { border-bottom: none; }
+  .step .icon { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border-strong); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; font-family: var(--font-mono); }
+  .step.done .icon { background: var(--brand); color: #000; border-color: var(--brand); }
+  .step.done { color: var(--text-primary); }
+  .step.active .icon { border-color: var(--brand); color: var(--brand); }
+  .step.active { color: var(--brand); }
+</style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/pay/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/pay/new.html" class="active">New escrow</a>
+      <a href="/pay/seller.html">Seller inbox</a>
+      <a href="/pay/review.html">Buyer inbox</a>
+    </div>
+    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+  </nav>
+
+  <div class="wrap">
+    <h1>Create a new escrow</h1>
+    <p class="lede">You're the buyer. USDC is pulled from your wallet and locked on-chain until the seller delivers and the review window closes.</p>
+
+    <div id="notConnected" class="alert warn">Please connect your wallet first — <a href="/pay/">back to dashboard</a>.</div>
+
+    <div id="form" class="card" style="display:none">
+      <div class="field">
+        <label>Seller address</label>
+        <input id="seller" type="text" placeholder="0x…" spellcheck="false">
+        <div class="hint">The Ethereum address that will receive funds once delivery is confirmed.</div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Amount (<span id="symLabel">USDC</span>)</label>
+          <input id="amount" type="number" min="0.01" step="0.01" placeholder="10.00">
+          <div class="hint">Your wallet balance: <span id="balDisplay">—</span></div>
+        </div>
+        <div class="field">
+          <label>Delivery window</label>
+          <select id="deliveryHours">
+            <option value="1">1 hour (testnet only)</option>
+            <option value="24" selected>24 hours</option>
+            <option value="72">3 days</option>
+            <option value="168">7 days</option>
+          </select>
+          <div class="hint">How long the seller has to deliver.</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Review window</label>
+          <select id="reviewHours">
+            <option value="1">1 hour (testnet only)</option>
+            <option value="24" selected>24 hours</option>
+            <option value="72">3 days</option>
+            <option value="168">7 days</option>
+          </select>
+          <div class="hint">After delivery, you have this long to confirm or dispute. Silence = auto-dispute.</div>
+        </div>
+        <div class="field">
+          <label>Verification URI</label>
+          <input id="verifyUri" type="text" placeholder="https://... or ipfs://...">
+          <div class="hint">Link to the deliverable spec (acceptance criteria).</div>
+        </div>
+      </div>
+
+      <div class="summary" id="summary" style="display:none">
+        <div class="summary-row"><span class="k">Amount locked</span><span class="v" id="sAmount">—</span></div>
+        <div class="summary-row"><span class="k">Release fee (0.5%)</span><span class="v" id="sFee">—</span></div>
+        <div class="summary-row"><span class="k">Seller receives (if confirmed)</span><span class="v" id="sSeller">—</span></div>
+      </div>
+
+      <div id="progress"></div>
+      <div id="alert"></div>
+
+      <button id="submit" class="btn btn-primary">Lock funds in escrow</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    document.getElementById('symLabel').textContent = env.usdcSymbol;
+
+    const notConnected = document.getElementById('notConnected');
+    const form = document.getElementById('form');
+    const badge = document.getElementById('walletBadge');
+    const text = document.getElementById('walletText');
+
+    async function init() {
+      try {
+        await PathB.connect();
+      } catch (e) { /* keep warning */ }
+      const acct = PathB.getAccount();
+      if (!acct) return;
+      badge.classList.add('on');
+      text.textContent = acct.slice(0, 6) + '…' + acct.slice(-4);
+      notConnected.style.display = 'none';
+      form.style.display = '';
+      const bal = await PathB.getUsdcBalance(acct);
+      document.getElementById('balDisplay').textContent = Number(bal).toFixed(2) + ' ' + env.usdcSymbol;
+    }
+    init();
+
+    function recompute() {
+      const amt = parseFloat(document.getElementById('amount').value);
+      const sum = document.getElementById('summary');
+      if (!isNaN(amt) && amt > 0) {
+        const fee = amt * 0.005;
+        const seller = amt - fee;
+        document.getElementById('sAmount').textContent = amt.toFixed(2) + ' ' + env.usdcSymbol;
+        document.getElementById('sFee').textContent = fee.toFixed(4) + ' ' + env.usdcSymbol;
+        document.getElementById('sSeller').textContent = seller.toFixed(4) + ' ' + env.usdcSymbol;
+        sum.style.display = '';
+      } else { sum.style.display = 'none'; }
+    }
+    document.getElementById('amount').addEventListener('input', recompute);
+
+    function setProgress(steps) {
+      const el = document.getElementById('progress');
+      el.innerHTML = steps.map(s => `<div class="step ${s.status}"><span class="icon">${s.status === 'done' ? '✓' : s.n}</span>${s.label}</div>`).join('');
+    }
+    function setAlert(type, html) {
+      document.getElementById('alert').innerHTML = html ? `<div class="alert ${type}">${html}</div>` : '';
+    }
+
+    document.getElementById('submit').addEventListener('click', async () => {
+      const seller = document.getElementById('seller').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+      const deliveryWindowHours = Number(document.getElementById('deliveryHours').value);
+      const reviewWindowHours = Number(document.getElementById('reviewHours').value);
+      const verificationURI = document.getElementById('verifyUri').value.trim();
+
+      if (!/^0x[a-fA-F0-9]{40}$/.test(seller)) return setAlert('err', 'Seller address looks invalid.');
+      if (!amount || amount <= 0) return setAlert('err', 'Amount must be positive.');
+      if (!verificationURI) return setAlert('err', 'Verification URI is required.');
+
+      const btn = document.getElementById('submit');
+      btn.disabled = true; btn.textContent = 'Working…';
+      setAlert('', '');
+
+      try {
+        const allowance = parseFloat(await PathB.getUsdcAllowance());
+        const needsApprove = allowance < amount;
+        setProgress([
+          { n: 1, label: needsApprove ? 'Approve USDC (1/2)' : 'Approve USDC — already sufficient', status: 'active' },
+          { n: 2, label: 'Create escrow on-chain', status: '' },
+        ]);
+
+        const res = await PathB.createEscrow({ seller, amount, deliveryWindowHours, reviewWindowHours, verificationURI });
+
+        setProgress([
+          { n: 1, label: 'USDC approved', status: 'done' },
+          { n: 2, label: 'Escrow created', status: 'done' },
+        ]);
+        setAlert('ok',
+          `Escrow #${res.escrowId} created. ` +
+          `<a href="${PathB.explorerTx(res.txHash)}" target="_blank" rel="noopener">View on Basescan</a> · ` +
+          `<a href="/pay/status.html?id=${res.escrowId}">Open status page</a>`
+        );
+        btn.textContent = 'Create another escrow';
+        btn.disabled = false;
+      } catch (e) {
+        setAlert('err', (e.shortMessage || e.message || String(e)));
+        btn.disabled = false; btn.textContent = 'Lock funds in escrow';
+      }
+    });
+  </script>
+</body>
+</html>

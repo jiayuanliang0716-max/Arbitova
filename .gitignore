@@ -53,3 +53,11 @@ test-pg.ps1
 railway.toml
 render.yaml
 .tools/
+.claude/.env
+path_b_verdicts/
+contracts/.env
+
+# Internal planning / local bootstrap (stay out of remote)
+PATH_B_STATUS.md
+fund-deployer.html
+.claude/

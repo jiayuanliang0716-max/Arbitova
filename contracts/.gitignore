@@ -1,0 +1,15 @@
+# Foundry build artifacts
+cache/
+out/
+broadcast/
+
+# Dependencies
+lib/
+
+# Coverage
+lcov.info
+
+# Secrets — NEVER commit
+.env
+.env.*
+!.env.example

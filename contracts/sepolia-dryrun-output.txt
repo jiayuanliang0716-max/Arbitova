@@ -1,0 +1,44 @@
+================================================================
+ARBITOVA ESCROWV1 — BASE SEPOLIA DRY-RUN
+Date: Mon Apr 20 22:03:10 UTC 2026
+Chain: Base Sepolia (chainid 84532)
+Mode: SIMULATION ONLY (no --broadcast)
+================================================================
+
+No files changed, compilation skipped
+Script ran successfully.
+
+== Logs ==
+  === EscrowV1 Deploy ===
+  USDC:           0x036CbD53842c5426634e7929541eC2318f3dCF7e
+  Arbiter:        0xbB79E21f8561238DB10d839bC3D8D5e07DEA738c
+  FeeRecipient:   0xbB79E21f8561238DB10d839bC3D8D5e07DEA738c
+  Chain ID:       84532
+  EscrowV1 deployed at: 0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC
+  releaseFeeBps: 50
+  resolveFeeBps: 200
+
+## Setting up 1 EVM.
+
+==========================
+
+Chain 84532
+
+Estimated gas price: 0.01196 gwei
+
+Estimated total gas used for script: 2381645
+
+Estimated amount required: 0.0000284844742 ETH
+
+==========================
+
+SIMULATION COMPLETE. To broadcast these transactions, add --broadcast and wallet configuration(s) to the previous command. See forge script --help for more.
+
+Transactions saved to: C:/Users/perfu/a2a-system/contracts/broadcast\Deploy.s.sol\84532\dry-run\run-latest.json
+
+Sensitive values saved to: C:/Users/perfu/a2a-system/contracts/cache\Deploy.s.sol\84532\dry-run\run-latest.json
+
+
+================================================================
+DRY-RUN RESULT: PASS (no --broadcast, no tx submitted)
+================================================================
