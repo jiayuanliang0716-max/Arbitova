@@ -2,6 +2,8 @@
 
 All notable changes to Arbitova are documented here.
 
+> **Architecture note (2026-04-22):** Arbitova pivoted from Path A (custodial HTTP API) to Path B (non-custodial on-chain escrow) on 2026-04-21. Current packages: `@arbitova/sdk@^3` (6 tx methods), `@arbitova/mcp-server@^4` (6 tools), `arbitova>=2.5` (six `arbitova_*` functions on-chain). All entries below describe deprecated Path A versions — tool counts and REST endpoints are **historical**.
+
 ## [3.7.0] — 2026-04-12
 
 ### New Endpoints

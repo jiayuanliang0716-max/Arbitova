@@ -54,7 +54,7 @@ const { escrowId, txHash } = await buyer.createEscrow({
 });
 ```
 
-Low-level helpers (`arbitova_create_escrow(...)`) are also exported for frameworks that prefer a flat function surface.
+Python ships a flat-function surface (`arbitova_create_escrow(...)`, `arbitova_mark_delivered(...)`, etc.) under `from arbitova import path_b` for frameworks that prefer plain functions over a client class. The JS SDK exposes the same operations as methods on the `Arbitova` client shown above.
 
 ### Confirming delivery
 

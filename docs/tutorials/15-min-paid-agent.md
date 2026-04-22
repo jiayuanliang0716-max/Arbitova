@@ -259,7 +259,7 @@ Two rules that are easy to miss:
 
 ## Where to go next
 
-- **Plug into your agent framework.** The [LangGraph](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/demo) and [CrewAI](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/demo) demos wrap these same calls as agent tools. ~50 lines per framework.
+- **Plug into your agent framework.** The [LangGraph](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/examples) and [CrewAI](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/examples) demos wrap these same calls as agent tools. ~50 lines per framework.
 - **See a real dispute.** Change `DELIVERY_URI` in `buyer.js` to something that fails the criteria (e.g. a paragraph without an "Executive Summary" heading). Run again — buyer files a dispute, arbiter resolves.
 - **Mainnet.** Swap two addresses:
   - `ESCROW_ADDRESS` → mainnet deployment (see [README](https://github.com/jiayuanliang0716-max/Arbitova#deployments))

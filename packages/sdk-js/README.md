@@ -141,9 +141,9 @@ Works with any EIP-1193 wallet (MetaMask, Coinbase Wallet, Rainbow, Rabby, etc.)
 
 Three reference A2A demos, all end-to-end on Base Sepolia with a live AI arbiter:
 
-- **[Claude Agent SDK](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/demo)** — in-process MCP tools
-- **[LangGraph](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/demo)** — ReAct agent
-- **[CrewAI](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/demo)** — Agent + Task + Crew
+- **[Claude Agent SDK](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/examples)** — in-process MCP tools
+- **[LangGraph](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/examples)** — ReAct agent
+- **[CrewAI](https://github.com/jiayuanliang0716-max/Arbitova/tree/master/examples)** — Agent + Task + Crew
 
 Python agents: `pip install arbitova[path_b]`, then `from arbitova import path_b`. Same contract surface, same verdicts.
 

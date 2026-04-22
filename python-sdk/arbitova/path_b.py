@@ -12,7 +12,7 @@ Required env vars:
                                  sepolia: 0x036CbD53842c5426634e7929541eC2318f3dCF7e
     ARBITOVA_AGENT_PRIVATE_KEY — your agent wallet private key (hex, 0x-prefixed)
 
-Dependencies: web3>=6 (pip install web3). Falls back to raw JSON-RPC if web3 unavailable.
+Dependencies: web3>=6, eth-account, eth-hash[pycryptodome] — installed automatically as of arbitova 2.5.2.
 
 Usage:
     from arbitova.path_b import arbitova_create_escrow, arbitova_dispute, get_tool_definitions
@@ -23,6 +23,22 @@ import json
 import hashlib
 import time
 from typing import Any, Dict, List, Optional
+
+__all__ = [
+    "arbitova_create_escrow",
+    "arbitova_mark_delivered",
+    "arbitova_confirm_delivery",
+    "arbitova_dispute",
+    "arbitova_cancel_if_not_delivered",
+    "arbitova_get_escrow",
+    "arbitova_resolve",
+    "get_tool_definitions",
+    "verify_delivery_hash",
+    "ESCROW_ABI",
+    "ERC20_ABI",
+    "ESCROW_CREATED_TOPIC",
+    "STATUS_NAMES",
+]
 
 # ── Try web3, fall back to raw JSON-RPC ──────────────────────────────────────
 
@@ -148,9 +164,21 @@ ERC20_ABI = [
     },
 ]
 
-ESCROW_CREATED_TOPIC = Web3.keccak(
-    text="EscrowCreated(uint256,address,address,uint256,uint64,string)"
-).hex() if _WEB3_AVAILABLE else None
+if _WEB3_AVAILABLE:
+    # Raw 32 bytes of keccak — compare byte-wise downstream, not via .hex() strings.
+    # hexbytes v1.0+ dropped the '0x' prefix from .hex(); comparing stringified hex
+    # silently broke escrow_id extraction on web3.py 6.x + hexbytes <1 pins.
+    ESCROW_CREATED_TOPIC_BYTES = Web3.keccak(
+        text="EscrowCreated(uint256,address,address,uint256,uint64,string)"
+    )
+else:
+    ESCROW_CREATED_TOPIC_BYTES = None
+
+# Back-compat alias (deprecated): some users imported this. Always 0x-prefixed now.
+ESCROW_CREATED_TOPIC = (
+    "0x" + ESCROW_CREATED_TOPIC_BYTES.hex().removeprefix("0x")
+    if ESCROW_CREATED_TOPIC_BYTES is not None else None
+)
 
 STATUS_NAMES = ["CREATED", "DELIVERED", "RELEASED", "DISPUTED", "RESOLVED", "CANCELLED"]
 
@@ -172,7 +200,7 @@ def _get_web3_context():
     """Return (w3, account, escrow_contract, usdc_contract)."""
     if not _WEB3_AVAILABLE:
         raise ImportError(
-            "web3 package is required for Path B. Install with: pip install web3"
+            "web3 package is required for Path B. Reinstall with: pip install --upgrade arbitova"
         )
     rpc_url = _get_env("ARBITOVA_RPC_URL")
     escrow_addr = _get_env("ARBITOVA_ESCROW_ADDRESS")
@@ -256,13 +284,15 @@ def arbitova_create_escrow(
         if receipt["status"] != 1:
             return _err("createEscrow() reverted", "Check seller address and contract state.")
 
-        # Parse EscrowCreated log for escrow id
+        # Parse EscrowCreated log for escrow id. Compare bytes, not hex strings —
+        # HexBytes.hex() output differs between hexbytes <1.0 ('0x…') and >=1.0 ('…').
         escrow_id = None
-        if ESCROW_CREATED_TOPIC:
+        if ESCROW_CREATED_TOPIC_BYTES is not None:
+            expected = bytes(ESCROW_CREATED_TOPIC_BYTES)
             for log in receipt.get("logs", []):
                 topics = log.get("topics", [])
-                if topics and topics[0].hex() == ESCROW_CREATED_TOPIC:
-                    escrow_id = int(topics[1].hex(), 16)
+                if topics and bytes(topics[0]) == expected:
+                    escrow_id = int.from_bytes(bytes(topics[1]), "big")
                     break
 
         return {"ok": True, "tx_hash": receipt["transactionHash"].hex(), "escrow_id": escrow_id}

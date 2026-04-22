@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arbitova"
-version = "2.5.1"
+version = "2.5.2"
 description = "Python SDK for Arbitova — non-custodial on-chain escrow + AI arbitration for agent-to-agent payments on Base"
 readme = "README.md"
 license = { text = "MIT" }
@@ -19,20 +19,24 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries",
 ]
 dependencies = [
     "httpx>=0.24.0",
+    "web3>=6",
+    "eth-hash[pycryptodome]>=0.5",
+    "eth-account>=0.9",
 ]
 
 [project.optional-dependencies]
-path_b = ["web3>=6", "eth-hash[pycryptodome]>=0.5", "eth-account>=0.9"]
-dev = ["pytest", "pytest-asyncio", "python-dotenv", "web3>=6", "eth-hash[pycryptodome]>=0.5", "eth-account>=0.9", "build", "twine"]
+dev = ["pytest", "pytest-asyncio", "python-dotenv", "build", "twine"]
 
 [project.urls]
 Homepage = "https://arbitova.com"
 Repository = "https://github.com/jiayuanliang0716-max/Arbitova"
-Documentation = "https://a2a-system.onrender.com/docs"
+Documentation = "https://github.com/jiayuanliang0716-max/Arbitova#readme"
 
 [tool.setuptools.packages.find]
 where = ["."]
