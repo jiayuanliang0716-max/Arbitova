@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Arbitova</title>
 <link rel="icon" href="/favicon.ico" sizes="any">
+<script>(function(){try{var t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
   * { box-sizing: border-box; }
@@ -99,7 +100,13 @@
       <a href="/docs">Docs</a>
       <a href="/pricing">Fees</a>
     </div>
-    <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle light/dark">
+        <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+        <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <div id="walletBadge" class="wallet-badge"><span class="dot"></span><span id="walletText">Not connected</span></div>
+    </div>
   </nav>
 
   <div class="wrap">
@@ -118,10 +125,14 @@
         <span class="step-icon">1</span>
         <div class="step-text">
           <span class="step-label">Wallet installed</span>
-          <span class="step-hint">MetaMask, Rabby, or any EIP-1193 wallet</span>
+          <span class="step-hint" id="stepWalletHint">Arbitova auto-detects any browser wallet (MetaMask, Rabby, Coinbase, Brave, Frame…). No lock-in — we use whichever one you have.</span>
         </div>
         <div class="step-action">
-          <a href="https://metamask.io/download/" target="_blank" rel="noopener" class="btn btn-secondary" id="stepWalletAction">Install MetaMask →</a>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end">
+            <a href="https://metamask.io/download/" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px" id="stepWalletAction">MetaMask →</a>
+            <a href="https://rabby.io/" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Rabby →</a>
+            <a href="https://www.coinbase.com/wallet/downloads" target="_blank" rel="noopener" class="btn btn-secondary" style="font-size:12px;padding:8px 12px">Coinbase →</a>
+          </div>
         </div>
       </div>
       <div class="step-row" id="step-chain">
@@ -206,6 +217,7 @@
     </div>
   </div>
 
+  <script src="/js/theme.js?v=20260423"></script>
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
   <script src="/js/path-b-sdk.js?v=20260422"></script>
   <script>
@@ -276,12 +288,29 @@
                            : row.id === 'step-eth'    ? '3' : '4';
     }
 
+    function detectWalletName() {
+      const eth = window.ethereum;
+      if (!eth) return null;
+      if (eth.isRabby) return 'Rabby';
+      if (eth.isCoinbaseWallet) return 'Coinbase Wallet';
+      if (eth.isBraveWallet) return 'Brave Wallet';
+      if (eth.isFrame) return 'Frame';
+      if (eth.isTrust) return 'Trust Wallet';
+      if (eth.isMetaMask) return 'MetaMask';
+      return 'Browser wallet';
+    }
+
     async function runChecklist() {
       let nextActive = null;
 
       const hasWallet = PathB.hasWallet();
       setStep(rows.wallet, hasWallet ? 'done' : 'active');
       if (!hasWallet) nextActive = rows.wallet;
+      if (hasWallet) {
+        const walletName = detectWalletName();
+        const hintEl = document.getElementById('stepWalletHint');
+        if (hintEl && walletName) hintEl.textContent = `Detected: ${walletName} — ready to connect.`;
+      }
 
       let chainOk = false, acct = null, ethBal = 0, usdcBal = 0;
       if (hasWallet) {

@@ -118,3 +118,27 @@
   --brand:          #00A87C;
   --brand-hover:    #009670;
 }
+
+/* Primary button needs white text in light mode — brand teal darkens to #00A87C. */
+[data-theme="light"] .btn-primary { color: #ffffff; }
+
+/* Shared theme-toggle button (used on every app page). */
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition: color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.theme-toggle-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--brand-border);
+}
+.theme-toggle-btn svg { width: 16px; height: 16px; }

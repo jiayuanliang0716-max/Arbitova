@@ -6,6 +6,7 @@
 <title>The arbiter · Arbitova</title>
 <meta name="description" content="Who resolves disputes on Arbitova escrows, the on-chain arbiter address, response-time targets, and what the arbiter cannot do.">
 <link rel="icon" href="/favicon.ico" sizes="any">
+<script>(function(){try{var t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
 <link rel="stylesheet" href="/css/tokens.css">
 <style>
   * { box-sizing: border-box; }
@@ -50,7 +51,12 @@
       <a href="/verdicts">Verdicts</a>
       <a href="/arbiter.html" class="active">Arbiter</a>
     </div>
+    <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle light/dark">
+      <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </nav>
+  <script src="/js/theme.js?v=20260423"></script>
 
   <div class="wrap">
     <h1>The arbiter</h1>
