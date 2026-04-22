@@ -450,7 +450,7 @@ function readEscrowAbi() {
 // ── MCP Server setup ─────────────────────────────────────────────────────────
 
 const server = new Server(
-  { name: 'arbitova', version: '4.0.0' },
+  { name: 'arbitova', version: '4.0.1' },
   { capabilities: { tools: {}, resources: {} } }
 );
 
@@ -505,6 +505,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 const transport = new StdioServerTransport();
 server.connect(transport).then(() => {
   process.stderr.write(
-    `[Arbitova MCP] v4.0.0 started. Mode: ${READ_ONLY ? 'READ-ONLY' : 'SIGNING'}. Escrow: ${ESCROW_ADDRESS}\n`
+    `[Arbitova MCP] v4.0.1 started. Mode: ${READ_ONLY ? 'READ-ONLY' : 'SIGNING'}. Escrow: ${ESCROW_ADDRESS}\n`
   );
 });

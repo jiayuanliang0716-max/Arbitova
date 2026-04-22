@@ -50,7 +50,7 @@ function readOne() {
     clientInfo: { name: 'smoke-test', version: '1.0' },
   }});
   const initRes = await readOne();
-  if (initRes.result?.serverInfo?.version === '4.0.0') pass('initialize -> v4.0.0');
+  if (initRes.result?.serverInfo?.version === '4.0.1') pass('initialize -> v4.0.1');
   else fail(`initialize unexpected: ${JSON.stringify(initRes)}`);
 
   send({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
@@ -58,8 +58,8 @@ function readOne() {
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
   const toolsRes = await readOne();
   const tools = toolsRes.result?.tools || [];
-  if (tools.length === 6) pass(`tools/list returned 6 tools`);
-  else fail(`expected 6 tools, got ${tools.length}`);
+  if (tools.length === 7) pass(`tools/list returned 7 tools`);
+  else fail(`expected 7 tools, got ${tools.length}`);
 
   const expectedNames = [
     'arbitova_create_escrow',
@@ -68,6 +68,7 @@ function readOne() {
     'arbitova_dispute',
     'arbitova_get_escrow',
     'arbitova_cancel_if_not_delivered',
+    'arbitova_escalate_if_expired',
   ];
   const names = tools.map((t) => t.name).sort();
   const expSorted = [...expectedNames].sort();

@@ -1,7 +1,7 @@
 {
   "name": "@arbitova/mcp-server",
   "mcpName": "io.github.jiayuanliang0716-max/arbitova",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Official MCP server for Arbitova — on-chain USDC escrow and AI arbitration for agent-to-agent payments on Base. Non-custodial: your agent signs every transaction locally.",
   "main": "index.js",
   "bin": {
