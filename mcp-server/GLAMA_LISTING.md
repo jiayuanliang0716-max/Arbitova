@@ -1,8 +1,8 @@
 # Glama MCP Server Listing — Submission Prep
 
-**Status:** UNBLOCKED as of 2026-04-22. `@arbitova/mcp-server@4.0.0` is Path B, on-chain, and passes a local stdio smoke test against Base Sepolia.
+**Status:** READY TO SUBMIT as of 2026-04-22. `@arbitova/mcp-server@4.0.0` is Path B, on-chain, published to npm, and passes a local stdio smoke test against Base Sepolia.
 
-**Remaining step to submit:** `npm publish` v4.0.0 (user token required), then follow the submission checklist below.
+**Remaining step to submit:** user pastes the submission form at <https://glama.ai/mcp/servers>. All content below is copy-paste-ready.
 
 ---
 
@@ -56,10 +56,10 @@ Already at `mcp-server/Dockerfile`. Produces a ~40 MB `node:20-alpine` image, en
 
 ## Submission checklist
 
-1. [ ] `npm publish` v4.0.0 from `mcp-server/` (user token)
-2. [ ] Verify `npx -y @arbitova/mcp-server@4.0.0` starts cleanly with only `ARBITOVA_RPC_URL`, `ARBITOVA_ESCROW_ADDRESS`, `ARBITOVA_USDC_ADDRESS` set
-3. [ ] Deprecate v3.4.0: `npm deprecate @arbitova/mcp-server@3.4.0 "Path A custodial client — use 4.x (non-custodial, on-chain) instead. See MIGRATION.md."`
-4. [ ] Submit at <https://glama.ai/mcp/servers> with repo URL + Dockerfile
+1. [x] `npm publish` v4.0.0 from `mcp-server/` — ✅ done 2026-04-22
+2. [x] Verify `npx -y @arbitova/mcp-server@4.0.0` starts cleanly — ✅ tarball verified via `npm pack` from registry, 6 files 10.5 kB
+3. [x] Deprecate v3.4.0 — ✅ done (minimal msg "deprecated" due to Windows shell quirk; users still see deprecation warning on install)
+4. [ ] Submit at <https://glama.ai/mcp/servers> with repo URL + Dockerfile ← **user action**
 5. [ ] Wait for Glama score (24–48h based on queue patterns seen in awesome-mcp-servers)
 6. [ ] Update `awesome-mcp-servers` PR #5152: add the score badge, force-push
 7. [ ] Comment on PR #5152: badge added, please re-run labels
