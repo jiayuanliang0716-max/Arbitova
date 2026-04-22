@@ -29,7 +29,7 @@ test('STATES enum matches spec RFC order', () => {
 
 test('ESCROW_ABI contains all required spec methods', () => {
   const joined = ESCROW_ABI.join(' ');
-  for (const m of ['createEscrow', 'markDelivered', 'confirmDelivery', 'dispute', 'cancelIfNotDelivered', 'escalateIfExpired', 'getEscrow']) {
+  for (const m of ['createEscrow', 'markDelivered', 'confirmDelivery', 'dispute', 'cancelIfNotDelivered', 'escalateIfExpired', 'resolve', 'getEscrow']) {
     assert.ok(joined.includes(m), `ABI contains ${m}`);
   }
 });
@@ -69,4 +69,29 @@ test('constructor throws helpful message when signer-only method called read-onl
   const stub = Object.create(Cls.prototype);
   stub.signer = null;
   assert.throws(() => stub.requireSigner(), /Client is read-only/);
+});
+
+test('resolve validates bps sum, range, and verdictHash shape', async () => {
+  const stub = Object.create(Arbitova.prototype);
+  stub.signer = { getAddress: async () => '0x0000000000000000000000000000000000000000' };
+  stub.escrowWrite = { resolve: async () => { throw new Error('unreached'); } };
+
+  await assert.rejects(
+    () => stub.resolve({ escrowId: 1, buyerBps: 4000, sellerBps: 5000, verdictHash: '0x' + 'a'.repeat(64) }),
+    /must equal 10000/,
+  );
+  await assert.rejects(
+    () => stub.resolve({ escrowId: 1, buyerBps: -1, sellerBps: 10001, verdictHash: '0x' + 'a'.repeat(64) }),
+    /integers in \[0, 10000\]/,
+  );
+  await assert.rejects(
+    () => stub.resolve({ escrowId: 1, buyerBps: 5000, sellerBps: 5000, verdictHash: 'notahex' }),
+    /32-byte hex/,
+  );
+});
+
+test('escalateIfExpired and resolve are callable methods', () => {
+  for (const m of ['escalateIfExpired', 'resolve']) {
+    assert.equal(typeof Arbitova.prototype[m], 'function', `${m} is a method on Arbitova.prototype`);
+  }
 });

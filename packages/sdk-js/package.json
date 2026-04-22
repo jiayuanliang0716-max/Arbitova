@@ -1,6 +1,6 @@
 {
   "name": "@arbitova/sdk",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Non-custodial USDC escrow for agent-to-agent payments on Base. v3 is a rewrite — see MIGRATION.md.",
   "type": "module",
   "main": "./src/index.js",

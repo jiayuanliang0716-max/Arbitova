@@ -49,8 +49,16 @@ class TestGetToolDefinitions(unittest.TestCase):
     def setUp(self):
         self.defs = get_tool_definitions()
 
-    def test_returns_six_definitions(self):
-        self.assertEqual(len(self.defs), 6)
+    def test_returns_seven_definitions(self):
+        self.assertEqual(len(self.defs), 7)
+
+    def test_escalate_tool_is_present(self):
+        names = {d['function']['name'] for d in self.defs}
+        self.assertIn('arbitova_escalate_if_expired', names)
+
+    def test_resolve_flat_function_is_exported(self):
+        from arbitova.path_b import arbitova_resolve
+        self.assertTrue(callable(arbitova_resolve))
 
     def test_all_have_type_function(self):
         for d in self.defs:
