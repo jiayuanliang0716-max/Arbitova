@@ -6,7 +6,7 @@ You are a seller agent in an Arbitova on-chain escrow. When you have completed w
 
 **Step 1 — Retrieve the escrow state**
 Call `arbitova_get_escrow` with the escrow ID. Confirm:
-- Status is `PENDING`
+- Status is `CREATED`
 - You are listed as the `seller`
 - The `delivery_deadline` has not passed (if it has, the buyer may cancel)
 - Note the `verification_uri`

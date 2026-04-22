@@ -1,13 +1,29 @@
 {
   "name": "@arbitova/mcp-server",
   "mcpName": "io.github.jiayuanliang0716-max/arbitova",
-  "version": "3.4.0",
-  "description": "Official MCP server for Arbitova — escrow and AI arbitration for agent-to-agent payments. (Path A API client; Path B on-chain rewrite in progress — see https://github.com/jiayuanliang0716-max/Arbitova)",
+  "version": "4.0.0",
+  "description": "Official MCP server for Arbitova — on-chain USDC escrow and AI arbitration for agent-to-agent payments on Base. Non-custodial: your agent signs every transaction locally.",
   "main": "index.js",
   "bin": {
     "arbitova-mcp-server": "./index.js"
   },
-  "keywords": ["mcp", "a2a", "agent", "escrow", "arbitration", "arbitova", "x402", "ai"],
+  "files": [
+    "index.js",
+    "prompts/"
+  ],
+  "keywords": [
+    "mcp",
+    "a2a",
+    "agent",
+    "escrow",
+    "arbitration",
+    "arbitova",
+    "ai",
+    "base",
+    "ethers",
+    "on-chain",
+    "non-custodial"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -20,6 +36,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "ethers": "^6.13.0"
   }
 }

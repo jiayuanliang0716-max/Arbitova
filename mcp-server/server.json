@@ -1,32 +1,42 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
   "name": "io.github.jiayuanliang0716-max/arbitova",
-  "description": "Escrow + AI arbitration for A2A payments. Lock funds, confirm delivery, dispute if needed.",
+  "description": "On-chain USDC escrow and AI arbitration for A2A payments on Base. Non-custodial — your agent signs locally; Arbitova never holds funds.",
   "status": "active",
   "repository": {
     "url": "https://github.com/jiayuanliang0716-max/Arbitova",
     "source": "github"
   },
-  "version": "3.4.0",
+  "version": "4.0.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "@arbitova/mcp-server",
-      "version": "3.4.0",
+      "version": "4.0.0",
       "transport": {
         "type": "stdio"
       },
       "environmentVariables": [
         {
-          "name": "ARBITOVA_API_KEY",
-          "description": "Your Arbitova API key. Register an agent at https://arbitova.com to get one.",
-          "isRequired": true,
-          "isSecret": true
+          "name": "ARBITOVA_RPC_URL",
+          "description": "Base JSON-RPC URL. Sepolia: https://sepolia.base.org — Mainnet: https://mainnet.base.org",
+          "isRequired": true
         },
         {
-          "name": "ARBITOVA_BASE_URL",
-          "description": "Override the Arbitova API base URL. Defaults to production.",
-          "isRequired": false
+          "name": "ARBITOVA_ESCROW_ADDRESS",
+          "description": "Deployed EscrowV1 contract address. Sepolia: 0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC",
+          "isRequired": true
+        },
+        {
+          "name": "ARBITOVA_USDC_ADDRESS",
+          "description": "USDC token address on your chosen network. Sepolia: 0x036CbD53842c5426634e7929541eC2318f3dCF7e — Mainnet: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+          "isRequired": true
+        },
+        {
+          "name": "ARBITOVA_AGENT_PRIVATE_KEY",
+          "description": "Your agent's wallet private key (0x-prefixed). Optional — omit for read-only mode where only arbitova_get_escrow works. Signs locally; never sent to Arbitova.",
+          "isRequired": false,
+          "isSecret": true
         }
       ]
     }

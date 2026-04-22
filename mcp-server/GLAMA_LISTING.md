@@ -1,113 +1,80 @@
-# Glama MCP Server Listing — Prep Doc
+# Glama MCP Server Listing — Submission Prep
 
-**Status:** BLOCKED on Path B rewrite (see task B4.1).
-**Purpose:** Once `@arbitova/mcp-server` is rewritten for Path B, this doc captures the submission content for https://glama.ai/mcp/servers and unblocks awesome-mcp-servers PR #5152 (`missing-glama` label).
+**Status:** UNBLOCKED as of 2026-04-22. `@arbitova/mcp-server@4.0.0` is Path B, on-chain, and passes a local stdio smoke test against Base Sepolia.
 
----
-
-## Why this is blocked
-
-`@arbitova/mcp-server@3.4.0` is currently a **Path A API client**:
-- Requires `ARBITOVA_API_KEY` env var
-- Hits `https://a2a-system.onrender.com/api/v1/*` REST endpoints
-- 55 tools wrapping the custodial order/escrow/reputation API
-
-Glama's listing process runs the server in a container, sends an MCP `listTools` introspection request, and scores based on what it sees. With the Path A server, Glama would either:
-- Fail to start (no API key provided in the sandbox)
-- List 55 tools that describe custodial flows, contradicting our RFC + README
-- Score poorly because the tool descriptions don't match what the README promises
-
-**Listing now would actively hurt us.** Do it after B4.1.
+**Remaining step to submit:** `npm publish` v4.0.0 (user token required), then follow the submission checklist below.
 
 ---
 
-## What we'll submit once unblocked
-
-### Server identity
+## Server identity
 - **Name:** `@arbitova/mcp-server`
-- **Glama path:** `jiayuanliang0716-max/Arbitova`
+- **MCP registry name:** `io.github.jiayuanliang0716-max/arbitova`
+- **Repository:** `jiayuanliang0716-max/Arbitova`
 - **Category:** Finance & Fintech
 - **One-liner:** Non-custodial on-chain escrow + AI arbitration for agent-to-agent USDC payments on Base.
 
-### Install command for the Glama sandbox
+## Install command for the Glama sandbox
 ```bash
 npx -y @arbitova/mcp-server@4.0.0
 ```
 
-### Environment variables it needs (post-B4.1)
+## Environment variables (v4.0.0)
 | Name | Required | Purpose |
 |---|---|---|
-| `ARBITOVA_RPC_URL` | yes | Base mainnet or Sepolia RPC endpoint (recommend Alchemy or public node). For introspection-only: use public Sepolia RPC. |
-| `ARBITOVA_WALLET_KEY` | no (for introspection) | Private key for signing contract calls. If unset, server runs read-only — lists tools but fails any tx. |
-| `ARBITOVA_CONTRACT_ADDRESS` | no | Defaults to canonical Sepolia: `0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC` |
+| `ARBITOVA_RPC_URL` | yes | Base RPC endpoint. For Glama's sandbox: `https://sepolia.base.org` |
+| `ARBITOVA_ESCROW_ADDRESS` | yes | Deployed EscrowV1 address. Sepolia: `0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC` |
+| `ARBITOVA_USDC_ADDRESS` | yes | USDC token. Sepolia: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
+| `ARBITOVA_AGENT_PRIVATE_KEY` | no | Omit for introspection / read-only mode. Signs locally, never leaves the process. |
 
-For Glama's introspection check: `ARBITOVA_RPC_URL=https://sepolia.base.org` is sufficient. No wallet key needed to pass listTools.
+For Glama's introspection check: the first three are sufficient. No wallet key needed to pass `tools/list` — the server boots in READ-ONLY mode, exposes all six tool schemas, and only blocks signing at call time.
 
-### Post-B4.1 tool surface (6 core tools + helpers)
+## Tool surface (exactly 6)
+
 ```
 arbitova_create_escrow
 arbitova_mark_delivered
 arbitova_confirm_delivery
 arbitova_dispute
-arbitova_resolve       (arbiter only)
 arbitova_get_escrow
-arbitova_verify_delivery_hash   (helper — no tx)
-arbitova_get_fee_quote          (helper — no tx)
+arbitova_cancel_if_not_delivered
 ```
 
-### Dockerfile to include in the repo (for Glama build checks)
+All six are thin wrappers over the deployed `EscrowV1` contract. No proprietary backend is involved — a user could reimplement the same surface against the ABI exported at `arbitova://resources/escrow-abi`.
 
-```dockerfile
-# Place at mcp-server/Dockerfile
-FROM node:20-alpine
+## Resources exposed
 
-WORKDIR /app
-
-# Only copy what we need for the server
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
-
-COPY index.js ./
-COPY prompts/ ./prompts/
-
-# Non-root user
-RUN addgroup -S mcp && adduser -S mcp -G mcp
-USER mcp
-
-# MCP servers speak over stdio by default
-ENTRYPOINT ["node", "index.js"]
+```
+arbitova://prompts/buyer-verification       (markdown — buyer safety protocol)
+arbitova://prompts/seller-delivery          (markdown — seller delivery protocol)
+arbitova://prompts/arbitrator-self-check    (markdown — arbiter verdict protocol)
+arbitova://resources/escrow-abi             (json — EscrowV1 ABI)
 ```
 
-**Don't build this until B4.1 ships.** The current `index.js` will fail without `ARBITOVA_API_KEY`, which Glama won't have.
+## Dockerfile
 
-### Glama badge (post-approval)
+Already at `mcp-server/Dockerfile`. Produces a ~40 MB `node:20-alpine` image, entrypoint `node /app/index.js`, stdio transport.
 
-Once Glama approves, they'll issue a score badge URL like:
+## Submission checklist
+
+1. [ ] `npm publish` v4.0.0 from `mcp-server/` (user token)
+2. [ ] Verify `npx -y @arbitova/mcp-server@4.0.0` starts cleanly with only `ARBITOVA_RPC_URL`, `ARBITOVA_ESCROW_ADDRESS`, `ARBITOVA_USDC_ADDRESS` set
+3. [ ] Deprecate v3.4.0: `npm deprecate @arbitova/mcp-server@3.4.0 "Path A custodial client — use 4.x (non-custodial, on-chain) instead. See MIGRATION.md."`
+4. [ ] Submit at <https://glama.ai/mcp/servers> with repo URL + Dockerfile
+5. [ ] Wait for Glama score (24–48h based on queue patterns seen in awesome-mcp-servers)
+6. [ ] Update `awesome-mcp-servers` PR #5152: add the score badge, force-push
+7. [ ] Comment on PR #5152: badge added, please re-run labels
+
+## Local smoke test (already run, 8/8 passed)
+
+`node mcp-server/smoke-test.js` — boots the server, sends `initialize`, `tools/list`, `resources/list`, one `resources/read`, and two `tools/call` invocations. Verifies: v4.0.0 reported, 6 tools returned with correct names, descriptions >= 100 chars and free of Path A references, 4 resources listed, ABI contains `getEscrow` + `createEscrow`, write tools fail politely in read-only mode with a hint about `ARBITOVA_AGENT_PRIVATE_KEY`, and `get_escrow` actually decodes escrow 1 on Base Sepolia.
+
+## Badge placement after approval
+
 ```
-[![OWNER/REPO MCP server](https://glama.ai/mcp/servers/OWNER/REPO/badges/score.svg)](https://glama.ai/mcp/servers/OWNER/REPO)
+[![jiayuanliang0716-max/Arbitova MCP server](https://glama.ai/mcp/servers/OWNER/REPO/badges/score.svg)](https://glama.ai/mcp/servers/OWNER/REPO)
 ```
 
-Add that to:
-1. `awesome-mcp-servers` PR #5152 (moves `missing-glama` label off → allows merge)
-2. The main Arbitova README
+Add to:
+1. `awesome-mcp-servers` PR #5152 README line (drops `missing-glama` label → mergeable)
+2. Main Arbitova README
 3. `@arbitova/mcp-server` npm README
-
-### Submission steps (post-B4.1 checklist)
-1. [ ] B4.1 ships — mcp-server 4.0.0 published on npm, Path B contract-based
-2. [ ] `npx @arbitova/mcp-server@4.0.0` starts cleanly in Docker with just `ARBITOVA_RPC_URL` set
-3. [ ] `listTools` introspection returns expected 6 core tools
-4. [ ] Submit at https://glama.ai/mcp/servers with the Dockerfile
-5. [ ] Wait for Glama score (usually 24-48h based on what I see in awesome-mcp-servers)
-6. [ ] Update `awesome-mcp-servers` PR #5152 README line to add the score badge → force-push
-7. [ ] Ping `punkpeye` on the PR comment thread: badge added, please re-run labels
-
----
-
-## What this doc is for
-
-If I (or anyone) resume this in a future session, the key facts to carry:
-
-- Glama listing depends on `@arbitova/mcp-server` actually being a working Path B server. Don't submit with the current 3.4.0.
-- B4.1 unblocks this. Nothing else.
-- The awesome-mcp-servers PR #5152 is a single label (`missing-glama`) away from mergeable. That label drops the moment we have the score badge.
-- Estimated total time from B4.1 completion to PR #5152 merged: 3-5 days, mostly Glama queue time.
