@@ -1,34 +1,50 @@
 'use strict';
 
 /**
- * Arbitova MCP HTTP Endpoint
+ * Arbitova MCP HTTP Endpoint — Path B (non-custodial)
  *
  * Implements MCP JSON-RPC 2.0 over HTTP for Smithery.ai and other
- * HTTP-based MCP clients. Auth via X-API-Key or Authorization: Bearer header.
+ * HTTP-based MCP clients.
  *
- * POST /mcp — all MCP requests
- * GET  /mcp — server info
+ * Path B design choice: this HTTP endpoint is READ-ONLY by design.
+ * Signing a transaction requires the agent's private key, and sending a
+ * private key over HTTP to api.arbitova.com would make Arbitova a
+ * custodian — exactly what Path B removes. Write tools return a clear
+ * error telling the user to install @arbitova/mcp-server (stdio) which
+ * keeps the key local.
+ *
+ * Supported over HTTP:
+ *   - arbitova_get_escrow (chain read, no signing)
+ *
+ * Write tools (require @arbitova/mcp-server stdio):
+ *   - arbitova_create_escrow
+ *   - arbitova_mark_delivered
+ *   - arbitova_confirm_delivery
+ *   - arbitova_dispute
+ *   - arbitova_cancel_if_not_delivered
+ *   - arbitova_escalate_if_expired
  */
 
 const express = require('express');
 const router  = express.Router();
+const { ethers } = require('ethers');
 
-const BASE_URL = process.env.ARBITOVA_BASE_URL || 'https://api.arbitova.com/api/v1';
+const RPC_URL        = process.env.ARBITOVA_RPC_URL        || 'https://sepolia.base.org';
+const ESCROW_ADDRESS = process.env.ARBITOVA_ESCROW_ADDRESS || '0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC';
 
-// ── API helper ────────────────────────────────────────────────────────────────
+const ESCROW_ABI = [
+  'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint64 reviewWindowSec, uint8 state, bytes32 deliveryHash, string verificationURI))',
+];
 
-async function api(method, path, body, apiKey) {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': apiKey,
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
+const STATE_NAMES = ['CREATED', 'DELIVERED', 'RELEASED', 'DISPUTED', 'RESOLVED', 'CANCELLED'];
+
+let _provider, _escrow;
+function escrowRead() {
+  if (!_escrow) {
+    _provider = new ethers.JsonRpcProvider(RPC_URL);
+    _escrow   = new ethers.Contract(ESCROW_ADDRESS, ESCROW_ABI, _provider);
+  }
+  return _escrow;
 }
 
 // ── JSON-RPC helpers ──────────────────────────────────────────────────────────
@@ -36,230 +52,186 @@ async function api(method, path, body, apiKey) {
 const ok  = (id, result) => ({ jsonrpc: '2.0', id, result });
 const err = (id, code, message) => ({ jsonrpc: '2.0', id, error: { code, message } });
 
-// ── Tool definitions (60 tools) ───────────────────────────────────────────────
+const SIGNING_HINT =
+  'This tool requires a local signing key. HTTP MCP is read-only by design (non-custodial). ' +
+  'Install the stdio MCP server locally: `npx -y @arbitova/mcp-server` and set ARBITOVA_AGENT_PRIVATE_KEY. ' +
+  'See https://arbitova.com/learn for setup.';
+
+// ── Tool catalog (all 7 Path B tools, shown for discovery) ────────────────────
 
 const TOOLS = [
-  { name: 'arbitova_create_escrow', description: 'Lock funds in escrow before a worker agent starts a task.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' }, requirements: { type: 'string' }, max_revisions: { type: 'integer' } }, required: ['service_id'] } },
-  { name: 'arbitova_verify_delivery', description: 'Trigger N=3 AI arbitration to verify a delivered task.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_dispute', description: 'Open a dispute and trigger AI arbitration.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, reason: { type: 'string' }, evidence: { type: 'string' } }, required: ['order_id', 'reason'] } },
-  { name: 'arbitova_trust_score', description: 'Get an agent trust score (0-100) with level and history.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_release', description: 'Confirm delivery and release escrow funds to seller.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_get_order', description: 'Get full details of an order by ID.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_external_arbitrate', description: 'Standalone AI arbitration — no Arbitova order needed. Use for any external dispute.', inputSchema: { type: 'object', properties: { requirements: { type: 'string' }, delivery_evidence: { type: 'string' }, dispute_reason: { type: 'string' }, escrow_provider: { type: 'string' }, dispute_id: { type: 'string' } }, required: ['requirements', 'delivery_evidence', 'dispute_reason'] } },
-  { name: 'arbitova_send_message', description: 'Send a direct message to another agent.', inputSchema: { type: 'object', properties: { to_agent_id: { type: 'string' }, subject: { type: 'string' }, body: { type: 'string' }, order_id: { type: 'string' } }, required: ['to_agent_id', 'subject', 'body'] } },
-  { name: 'arbitova_partial_confirm', description: 'Release a percentage of escrow on partial delivery.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, release_percent: { type: 'number' }, note: { type: 'string' } }, required: ['order_id', 'release_percent'] } },
-  { name: 'arbitova_appeal', description: 'Appeal an AI arbitration verdict with new evidence.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, appeal_reason: { type: 'string' }, new_evidence: { type: 'string' } }, required: ['order_id', 'appeal_reason'] } },
-  { name: 'arbitova_agent_profile', description: 'Get the public profile of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_get_stats', description: 'Get your order statistics and platform summary.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'arbitova_edit_service', description: 'Edit an existing service listing.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' }, name: { type: 'string' }, description: { type: 'string' }, price_usdc: { type: 'number' }, delivery_hours: { type: 'integer' } }, required: ['service_id'] } },
-  { name: 'arbitova_tip', description: 'Send a tip to a seller on top of the order amount.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, amount: { type: 'number' } }, required: ['order_id', 'amount'] } },
-  { name: 'arbitova_simulate', description: 'Simulate an A2A trading scenario end-to-end.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' }, scenario: { type: 'string' } } } },
-  { name: 'arbitova_platform_stats', description: 'Get public Arbitova platform statistics.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'arbitova_capabilities', description: 'Get the service capabilities of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_reputation_history', description: 'Get the reputation history of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, page: { type: 'integer' }, limit: { type: 'integer' }, reason: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_pay', description: 'Send a direct peer-to-peer payment to another agent.', inputSchema: { type: 'object', properties: { to_agent_id: { type: 'string' }, amount: { type: 'number' }, memo: { type: 'string' } }, required: ['to_agent_id', 'amount'] } },
-  { name: 'arbitova_get_my_price', description: 'Get your personalized price for a service including volume discounts.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' } }, required: ['service_id'] } },
-  { name: 'arbitova_network', description: 'Get the trading network graph of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, limit: { type: 'integer' } }, required: ['agent_id'] } },
-  { name: 'arbitova_due_diligence', description: 'Run a full due-diligence check on an agent before hiring.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_add_credential', description: 'Add a verifiable credential to your agent profile.', inputSchema: { type: 'object', properties: { type: { type: 'string' }, title: { type: 'string' }, description: { type: 'string' }, issuer: { type: 'string' }, issuer_url: { type: 'string' }, proof: { type: 'string' }, scope: { type: 'string' }, expires_in_days: { type: 'integer' }, is_public: { type: 'boolean' } }, required: ['type', 'title'] } },
-  { name: 'arbitova_get_credentials', description: 'Get the public credentials of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_endorse_credential', description: 'Endorse a credential on another agent profile.', inputSchema: { type: 'object', properties: { credential_id: { type: 'string' }, comment: { type: 'string' } }, required: ['credential_id'] } },
-  { name: 'arbitova_spot_escrow', description: 'Create a direct escrow to any agent — no service listing needed.', inputSchema: { type: 'object', properties: { to_agent_id: { type: 'string' }, amount: { type: 'number' }, requirements: { type: 'string' }, delivery_hours: { type: 'integer' }, title: { type: 'string' } }, required: ['to_agent_id', 'amount', 'requirements'] } },
-  { name: 'arbitova_pending_actions', description: 'Get prioritized list of actions you need to take right now.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'arbitova_request_revision', description: 'Request re-delivery without opening a dispute.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, feedback: { type: 'string' }, extra_hours: { type: 'integer' } }, required: ['order_id', 'feedback'] } },
-  { name: 'arbitova_propose_counter_offer', description: 'Propose a partial refund to settle a dispute without AI arbitration fee.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' }, refund_amount: { type: 'number' }, note: { type: 'string' } }, required: ['order_id', 'refund_amount'] } },
-  { name: 'arbitova_accept_counter_offer', description: 'Accept a counter-offer to split escrow and close the dispute.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_decline_counter_offer', description: 'Decline a counter-offer — dispute stays open for AI arbitration.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_scorecard', description: 'Get grade (A–D), completion rate, dispute rate, and reviews for an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_compare_agents', description: 'Side-by-side comparison of up to 5 agents with recommendation.', inputSchema: { type: 'object', properties: { agent_ids: { type: 'array', items: { type: 'string' } } }, required: ['agent_ids'] } },
-  { name: 'arbitova_preview_order', description: 'Preview cost breakdown and check balance before committing an order.', inputSchema: { type: 'object', properties: { service_id: { type: 'string' }, amount: { type: 'number' } }, required: ['service_id'] } },
-  { name: 'arbitova_save_service_template', description: 'Save a reusable service configuration template.', inputSchema: { type: 'object', properties: { name: { type: 'string' }, description: { type: 'string' }, price: { type: 'number' }, delivery_hours: { type: 'integer' }, category: { type: 'string' } }, required: ['name'] } },
-  { name: 'arbitova_mutual_connections', description: 'Find mutual trading connections between two agents.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, with_id: { type: 'string' } }, required: ['agent_id', 'with_id'] } },
-  { name: 'arbitova_portfolio', description: 'Get the public work portfolio of an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, limit: { type: 'integer' }, category: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_reliability_score', description: 'Get time-decay weighted reliability score (0–100) for an agent.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_batch_escrow', description: 'Create up to 10 escrow orders in a single request.', inputSchema: { type: 'object', properties: { orders: { type: 'array', items: { type: 'object' } } }, required: ['orders'] } },
-  { name: 'arbitova_negotiation_history', description: 'Get the full dispute-resolution timeline for an order.', inputSchema: { type: 'object', properties: { order_id: { type: 'string' } }, required: ['order_id'] } },
-  { name: 'arbitova_block_agent', description: 'Block an agent from creating orders with you.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' }, reason: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_unblock_agent', description: 'Remove an agent from your blocklist.', inputSchema: { type: 'object', properties: { agent_id: { type: 'string' } }, required: ['agent_id'] } },
-  { name: 'arbitova_get_settings', description: 'Get your agent automation settings.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'arbitova_update_settings', description: 'Update your agent automation settings.', inputSchema: { type: 'object', properties: { settings: { type: 'object' } }, required: ['settings'] } },
-  { name: 'arbitova_batch_status', description: 'Poll status of up to 50 orders in one request.', inputSchema: { type: 'object', properties: { order_ids: { type: 'array', items: { type: 'string' } } }, required: ['order_ids'] } },
-  { name: 'arbitova_at_risk_orders', description: 'Get orders approaching deadline with urgency triage.', inputSchema: { type: 'object', properties: { hours: { type: 'integer' } } } },
-  { name: 'arbitova_update_webhook', description: 'Update a webhook URL, event list, or enabled state.', inputSchema: { type: 'object', properties: { webhook_id: { type: 'string' }, url: { type: 'string' }, events: { type: 'array', items: { type: 'string' } }, enabled: { type: 'boolean' } }, required: ['webhook_id'] } },
+  {
+    name: 'arbitova_create_escrow',
+    description:
+      'Buyer locks USDC into EscrowV1 on Base. SIGNING REQUIRED — use the stdio MCP server (@arbitova/mcp-server) locally; HTTP cannot hold your key.',
+    inputSchema: {
+      type: 'object',
+      required: ['seller', 'amount', 'verificationURI'],
+      properties: {
+        seller:              { type: 'string',  description: 'Seller Ethereum address (0x-prefixed)' },
+        amount:              { type: 'number',  description: 'USDC amount to lock (e.g. 50)' },
+        deliveryWindowHours: { type: 'number',  description: 'Hours seller has to deliver (default 24)', default: 24 },
+        reviewWindowHours:   { type: 'number',  description: 'Hours buyer has to review (default 24)', default: 24 },
+        verificationURI:     { type: 'string',  description: 'Public JSON listing every delivery criterion' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_mark_delivered',
+    description:
+      'Seller marks escrow as delivered, hashing the payload URI on-chain. SIGNING REQUIRED — use stdio MCP.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId', 'deliveryPayloadURI'],
+      properties: {
+        escrowId:           { type: 'string', description: 'Escrow ID from create_escrow' },
+        deliveryPayloadURI: { type: 'string', description: 'Stable public URL of the completed deliverable' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_confirm_delivery',
+    description:
+      'Buyer releases funds after verifying every criterion in verificationURI. SIGNING REQUIRED — use stdio MCP.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId'],
+      properties: { escrowId: { type: 'string' } },
+    },
+  },
+  {
+    name: 'arbitova_dispute',
+    description:
+      'Open a dispute citing which criteria failed. Either buyer or seller may dispute. SIGNING REQUIRED — use stdio MCP.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId', 'reason'],
+      properties: {
+        escrowId: { type: 'string' },
+        reason:   { type: 'string', description: 'Specific failed criteria + observed vs expected' },
+      },
+    },
+  },
+  {
+    name: 'arbitova_cancel_if_not_delivered',
+    description:
+      'Buyer reclaims funds if the delivery deadline passes without markDelivered. SIGNING REQUIRED — use stdio MCP.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId'],
+      properties: { escrowId: { type: 'string' } },
+    },
+  },
+  {
+    name: 'arbitova_escalate_if_expired',
+    description:
+      'Permissionless: anyone can push a DELIVERED escrow into DISPUTED after reviewDeadline. SIGNING REQUIRED — use stdio MCP.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId'],
+      properties: { escrowId: { type: 'string' } },
+    },
+  },
+  {
+    name: 'arbitova_get_escrow',
+    description:
+      'Read on-chain state of an escrow: buyer, seller, amount, deadlines, state, verificationURI, deliveryHash. No signing needed.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId'],
+      properties: { escrowId: { type: 'string', description: 'Escrow ID to query' } },
+    },
+  },
 ];
+
+const WRITE_TOOL_NAMES = new Set([
+  'arbitova_create_escrow',
+  'arbitova_mark_delivered',
+  'arbitova_confirm_delivery',
+  'arbitova_dispute',
+  'arbitova_cancel_if_not_delivered',
+  'arbitova_escalate_if_expired',
+]);
 
 // ── Tool handler ──────────────────────────────────────────────────────────────
 
-async function handleTool(name, args, apiKey) {
-  switch (name) {
-    case 'arbitova_create_escrow':
-      return api('POST', '/orders', { service_id: args.service_id, requirements: args.requirements, max_revisions: args.max_revisions }, apiKey);
-    case 'arbitova_verify_delivery':
-      return api('POST', `/orders/${args.order_id}/auto-arbitrate`, {}, apiKey);
-    case 'arbitova_dispute': {
-      await api('POST', `/orders/${args.order_id}/dispute`, { reason: args.reason, evidence: args.evidence }, apiKey);
-      return api('POST', `/orders/${args.order_id}/auto-arbitrate`, {}, apiKey);
-    }
-    case 'arbitova_trust_score':
-      return api('GET', `/agents/${args.agent_id}/trust-score`, null, apiKey);
-    case 'arbitova_release':
-      return api('POST', `/orders/${args.order_id}/confirm`, {}, apiKey);
-    case 'arbitova_get_order':
-      return api('GET', `/orders/${args.order_id}`, null, apiKey);
-    case 'arbitova_external_arbitrate':
-      return api('POST', '/arbitrate/external', { requirements: args.requirements, delivery_evidence: args.delivery_evidence, dispute_reason: args.dispute_reason, escrow_provider: args.escrow_provider, dispute_id: args.dispute_id }, apiKey);
-    case 'arbitova_send_message':
-      return api('POST', '/messages/send', { to: args.to_agent_id, subject: args.subject, body: args.body, order_id: args.order_id }, apiKey);
-    case 'arbitova_partial_confirm':
-      return api('POST', `/orders/${args.order_id}/partial-confirm`, { release_percent: args.release_percent, note: args.note }, apiKey);
-    case 'arbitova_appeal':
-      return api('POST', `/orders/${args.order_id}/appeal`, { appeal_reason: args.appeal_reason, new_evidence: args.new_evidence }, apiKey);
-    case 'arbitova_agent_profile':
-      return api('GET', `/agents/${args.agent_id}/public-profile`, null, apiKey);
-    case 'arbitova_get_stats':
-      return api('GET', '/orders/stats', null, apiKey);
-    case 'arbitova_edit_service': {
-      const { service_id, ...fields } = args;
-      return api('PATCH', `/services/${service_id}`, fields, apiKey);
-    }
-    case 'arbitova_tip':
-      return api('POST', `/orders/${args.order_id}/tip`, { amount: args.amount }, apiKey);
-    case 'arbitova_simulate':
-      return api('POST', '/simulate', { service_id: args.service_id, scenario: args.scenario }, apiKey);
-    case 'arbitova_platform_stats':
-      return api('GET', '/platform/stats', null, apiKey);
-    case 'arbitova_capabilities':
-      return api('GET', `/agents/${args.agent_id}/capabilities`, null, apiKey);
-    case 'arbitova_reputation_history': {
-      const qs = new URLSearchParams();
-      if (args.page)   qs.set('page', args.page);
-      if (args.limit)  qs.set('limit', args.limit);
-      if (args.reason) qs.set('reason', args.reason);
-      return api('GET', `/agents/${args.agent_id}/reputation-history${qs.toString() ? `?${qs}` : ''}`, null, apiKey);
-    }
-    case 'arbitova_pay':
-      return api('POST', '/agents/pay', { to_agent_id: args.to_agent_id, amount: args.amount, memo: args.memo }, apiKey);
-    case 'arbitova_get_my_price':
-      return api('GET', `/services/${args.service_id}/my-price`, null, apiKey);
-    case 'arbitova_network':
-      return api('GET', `/agents/${args.agent_id}/network${args.limit ? `?limit=${args.limit}` : ''}`, null, apiKey);
-    case 'arbitova_due_diligence':
-      return api('GET', `/agents/${args.agent_id}/due-diligence`, null, apiKey);
-    case 'arbitova_add_credential':
-      return api('POST', '/credentials', { type: args.type, title: args.title, description: args.description, issuer: args.issuer, issuer_url: args.issuer_url, proof: args.proof, scope: args.scope, expires_in_days: args.expires_in_days, is_public: args.is_public !== undefined ? args.is_public : true }, apiKey);
-    case 'arbitova_get_credentials':
-      return api('GET', `/agents/${args.agent_id}/credentials`, null, apiKey);
-    case 'arbitova_endorse_credential':
-      return api('POST', `/credentials/${args.credential_id}/endorse`, { comment: args.comment }, apiKey);
-    case 'arbitova_spot_escrow':
-      return api('POST', '/orders/spot', { to_agent_id: args.to_agent_id, amount: args.amount, requirements: args.requirements, delivery_hours: args.delivery_hours, title: args.title }, apiKey);
-    case 'arbitova_pending_actions':
-      return api('GET', '/agents/me/pending-actions', null, apiKey);
-    case 'arbitova_request_revision':
-      return api('POST', `/orders/${args.order_id}/request-revision`, { feedback: args.feedback, extra_hours: args.extra_hours || 24 }, apiKey);
-    case 'arbitova_propose_counter_offer':
-      return api('POST', `/orders/${args.order_id}/counter-offer`, { refund_amount: args.refund_amount, note: args.note }, apiKey);
-    case 'arbitova_accept_counter_offer':
-      return api('POST', `/orders/${args.order_id}/counter-offer/accept`, {}, apiKey);
-    case 'arbitova_decline_counter_offer':
-      return api('POST', `/orders/${args.order_id}/counter-offer/decline`, {}, apiKey);
-    case 'arbitova_scorecard':
-      return api('GET', `/agents/${args.agent_id}/scorecard`, null, apiKey);
-    case 'arbitova_compare_agents': {
-      const ids = Array.isArray(args.agent_ids) ? args.agent_ids.join(',') : args.agent_ids;
-      return api('GET', `/agents/compare?ids=${encodeURIComponent(ids)}`, null, apiKey);
-    }
-    case 'arbitova_preview_order':
-      return api('POST', '/orders/preview', { service_id: args.service_id, amount: args.amount }, apiKey);
-    case 'arbitova_save_service_template':
-      return api('POST', '/agents/me/service-templates', { name: args.name, description: args.description, price: args.price, delivery_hours: args.delivery_hours, category: args.category }, apiKey);
-    case 'arbitova_mutual_connections':
-      return api('GET', `/agents/${args.agent_id}/mutual?with=${encodeURIComponent(args.with_id)}`, null, apiKey);
-    case 'arbitova_portfolio': {
-      const qs = [];
-      if (args.limit)    qs.push(`limit=${args.limit}`);
-      if (args.category) qs.push(`category=${encodeURIComponent(args.category)}`);
-      return api('GET', `/agents/${args.agent_id}/portfolio${qs.length ? `?${qs.join('&')}` : ''}`, null, apiKey);
-    }
-    case 'arbitova_reliability_score':
-      return api('GET', `/agents/${args.agent_id}/reliability`, null, apiKey);
-    case 'arbitova_batch_escrow':
-      return api('POST', '/orders/batch', { orders: args.orders }, apiKey);
-    case 'arbitova_negotiation_history':
-      return api('GET', `/orders/${args.order_id}/negotiation`, null, apiKey);
-    case 'arbitova_block_agent':
-      return api('POST', '/agents/me/blocklist', { agent_id: args.agent_id, reason: args.reason }, apiKey);
-    case 'arbitova_unblock_agent':
-      return api('DELETE', `/agents/me/blocklist/${args.agent_id}`, null, apiKey);
-    case 'arbitova_get_settings':
-      return api('GET', '/agents/me/settings', null, apiKey);
-    case 'arbitova_update_settings':
-      return api('PATCH', '/agents/me/settings', args.settings, apiKey);
-    case 'arbitova_batch_status':
-      return api('POST', '/orders/batch-status', { order_ids: args.order_ids }, apiKey);
-    case 'arbitova_at_risk_orders':
-      return api('GET', `/orders/at-risk${args.hours ? `?hours=${args.hours}` : ''}`, null, apiKey);
-    case 'arbitova_update_webhook': {
-      const { webhook_id, ...body } = args;
-      return api('PATCH', `/webhooks/${webhook_id}`, body, apiKey);
-    }
-    default:
-      throw new Error(`Unknown tool: ${name}`);
+async function handleTool(name, args) {
+  if (WRITE_TOOL_NAMES.has(name)) {
+    return {
+      ok: false,
+      error: 'signing_required',
+      hint: SIGNING_HINT,
+      install: 'npx -y @arbitova/mcp-server',
+    };
   }
+
+  if (name === 'arbitova_get_escrow') {
+    if (!args.escrowId && args.escrowId !== 0) {
+      throw new Error('escrowId is required');
+    }
+    const data = await escrowRead().getEscrow(BigInt(args.escrowId));
+    return {
+      ok: true,
+      escrowId:         String(args.escrowId),
+      buyer:            data.buyer,
+      seller:           data.seller,
+      amount:           ethers.formatUnits(data.amount, 6),
+      deliveryDeadline: new Date(Number(data.deliveryDeadline) * 1000).toISOString(),
+      reviewDeadline:   data.reviewDeadline > 0n ? new Date(Number(data.reviewDeadline) * 1000).toISOString() : null,
+      state:            STATE_NAMES[Number(data.state)] || String(data.state),
+      verificationURI:  data.verificationURI,
+      deliveryHash:     data.deliveryHash !== ethers.ZeroHash ? data.deliveryHash : null,
+    };
+  }
+
+  throw new Error(`Unknown tool: ${name}`);
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-// GET /mcp — server info for discovery
 router.get('/', (req, res) => {
   res.json({
     name: 'arbitova',
-    version: '3.3.0',
-    description: 'Official Arbitova MCP server — 60 tools for AI agent escrow, arbitration, and trust scoring',
+    version: '4.0.1',
+    description:
+      'Arbitova MCP HTTP endpoint (Path B, non-custodial). Read-only by design. ' +
+      'For signing, install the stdio MCP server: npx -y @arbitova/mcp-server',
     tools_count: TOOLS.length,
-    docs: 'https://api.arbitova.com/docs',
+    signing_over_http: false,
+    stdio_package: '@arbitova/mcp-server',
+    chain: {
+      rpc_url: RPC_URL,
+      escrow_address: ESCROW_ADDRESS,
+    },
+    docs: 'https://arbitova.com/learn',
   });
 });
 
-// POST /mcp — MCP JSON-RPC 2.0
 router.post('/', async (req, res) => {
-  const apiKey = req.headers['x-api-key']
-    || (req.headers.authorization || '').replace(/^Bearer\s+/i, '')
-    || req.query.api_key;
-
   const { method, params, id } = req.body || {};
 
   try {
-    // initialize — handshake
     if (method === 'initialize') {
       return res.json(ok(id, {
         protocolVersion: '2024-11-05',
         capabilities: { tools: {} },
-        serverInfo: { name: 'arbitova', version: '3.3.0' },
+        serverInfo: { name: 'arbitova', version: '4.0.1' },
       }));
     }
 
-    // notifications/initialized — fire-and-forget
     if (method === 'notifications/initialized') {
       return res.status(204).end();
     }
 
-    // tools/list — return all tool definitions
     if (method === 'tools/list') {
       return res.json(ok(id, { tools: TOOLS }));
     }
 
-    // tools/call — execute a tool
     if (method === 'tools/call') {
-      if (!apiKey) {
-        return res.json(ok(id, {
-          content: [{ type: 'text', text: 'Error: Missing API key. Pass your Arbitova API key in the X-API-Key header.' }],
-          isError: true,
-        }));
-      }
-      const result = await handleTool(params.name, params.arguments || {}, apiKey);
+      const result = await handleTool(params.name, params.arguments || {});
       return res.json(ok(id, {
         content: [{ type: 'text', text: JSON.stringify(result, null, 2) }],
+        isError: result && result.ok === false,
       }));
     }
 
