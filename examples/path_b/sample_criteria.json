@@ -1,0 +1,8 @@
+{
+  "criteria": [
+    "Delivered content is at least 50 words.",
+    "Delivered content includes an explicit section titled 'Executive Summary'.",
+    "Delivered content is valid Markdown."
+  ],
+  "notes": "Sample verification document for the 15-minute paid-agent tutorial. In production, host this at a stable URL (IPFS, Arweave, or your own CDN) and reference it as the escrow's verificationURI at creation time. Every delivery will be judged against every criterion listed here."
+}
