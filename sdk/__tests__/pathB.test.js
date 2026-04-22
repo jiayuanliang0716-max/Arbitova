@@ -116,16 +116,32 @@ const fakeEscrowContract = {
   cancelIfNotDelivered: (...args) => ({
     wait: async () => { lastTxArgs.cancelIfNotDelivered = args; return { hash: MOCK_TX_HASH, status: mockRevert ? 0 : 1, logs: [] }; },
   }),
-  getEscrow: async () => [
-    '0xbuyer000000000000000000000000000000000b',
-    '0xseller00000000000000000000000000000005',
-    5000000n, // 5 USDC
-    BigInt(Math.floor(Date.now() / 1000) + 86400), // delivery deadline
-    BigInt(Math.floor(Date.now() / 1000) + 172800), // review deadline
-    0n, // PENDING
-    'https://example.com/criteria.json',
-    '0x0000000000000000000000000000000000000000000000000000000000000000',
-  ],
+  // Must match EscrowV1 real tuple: (buyer, seller, amount, deliveryDeadline,
+  // reviewDeadline, reviewWindowSec, state, deliveryHash, verificationURI)
+  getEscrow: async () => {
+    const arr = [
+      '0xbuyer000000000000000000000000000000000b',
+      '0xseller00000000000000000000000000000005',
+      5000000n, // 5 USDC
+      BigInt(Math.floor(Date.now() / 1000) + 86400),  // deliveryDeadline
+      BigInt(Math.floor(Date.now() / 1000) + 172800), // reviewDeadline
+      86400n, // reviewWindowSec
+      0n,     // state = CREATED
+      '0x0000000000000000000000000000000000000000000000000000000000000000',
+      'https://example.com/criteria.json',
+    ];
+    // ethers v6 Result supports both index and named access. Mirror that.
+    arr.buyer = arr[0];
+    arr.seller = arr[1];
+    arr.amount = arr[2];
+    arr.deliveryDeadline = arr[3];
+    arr.reviewDeadline = arr[4];
+    arr.reviewWindowSec = arr[5];
+    arr.state = arr[6];
+    arr.deliveryHash = arr[7];
+    arr.verificationURI = arr[8];
+    return arr;
+  },
 };
 
 const fakeUsdcContract = {
@@ -323,7 +339,7 @@ describe('Path B SDK — arbitova_get_escrow (via mock)', () => {
     const defs = getToolDefinitions();
     const def = defs.find(d => d.function.name === 'arbitova_get_escrow');
     assert.ok(def);
-    assert.ok(def.function.description.includes('PENDING'));
+    assert.ok(def.function.description.includes('CREATED'));
     assert.ok(def.function.description.includes('DELIVERED'));
     assert.ok(def.function.description.includes('DISPUTED'));
   });

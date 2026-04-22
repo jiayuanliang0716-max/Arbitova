@@ -23,7 +23,7 @@ const ESCROW_ABI = [
   'function confirmDelivery(uint256 id)',
   'function dispute(uint256 id, string reason)',
   'function cancelIfNotDelivered(uint256 id)',
-  'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint8 status, string verificationURI, bytes32 deliveryHash))',
+  'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint64 reviewWindowSec, uint8 state, bytes32 deliveryHash, string verificationURI))',
   'event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI)',
   'event Delivered(uint256 indexed id, bytes32 deliveryHash, uint64 reviewDeadline)',
   'event Released(uint256 indexed id, uint256 toSeller, uint256 fee)',
@@ -176,7 +176,8 @@ async function arbitova_get_escrow({ escrowId }) {
     const { escrow } = getContracts();
 
     const data = await escrow.getEscrow(BigInt(escrowId));
-    const STATUS = ['PENDING', 'DELIVERED', 'CONFIRMED', 'DISPUTED', 'CANCELLED', 'RESOLVED'];
+    // Must match EscrowV1.sol `enum State { CREATED, DELIVERED, RELEASED, DISPUTED, RESOLVED, CANCELLED }`.
+    const STATUS = ['CREATED', 'DELIVERED', 'RELEASED', 'DISPUTED', 'RESOLVED', 'CANCELLED'];
 
     return {
       ok: true,
@@ -188,7 +189,7 @@ async function arbitova_get_escrow({ escrowId }) {
       reviewDeadline: data.reviewDeadline > 0n
         ? new Date(Number(data.reviewDeadline) * 1000).toISOString()
         : null,
-      status: STATUS[Number(data.status)] || String(data.status),
+      status: STATUS[Number(data.state)] || String(data.state),
       verificationURI: data.verificationURI,
       deliveryHash: data.deliveryHash !== ethers.ZeroHash ? data.deliveryHash : null,
     };
@@ -209,7 +210,7 @@ async function arbitova_cancel_if_not_delivered({ escrowId }) {
 
     return { ok: true, txHash: receipt.hash };
   } catch (e) {
-    return errResult(e, 'Cancel is only possible after the delivery deadline has passed and the escrow is still in PENDING state.');
+    return errResult(e, 'Cancel is only possible after the delivery deadline has passed and the escrow is still in CREATED state.');
   }
 }
 
@@ -353,8 +354,8 @@ function getToolDefinitions() {
           'Fetch the current on-chain state of an escrow: buyer, seller, amount, deadlines, status, verificationURI, and deliveryHash. ' +
           'Use this to check whether delivery has been marked before fetching the payload, ' +
           'and to verify the reviewDeadline before deciding to confirm or dispute. ' +
-          'Status values: PENDING (awaiting delivery), DELIVERED (seller marked done, review window open), ' +
-          'CONFIRMED (funds released), DISPUTED (in arbitration), CANCELLED, RESOLVED.',
+          'Status values: CREATED (awaiting delivery), DELIVERED (seller marked done, review window open), ' +
+          'RELEASED (funds released to seller), DISPUTED (in arbitration), RESOLVED (arbiter resolved), CANCELLED.',
         parameters: {
           type: 'object',
           required: ['escrowId'],
@@ -374,8 +375,8 @@ function getToolDefinitions() {
         description:
           'Buyer cancels an escrow after the delivery deadline has passed and the seller has not marked delivery. ' +
           'Full USDC refund to buyer. Only callable by the buyer, only after deliveryDeadline has elapsed, ' +
-          'and only when escrow is still in PENDING state. ' +
-          'Call arbitova_get_escrow first to verify the deadline has passed and status is PENDING before calling this.',
+          'and only when escrow is still in CREATED state. ' +
+          'Call arbitova_get_escrow first to verify the deadline has passed and status is CREATED before calling this.',
         parameters: {
           type: 'object',
           required: ['escrowId'],

@@ -122,7 +122,7 @@ async function pollForDelivery(escrowId, maxWaitSeconds = 300) {
       continue;
     }
     if (state.status === 'DELIVERED') return state;
-    if (['CONFIRMED', 'DISPUTED', 'CANCELLED', 'RESOLVED'].includes(state.status)) {
+    if (['RELEASED', 'DISPUTED', 'CANCELLED', 'RESOLVED'].includes(state.status)) {
       throw new Error(`Escrow already in terminal state: ${state.status}`);
     }
     console.log(`[Buyer] Status: ${state.status}. Waiting for seller to deliver...`);
