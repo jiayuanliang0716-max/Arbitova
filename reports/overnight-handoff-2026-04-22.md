@@ -19,8 +19,10 @@
 |---|---|
 | `3b72856` | docs+mcp: 15-min paid-agent tutorial (uses ethers.js directly, no SDK lock-in) + sample_criteria.json + sample_delivery.md + GLAMA_LISTING.md prep + mcp-server package.json description revert (3.4.0 Path A honest framing) |
 | `86a53ed` | sdk: fix getEscrow ABI drift — tuple now matches deployed EscrowV1 (9 fields), `state` not `status`, enum is CREATED/DELIVERED/RELEASED/DISPUTED/RESOLVED/CANCELLED; buyer_demo.js + tests updated |
+| `d8bf258` | reports: this hand-off |
+| `579b206` | python-sdk v2.5.1: same enum-name drift fixes in error messages + tool descriptions + test assertions; pyproject.toml bumped 2.5.0 → 2.5.1; dist/ rebuilt |
 
-No force pushes. No amends. Master is 2 commits ahead of where you left it.
+No force pushes. No amends. Master is 4 commits ahead of where you left it.
 
 ---
 
@@ -76,9 +78,9 @@ B4.1 = rewrite the mcp-server around the 6 EscrowV1 contract calls (same shape a
 
 The smoke tests that passed on 2026-04-21 (three framework demos) don't call `getEscrow` — they only subscribe to events. So the SDK has been shipping with an ABI that would have broken the first external developer who tried `arbitova_get_escrow` against Base Sepolia. Already fixed + pushed.
 
-Side effects worth checking:
-- **Python SDK** (`python-sdk/arbitova/path_b.py`) — memory note `project_arbitova_path_b.md` mentions `STATUS_NAMES` drift. Worth auditing it for the same 3 drifts I found on the JS side (ABI shape, field name `state`, enum names).
-- **Memory file `project_arbitova_path_b.md`** likely still uses old state names. Not urgent — it's a reference for me, not a user-facing artifact.
+Side effects worth checking — **NOW DONE**:
+- **Python SDK** (`python-sdk/arbitova/path_b.py`) — audited. ABI/decoding was already correct. Error messages + tool descriptions in 4 spots still said PENDING/CONFIRMED. Fixed, version-bumped to 2.5.1, dist rebuilt, tests now pass (previously failing assertions against `STATUS_NAMES`). Commit `579b206`.
+- **Memory file `project_arbitova_path_b.md`** — spot-checked. Correct enum already (CREATED→DELIVERED→{RELEASED,DISPUTED→RESOLVED,CANCELLED}). No action.
 
 ### mcp-server description was lying
 
@@ -116,7 +118,7 @@ I will not publish, I will not touch the npm registry, I will not merge a PR wit
 1. **Sanity-check the 15-min tutorial.** Open it in a browser, skim, tell me if the tone is off for HN. If fine: it's ready to paste into a Show HN body.
 2. **Eyeball the outreach list.** Especially the Tier 1 drafts (Louis Amira, AgentlyHQ, LangGraph PR). Tell me whether to hold or fire.
 3. **Decide on B4.1.** Three options: (a) let me keep going autonomously, (b) you do it yourself (you know the mcp-server code better), (c) pair-review as I write it. I'm currently on (a).
-4. **Token operations at your leisure.** PyPI / npm / publish.sh — none are blocking M2. Good batch task.
+4. **Token operations at your leisure.** PyPI (upload `python-sdk/dist/arbitova-2.5.1.tar.gz` + `.whl`, not 2.5.0 — I deleted those); npm `publish @arbitova/sdk@3.0.0` from `packages/sdk-js/` (I verified — v3 already has the correct 9-field `getEscrow` ABI and the correct `STATES` enum, so no version bump needed for the drift fix; the drift I fixed was in the *old* `/sdk/` folder which stays at 2.x and is not the v3 publish target); `publish.sh dev-log-015`. None are blocking M2.
 
 ---
 
