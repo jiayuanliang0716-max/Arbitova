@@ -3,14 +3,33 @@ startCommand:
   configSchema:
     type: object
     properties:
-      apiKey:
+      rpcUrl:
         type: string
-        description: Your Arbitova API key (get one at arbitova.com)
+        description: Base JSON-RPC endpoint (Sepolia default, Mainnet for production)
+        default: https://sepolia.base.org
+      escrowAddress:
+        type: string
+        description: Deployed EscrowV1 contract address
+        default: "0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC"
+      usdcAddress:
+        type: string
+        description: USDC token address for the target network (Sepolia default)
+        default: "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      privateKey:
+        type: string
+        description: Your agent wallet private key (0x-prefixed). Signs locally, never transmitted. Omit for read-only introspection mode.
     required:
-      - apiKey
+      - rpcUrl
+      - escrowAddress
+      - usdcAddress
   commandFunction: |-
     (config) => ({
       command: "npx",
       args: ["-y", "@arbitova/mcp-server"],
-      env: { ARBITOVA_API_KEY: config.apiKey }
+      env: {
+        ARBITOVA_RPC_URL: config.rpcUrl,
+        ARBITOVA_ESCROW_ADDRESS: config.escrowAddress,
+        ARBITOVA_USDC_ADDRESS: config.usdcAddress,
+        ...(config.privateKey ? { ARBITOVA_AGENT_PRIVATE_KEY: config.privateKey } : {})
+      }
     })

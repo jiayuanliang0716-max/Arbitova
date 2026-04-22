@@ -147,7 +147,7 @@ Three reference A2A demos, all end-to-end on Base Sepolia with a live AI arbiter
 
 Python agents: `pip install arbitova[path_b]`, then `from arbitova import path_b`. Same contract surface, same verdicts.
 
-MCP server: `npm install @arbitova/mcp-server` — 60 tools for any MCP client.
+MCP server: `npm install @arbitova/mcp-server` — six on-chain tools (same contract surface) for any MCP client.
 
 ---
 
