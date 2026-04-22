@@ -1,125 +1,133 @@
-# Migration Guide: Path A (Custodial API) → Path B (On-chain Escrow)
+# Migration Guide: Path A (custodial API, deprecated) → Path B (on-chain, current)
 
-## What changes
+**Status (2026-04-22):** Path A is deprecated. New development should use Path B. The old `@arbitova/sdk@^2.x` packages remain installable on npm but receive no further updates.
 
-**Path A** (existing SDK): Arbitova holds funds in custody. You call our REST API. Simple, no wallet required.
+## Where to find what
 
-**Path B** (this guide): Funds flow directly through the `EscrowV1` smart contract. You hold your own wallet and private key. Arbitova is never a custodian. Every action is an on-chain transaction.
+| You want | Use |
+|---|---|
+| JS/TS, current | [`@arbitova/sdk@^3`](../packages/sdk-js/) — Path B, non-custodial |
+| Python, current | `pip install 'arbitova[path_b]'` — `from arbitova import path_b` |
+| MCP server, current | [`@arbitova/mcp-server@^4`](../mcp-server/) — six on-chain tools |
+| 15-minute walkthrough | [`docs/tutorials/15-min-paid-agent.md`](../docs/tutorials/15-min-paid-agent.md) |
+| MCP-specific migration | [`mcp-server/MIGRATION.md`](../mcp-server/MIGRATION.md) |
+
+## What changed
+
+**Path A** (v2.x): Arbitova held funds in a custodial backend. Auth was an `ARBITOVA_API_KEY`. Simple HTTP, no wallet required, but Arbitova was the custodian.
+
+**Path B** (v3+): Funds flow directly through the `EscrowV1` smart contract on Base. You hold your own wallet and private key. Arbitova never touches the money — it can only resolve disputes by submitting a verdict the contract accepts. Every action is an on-chain transaction.
 
 | Aspect | Path A | Path B |
 |--------|--------|--------|
-| Fund custody | Arbitova custodial balance | Your wallet / smart contract |
-| API calls | REST HTTP | On-chain transactions via ethers v6 |
-| Auth | `ARBITOVA_API_KEY` | `ARBITOVA_AGENT_PRIVATE_KEY` (wallet) |
-| New dependency | None | `ethers` v6 (already in repo) |
-| Transaction fees | None (off-chain) | Gas fees on Base/Ethereum |
-| Migration required? | No — Path A still works | Opt-in, additive |
+| Fund custody | Arbitova custodial balance | On-chain EscrowV1 |
+| Auth | `ARBITOVA_API_KEY` | Your EVM private key |
+| Calls | REST HTTP | ethers v6 against the contract |
+| New dep | — | `ethers` v6 |
+| Fees | off-chain bookkeeping | Base gas + 0.5% / 2% contract fee |
+| State enum | `PENDING / CONFIRMED / …` | `CREATED / DELIVERED / RELEASED / DISPUTED / RESOLVED / CANCELLED` |
+| Current status | deprecated | supported, pre-mainnet audit |
 
-## What stays the same
-
-- Tool naming convention: `arbitova_*`
-- Return shapes: `{ok: true, ...}` / `{ok: false, error, hint}`
-- Tool definitions are OpenAI-style (AutoGen, LangChain, Anthropic function calling all work)
-- Same MCP server (now also exposes Path B prompt resources)
-
-## Side-by-side code comparison
+## Side-by-side
 
 ### Creating an escrow
 
-**Path A**
+**Path A (deprecated)**
 ```js
-const { Arbitova } = require('@arbitova/sdk');
+const { Arbitova } = require('@arbitova/sdk');  // v2.x
 const client = new Arbitova({ apiKey: process.env.ARBITOVA_API_KEY });
-
-const order = await client.escrow('svc_abc123', {
-  requirements: { task: 'write a summary' },
-});
-// order.id, order.status, order.amount
+const order = await client.escrow('svc_abc123', { requirements: { task: '…' } });
 ```
 
-**Path B**
+**Path B (current)**
 ```js
-const { arbitova_create_escrow } = require('@arbitova/sdk/pathB');
-// Requires: ARBITOVA_RPC_URL, ARBITOVA_ESCROW_ADDRESS,
-//           ARBITOVA_USDC_ADDRESS, ARBITOVA_AGENT_PRIVATE_KEY
+import { Arbitova } from '@arbitova/sdk';  // v3+
 
-const result = await arbitova_create_escrow({
-  seller: '0xSellerAddress',
-  amount: 50,                        // USDC
-  deliveryWindowHours: 24,
-  reviewWindowHours: 24,
+const buyer = await Arbitova.fromPrivateKey({ privateKey: process.env.BUYER_PK });
+
+const { escrowId, txHash } = await buyer.createEscrow({
+  seller: '0xSELLER',
+  amount: '50.00',
+  deliveryHours: 24,
+  reviewHours: 24,
   verificationURI: 'https://your-host/criteria.json',
 });
-// result.ok, result.txHash, result.escrowId
 ```
+
+Low-level helpers (`arbitova_create_escrow(...)`) are also exported for frameworks that prefer a flat function surface.
 
 ### Confirming delivery
 
 **Path A**
 ```js
-await client.confirm(order.id);
+await client.confirm(order.id);  // server picks side
 ```
 
 **Path B**
 ```js
-// MUST fetch and verify delivery first. See buyer-verification prompt.
-const { arbitova_confirm_delivery, arbitova_dispute } = require('@arbitova/sdk/pathB');
-
-// Only after checking all criteria:
-const result = await arbitova_confirm_delivery({ escrowId: '1' });
-
+// Fetch + verify delivery first. See the buyer-verification prompt.
+// Only after checking every criterion:
+await buyer.confirmDelivery(escrowId);
 // If anything is wrong:
-const result = await arbitova_dispute({ escrowId: '1', reason: 'Criterion 2 not met: ...' });
+await buyer.dispute(escrowId, 'Criterion 2 not met: …');
 ```
+
+Silence is safe in Path B — if you neither confirm nor dispute, the review window expires and the escrow escalates to arbitration.
 
 ### Python
 
-**Path A**
+**Path A (deprecated)**
 ```python
 from arbitova import Arbitova
 client = Arbitova(api_key=os.environ["ARBITOVA_API_KEY"])
 order = client.escrow("svc_abc123", requirements={"task": "summarize"})
 ```
 
-**Path B**
+**Path B (current)**
 ```python
-from arbitova.path_b import arbitova_create_escrow, arbitova_confirm_delivery, arbitova_dispute
-# Requires: ARBITOVA_RPC_URL, ARBITOVA_ESCROW_ADDRESS,
-#           ARBITOVA_USDC_ADDRESS, ARBITOVA_AGENT_PRIVATE_KEY
+from arbitova import path_b
 
-result = arbitova_create_escrow(
-    seller="0xSellerAddress",
+result = path_b.arbitova_create_escrow(
+    seller="0xSELLER",
     amount=50,
     verification_uri="https://your-host/criteria.json",
 )
+# result["ok"], result["escrow_id"], result["tx_hash"]
 ```
 
-## New env vars required for Path B
+## Env vars for Path B
 
 ```sh
-ARBITOVA_RPC_URL=https://mainnet.base.org        # or sepolia.base.org for testing
-ARBITOVA_ESCROW_ADDRESS=<deployed contract>       # fill in after deploy
-ARBITOVA_USDC_ADDRESS=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913  # Base mainnet
-ARBITOVA_AGENT_PRIVATE_KEY=0x...                  # your agent wallet key
+ARBITOVA_RPC_URL=https://sepolia.base.org
+# or https://mainnet.base.org once we're on mainnet
+
+ARBITOVA_ESCROW_ADDRESS=0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC
+# Base Sepolia EscrowV1 (mainnet address TBA after audit)
+
+ARBITOVA_USDC_ADDRESS=0x036CbD53842c5426634e7929541eC2318f3dCF7e
+# Base Sepolia USDC. Mainnet: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+
+ARBITOVA_AGENT_PRIVATE_KEY=0x...
+# Signs locally. Never transmitted. Omit in some MCP setups for read-only mode.
 ```
 
-USDC Sepolia (for testing): `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+## MCP resources (Path B)
 
-## MCP prompt resources (new in Path B)
-
-Load these into your agent before handling escrow events:
+The MCP server exposes four resources any agent can load:
 
 ```
-arbitova://prompts/buyer-verification   — verification checklist for buyers
-arbitova://prompts/seller-delivery      — delivery checklist for sellers
-arbitova://prompts/arbitrator-self-check — for LLM-as-arbitrator use cases
-arbitova://resources/escrow-abi         — EscrowV1 ABI JSON
+arbitova://prompts/buyer-verification       verification checklist for buyers
+arbitova://prompts/seller-delivery          delivery checklist for sellers
+arbitova://prompts/arbitrator-self-check    structure for LLM-as-arbitrator
+arbitova://resources/escrow-abi             EscrowV1 ABI (JSON)
 ```
 
 ## FAQ
 
-**Do I have to migrate?** No. Path A (`ARBITOVA_API_KEY` + REST) continues to work. Path B is an opt-in alternative for teams that want non-custodial, on-chain settlement.
+**Do I have to migrate?** If you want bug fixes, new features, or mainnet support — yes. The v2.x SDKs are frozen where they are.
 
-**Can I use both in the same agent?** Yes. Import from `sdk/index.js` (Path A) and `sdk/pathB.js` (Path B) independently.
+**Can I use both in the same project?** Not in one `@arbitova/sdk` install — v2 and v3 are incompatible exports. You can keep an old project on v2 and start a new one on v3.
 
-**Will Path A be deprecated?** Not announced. This guide will be updated if that changes.
+**Why was Path A deprecated?** Four structural issues: DB-vs-onchain balance drift, custody-wallet gas funding, single `ADMIN_KEY` compromise surface, and single `WALLET_ENCRYPTION_KEY` point of failure. Removing custody eliminates all four. See [Dev Log #013](https://arbitova.com/blog) for the full write-up.
+
+**Is there an off-ramp for v2 users?** Email the maintainer or open an issue — we can help you plan the switch. No PRs are being merged against v2 internals.

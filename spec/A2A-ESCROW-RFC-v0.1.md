@@ -168,7 +168,7 @@ function releaseFeeBps() view returns (uint16);   // fee on confirmDelivery
 function resolveFeeBps() view returns (uint16);   // fee on arbiter resolve
 ```
 
-Fees are denominated in basis points (bps = 1/100th of 1%) on the escrow `amount`. In the Arbitova reference implementation both are 200 bps (2%). The resolve fee comes out of the loser's share.
+Fees are denominated in basis points (bps = 1/100th of 1%) on the escrow `amount`. In the Arbitova reference implementation `releaseFeeBps = 50` (0.5%, happy-path) and `resolveFeeBps = 200` (2%, disputed path). The resolve fee comes out of the loser's share.
 
 ### 4.4 Required events
 
@@ -295,7 +295,8 @@ The Arbitova reference deployment:
 - Settlement asset: Circle USDC
 - Arbiter: Arbitova Arbiter v1, documented at [arbitova.com/arbiter](https://arbitova.com/arbiter), verdict log at [arbitova.com/verdicts](https://arbitova.com/verdicts)
 - Test suite: 66 unit + integration tests, all passing
-- SDK: `@arbitova/sdk` (npm), Python SDK in progress
+- SDKs: `@arbitova/sdk@^3` (npm, JS/TS), `arbitova[path_b]` (PyPI, Python)
+- MCP server: `@arbitova/mcp-server@^4` exposing the six on-chain operations as MCP tools
 - Demo: [A2A demo repo](https://github.com/jiayuanliang0716-max/Arbitova) shows Claude Agent SDK, LangGraph, and CrewAI agents completing end-to-end escrows
 
 ---
