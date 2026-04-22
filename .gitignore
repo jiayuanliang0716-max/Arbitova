@@ -61,3 +61,4 @@ contracts/.env
 PATH_B_STATUS.md
 fund-deployer.html
 .claude/
+artifacts/
