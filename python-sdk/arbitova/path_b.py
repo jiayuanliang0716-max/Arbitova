@@ -30,6 +30,7 @@ __all__ = [
     "arbitova_confirm_delivery",
     "arbitova_dispute",
     "arbitova_cancel_if_not_delivered",
+    "arbitova_escalate_if_expired",
     "arbitova_get_escrow",
     "arbitova_resolve",
     "get_tool_definitions",
@@ -107,6 +108,13 @@ ESCROW_ABI = [
     },
     {
         "name": "cancelIfNotDelivered",
+        "type": "function",
+        "inputs": [{"name": "id", "type": "uint256"}],
+        "outputs": [],
+        "stateMutability": "nonpayable",
+    },
+    {
+        "name": "escalateIfExpired",
         "type": "function",
         "inputs": [{"name": "id", "type": "uint256"}],
         "outputs": [],
@@ -509,6 +517,34 @@ def arbitova_cancel_if_not_delivered(escrow_id: int) -> Dict[str, Any]:
         )
 
 
+def arbitova_escalate_if_expired(escrow_id: int) -> Dict[str, Any]:
+    """
+    Either party (or any watcher) escalates a DELIVERED escrow to DISPUTED after the
+    review window has expired without the buyer confirming. This is the core
+    Path B invariant: silence never releases funds — expiry goes to arbitration, not payout.
+
+    Anyone can call this; it is permissionless. Returns {ok, tx_hash}.
+    """
+    try:
+        w3, account, escrow, _ = _get_web3_context()
+
+        receipt = _send_tx(w3, account, escrow.functions.escalateIfExpired, escrow_id)
+
+        if receipt["status"] != 1:
+            return _err(
+                "escalateIfExpired() reverted",
+                "Escalate only works after reviewDeadline has passed and status is DELIVERED.",
+            )
+
+        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+    except Exception as e:
+        return _err(
+            e,
+            "Escalate requires: status=DELIVERED, reviewDeadline < now. "
+            "Anyone can trigger — buyer, seller, or a neutral watcher.",
+        )
+
+
 # ── Tool definitions (OpenAI-style) ──────────────────────────────────────────
 
 
@@ -699,6 +735,30 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         "escrow_id": {
                             "type": "integer",
                             "description": "The escrow ID to cancel",
+                        },
+                    },
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "arbitova_escalate_if_expired",
+                "description": (
+                    "Escalates a DELIVERED escrow to DISPUTED after the review window expires without buyer action. "
+                    "Permissionless — anyone can call, including neutral watchers. "
+                    "This is the safety net that enforces 'silence never releases funds': if the buyer neither "
+                    "confirms nor disputes, expiry routes the escrow to arbitration, not to seller payout. "
+                    "Only works when status=DELIVERED and reviewDeadline < now. "
+                    "Call arbitova_get_escrow first to confirm both conditions before calling."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "required": ["escrow_id"],
+                    "properties": {
+                        "escrow_id": {
+                            "type": "integer",
+                            "description": "The escrow ID whose review window has expired",
                         },
                     },
                 },

@@ -70,6 +70,7 @@ const ESCROW_ABI = [
   'function confirmDelivery(uint256 id)',
   'function dispute(uint256 id, string reason)',
   'function cancelIfNotDelivered(uint256 id)',
+  'function escalateIfExpired(uint256 id)',
   'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint64 reviewWindowSec, uint8 state, bytes32 deliveryHash, string verificationURI))',
   'event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI)',
   'event Delivered(uint256 indexed id, bytes32 deliveryHash, uint64 reviewDeadline)',
@@ -221,6 +222,20 @@ async function arbitova_cancel_if_not_delivered({ escrowId }) {
   }
 }
 
+async function arbitova_escalate_if_expired({ escrowId }) {
+  try {
+    requireSigner();
+    if (!escrowId) throw new Error('escrowId is required');
+
+    const tx = await escrowWrite.escalateIfExpired(BigInt(escrowId));
+    const receipt = await tx.wait();
+
+    return { ok: true, txHash: receipt.hash };
+  } catch (e) {
+    return errResult(e, 'Escalate is only possible after reviewDeadline has passed and escrow is still in DELIVERED. Any watcher may call it.');
+  }
+}
+
 async function arbitova_get_escrow({ escrowId }) {
   try {
     if (!escrowId) throw new Error('escrowId is required');
@@ -361,6 +376,22 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'arbitova_escalate_if_expired',
+    description:
+      'Permissionlessly escalate a DELIVERED escrow to DISPUTED after the review window has expired. ' +
+      'Any address can call this — buyer, seller, or an independent watcher. ' +
+      'Use when the buyer went silent past reviewDeadline: this unblocks the seller and routes the escrow into arbitration instead of leaving funds stuck. ' +
+      'Only valid when status is DELIVERED and block.timestamp > reviewDeadline. ' +
+      'Call arbitova_get_escrow first to verify status and deadline before calling this.',
+    inputSchema: {
+      type: 'object',
+      required: ['escrowId'],
+      properties: {
+        escrowId: { type: 'string', description: 'The escrow ID to escalate' },
+      },
+    },
+  },
 ];
 
 async function handleTool(name, args) {
@@ -371,6 +402,7 @@ async function handleTool(name, args) {
     case 'arbitova_dispute':                 return arbitova_dispute(args);
     case 'arbitova_get_escrow':              return arbitova_get_escrow(args);
     case 'arbitova_cancel_if_not_delivered': return arbitova_cancel_if_not_delivered(args);
+    case 'arbitova_escalate_if_expired':     return arbitova_escalate_if_expired(args);
     default:
       throw new Error(`Unknown tool: ${name}`);
   }

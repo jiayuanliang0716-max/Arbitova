@@ -194,6 +194,29 @@ export class Arbitova {
     return { txHash: rc.hash };
   }
 
+  // Arbiter-only. Must be called from the arbiter wallet configured on the contract.
+  // buyerBps + sellerBps must sum to exactly 10000 (100%). verdictHash is a bytes32
+  // commitment to the full arbitration reasoning (e.g. keccak256 of a JSON verdict).
+  // Accepts verdictHash as 0x-hex string or a pre-hashed URI via Arbitova.keccakURI().
+  async resolve({ escrowId, buyerBps, sellerBps, verdictHash }) {
+    this.requireSigner();
+    const b = Number(buyerBps);
+    const s = Number(sellerBps);
+    if (!Number.isInteger(b) || !Number.isInteger(s) || b < 0 || s < 0 || b > 10000 || s > 10000) {
+      throw new Error('buyerBps and sellerBps must be integers in [0, 10000].');
+    }
+    if (b + s !== 10000) throw new Error(`buyerBps + sellerBps must equal 10000 (got ${b + s}).`);
+    if (typeof verdictHash !== 'string' || !/^0x[a-fA-F0-9]{64}$/.test(verdictHash)) {
+      throw new Error('verdictHash must be a 0x-prefixed 32-byte hex string.');
+    }
+    const tx = await this.escrowWrite.resolve(
+      BigInt(escrowId), b, s, verdictHash,
+      { gasLimit: GAS_LIMITS.resolve },
+    );
+    const rc = await tx.wait();
+    return { txHash: rc.hash };
+  }
+
   // ── Escrow — read ────────────────────────────────────────────────────────
 
   async getEscrow(escrowId) {

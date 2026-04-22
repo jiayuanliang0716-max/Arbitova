@@ -37,6 +37,7 @@ export const ESCROW_ABI = [
   'function dispute(uint256 id, string reason)',
   'function cancelIfNotDelivered(uint256 id)',
   'function escalateIfExpired(uint256 id)',
+  'function resolve(uint256 id, uint16 buyerBps, uint16 sellerBps, bytes32 verdictHash)',
   'function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint64 deliveryDeadline, uint64 reviewDeadline, uint64 reviewWindowSec, uint8 state, bytes32 deliveryHash, string verificationURI))',
   'function nextEscrowId() view returns (uint256)',
   'function releaseFeeBps() view returns (uint16)',
@@ -74,4 +75,5 @@ export const GAS_LIMITS = {
   dispute: 120_000n,
   cancelIfNotDelivered: 120_000n,
   escalateIfExpired: 120_000n,
+  resolve: 200_000n,
 };
