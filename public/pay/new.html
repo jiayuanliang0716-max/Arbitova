@@ -174,7 +174,7 @@
     // Demo seller pill — populate only if the bot is enabled server-side.
     (async () => {
       try {
-        const r = await fetch('/demo-seller-info');
+        const r = await fetch('https://api.arbitova.com/demo-seller-info');
         if (!r.ok) return;
         const info = await r.json();
         if (!info.enabled || !info.address) return;

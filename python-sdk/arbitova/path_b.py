@@ -303,7 +303,7 @@ def arbitova_create_escrow(
                     escrow_id = int.from_bytes(bytes(topics[1]), "big")
                     break
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex(), "escrow_id": escrow_id}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex(), "escrow_id": escrow_id}
     except Exception as e:
         return _err(e, "Check USDC balance, RPC URL, and that seller address is valid.")
 
@@ -338,7 +338,7 @@ def arbitova_mark_delivered(
 
         return {
             "ok": True,
-            "tx_hash": receipt["transactionHash"].hex(),
+            "tx_hash": "0x" + receipt["transactionHash"].hex(),
             "delivery_hash": "0x" + delivery_hash.hex(),
             "hash_basis": hash_basis,
         }
@@ -393,7 +393,7 @@ def arbitova_confirm_delivery(
         if receipt["status"] != 1:
             return _err("confirmDelivery() reverted", "Only the buyer can confirm. Escrow must be DELIVERED.")
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(e, "Only the buyer can confirm. Escrow must be in DELIVERED state and within review window.")
 
@@ -433,7 +433,7 @@ def arbitova_resolve(
         if receipt["status"] != 1:
             return _err("resolve() reverted", "Only the arbiter can resolve. Escrow must be DISPUTED.")
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(
             e,
@@ -455,7 +455,7 @@ def arbitova_dispute(escrow_id: int, reason: str) -> Dict[str, Any]:
         if receipt["status"] != 1:
             return _err("dispute() reverted", "Check that the escrow is in a disputable state.")
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(
             e,
@@ -485,7 +485,7 @@ def arbitova_get_escrow(escrow_id: int) -> Dict[str, Any]:
             "amount_usdc": amount / 1e6,
             "delivery_deadline": delivery_deadline,
             "review_deadline": review_deadline if review_deadline > 0 else None,
-            "status": STATUS_NAMES[status] if status < len(STATUS_NAMES) else str(status),
+            "state": STATUS_NAMES[status] if status < len(STATUS_NAMES) else str(status),
             "verification_uri": verification_uri,
             "delivery_hash": "0x" + delivery_hash.hex() if delivery_hash != ZERO_HASH else None,
         }
@@ -506,10 +506,10 @@ def arbitova_cancel_if_not_delivered(escrow_id: int) -> Dict[str, Any]:
         if receipt["status"] != 1:
             return _err(
                 "cancelIfNotDelivered() reverted",
-                "Cancel only works after deliveryDeadline has passed and status is CREATED.",
+                "Cancel only works after deliveryDeadline has passed and state is CREATED.",
             )
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(
             e,
@@ -533,14 +533,14 @@ def arbitova_escalate_if_expired(escrow_id: int) -> Dict[str, Any]:
         if receipt["status"] != 1:
             return _err(
                 "escalateIfExpired() reverted",
-                "Escalate only works after reviewDeadline has passed and status is DELIVERED.",
+                "Escalate only works after reviewDeadline has passed and state is DELIVERED.",
             )
 
-        return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
+        return {"ok": True, "tx_hash": "0x" + receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(
             e,
-            "Escalate requires: status=DELIVERED, reviewDeadline < now. "
+            "Escalate requires: state=DELIVERED, reviewDeadline < now. "
             "Anyone can trigger — buyer, seller, or a neutral watcher.",
         )
 
@@ -726,7 +726,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "Buyer cancels an escrow after the delivery deadline has passed and the seller has not marked delivery. "
                     "Full USDC refund to buyer. Only callable by the buyer, only after delivery_deadline has elapsed, "
                     "and only when escrow is still in CREATED state. "
-                    "Call arbitova_get_escrow first to verify the deadline has passed and status is CREATED."
+                    "Call arbitova_get_escrow first to verify the deadline has passed and state is CREATED."
                 ),
                 "parameters": {
                     "type": "object",
@@ -749,7 +749,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "Permissionless — anyone can call, including neutral watchers. "
                     "This is the safety net that enforces 'silence never releases funds': if the buyer neither "
                     "confirms nor disputes, expiry routes the escrow to arbitration, not to seller payout. "
-                    "Only works when status=DELIVERED and reviewDeadline < now. "
+                    "Only works when state=DELIVERED and reviewDeadline < now. "
                     "Call arbitova_get_escrow first to confirm both conditions before calling."
                 ),
                 "parameters": {
