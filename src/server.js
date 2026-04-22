@@ -121,7 +121,10 @@ app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'publ
 app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
 app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 
-// Mode check (no sensitive data exposed)
+// Path A — /api/mode + Swagger UI disabled (2026-04-23).
+// Path A is deprecated; non-custodial Path B has no server-side keys.
+// Source kept in v2-path-a-legacy tag.
+/*
 app.get('/api/mode', (req, res) => {
   res.json({
     chain_mode: !!(process.env.ALCHEMY_API_KEY && process.env.WALLET_ENCRYPTION_KEY),
@@ -130,9 +133,8 @@ app.get('/api/mode', (req, res) => {
     chain: process.env.CHAIN || 'base-sepolia'
   });
 });
-
-// API Reference (Swagger UI)
 app.use('/api-reference', swaggerUi.serve, swaggerUi.setup(openApiSpec));
+*/
 
 // Quick Start Docs
 app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'docs.html')));
@@ -243,24 +245,28 @@ app.get('/.well-known/agent.json', (req, res) => {
   });
 });
 
-// Routes — v1 (canonical, SDK points here)
+// Routes — v1
+// Path A mounts disabled 2026-04-23. Source in v2-path-a-legacy tag.
+// Kept mounted: /admin (site-config, announcements), /arbitrate (GET /verdicts),
+// /posts (blog). These have Path B-relevant handlers inside.
 const apiV1 = express.Router();
-apiV1.use('/agents', agentRoutes);
-apiV1.use('/services', serviceRoutes);
-apiV1.use('/orders', orderRoutes);
-apiV1.use('/withdrawals', withdrawalRoutes);
-apiV1.use('/notifications', notificationRoutes);
+// apiV1.use('/agents', agentRoutes);
+// apiV1.use('/services', serviceRoutes);
+// apiV1.use('/orders', orderRoutes);
+// apiV1.use('/withdrawals', withdrawalRoutes);
+// apiV1.use('/notifications', notificationRoutes);
 apiV1.use('/admin', adminRoutes);
-apiV1.use('/webhooks', webhookRoutes);
-apiV1.use('/api-keys', apiKeyRoutes);
-apiV1.use('/x402', x402Routes);
+// apiV1.use('/webhooks', webhookRoutes);
+// apiV1.use('/api-keys', apiKeyRoutes);
+// apiV1.use('/x402', x402Routes);
 apiV1.use('/arbitrate', arbitrationRoutes);
-apiV1.use('/credentials', credentialRoutes);
+// apiV1.use('/credentials', credentialRoutes);
 apiV1.use('/posts', postRoutes);
-apiV1.use('/auth', authRoutes);
+// apiV1.use('/auth', authRoutes);
 
-// POST /api/v1/simulate — dry-run a full order lifecycle without real balance changes
-// Returns simulated timeline events. Great for integration testing.
+// Path A — /simulate, /analytics, /manifest disabled 2026-04-23.
+// Source in v2-path-a-legacy tag.
+/*
 const { requireApiKey: simulateAuth } = require('./middleware/auth');
 apiV1.post('/simulate', simulateAuth, async (req, res) => {
   try {
@@ -613,8 +619,10 @@ apiV1.get('/manifest', (req, res) => {
     req.on('error', cleanup);
   });
 }
+*/
 
 // GET /api/v1/ — API overview
+/*
 apiV1.get('/', (req, res) => {
   res.json({
     name: 'Arbitova API',
@@ -663,6 +671,7 @@ apiV1.get('/', (req, res) => {
     ],
   });
 });
+*/
 // ── Public site-config endpoint — no auth needed ──────────────────────────────
 // Returns active announcements and editable content keys for the frontend.
 apiV1.get('/site-config', async (req, res) => {
@@ -694,7 +703,8 @@ app.use('/api/v1', apiV1);
 app.use('/mcp', mcpHttpRoutes);
 
 // Alchemy Address Activity webhook (Path A agent-wallet inbound deposits)
-app.use('/webhook', webhookRouter);
+// Path A — disabled 2026-04-23. No custody, no deposits.
+// app.use('/webhook', webhookRouter);
 
 // Health check — detailed system status
 const { dbGet: healthDbGet } = require('./db/helpers');
@@ -741,7 +751,9 @@ app.get('/api/v1/health', async (req, res) => {
   }
 });
 
-// GET /api/v1/platform/stats — public platform statistics (no auth, great for landing page proof)
+// Path A — /platform/stats + /pricing disabled 2026-04-23 (query Path A tables).
+// Source in v2-path-a-legacy tag.
+/*
 app.get('/api/v1/platform/stats', async (req, res) => {
   try {
     const { dbGet: pgGet, dbAll: pgAll } = require('./db/helpers');
@@ -815,6 +827,7 @@ app.get('/api/v1/pricing', (req, res) => {
     updated_at: '2026-04-12',
   });
 });
+*/
 
 // 404 處理
 app.use((req, res) => {
@@ -840,9 +853,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Background jobs (cron) — runs in-process on free hosting ─────────────────
-// To separate: run "node src/worker.js" as a second service (requires paid plan)
-require('./worker');
+// ── Background jobs (cron) — Path A disabled 2026-04-23 ───────────────────────
+// Path A cron (order expiry, auto-arbitrate) no longer runs. Path B has its
+// own worker in src/path_b/worker.js (started by indexer or separate process).
+// require('./worker');
 
 // ── Demo seller bot (auto-deliver for single-wallet testing) ─────────────────
 const { startDemoSellerBot } = require('./demo_seller_bot');
