@@ -223,13 +223,13 @@ class TestErrorResultShape(unittest.TestCase):
 
 class TestStatusNames(unittest.TestCase):
 
-    def test_status_names_contains_expected_values(self):
-        expected = ['PENDING', 'DELIVERED', 'CONFIRMED', 'DISPUTED', 'CANCELLED', 'RESOLVED']
-        for s in expected:
-            self.assertIn(s, STATUS_NAMES)
+    def test_status_names_match_contract_enum(self):
+        # Must match EscrowV1.sol: enum State { CREATED, DELIVERED, RELEASED, DISPUTED, RESOLVED, CANCELLED }
+        expected = ['CREATED', 'DELIVERED', 'RELEASED', 'DISPUTED', 'RESOLVED', 'CANCELLED']
+        self.assertEqual(STATUS_NAMES, expected)
 
-    def test_pending_is_index_zero(self):
-        self.assertEqual(STATUS_NAMES[0], 'PENDING')
+    def test_created_is_index_zero(self):
+        self.assertEqual(STATUS_NAMES[0], 'CREATED')
 
     def test_delivered_is_index_one(self):
         self.assertEqual(STATUS_NAMES[1], 'DELIVERED')

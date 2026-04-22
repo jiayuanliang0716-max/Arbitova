@@ -296,7 +296,7 @@ def arbitova_mark_delivered(
         receipt = _send_tx(w3, account, escrow.functions.markDelivered, escrow_id, delivery_hash)
 
         if receipt["status"] != 1:
-            return _err("markDelivered() reverted", "Ensure you are the seller and escrow is PENDING.")
+            return _err("markDelivered() reverted", "Ensure you are the seller and escrow is in CREATED state.")
 
         return {
             "ok": True,
@@ -468,14 +468,14 @@ def arbitova_cancel_if_not_delivered(escrow_id: int) -> Dict[str, Any]:
         if receipt["status"] != 1:
             return _err(
                 "cancelIfNotDelivered() reverted",
-                "Cancel only works after deliveryDeadline has passed and status is PENDING.",
+                "Cancel only works after deliveryDeadline has passed and status is CREATED.",
             )
 
         return {"ok": True, "tx_hash": receipt["transactionHash"].hex()}
     except Exception as e:
         return _err(
             e,
-            "Cancel is only possible after the delivery deadline has passed and the escrow is still PENDING.",
+            "Cancel is only possible after the delivery deadline has passed and the escrow is still in CREATED state.",
         )
 
 
@@ -637,8 +637,8 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "verification_uri, and delivery_hash. "
                     "Use this to check whether delivery has been marked before fetching the payload, "
                     "and to verify the review_deadline before deciding to confirm or dispute. "
-                    "Status values: PENDING (awaiting delivery), DELIVERED (seller marked done, review window open), "
-                    "CONFIRMED (funds released), DISPUTED (in arbitration), CANCELLED, RESOLVED."
+                    "Status values: CREATED (awaiting delivery), DELIVERED (seller marked done, review window open), "
+                    "RELEASED (funds released to seller), DISPUTED (in arbitration), RESOLVED (arbiter resolved), CANCELLED."
                 ),
                 "parameters": {
                     "type": "object",
@@ -659,8 +659,8 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                 "description": (
                     "Buyer cancels an escrow after the delivery deadline has passed and the seller has not marked delivery. "
                     "Full USDC refund to buyer. Only callable by the buyer, only after delivery_deadline has elapsed, "
-                    "and only when escrow is still in PENDING state. "
-                    "Call arbitova_get_escrow first to verify the deadline has passed and status is PENDING."
+                    "and only when escrow is still in CREATED state. "
+                    "Call arbitova_get_escrow first to verify the deadline has passed and status is CREATED."
                 ),
                 "parameters": {
                     "type": "object",
