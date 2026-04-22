@@ -1,11 +1,19 @@
 """
 Arbitova + LangChain Integration Example
 
-Shows how to use Arbitova escrow and arbitration as LangChain tools
-in a multi-agent workflow.
+⚠️ LEGACY (Path A custodial API). This example uses `Arbitova(api_key=...)`
+which hits the deprecated a2a-system.onrender.com backend. It will not work
+against the current on-chain Path B contract.
 
-Install:
-    pip install arbitova langchain langchain-anthropic
+For the current Path B integration:
+  * 15-min tutorial: docs/tutorials/15-min-paid-agent.md
+  * LangGraph reference demo: demo/Arbitova-A2A-Demo-LangGraph
+  * Python SDK Path B: `from arbitova import path_b`
+
+Preserved below for reference.
+
+Install (for legacy v2 usage only):
+    pip install 'arbitova<2.5' langchain langchain-anthropic
 """
 
 import os

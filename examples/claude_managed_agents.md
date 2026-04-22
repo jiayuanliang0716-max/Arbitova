@@ -1,5 +1,12 @@
 # Arbitova + Claude Managed Agents
 
+> ⚠️ **This example targets Arbitova Path A (the deprecated custodial API) and will not run against `@arbitova/mcp-server@4.x`.** For the current non-custodial on-chain version, see:
+> - [15-minute Path B tutorial](../docs/tutorials/15-min-paid-agent.md)
+> - [mcp-server README](../mcp-server/README.md)
+> - [Migration guide](../mcp-server/MIGRATION.md)
+>
+> The content below is preserved for reference only. Path A packages remain on npm (`@arbitova/mcp-server@3.4.0`) for existing integrations but receive no further updates.
+
 Complete guide to adding escrow and AI arbitration to Claude Managed Agents.
 
 ## Setup (30 seconds)

@@ -1,19 +1,20 @@
 /**
  * Arbitova + Mastra Integration Example
  *
- * Wraps Arbitova escrow and arbitration as Mastra tools, so a Mastra
- * agent can lock funds, deliver work, confirm, dispute, and arbitrate
- * on behalf of its operator.
+ * ⚠️ LEGACY (Path A custodial API). This example uses
+ * `new Arbitova({ apiKey })` which hits the deprecated a2a-system.onrender.com
+ * backend. It will not work against the current on-chain Path B contract.
  *
- * Install:
- *   npm install @mastra/core @ai-sdk/anthropic @arbitova/sdk zod
+ * For the current Path B integration:
+ *   - 15-min tutorial: docs/tutorials/15-min-paid-agent.md
+ *   - SDK v3 (non-custodial): `import { Arbitova } from '@arbitova/sdk'`
+ *                             with `Arbitova.fromPrivateKey({ privateKey })`
+ *   - MCP server v4: npm install @arbitova/mcp-server
  *
- * Env:
- *   ARBITOVA_API_KEY   — from https://arbitova.com
- *   ANTHROPIC_API_KEY  — model provider
+ * Preserved below for reference.
  *
- * Run:
- *   npx tsx examples/mastra_integration.ts
+ * Install (for legacy v2 usage only):
+ *   npm install @mastra/core @ai-sdk/anthropic '@arbitova/sdk@^2.3' zod
  */
 
 import { Mastra } from '@mastra/core';
