@@ -1,0 +1,39 @@
+{
+  "name": "@arbitova/x402-adapter",
+  "version": "0.1.0-alpha.0",
+  "description": "Wrap an x402 payment flow with Arbitova non-custodial USDC escrow and a dispute window. Opt-in via server response header.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": ["src", "README.md"],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "arbitova",
+    "x402",
+    "escrow",
+    "a2a",
+    "agents",
+    "usdc",
+    "base",
+    "coinbase",
+    "cdp"
+  ],
+  "author": "Arbitova",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jiayuanliang0716-max/Arbitova"
+  },
+  "homepage": "https://arbitova.com/integrate",
+  "peerDependencies": {
+    "@arbitova/sdk": "^3.0.0",
+    "ethers": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
