@@ -495,9 +495,14 @@
           <td><code>markDelivered(id, keccak256, uri)</code> on-chain</td>
         </tr>
         <tr>
-          <td>Two-tier arbitration (Arbitova first instance + Kleros appeal)</td>
+          <td>Per-case public verdict dashboard (<code>/verdicts</code>)</td>
           <td><strong>Design</strong></td>
-          <td><code>docs/two-tier-arbitration-design.md</code>; contract draft at <code>contracts/draft/EscrowV1WithKleros.sol</code>; not deployed</td>
+          <td><code>docs/transparency-policy.md</code>; every verdict, reasoning, vote ensemble, and internal re-audit result published per-case; rolling-30 disagreement gate 10% → public dev log</td>
+        </tr>
+        <tr>
+          <td>Optional UMA Optimistic Oracle appeal (Phase 6 research)</td>
+          <td><strong>Research</strong></td>
+          <td>Considered after first 100 mainnet disputes. See <code>docs/decisions/M-0-arbiter-architecture-v1.md</code> for why v1 ships single-tier and why Kleros was ruled out.</td>
         </tr>
         <tr>
           <td>3-of-5 multisig arbiter</td>
@@ -887,7 +892,7 @@
         </tr>
         <tr>
           <td>On-chain arbiter registry</td>
-          <td>Today <code>arbiter</code> is a single address in storage. A registry lets Arbitova support multiple arbiter providers (self-hosted, Kleros, others) without redeploying the escrow.</td>
+          <td>Today <code>arbiter</code> is a single address in storage. A registry would let Arbitova support multiple arbiter providers (self-hosted, external oracles, others) without redeploying the escrow. Relevant if Phase 6 UMA research results in an opt-in appeal path.</td>
           <td>Not started</td>
         </tr>
         <tr>
