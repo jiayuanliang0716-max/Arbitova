@@ -37,7 +37,6 @@ const { dbGet, dbRun, dbAll } = require('../src/db/helpers');
 const {
   SETTLEMENT_FEE_RATE,
   DISPUTE_FEE_RATE,
-  EXTERNAL_ARB_RATE,
   RELEASE_FEE_RATE,
   creditPlatformFee,
   debitPlatformFee,
@@ -111,7 +110,6 @@ test('I3 fee = amount * rate is exact on canonical test values', async () => {
   const cases = [
     { amount: 100,   rate: SETTLEMENT_FEE_RATE, expected: 0.5 },
     { amount: 100,   rate: DISPUTE_FEE_RATE,    expected: 2.0 },
-    { amount: 100,   rate: EXTERNAL_ARB_RATE,   expected: 5.0 },
     { amount: 0.01,  rate: SETTLEMENT_FEE_RATE, expected: 0.00005 },
     { amount: 9999.99, rate: SETTLEMENT_FEE_RATE, expected: 49.99995 },
   ];
@@ -214,11 +212,9 @@ test('I6 auto-confirm cron fee equals manual confirm fee (SLA parity)', () => {
 });
 
 // ── I7: Rate ordering — dispute must cost more than settlement ────────────
-test('I7 rate ordering: dispute > settlement, external > dispute', () => {
+test('I7 rate ordering: dispute > settlement', () => {
   assert.ok(DISPUTE_FEE_RATE > SETTLEMENT_FEE_RATE,
     `dispute rate (${DISPUTE_FEE_RATE}) must exceed settlement rate (${SETTLEMENT_FEE_RATE})`);
-  assert.ok(EXTERNAL_ARB_RATE > DISPUTE_FEE_RATE,
-    `external rate (${EXTERNAL_ARB_RATE}) must exceed dispute rate (${DISPUTE_FEE_RATE})`);
   assert.ok(RELEASE_FEE_RATE === SETTLEMENT_FEE_RATE,
     `legacy alias RELEASE_FEE_RATE must equal SETTLEMENT_FEE_RATE`);
 });

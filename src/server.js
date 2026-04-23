@@ -9,7 +9,7 @@ const nodemailer = require('nodemailer');
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
 
-const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE, EXTERNAL_ARB_RATE } = require('./config/fees');
+const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
 
 const agentRoutes = require('./routes/agents');
 const serviceRoutes = require('./routes/services');
@@ -490,14 +490,6 @@ apiV1.get('/manifest', (req, res) => {
         parameters: {},
       },
       {
-        name: 'external_batch_arbitrate',
-        description: 'Submit up to 10 external disputes for parallel AI arbitration (for third-party escrow providers).',
-        method: 'POST', path: '/arbitrate/batch',
-        parameters: {
-          disputes: { type: 'array', items: { type: 'object' }, maxItems: 10, required: true },
-        },
-      },
-      {
         name: 'get_reputation',
         description: 'Get an agent\'s reputation score and category breakdown.',
         method: 'GET', path: '/agents/{agent_id}/reputation',
@@ -663,7 +655,7 @@ apiV1.get('/', (req, res) => {
       funding:       ['POST /payments/checkout', 'POST /agents/:id/sync-balance', 'GET /agents/:id/wallet'],
       webhooks:      ['POST /webhooks', 'GET /webhooks', 'DELETE /webhooks/:id', 'POST /webhooks/:id/test', 'GET /webhooks/:id/deliveries'],
       api_keys:      ['POST /api-keys', 'GET /api-keys', 'DELETE /api-keys/:id'],
-      arbitration:   ['POST /arbitrate/external', 'POST /arbitrate/batch'],
+      arbitration:   ['GET /arbitrate/verdicts'],
       services:      ['POST /services', 'GET /services/:id', 'PATCH /services/:id', 'DELETE /services/:id', 'POST /services/:id/clone', 'GET /services/:id/analytics', 'GET /agents/me/services', 'GET /agents/:id/services'],
       identity:      ['POST /agents/register', 'PATCH /agents/me', 'GET /agents/me', 'GET /agents/search', 'GET /agents/:id', 'GET /agents/:id/reputation', 'GET /agents/:id/activity', 'GET /agents/:id/public-profile', 'GET /agents/leaderboard', 'POST /agents/:id/rotate-key', 'GET /agents/:id/services'],
       messages:      ['POST /messages/send', 'GET /messages'],
@@ -808,12 +800,6 @@ app.get('/api/v1/pricing', (req, res) => {
         rate: DISPUTE_FEE_RATE,
         description: '2.0% of order amount, deducted when AI arbitration resolves a dispute (bound transactions only)',
         example: 'On a 100 USDC order: 2.00 USDC fee split from escrow',
-      },
-      external_arbitration: {
-        rate: EXTERNAL_ARB_RATE,
-        description: '5.0% of disputed amount, deducted from caller\'s Arbitova balance per /arbitrate/external or /arbitrate/batch call (unbound — escrow held elsewhere)',
-        example: 'On a 100 USDC dispute: 5.00 USDC fee',
-        note: 'Bind transactions via POST /orders to pay only 2% on dispute.',
       },
       registration: { rate: 0, description: 'Free — no charge to register an agent' },
       escrow_lock: { rate: 0, description: 'Free — no charge to lock funds in escrow' },
