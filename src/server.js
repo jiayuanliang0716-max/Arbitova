@@ -11,21 +11,23 @@ require('./db/schema');
 
 const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
 
-const agentRoutes = require('./routes/agents');
-const serviceRoutes = require('./routes/services');
-const orderRoutes = require('./routes/orders');
-const withdrawalRoutes = require('./routes/withdrawals');
-const webhookRouter = require('./webhook');
-const notificationRoutes = require('./routes/notifications');
+// Path A route requires removed 2026-04-24 — mounts already disabled.
+// Source in v2-path-a-legacy tag. Files pending deletion in follow-up commit.
+// const agentRoutes = require('./routes/agents');
+// const serviceRoutes = require('./routes/services');
+// const orderRoutes = require('./routes/orders');
+// const withdrawalRoutes = require('./routes/withdrawals');
+// const webhookRouter = require('./webhook');
+// const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
-const webhookRoutes = require('./routes/webhooks');
-const apiKeyRoutes = require('./routes/apikeys');
-const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
+// const webhookRoutes = require('./routes/webhooks');
+// const apiKeyRoutes = require('./routes/apikeys');
+// const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const arbitrationRoutes = require('./routes/arbitration');
-const credentialRoutes = require('./routes/credentials');
+// const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
-const authRoutes = require('./routes/auth');
+// const authRoutes = require('./routes/auth');
 const { dbAll } = require('./db/helpers');
 
 const app = express();
