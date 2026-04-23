@@ -254,21 +254,30 @@ floor, decided v1 will ship **without** a Kleros appeal layer. See
 
 ### Remaining Phase 3 items
 
-- [ ] **M-2 founder sign-off** on internal-audit transparency
-      posture (expected: option (b), quarterly + 10% gate).
-- [ ] 🤖 After M-2 decision, draft `docs/transparency-policy.md`
-      codifying the chosen cadence and gate.
+- [x] **M-2 founder sign-off** — resolved 2026-04-23:
+      **option (a), per-case public**, overriding recommendation.
+      Founder accepts short-term noise and cherry-picking risks
+      in exchange for maximum brand-alignment with "everything
+      can be verified."
+- [x] 🤖 `docs/transparency-policy.md` written, commit TBD.
 - [ ] 🤖 Update public site copy (`arbitova.com` homepage and
-      `/architecture`) to remove any "decentralized appeal" or
-      "Kleros" language. v1 messaging is "AI-first arbitration
-      with multisig-signed rulings and quarterly transparency
-      reports." Precise copy TBD.
+      `/architecture` and `/learn`) to remove any "decentralized
+      appeal" or "Kleros" language. v1 messaging is "AI-first
+      arbitration with multisig-signed rulings; every verdict
+      public at arbitova.com/verdicts."
+- [ ] 🤖 Wire the verdict-browsing dashboard at
+      `arbitova.com/verdicts` (list + per-case + JSON endpoints).
+      Engineering — Phase 4 territory.
+- [ ] 🤖 Add SDK + UI disclosure banner for party consent to
+      per-case publication, per the transparency policy.
+- [ ] 🤖 Add re-audit workflow to ops runbook.
 
 ### Stop condition
 
-None of the remaining items block v1. Site-copy updates can ship
-post-M-2 decision, not before. Phase 4 Sepolia work is decoupled
-from Phase 3 now that Kleros is out of scope.
+None of the remaining items block v1 contract deployment. The
+site-copy update should ship before any public launch post. The
+verdict dashboard should ship before first real dispute on
+mainnet (not a hard ship-blocker for Sepolia itself).
 
 ---
 

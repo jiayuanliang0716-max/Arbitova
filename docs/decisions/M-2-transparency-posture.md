@@ -218,16 +218,28 @@ priority.
 
 ## Decision record
 
-- [ ] Founder choice: ______  (a / b / c)
-- [ ] Date: ______
-- [ ] Rationale if different from recommendation: ______
-- [ ] Follow-up: draft `docs/transparency-policy.md` codifying
-      the quarterly report structure, the 10% gate, and the
-      sample methodology
-- [ ] Follow-up: reserve `arbitova.com/transparency/` URL path
-      in the site routing config
+- [x] Founder choice: **(a) Per-case public**
+- [x] Date: 2026-04-23
+- [x] Rationale (overriding recommendation): Founder prefers
+      maximum verifiability, accepts the short-term noise and
+      cherry-picking risks as the cost of the "everything can be
+      verified" brand claim. Aggregation-based opacity was
+      judged to be in tension with the core identity of the
+      product. Early-stage sample size risk is acknowledged
+      and explicitly accepted.
+- [x] Follow-up: draft `docs/transparency-policy.md` codifying
+      the per-case-public commitment, the dashboard scope, the
+      internal re-audit cadence, and the pre-committed gate
+- [ ] Follow-up: reserve `arbitova.com/verdicts/` URL path
+      in the site routing config and wire the indexer → dashboard
+      pipeline (engineering, Phase 4 territory)
 - [ ] Follow-up: add re-audit workflow to ops runbook
-      (who audits, on what sample, documented how)
+      (who audits, on what sample, documented how, where the
+      result is published per-case)
+- [ ] Follow-up: define a `party_privacy_waiver` acceptance
+      flow — parties to a dispute must be informed at escrow
+      creation time that verdict + reasoning will be public
+      (consent banner in SDK + UI)
 - [ ] Follow-up: decide if/when to move re-audits to an
       external contracted auditor (cost + credibility trade-off,
       revisit at 500 rulings)
