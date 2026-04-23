@@ -94,6 +94,8 @@ For every dispute that reaches a verdict:
 
 ## The re-audit program
 
+Operational SOP: `docs/arbiter-ops-runbook.md` §1.
+
 Even with maximum publication, we still need an internal quality
 signal — the public can see every ruling, but only we can
 systematically re-grade past rulings to detect drift.
