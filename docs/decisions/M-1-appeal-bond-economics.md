@@ -1,6 +1,12 @@
 # M-1 Decision Brief: Appeal Bond Economics for Small Escrows
 
-Status: **AWAITING FOUNDER DECISION** (blocks Phase 4 Sepolia deploy of two-tier)
+> ⚠️ **SUPERSEDED 2026-04-23.** Founder decided v1 ships without
+> Kleros appeal. See `docs/decisions/M-0-arbiter-architecture-v1.md`.
+> No bond means no bond-economics problem. This brief is retained
+> for historical context and as reference material if appeal is
+> added in Phase 6 via UMA or equivalent.
+
+Status: ~~AWAITING FOUNDER DECISION~~ **SUPERSEDED by M-0**
 Source audit finding: `docs/remediation-plan.md` row M-1
 Date: 2026-04-23
 

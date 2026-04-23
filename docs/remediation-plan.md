@@ -228,53 +228,47 @@ page before continuing.
 
 ---
 
-## Phase 3 — Founder decisions (this week, 1–2h 👤 + ~2h 🤖 to write up)
+## Phase 3 — Founder decisions
 
-**Goal:** resolve the three strategic ambiguities that the plan
-cannot decide for you.
+**STATUS 2026-04-23:** Phase 3 substantially collapsed by the M-0
+architecture decision.
 
-### Items requiring founder decision
+The founder reviewed the M-1 brief and, seeing the $60/case Kleros
+floor, decided v1 will ship **without** a Kleros appeal layer. See
+`docs/decisions/M-0-arbiter-architecture-v1.md`.
 
-- [ ] **M-1 (founder)** — Pick one of:
-      a) **Threshold**: two-tier only for escrows ≥ $X. Below
-         threshold, single-tier (Arbitova-final). Recommend X=$100.
-      b) **Subsidy**: Arbitova treasury subsidizes small-escrow
-         appeal bonds up to $N/month cap. Predictable cost, wins
-         goodwill.
-      c) **Batch**: allow multiple small disputes to be bundled
-         into one Kleros case. Higher engineering cost, cleanest
-         economics.
-- [ ] **M-2 (founder)** — Pick transparency posture:
-      a) **Per-case public** — every verdict + reversal visible.
-      b) **Quarterly aggregate public** — buckets by type + size.
-      c) **Internal dashboard + annual report public**.
-      My recommendation: (b) + commitment to publish root-cause
-      dev log if reversal rate exceeds 15%.
-- [ ] **M-6 (founder)** — Pick bond currency:
-      a) ETH (matches Kleros native fee).
-      b) USDC with internal DEX hop to ETH for the Kleros payment.
-      c) Native Arbitova token (no, not this year, but noting).
+### Consequences
 
-### Follow-up after decisions
+- [x] **M-1 — SUPERSEDED.** No Kleros means no bond. Brief marked
+      superseded; retained for historical context and Phase 6
+      UMA research.
+- [ ] **M-2 — OPEN, RESHAPED.** With no Kleros, the question is no
+      longer "publish reversal rate?" but "how do we honestly
+      grade our own ruling quality?" New brief at
+      `docs/decisions/M-2-transparency-posture.md` proposes
+      internal audit rate + 10% gate + quarterly aggregate
+      report. Awaits founder sign-off.
+- [x] **M-6 — SUPERSEDED.** No bond, no currency question.
+- [x] **Two-tier design doc** — marked DEPRECATED.
+- [x] **Kleros integration plan** — marked DEPRECATED.
 
-- [ ] 🤖 Write each decision into `docs/decisions/` as its own
-      markdown file (M-1.md, M-2.md, M-6.md). One file per decision
-      so they are individually citable.
-- [ ] 🤖 Update `two-tier-arbitration-design.md` to remove the
-      "three options" language and state the chosen path.
+### Remaining Phase 3 items
 
-### Acceptance
-
-- `docs/decisions/` contains three decision records.
-- `two-tier-arbitration-design.md` has no outstanding "TBD" in
-  its Three Design Decisions section.
+- [ ] **M-2 founder sign-off** on internal-audit transparency
+      posture (expected: option (b), quarterly + 10% gate).
+- [ ] 🤖 After M-2 decision, draft `docs/transparency-policy.md`
+      codifying the chosen cadence and gate.
+- [ ] 🤖 Update public site copy (`arbitova.com` homepage and
+      `/architecture`) to remove any "decentralized appeal" or
+      "Kleros" language. v1 messaging is "AI-first arbitration
+      with multisig-signed rulings and quarterly transparency
+      reports." Precise copy TBD.
 
 ### Stop condition
 
-If founder decides the small-escrow strategy (M-1) is "none of the
-three, revisit later", flag that two-tier cannot launch at all until
-this is resolved. Do not ship a two-tier with unresolved
-small-escrow behavior.
+None of the remaining items block v1. Site-copy updates can ship
+post-M-2 decision, not before. Phase 4 Sepolia work is decoupled
+from Phase 3 now that Kleros is out of scope.
 
 ---
 

@@ -1,6 +1,13 @@
 # M-6 Decision Brief: Appeal Bond Currency
 
-Status: **AWAITING FOUNDER DECISION** (blocks Phase 4 Sepolia deploy of two-tier)
+> ⚠️ **SUPERSEDED 2026-04-23.** Founder decided v1 ships without
+> Kleros appeal. See `docs/decisions/M-0-arbiter-architecture-v1.md`.
+> No appeal path means no bond, means no currency question. This
+> brief is retained for historical context and as reference if a
+> future UMA integration (Phase 6) raises similar currency-match
+> design questions.
+
+Status: ~~AWAITING FOUNDER DECISION~~ **SUPERSEDED by M-0**
 Source audit finding: `docs/remediation-plan.md` row M-6
 Date: 2026-04-23
 

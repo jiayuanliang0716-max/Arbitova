@@ -1,181 +1,218 @@
-# M-2 Decision Brief: Reversal-Rate Transparency Posture
+# M-2 Decision Brief: Transparency Posture (single-tier revision)
 
-Status: **AWAITING FOUNDER DECISION** (blocks Phase 4 Sepolia deploy of two-tier)
+Status: **AWAITING FOUNDER DECISION**
 Source audit finding: `docs/remediation-plan.md` row M-2
+Reframed: 2026-04-23 after M-0 (no Kleros in v1)
 Date: 2026-04-23
 
 ---
 
-## The problem in one paragraph
+## What changed since the original M-2 brief
 
-"Reversal rate" = (cases where Kleros ruling ≠ Arbitova first-instance
-ruling) / (total appealed cases). This number is the single most
-important public-facing quality signal Arbitova has: it's a direct
-measurement of how often our AI pipeline is wrong, graded by an
-independent party we did not pick. If we publish it, it's also the
-number a competitor or a critic will cherry-pick to attack us. If we
-hide it, the "everything is verifiable" brand claim becomes
-hypocritical (we publish rulings, but not our accuracy). Goodhart's
-Law warns that any published metric that's tied to reputation gets
-optimized against — if we publish a per-case reversal stat, we
-create an incentive for Arbitova operations to discourage appeals
-(subtle UX friction, delayed responses to appeal requests) to keep
-the number low. **The policy we choose now locks in a behavioral
-bias for the whole company.**
+The original M-2 brief assumed a two-tier arbitration system
+where Kleros was the external reviewer. In that world, the public
+quality signal was **reversal rate** — how often Kleros disagreed
+with Arbitova.
+
+After M-0, there is no Kleros. There is no independent reviewer.
+There is no reversal rate to publish. The transparency question
+reshapes into:
+
+> **How do we publicly prove our AI arbitration is accurate when
+> there's nobody outside Arbitova grading it?**
+
+Same question (public accountability for ruling quality),
+different measurement surface.
+
+---
+
+## The new problem
+
+Without an external grader, the available signals are:
+
+1. **Internal re-audit rate.** Arbitova ops periodically sample
+   past rulings and have a human re-judge them. The rate at
+   which the re-audit disagrees with the original ruling is our
+   quality signal. **But we're grading our own homework.**
+2. **Party-satisfaction signal.** Post-dispute survey of the
+   winning and losing party. Cheap; noisy; skewed toward people
+   who respond.
+3. **Appeal request rate.** Even without a formal appeal, we
+   can expose a "request human review" button. The rate at
+   which this button is pressed is a signal, but it's also
+   trivially abusable by a losing party.
+4. **Public contested-case ledger.** Every ruling is on-chain.
+   Anyone can inspect reasoning text + verdict + votes ensemble
+   data. Nobody has to trust our aggregate numbers because the
+   raw data is verifiable.
+
+The challenge: we need a posture that uses these signals
+**honestly** — not one that lets us spin them.
 
 ---
 
 ## Three options
 
-### (a) Per-case public — every verdict and reversal visible on-chain and indexed
+### (a) Per-case public — every ruling, reasoning, and internal audit result visible
 
-The indexer already emits `FirstInstanceResolved` and `AppealRuling`
-events; we expose them verbatim in a public dashboard at
-`arbitova.com/verdicts`. Anyone can query any dispute ID and see
-both rulings side-by-side, plus the reversal flag.
+We publish a public dashboard at `arbitova.com/verdicts` that
+shows every dispute, its verdict, the AI reasoning, the ensemble
+vote breakdown, and any re-audit result. Anyone can query any
+case.
 
 **Pros:**
-- Maximally transparent. Brand-consistent with "everything can be
-  verified."
-- Removes our ability to spin the data — critics can reconstruct
-  the reversal rate themselves. Pre-empts accusations of
-  cherry-picking.
-- Strong marketing asset: a trusted public ledger of rulings is
-  unusual in the arbitration space.
+- Maximally verifiable. Users don't have to trust our
+  aggregate numbers because they can build their own.
+- Matches our brand claim ("everything can be verified").
+- Internal re-audits that disagree with original rulings are
+  public, which is honest.
+- Creates a strong alignment: if our first ruling is wrong and
+  our re-audit catches it, there is a natural story to tell
+  publicly.
 
 **Cons:**
-- Early-stage noise is catastrophic. If the first 10 appealed
-  cases include 3 reversals (30% reversal rate), that's a
-  statistically insignificant sample but a viscerally bad
-  headline. We have no way to correct the narrative.
-- Makes every individual reversal a named, queryable PR event.
-  Competitors can tweet "Arbitova was wrong on dispute #47 —
-  proof here" without context.
-- Parties to a dispute may object to their case being publicly
-  searchable. GDPR-adjacent concern if any PII leaks into a
-  ruling text.
-- Goodhart risk is **maximal**: every Arbitova employee knows
-  any reversal is a public strike against them. This pressure
-  to avoid reversals produces the worst possible incentive
-  structure — discouraging appeals.
+- Parties may object to their disputes being searchable.
+  GDPR-adjacent (though all data is already on-chain; we're
+  just indexing it).
+- Early-stage: the first 5 disputes carry disproportionate
+  weight in every aggregate anyone computes from our ledger.
+- Cherry-picking risk: a competitor can post any single bad
+  ruling on Twitter without context. We can't stop that.
+- No external grader means "bad ruling" is itself a contested
+  judgment. A disputed loser can always claim we ruled wrongly.
 
 ---
 
-### (b) Quarterly aggregate public — buckets by type + size
+### (b) Quarterly aggregate public + internal audit disclosure
 
-Every quarter, we publish a public report:
+Arbitova publishes a quarterly transparency report with:
+
 - Total cases arbitrated
-- Total cases appealed (absolute + %)
-- Reversal rate, bucketed by escrow size ($0–100 / $100–1k / $1k+)
-- Reversal rate, bucketed by dispute type (delivery / quality /
-  scope)
-- Major-category breakdown of *why* reversals happened (root-cause
-  tags)
+- Internal re-audit rate (we sample X% of rulings, human
+  re-judges, disagreement rate is published)
+- Per-bucket breakdown (escrow size, dispute type, confidence
+  band)
+- Escalation rate (cases that hit the low-confidence gate and
+  got human review before ruling, vs cases that went straight
+  through)
+- **Pre-committed gate:** if internal disagreement rate on the
+  sample exceeds **10%**, we publish a root-cause dev log
+  within 30 days.
 
-No individual case is named in the aggregate report. The underlying
-events are still on-chain (Kleros publishes its rulings) but we
-don't maintain a per-case search UI.
+Raw on-chain data remains queryable. We don't ship a per-case
+search UI; people who want one build it themselves.
 
 **Pros:**
-- Aggregation damps statistical noise. 30% reversal rate over 10
-  cases becomes "reversal rate still forming, sample size 10" in
-  the Q1 report.
-- Gives us a narrative surface: we can commit in writing to
-  "quarterly report with root-cause analysis" — trust-building
-  without sacrificing discretion on individual cases.
-- Standard practice in financial regulation (SEC filings,
-  central bank transparency reports). Operators of critical
-  infrastructure publishing aggregated performance data is
-  uncontroversial.
-- Goodhart risk is **moderate**: aggregate pressure, not per-case
-  pressure. Still present but less acute.
+- Aggregation damps noise from a tiny early sample.
+- Internal audit rate is the honest version of "reversal
+  rate" — still grades our work, just without a third party.
+- Pre-committed gate is an accountability mechanism with
+  teeth. You can't quietly change a number you declared
+  would trigger action.
+- Standard practice in regulated finance (SEC, central bank
+  transparency cadence).
 
 **Cons:**
-- "Why didn't you publish case-by-case?" is a fair critique and
-  we have to answer it. The answer — "to reduce noise and
-  adversarial cherry-picking" — is defensible but requires an
-  operator who's willing to stand behind it.
-- A determined critic can still query Kleros for appeal rulings
-  and our contract for first-instance rulings, and reconstruct
-  the per-case data themselves. We don't prevent that; we just
-  don't pre-aggregate it into a weapon.
+- Internal audit is "grading our own homework." We have to
+  credibly show the auditors are independent of the original
+  rulers — either by hiring outside audit firms (real cost)
+  or by publishing the audit methodology in enough detail
+  that people can assess it.
+- "Why not per-case?" is still a fair critique and we have
+  to answer it. Answer: aggregation reduces cherry-picking;
+  raw data is still on-chain for anyone who wants to
+  reconstruct per-case.
+- Quarterly cadence is slow for a high-trust signal. If
+  something goes wrong mid-quarter, we have up to 3 months
+  of opacity.
 
 ---
 
-### (c) Internal dashboard + annual public report
+### (c) Hybrid — per-case on-chain data + quarterly aggregate report + no UI we maintain
 
-Quarterly reversal-rate data stays internal (Arbitova team +
-auditors). Once per year, we publish an annual transparency report
-with the same bucketing as option (b).
+We don't build a verdict-browsing UI. We don't publish a
+per-case dashboard. We do:
+
+1. Emit all ruling data as structured on-chain events (already
+   doing this).
+2. Publish a quarterly aggregate report (same as b).
+3. Let third parties (Dune, Nansen, hobbyists, journalists)
+   build whatever per-case search tooling they want on top
+   of our event data.
 
 **Pros:**
-- Maximum protection against short-term noise and adversarial
-  framing.
-- Matches traditional arbitration body practice (AAA, ICC publish
-  annual reports, not quarterly stats).
+- We're not on the hook for maintaining a dashboard that our
+  own brand stakes against.
+- The per-case data exists for anyone who wants it. We're not
+  hiding.
+- Gives us the shape of (b) with zero additional UI
+  engineering.
 
 **Cons:**
-- Visibly weaker than (b) on the verifiability brand axis. "We
-  publish annually" reads as evasive in a crypto-native context
-  where users expect real-time proof.
-- Gives Arbitova a full year to quietly adjust operations before
-  any signal becomes public. This is exactly the opacity the
-  remediation audit flagged as reputationally fragile.
-- Goodhart risk is **paradoxically the worst**: an internal
-  metric with annual external exposure creates 11 months of
-  pressure to "get the number down" before the annual report,
-  which is the exact Goodhart failure mode.
+- "Arbitova doesn't even publish their own rulings" is an
+  unkind but not inaccurate framing a critic could use.
+- Relies on ecosystem tooling to exist. If nobody builds a
+  Dune dashboard for our events, the per-case data is
+  effectively unfindable even though it's technically public.
+- Looks lazy. We're leaving the hard surface to others.
 
 ---
 
 ## Recommendation
 
-**(b) Quarterly aggregate public, with a pre-committed accountability
-gate.**
+**(b) Quarterly aggregate public with internal audit + 10% gate.**
 
 Concretely:
 
-1. Arbitova publishes a quarterly transparency report at
-   `arbitova.com/transparency/{year}-Q{n}` starting Q1 2027 (first
-   real quarter post-mainnet).
-2. Report contents are fixed in advance: total volume, appeal rate,
-   reversal rate (aggregated by size and type), root-cause
-   categorization of reversals.
-3. **Pre-committed gate:** if quarterly reversal rate exceeds **15%**,
-   Arbitova publishes a root-cause dev log within 30 days describing
-   what's changing in the pipeline. This gate is declared publicly
-   *now* so it can't be quietly removed later.
-4. Raw Kleros + Arbitova events remain on-chain (by definition — we
-   don't control Kleros). Anyone can reconstruct per-case data. We
-   just don't build a search UI that invites adversarial queries.
+1. Arbitova commits to a **10% sample rate** of all rulings for
+   internal re-audit. Re-audit is performed by a different
+   operations person (minimum: different from the original
+   ruler; ideal: an external contracted arbitrator we pay by
+   the case once volume supports it).
+2. Quarterly report at `arbitova.com/transparency/{year}-Q{n}`
+   starting the first quarter after v1 mainnet launch.
+3. Report publishes: total cases, sample size, internal
+   disagreement rate, and a per-bucket breakdown.
+4. **Pre-committed gate: if internal disagreement rate exceeds
+   10%**, we publish a public root-cause dev log within 30 days
+   explaining what the re-audits caught and what we're
+   changing.
+5. Raw on-chain data (verdict, reasoning text, vote ensemble
+   snapshot, escalation flags) is emitted as structured events
+   already (via `arbitration_verdicts` table + indexer). We
+   don't promise a search UI; we do promise the event schema
+   is stable and documented so third parties can build one.
 
-Reasoning:
+**Why 10% gate, not 15%?**
 
-- **(a) is too exposed pre-PMF.** We have zero volume today. The
-  first five appealed cases will produce a meaningless reversal
-  rate that lives forever in search results. Shipping (a) at this
-  stage is "speedrunning a bad headline."
-- **(c) is incompatible with our own brand claim.** We market as a
-  verifiable system; an annual-only cadence reads as "trust us
-  between reports."
-- **(b) is the only option that's both defensible on brand and
-  survivable on narrative risk.** It also matches the strongest
-  real-world analogue: central bank and SEC transparency practice
-  is quarterly + pre-committed methodology.
-- **The 15% gate is the critical part.** Without it, (b) is
-  "publish a number and hope people think it's good." With it,
-  we have a public pre-commitment that if we cross a threshold,
-  we owe an explanation. That's the accountability mechanism.
+The original two-tier brief suggested 15% (matching real-world
+appellate-court reversal rates). But that was measuring
+*disagreement with an independent party*. Internal re-audit
+disagreement rate should be **lower** than external reversal
+rate — if our own team re-reading our own rulings disagrees 15%
+of the time, our consistency is too poor. 10% is a tighter
+and more honest bar for an internal-only signal.
 
-**Why not lower than 15%?** Real-world appellate-court reversal
-rates range 8–15% depending on jurisdiction (federal circuit
-reversals hover around 8–10%; state appeals courts run higher).
-A 15% gate is slightly above the top of the normal range — high
-enough that hitting it is a real signal, low enough that hiding
-behind "15% is within norms" isn't credible.
+**Why quarterly, not real-time?**
 
-**Why not higher than 15%?** A gate above 20% becomes a figleaf.
-If reversal rate is 18% we'd still want to explain why.
+With n < 100 cases, real-time publication produces meaningless
+numbers. Quarterly gives us enough sample that the number
+communicates something. Once volume is high enough that monthly
+numbers stabilize, we can tighten cadence — that's a later
+decision, not a v1 commitment.
+
+**Why recommend (b) over (a)?**
+
+(a) is more transparent in theory. In practice, at n=5 cases,
+per-case publication is a weapon waiting for a critic to pick
+up. (b) + raw-event access gives users all the data they need
+while not pre-packaging attacks against us.
+
+**Why not (c)?**
+
+(c) optimizes our workload. (b) optimizes user trust. We're
+pre-product-market-fit; optimizing user trust is the higher
+priority.
 
 ---
 
@@ -184,9 +221,13 @@ If reversal rate is 18% we'd still want to explain why.
 - [ ] Founder choice: ______  (a / b / c)
 - [ ] Date: ______
 - [ ] Rationale if different from recommendation: ______
-- [ ] Follow-up: update `two-tier-arbitration-design.md` D-3 section
-  to state the chosen posture
-- [ ] Follow-up: draft `docs/transparency-policy.md` codifying the
-  quarterly report structure and the 15% gate (if (b) is chosen)
-- [ ] Follow-up: reserve `arbitova.com/transparency/` URL path in
-  the site routing config
+- [ ] Follow-up: draft `docs/transparency-policy.md` codifying
+      the quarterly report structure, the 10% gate, and the
+      sample methodology
+- [ ] Follow-up: reserve `arbitova.com/transparency/` URL path
+      in the site routing config
+- [ ] Follow-up: add re-audit workflow to ops runbook
+      (who audits, on what sample, documented how)
+- [ ] Follow-up: decide if/when to move re-audits to an
+      external contracted auditor (cost + credibility trade-off,
+      revisit at 500 rulings)

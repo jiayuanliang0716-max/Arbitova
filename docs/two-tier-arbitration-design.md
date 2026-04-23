@@ -1,6 +1,20 @@
 # Two-Tier Arbitration Design (v0.1 draft)
 
-Status: design draft. No contract changes, no Kleros deployment.
+> ⚠️ **DEPRECATED 2026-04-23.** This design is not what v1 ships.
+> The founder reconsidered the Kleros integration after the M-1
+> bond-economics brief showed a $60/case Kleros floor that doesn't
+> pencil out for A2A microtransactions. v1 ships single-tier
+> (Arbitova AI + 3-of-5 multisig, no appeal). See
+> `docs/decisions/M-0-arbiter-architecture-v1.md` for the decision
+> record and the Phase 6 commitment to research UMA as a future
+> optional upgrade.
+>
+> This file is retained for historical context. Do not reference
+> it in new code or copy.
+
+---
+
+Status: ~~design draft~~ **DEPRECATED**. No contract changes, no Kleros deployment.
 Author: Arbitova / 2026-04-23.
 Supersedes: `docs/multisig-arbiter-design.md` (single-tier) and
 `docs/kleros-v2-integration-plan.md` (pure Kleros) as the **target

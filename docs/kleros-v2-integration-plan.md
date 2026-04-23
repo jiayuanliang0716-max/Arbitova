@@ -1,6 +1,15 @@
 # Kleros v2 Integration Plan (v0.1 draft)
 
-Status: plan only. No contract changes, no Kleros subcourt registration.
+> ⚠️ **DEPRECATED 2026-04-23.** Arbitova v1 will not integrate
+> Kleros. See `docs/decisions/M-0-arbiter-architecture-v1.md` for
+> the decision record. UMA Optimistic Oracle is a Phase 6 research
+> item; Kleros is not on the active roadmap.
+>
+> This file is retained for historical context only.
+
+---
+
+Status: ~~plan only~~ **DEPRECATED**. No contract changes, no Kleros subcourt registration.
 Author: Arbitova / 2026-04-23.
 Audience: future-me, potential auditors, Kleros cooperative if they
 find this file and want to sanity-check the approach.
