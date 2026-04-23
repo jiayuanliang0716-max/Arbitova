@@ -1,15 +1,19 @@
 const express = require('express');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-const swaggerUi = require('swagger-ui-express');
-const openApiSpec = require('./openapi.json');
+// Swagger / openapi.json removed 2026-04-24 — the /api-reference mount
+// was a Path A surface. Source in v2-path-a-legacy tag.
+// const swaggerUi = require('swagger-ui-express');
+// const openApiSpec = require('./openapi.json');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 
 // 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
 
-const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
+// Path A fees module removed 2026-04-24 (only referenced inside the
+// disabled /simulate + /pricing + /platform/stats comment blocks below).
+// const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
 
 // Path A route requires removed 2026-04-24 — mounts already disabled.
 // Source in v2-path-a-legacy tag. Files pending deletion in follow-up commit.
