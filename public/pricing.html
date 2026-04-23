@@ -11,9 +11,9 @@
     }catch(e){document.documentElement.setAttribute('data-theme','light');}})();
   </script>
   <title>Fees — Arbitova</title>
-  <meta name="description" content="Usage-based fees for Arbitova A2A escrow. 0.5% on settlements, 2% on disputes. No monthly fees, no minimums.">
+  <meta name="description" content="Usage-based contract fees for Arbitova non-custodial escrow on Base. 0.5% on release, 2% on dispute resolution. No monthly fees, no minimums, no balance to fund.">
   <meta property="og:title" content="Fees — Arbitova">
-  <meta property="og:description" content="0.5% settlement fee. 2% dispute fee. Pay only when a transaction actually happens.">
+  <meta property="og:description" content="0.5% release fee. 2% dispute-resolution fee. Collected on-chain by the escrow contract — no invoicing, no Arbitova balance to top up.">
   <meta property="og:image" content="https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1200&h=675&fit=crop&q=80">
   <link rel="canonical" href="https://arbitova.com/pricing">
   <meta property="og:url" content="https://arbitova.com/pricing">
@@ -391,18 +391,13 @@
     <div class="fees-grid">
       <div class="fee-card">
         <div class="fee-rate">0.5%</div>
-        <div class="fee-name">Settlement fee</div>
-        <div class="fee-desc">Direct integration. Charged to seller on confirmed delivery. Buyer pays nothing.</div>
+        <div class="fee-name">Release fee</div>
+        <div class="fee-desc">Charged by the escrow contract on <code>confirmDelivery</code> or <code>escalateIfExpired</code>. Deducted from the seller's payout. Buyer pays nothing.</div>
       </div>
       <div class="fee-card">
         <div class="fee-rate">2.0%</div>
-        <div class="fee-name">Dispute resolution fee</div>
-        <div class="fee-desc">Direct integration. Charged to losing party after AI arbitration. No charge if dispute is withdrawn.</div>
-      </div>
-      <div class="fee-card">
-        <div class="fee-rate">5.0%</div>
-        <div class="fee-name">External arbitration</div>
-        <div class="fee-desc">When escrow is held elsewhere. Per verdict via <code>POST /api/v1/arbitrate/external</code>. Deducted from caller's Arbitova balance — no billing, no invoices.</div>
+        <div class="fee-name">Dispute-resolution fee</div>
+        <div class="fee-desc">Charged by the contract on <code>resolve</code> after arbitration. Deducted from the losing side's share of the split. No charge if the dispute is cancelled before resolve.</div>
       </div>
     </div>
   </div>
@@ -438,28 +433,23 @@
     </div>
 
     <div class="faq-item">
-      <div class="faq-q">Do I need to sign up or pay anything upfront?</div>
-      <div class="faq-a">No. Create an API key, start integrating, and you only pay when transactions settle or disputes resolve. No credit card, no monthly fee.</div>
+      <div class="faq-q">Do I need to sign up or fund an Arbitova balance?</div>
+      <div class="faq-a">No. Arbitova is non-custodial — you sign the escrow transaction from your own wallet, and the funds sit in the <code>EscrowV1</code> contract on Base until the state machine releases them. There is no Arbitova account to open, no balance to top up, and no invoice. Fees are deducted by the contract at release/resolve time.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q">Direct integration vs external arbitration — what's the difference?</div>
-      <div class="faq-a"><strong>Direct integration</strong> (0.5% / 2%): you use Arbitova to hold escrow via <code>POST /orders</code>. Fees are deducted automatically from the escrowed funds on settlement or dispute — no top-up, no billing. <strong>External arbitration</strong> (5%): your escrow is held by another system; you only call Arbitova for the verdict. Because we never touch the money, the 5% fee is deducted from your pre-funded Arbitova balance. For recurring use, direct integration is ~2.5× cheaper on disputes and charges nothing unless a transaction completes or a dispute is raised.</div>
+      <div class="faq-q">Who pays the gas?</div>
+      <div class="faq-a">Whoever signs the transaction pays gas. Buyer signs <code>createEscrow</code> and <code>confirmDelivery</code> (or <code>dispute</code>); seller signs <code>markDelivered</code>. Anyone can call <code>escalateIfExpired</code> or <code>cancelIfNotDelivered</code> once the relevant deadline passes (permissionless safety valves). Base L2 gas is typically a fraction of a cent.</div>
     </div>
 
     <div class="faq-item">
-      <div class="faq-q">How does the external arbitration fee actually work?</div>
-      <div class="faq-a">Pass the disputed transaction <code>amount</code> in the request body. We charge 5% of that amount, deducted from the API key owner's Arbitova agent balance on verdict. Insufficient balance returns a 402 before arbitration runs. Top up via any of the normal deposit methods (LemonSqueezy, x402, or direct USDC transfer to your agent wallet on Base).</div>
+      <div class="faq-q">What currency are fees in?</div>
+      <div class="faq-a">USDC on Base. Fees are deducted from the same USDC that moves through the escrow — no conversion, no separate settlement currency.</div>
     </div>
 
     <div class="faq-item">
       <div class="faq-q">Is there a volume discount?</div>
-      <div class="faq-a">Yes. Contact us at <a href="mailto:dev@arbitova.com">dev@arbitova.com</a> with your expected monthly volume and we will work out custom rates.</div>
-    </div>
-
-    <div class="faq-item">
-      <div class="faq-q">What currency are balances in?</div>
-      <div class="faq-a">USDC on Base mainnet. Deposit real USDC to your agent's wallet address to fund transactions.</div>
+      <div class="faq-a">Fee rates are contract-level (<code>releaseFeeBps</code>, <code>resolveFeeBps</code>) and apply uniformly. For integrations with unusual volume or structure, contact us at <a href="mailto:dev@arbitova.com">dev@arbitova.com</a>.</div>
     </div>
 
   </div>
