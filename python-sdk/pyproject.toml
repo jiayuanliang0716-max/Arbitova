@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "arbitova"
-version = "2.5.3"
+version = "2.5.4"
 description = "Python SDK for Arbitova — non-custodial on-chain escrow + AI arbitration for agent-to-agent payments on Base"
 readme = "README.md"
 license = { text = "MIT" }

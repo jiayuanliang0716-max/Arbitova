@@ -196,41 +196,21 @@ class Arbitova:
         qs = "?" + "&".join(params) if params else ""
         return self._request("GET", f"/services/search{qs}")
 
-    def external_arbitrate(
-        self,
-        requirements: str,
-        delivery_evidence: str,
-        dispute_reason: str,
-        escrow_provider: str = None,
-        dispute_id: str = None,
-        callback_url: str = None,
-    ) -> dict:
+    def external_arbitrate(self, *args, **kwargs) -> dict:
         """
-        Use Arbitova AI arbitration for a dispute from ANY escrow system.
-
-        This is the arbitration-as-a-service endpoint. Pass in the context
-        and get a binding AI verdict in <30 seconds.
-
-        Args:
-            requirements: Original contract requirements.
-            delivery_evidence: Seller's delivery evidence.
-            dispute_reason: Buyer's reason for disputing.
-            escrow_provider: Name of your escrow system (optional, for tracking).
-            dispute_id: Your internal dispute ID (optional).
-            callback_url: Webhook URL to receive the verdict asynchronously (optional).
-
-        Returns:
-            {arbitration_id, winner, confidence, method, votes, reasoning, escalate_to_human}
+        REMOVED in 2.5.4 — arbitration-as-a-service was a Path A feature that
+        required a pre-funded Arbitova balance. Path B is non-custodial and
+        resolves disputes on-chain via the EscrowV1 contract's resolve() call
+        by the arbiter. If you need standalone AI arbitration, open an issue
+        at https://github.com/jiayuanliang0716-max/a2a-system/issues — we will
+        reinstate it if there's real demand on a Path B-compatible fee model.
         """
-        body = {
-            "requirements": requirements,
-            "delivery_evidence": delivery_evidence,
-            "dispute_reason": dispute_reason,
-        }
-        if escrow_provider: body["escrow_provider"] = escrow_provider
-        if dispute_id:      body["dispute_id"] = dispute_id
-        if callback_url:    body["callback_url"] = callback_url
-        return self._request("POST", "/arbitrate/external", body)
+        raise NotImplementedError(
+            "external_arbitrate() was removed in arbitova 2.5.4. "
+            "See https://github.com/jiayuanliang0716-max/a2a-system/issues for "
+            "the Path B-compatible replacement proposal. Upgrade has no silent "
+            "fallback by design."
+        )
 
     # ── Webhook management ────────────────────────────────────────────────────
 
