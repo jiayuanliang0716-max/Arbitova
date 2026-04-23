@@ -1325,15 +1325,16 @@ router.post('/:id/auto-arbitrate', requireApiKey, async (req, res, next) => {
       return res.status(500).json({ error: 'AI arbitration failed', details: e.message });
     }
 
-    const { winner, reasoning, confidence, votes, key_factors, dissent, escalate_to_human, constitutional_shortcut } = verdict;
+    const { winner, reasoning, confidence, votes, key_factors, dissent, escalate_to_human, constitutional_shortcut, escalation_reason: verdictEscalationReason } = verdict;
     const now = isPostgres ? 'NOW()' : "datetime('now')";
 
     // ── Human escalation path ────────────────────────────────────────────────
     if (escalate_to_human) {
       const reviewId = uuidv4();
-      const escalationReason = confidence < 0.60
-        ? `AI confidence too low (${(confidence * 100).toFixed(0)}%)`
-        : 'Minority judges highly confident in opposite direction';
+      const escalationReason = verdictEscalationReason
+        || (confidence < 0.60
+          ? `AI confidence too low (${(confidence * 100).toFixed(0)}%)`
+          : 'Minority judges highly confident in opposite direction');
 
       await dbRun(
         `UPDATE orders SET status = 'under_review' WHERE id = ${p(1)}`,

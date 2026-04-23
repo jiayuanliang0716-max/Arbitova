@@ -104,7 +104,7 @@ cron.schedule('*/30 * * * *', async () => {
         if (!dispute) continue;
 
         const verdict = await arbitrateDispute({ order, service, dispute, delivery });
-        const { winner, reasoning, confidence, votes, escalate_to_human } = verdict;
+        const { winner, reasoning, confidence, votes, escalate_to_human, escalation_reason } = verdict;
 
         if (escalate_to_human) {
           // Queue for human review
@@ -114,7 +114,7 @@ cron.schedule('*/30 * * * *', async () => {
             `INSERT INTO human_review_queue
                (id, order_id, dispute_id, ai_votes, ai_reasoning, ai_confidence, escalation_reason)
              VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)})`,
-            [reviewId, order.id, dispute.id, JSON.stringify(votes), reasoning, confidence, 'SLA expired + low AI confidence']
+            [reviewId, order.id, dispute.id, JSON.stringify(votes), reasoning, confidence, escalation_reason || 'SLA expired + low AI confidence']
           );
           console.log(`[worker] SLA escalated to human review: order=${order.id} review=${reviewId}`);
           continue;
