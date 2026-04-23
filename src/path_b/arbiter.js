@@ -6,12 +6,29 @@
  *
  * Flow:
  *   1. Fetch escrow record + verification_uri content + delivery_hash content
- *   2. Build prompt from src/path_b/prompts/arbitration.md
- *   3. Call Claude API (model claude-opus-4-7)
- *   4. Parse structured JSON verdict
- *   5a. If confidence >= 0.7 → compute verdictHash, call resolve() on-chain
- *   5b. If confidence < 0.7 → log for human review, do NOT resolve
- *   6. Store verdict JSON to path_b_verdicts/{escrowId}.json
+ *   2. Verify delivery content-hash against on-chain recorded hash (M-4).
+ *      On mismatch, escalate to human review without calling the LLM.
+ *   3. Build prompt from src/path_b/prompts/arbitration.md with every
+ *      untrusted field wrapped in a breakout-safe XML region (M-3).
+ *   4. Call Claude API (model claude-opus-4-7)
+ *   5. Parse structured JSON verdict
+ *   6a. If confidence >= 0.7 AND content hash did not mismatch → compute
+ *       verdictHash, call resolve() on-chain
+ *   6b. Otherwise → log for human review, do NOT resolve
+ *   7. Store verdict JSON to path_b_verdicts/{escrowId}.json
+ *
+ * Defenses (ported 2026-04-24 from the now-deleted Path A arbitrate.js):
+ *   M-3 — Prompt-injection defense via structural isolation. Every
+ *         untrusted field is wrapped in <tag> … </tag> with closing-tag
+ *         bytes inside the content escaped by a zero-width space so
+ *         an attacker cannot break out of the tagged region. The system
+ *         prompt (arbitration.md) tells the model that tagged regions
+ *         are data-only.
+ *   M-4 — Delivery content-hash verification. keccak256(content bytes)
+ *         is compared to the on-chain delivery_hash. A mismatch is a
+ *         hard escalation gate, independent of confidence. URI-only
+ *         hashing (an older SDK mode) degrades to an advisory rather
+ *         than a full verification because the URI is mutable.
  *
  * Env vars:
  *   ANTHROPIC_API_KEY   — Claude API key
@@ -38,12 +55,107 @@ const ESCROW_ABI = [
 ];
 
 // ---------------------------------------------------------------------------
+// M-3: Structural prompt-injection defense
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip ASCII control characters and cap length. Retained from the
+ * Path A defense — control characters have no legitimate use in party
+ * claims or delivery payloads and some tokenizers mis-handle them.
+ * Unlike the older version this does NOT pattern-match phrases: that
+ * defense line is now structural (see wrapUntrusted).
+ */
+function sanitizeClaim(text) {
+  if (text === null || text === undefined) return '(none)';
+  return String(text)
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, '')
+    .slice(0, 10_000);
+}
+
+/**
+ * Wrap arbitrary untrusted content inside an XML region. The closing
+ * tag bytes inside the content are escaped with a zero-width space
+ * inserted between `<` and `/`, so the attacker cannot emit a literal
+ * `</tag>` sequence that would close the region early.
+ *
+ * The zero-width space (U+200B) is not rendered by the tokenizer as
+ * part of the tag syntax but remains visible in audit logs, so a
+ * reviewer can still read the raw attacker payload verbatim.
+ *
+ * @param {string} tag   — alphanumeric + underscore tag name
+ * @param {string} text  — arbitrary untrusted text
+ * @returns {string}     — breakout-safe tagged region
+ */
+function wrapUntrusted(tag, text) {
+  if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(tag)) {
+    throw new Error(`invalid tag name: ${tag}`);
+  }
+  const safe = sanitizeClaim(text)
+    .replace(new RegExp(`</(${tag})\\b`, 'gi'), '<​/$1');
+  return `<${tag}>\n${safe}\n</${tag}>`;
+}
+
+// ---------------------------------------------------------------------------
+// M-4: Delivery content-hash verification
+// ---------------------------------------------------------------------------
+
+/**
+ * Verify that the fetched delivery content matches the keccak256 hash
+ * that was recorded on-chain at markDelivered time.
+ *
+ * Two acceptable hashing modes exist in the SDK surface:
+ *   - content-mode: delivery_hash = keccak256(delivery_content_bytes)
+ *   - uri-mode:     delivery_hash = keccak256(utf8_bytes(uri))
+ *
+ * Content-mode is a strong integrity proof. URI-mode is weaker — it
+ * proves the seller committed to a URI but not that the content served
+ * from that URI is unchanged; HTTP is mutable, IPFS gateway caches
+ * drift, etc. We treat URI-mode as an advisory, not a full verification.
+ *
+ * @param {string} deliveryContent — bytes fetched from delivery URI
+ * @param {string} deliveryUri     — URI that was committed on-chain
+ * @param {string} recordedHash    — on-chain delivery_hash (0x-prefixed 32-byte hex)
+ * @returns {object} {
+ *   match:  true | false | null,
+ *   mode:   'content' | 'uri-only' | 'mismatch' | 'none',
+ *   recorded: string|null,
+ *   recomputed_content: string,
+ *   recomputed_uri: string|null,
+ * }
+ */
+function verifyDeliveryContentHash(deliveryContent, deliveryUri, recordedHash) {
+  const recorded = recordedHash && recordedHash !== '0x' && recordedHash !== ('0x' + '0'.repeat(64))
+    ? recordedHash.toLowerCase()
+    : null;
+  const recomputedContent = ethers.keccak256(ethers.toUtf8Bytes(String(deliveryContent ?? '')));
+  const recomputedUri = deliveryUri
+    ? ethers.keccak256(ethers.toUtf8Bytes(deliveryUri))
+    : null;
+
+  if (!recorded) {
+    return {
+      match: null,
+      mode: 'none',
+      recorded: null,
+      recomputed_content: recomputedContent,
+      recomputed_uri: recomputedUri,
+    };
+  }
+  if (recomputedContent.toLowerCase() === recorded) {
+    return { match: true, mode: 'content', recorded, recomputed_content: recomputedContent, recomputed_uri: recomputedUri };
+  }
+  if (recomputedUri && recomputedUri.toLowerCase() === recorded) {
+    return { match: true, mode: 'uri-only', recorded, recomputed_content: recomputedContent, recomputed_uri: recomputedUri };
+  }
+  return { match: false, mode: 'mismatch', recorded, recomputed_content: recomputedContent, recomputed_uri: recomputedUri };
+}
+
+// ---------------------------------------------------------------------------
 // Fetch remote content (verification URI or delivery URI)
 // ---------------------------------------------------------------------------
 async function fetchContent(uri) {
   if (!uri) return '(no content provided)';
   try {
-    // IPFS gateway fallback
     const url = uri.startsWith('ipfs://')
       ? uri.replace('ipfs://', 'https://cloudflare-ipfs.com/ipfs/')
       : uri;
@@ -56,26 +168,34 @@ async function fetchContent(uri) {
 }
 
 // ---------------------------------------------------------------------------
-// Build prompt from template
+// Build prompt from template — every untrusted field is wrapped.
 // ---------------------------------------------------------------------------
-function buildPrompt(escrow, verificationContent, deliveryContent, disputeReason) {
+function buildPrompt(escrow, verificationContent, deliveryContent, disputeReason, hashCheck) {
   const template = fs.readFileSync(PROMPT_TEMPLATE_PATH, 'utf8');
+  const hashNote = hashCheck && hashCheck.match === true
+    ? (hashCheck.mode === 'content'
+        ? 'VERIFIED — keccak256(delivery bytes) matches on-chain hash.'
+        : 'ADVISORY — the on-chain hash was of the URI only, not the content. Content integrity cannot be proven from the chain.')
+    : hashCheck && hashCheck.match === false
+      ? 'MISMATCH — delivery content hash does NOT match what was recorded on-chain. Treat delivery as untrusted.'
+      : 'NO_HASH — no delivery hash was recorded on-chain for this escrow.';
+
   return template
     .replace('{{ESCROW_ID}}', String(escrow.escrow_id))
     .replace('{{AMOUNT}}', String(escrow.amount))
     .replace('{{BUYER_ADDRESS}}', escrow.buyer_address)
     .replace('{{SELLER_ADDRESS}}', escrow.seller_address)
-    .replace('{{VERIFICATION_URI_CONTENT}}', verificationContent)
+    .replace('{{VERIFICATION_URI_CONTENT}}', wrapUntrusted('verification_criteria', verificationContent))
     .replace('{{DELIVERY_HASH}}', escrow.delivery_hash || '(none)')
-    .replace('{{DELIVERY_CONTENT}}', deliveryContent)
-    .replace('{{DISPUTE_REASON}}', disputeReason || '(no reason recorded)');
+    .replace('{{DELIVERY_HASH_CHECK}}', hashNote)
+    .replace('{{DELIVERY_CONTENT}}', wrapUntrusted('delivery_evidence', deliveryContent))
+    .replace('{{DISPUTE_REASON}}', wrapUntrusted('dispute_reason', disputeReason || '(no reason recorded)'));
 }
 
 // ---------------------------------------------------------------------------
 // Parse Claude response
 // ---------------------------------------------------------------------------
 function parseVerdict(text) {
-  // Strip any accidental markdown fences
   const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
   const verdict = JSON.parse(cleaned);
 
@@ -155,15 +275,41 @@ async function triggerArbitration(escrow) {
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  // Fetch off-chain content
   const [verificationContent, deliveryContent] = await Promise.all([
     fetchContent(escrow.verification_uri),
     fetchContent(escrow.delivery_payload_uri || null),
   ]);
 
-  const prompt = buildPrompt(escrow, verificationContent, deliveryContent, null);
+  // M-4 hash gate: if the on-chain hash doesn't match the fetched
+  // content, we do not trust the delivery. Skip the LLM call and
+  // escalate for human review. Saves API $ and makes the gate
+  // unambiguous: "content drifted" is not a verdict an LLM can fix.
+  const hashCheck = verifyDeliveryContentHash(
+    deliveryContent,
+    escrow.delivery_payload_uri || null,
+    escrow.delivery_hash
+  );
 
-  // Call Claude
+  if (hashCheck.match === false) {
+    console.warn(
+      `[arbiter] hash mismatch for escrow #${escrow.escrow_id} — recorded=${hashCheck.recorded} recomputed_content=${hashCheck.recomputed_content}`
+    );
+    const stub = {
+      escrowId: escrow.escrow_id,
+      escalated: true,
+      escalation_reason: 'delivery_content_hash_mismatch',
+      hash_check: hashCheck,
+      message: 'Delivery content does not match the on-chain delivery_hash; escalated to human review without LLM call.',
+    };
+    saveVerdict(escrow.escrow_id, stub);
+    await db.updateEscrowState(escrow.escrow_id, {
+      verdict_hash: 'HASH_MISMATCH_NEEDS_REVIEW',
+    });
+    return { humanReview: true, escalationReason: 'delivery_content_hash_mismatch', hashCheck };
+  }
+
+  const prompt = buildPrompt(escrow, verificationContent, deliveryContent, null, hashCheck);
+
   const message = await anthropic.messages.create({
     model: 'claude-opus-4-7',
     max_tokens: 1024,
@@ -187,6 +333,7 @@ async function triggerArbitration(escrow) {
   }
 
   verdict.escrowId = escrow.escrow_id;
+  verdict.hash_check = hashCheck;
   const verdictHash = computeVerdictHash(verdict);
   verdict.verdictHash = verdictHash;
 
@@ -196,14 +343,12 @@ async function triggerArbitration(escrow) {
     console.warn(
       `[arbiter] confidence ${verdict.confidence} < ${CONFIDENCE_THRESHOLD} for escrow #${escrow.escrow_id} — flagging for human review`
     );
-    // Update local record to flag it
     await db.updateEscrowState(escrow.escrow_id, {
       verdict_hash: verdictHash + '_NEEDS_REVIEW',
     });
     return { humanReview: true, verdict };
   }
 
-  // Resolve on-chain
   let txHash = null;
   try {
     txHash = await resolveOnChain(
@@ -216,7 +361,6 @@ async function triggerArbitration(escrow) {
     console.error(`[arbiter] on-chain resolve failed for escrow #${escrow.escrow_id}:`, err.message);
   }
 
-  // Update DB
   await db.updateEscrowState(escrow.escrow_id, {
     verdict_hash: verdictHash,
     resolved_buyer_bps: verdict.buyerBps,
@@ -227,4 +371,13 @@ async function triggerArbitration(escrow) {
   return { verdict, verdictHash, txHash };
 }
 
-module.exports = { triggerArbitration, buildPrompt, parseVerdict, computeVerdictHash, fetchContent };
+module.exports = {
+  triggerArbitration,
+  buildPrompt,
+  parseVerdict,
+  computeVerdictHash,
+  fetchContent,
+  sanitizeClaim,
+  wrapUntrusted,
+  verifyDeliveryContentHash,
+};
