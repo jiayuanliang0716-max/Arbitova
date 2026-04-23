@@ -1,0 +1,24 @@
+{
+  "name": "@arbitova/paymaster-policy",
+  "version": "0.1.0-alpha.0",
+  "description": "Pure-logic sponsorship policy for Arbitova's Pimlico paymaster. Decides whether a UserOperation targets EscrowV1 (or paired USDC.approve) and fits the daily budget.",
+  "main": "src/index.js",
+  "type": "module",
+  "files": [
+    "src/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/"
+  },
+  "keywords": [
+    "arbitova",
+    "erc4337",
+    "paymaster",
+    "pimlico"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

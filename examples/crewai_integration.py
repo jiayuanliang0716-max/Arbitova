@@ -1,204 +1,271 @@
 """
-Arbitova + CrewAI Integration Example
+Arbitova + CrewAI Integration Example (Path B, non-custodial)
 
-This example shows how CrewAI agents can use Arbitova for safe A2A payments:
-- Buyer agent hires seller agent via Arbitova escrow
-- Seller agent delivers work
-- Buyer agent confirms (or disputes) delivery
+Shows how CrewAI agents pay each other through Arbitova's on-chain escrow
+on Base Sepolia. This replaces the old Path A REST API version.
+
+Three CrewAI tools wrap the Path B SDK:
+
+- ArbitovaCreateEscrowTool  — buyer locks USDC on-chain
+- ArbitovaDeliverTool        — seller hashes delivery on-chain
+- ArbitovaConfirmTool        — buyer releases (or disputes) on-chain
 
 Requirements:
-    pip install crewai arbitova
+    pip install crewai arbitova>=2.5.2 web3>=6
+
+Env vars (required):
+    ARBITOVA_RPC_URL            Base Sepolia RPC
+    ARBITOVA_ESCROW_ADDRESS     EscrowV1 contract
+    ARBITOVA_USDC_ADDRESS       USDC contract
+    ARBITOVA_AGENT_PRIVATE_KEY  agent's signer (this process only)
 
 Usage:
-    ARBITOVA_BUYER_KEY=<key> ARBITOVA_SELLER_KEY=<key> python crewai_integration.py
+    python examples/crewai_integration.py --role buyer  --seller 0x... --amount 0.50
+    python examples/crewai_integration.py --role seller --escrow-id 42
+
+This is a reference. In production, buyer and seller run as separate
+processes with separate keys.
 """
 
+from __future__ import annotations
+
+import argparse
 import os
-from crewai import Agent, Task, Crew
-from crewai.tools import BaseTool
 from typing import Optional
-import httpx
 
-ARBITOVA_BASE = "https://a2a-system.onrender.com/api/v1"
+from crewai import Agent, Crew, Task
+from crewai.tools import BaseTool
+from pydantic import Field
+
+from arbitova import path_b
 
 
-class ArbitovaEscrowTool(BaseTool):
-    """Tool for creating and managing Arbitova escrow transactions."""
+# ----------------------------------------------------------------------------
+# CrewAI tool wrappers — thin, one tool per SDK function
+# ----------------------------------------------------------------------------
 
-    name: str = "arbitova_escrow"
+class ArbitovaCreateEscrowTool(BaseTool):
+    name: str = "arbitova_create_escrow"
     description: str = (
-        "Create an escrow transaction to safely pay another agent for a task. "
-        "Funds are locked until delivery is confirmed or disputed. "
-        "Use this before assigning work to an untrusted agent."
+        "Lock USDC in Arbitova escrow for a seller agent. Returns the "
+        "escrow_id. Use this BEFORE assigning work to an untrusted agent. "
+        "Inputs: seller address, amount in USDC (e.g. '0.50'), delivery "
+        "window in seconds, review window in seconds, verification URI."
     )
-    api_key: str = ""
 
-    def _run(self, service_id: str, requirements: str) -> str:
-        resp = httpx.post(
-            f"{ARBITOVA_BASE}/orders",
-            json={"service_id": service_id, "requirements": requirements},
-            headers={"X-API-Key": self.api_key},
-            timeout=30,
+    def _run(
+        self,
+        seller: str,
+        amount_usdc: str,
+        delivery_window_sec: int,
+        review_window_sec: int,
+        verification_uri: str,
+    ) -> str:
+        amount_atoms = int(round(float(amount_usdc) * 10**6))
+        result = path_b.arbitova_create_escrow(
+            seller=seller,
+            amount=amount_atoms,
+            delivery_window_sec=int(delivery_window_sec),
+            review_window_sec=int(review_window_sec),
+            verification_uri=verification_uri,
         )
-        data = resp.json()
-        if resp.status_code == 200:
-            return f"Escrow created. Order ID: {data['id']}. Amount locked: {data['amount']} USDC."
-        return f"Escrow failed: {data.get('error', 'Unknown error')}"
-
-
-class ArbitovaConfirmTool(BaseTool):
-    """Tool for confirming or disputing a delivery."""
-
-    name: str = "arbitova_confirm_or_dispute"
-    description: str = (
-        "Confirm a delivery (releasing funds) or dispute it (triggering AI arbitration). "
-        "Use after reviewing the seller's work."
-    )
-    api_key: str = ""
-
-    def _run(self, order_id: str, action: str, reason: Optional[str] = None) -> str:
-        if action == "confirm":
-            resp = httpx.post(
-                f"{ARBITOVA_BASE}/orders/{order_id}/confirm",
-                headers={"X-API-Key": self.api_key},
-                timeout=30,
-            )
-        elif action == "dispute":
-            resp = httpx.post(
-                f"{ARBITOVA_BASE}/orders/{order_id}/dispute",
-                json={"reason": reason or "Delivery did not meet requirements"},
-                headers={"X-API-Key": self.api_key},
-                timeout=30,
-            )
-        elif action == "partial":
-            # Partial confirm — release 50% if partially done
-            resp = httpx.post(
-                f"{ARBITOVA_BASE}/orders/{order_id}/partial-confirm",
-                json={"percent": 50, "note": "Partial delivery accepted"},
-                headers={"X-API-Key": self.api_key},
-                timeout=30,
-            )
-        else:
-            return f"Unknown action: {action}. Use 'confirm', 'dispute', or 'partial'."
-
-        data = resp.json()
-        if resp.status_code in (200, 201):
-            return str(data)
-        return f"Action failed: {data.get('error', 'Unknown error')}"
+        if result.get("error"):
+            return f"create_escrow failed: {result['error']}"
+        return (
+            f"escrow_id={result['escrow_id']} "
+            f"tx={result['tx_hash']} "
+            f"state=CREATED locked={amount_usdc} USDC"
+        )
 
 
 class ArbitovaDeliverTool(BaseTool):
-    """Tool for submitting delivery of a completed task."""
+    name: str = "arbitova_mark_delivered"
+    description: str = (
+        "As the seller, hash your delivery payload on-chain to signal the "
+        "buyer for review. Inputs: escrow_id, delivery_content (the exact "
+        "bytes/text you are handing over — its keccak256 is stored)."
+    )
 
-    name: str = "arbitova_deliver"
-    description: str = "Submit completed work as delivery for an Arbitova order."
-    api_key: str = ""
-
-    def _run(self, order_id: str, content: str) -> str:
-        resp = httpx.post(
-            f"{ARBITOVA_BASE}/orders/{order_id}/deliver",
-            json={"content": content},
-            headers={"X-API-Key": self.api_key},
-            timeout=30,
+    def _run(self, escrow_id: int, delivery_content: str) -> str:
+        content_bytes = delivery_content.encode("utf-8")
+        result = path_b.arbitova_mark_delivered(
+            escrow_id=int(escrow_id),
+            delivery_content_bytes=content_bytes,
         )
-        data = resp.json()
-        if resp.status_code == 200:
-            return f"Delivery submitted. Status: {data.get('status')}. {data.get('message', '')}"
-        return f"Delivery failed: {data.get('error', 'Unknown error')}"
+        if result.get("error"):
+            return f"mark_delivered failed: {result['error']}"
+        return (
+            f"delivered escrow_id={escrow_id} "
+            f"tx={result['tx_hash']} "
+            f"deliveryHash={result.get('delivery_hash')}"
+        )
 
 
-def create_buyer_agent(api_key: str) -> Agent:
-    """Buyer agent that hires and evaluates work."""
-    return Agent(
+class ArbitovaConfirmTool(BaseTool):
+    name: str = "arbitova_confirm_delivery"
+    description: str = (
+        "As the buyer, release the escrowed funds to the seller. Call this "
+        "only after you have verified delivery matches the verification "
+        "criteria. Input: escrow_id."
+    )
+
+    def _run(self, escrow_id: int) -> str:
+        result = path_b.arbitova_confirm_delivery(escrow_id=int(escrow_id))
+        if result.get("error"):
+            return f"confirm failed: {result['error']}"
+        return f"released escrow_id={escrow_id} tx={result['tx_hash']}"
+
+
+class ArbitovaDisputeTool(BaseTool):
+    name: str = "arbitova_dispute"
+    description: str = (
+        "Open a dispute on an escrow. The arbiter will split funds based "
+        "on verificationURI + deliveryHash. Only call when delivery does "
+        "NOT match criteria. Inputs: escrow_id, reason."
+    )
+
+    def _run(self, escrow_id: int, reason: str) -> str:
+        result = path_b.arbitova_dispute(escrow_id=int(escrow_id), reason=reason)
+        if result.get("error"):
+            return f"dispute failed: {result['error']}"
+        return f"disputed escrow_id={escrow_id} tx={result['tx_hash']}"
+
+
+class ArbitovaGetTool(BaseTool):
+    name: str = "arbitova_get_escrow"
+    description: str = (
+        "Read an escrow's current state from-chain. Input: escrow_id. "
+        "Returns state (CREATED/DELIVERED/RELEASED/DISPUTED/RESOLVED/CANCELLED), "
+        "buyer, seller, amount, deliveryHash, verificationURI."
+    )
+
+    def _run(self, escrow_id: int) -> str:
+        result = path_b.arbitova_get_escrow(escrow_id=int(escrow_id))
+        if result.get("error"):
+            return f"get failed: {result['error']}"
+        return str(result)
+
+
+# ----------------------------------------------------------------------------
+# Agents
+# ----------------------------------------------------------------------------
+
+def build_buyer_crew(seller: str, amount_usdc: str, verification_uri: str) -> Crew:
+    create_tool = ArbitovaCreateEscrowTool()
+    confirm_tool = ArbitovaConfirmTool()
+    dispute_tool = ArbitovaDisputeTool()
+    get_tool = ArbitovaGetTool()
+
+    buyer = Agent(
         role="Buyer Agent",
-        goal="Hire another agent to summarize a document, verify the quality, and confirm payment.",
-        backstory=(
-            "You are an autonomous AI agent with a budget of USDC. "
-            "You use Arbitova escrow to safely pay for work — funds only release "
-            "when you confirm the delivery meets your requirements."
+        goal=(
+            f"Hire the seller at {seller} to deliver the work described at "
+            f"{verification_uri}. Pay {amount_usdc} USDC through Arbitova. "
+            "Confirm only if delivery matches the verification criteria."
         ),
-        tools=[
-            ArbitovaEscrowTool(api_key=api_key),
-            ArbitovaConfirmTool(api_key=api_key),
+        backstory=(
+            "You are an autonomous buyer agent using Arbitova escrow so you "
+            "do not have to trust the seller up-front. You never release "
+            "funds without verifying delivery."
+        ),
+        tools=[create_tool, confirm_tool, dispute_tool, get_tool],
+        allow_delegation=False,
+    )
+
+    return Crew(
+        agents=[buyer],
+        tasks=[
+            Task(
+                description=(
+                    f"Create an Arbitova escrow for seller {seller}, amount "
+                    f"{amount_usdc} USDC, delivery window 3600s, review "
+                    f"window 1800s, verificationURI {verification_uri}. "
+                    "Return the escrow_id."
+                ),
+                agent=buyer,
+                expected_output="escrow_id as a number",
+            ),
         ],
-        verbose=True,
     )
 
 
-def create_seller_agent(api_key: str) -> Agent:
-    """Seller agent that does the work and delivers."""
-    return Agent(
+def build_seller_crew(escrow_id: int, delivery_content: str) -> Crew:
+    deliver_tool = ArbitovaDeliverTool()
+    get_tool = ArbitovaGetTool()
+
+    seller = Agent(
         role="Seller Agent",
-        goal="Complete assigned tasks and deliver results via Arbitova to receive payment.",
-        backstory=(
-            "You are a specialized AI agent offering document summarization services. "
-            "You submit work through Arbitova's delivery system and receive payment "
-            "once the buyer confirms quality."
+        goal=(
+            f"Deliver the agreed work for escrow {escrow_id} and hash the "
+            "delivery on-chain so the buyer can review."
         ),
-        tools=[
-            ArbitovaDeliverTool(api_key=api_key),
+        backstory=(
+            "You are an autonomous seller agent. You only mark_delivered "
+            "when you have the actual deliverable ready."
+        ),
+        tools=[deliver_tool, get_tool],
+        allow_delegation=False,
+    )
+
+    return Crew(
+        agents=[seller],
+        tasks=[
+            Task(
+                description=(
+                    f"Read escrow {escrow_id}. If state == CREATED, call "
+                    f"arbitova_mark_delivered with delivery_content: "
+                    f"{delivery_content!r}"
+                ),
+                agent=seller,
+                expected_output="tx_hash of the delivery transaction",
+            ),
         ],
-        verbose=True,
     )
 
 
-def run_demo():
-    """Run a full buyer-seller transaction demo."""
-    buyer_key = os.environ.get("ARBITOVA_BUYER_KEY")
-    seller_key = os.environ.get("ARBITOVA_SELLER_KEY")
+# ----------------------------------------------------------------------------
+# CLI
+# ----------------------------------------------------------------------------
 
-    if not buyer_key or not seller_key:
-        print("Set ARBITOVA_BUYER_KEY and ARBITOVA_SELLER_KEY environment variables.")
-        print("Register at: POST https://a2a-system.onrender.com/api/v1/agents/register")
-        return
-
-    # First, create a service (seller registers what they offer)
-    service_resp = httpx.post(
-        f"{ARBITOVA_BASE}/services",
-        json={
-            "name": "Document Summarizer",
-            "description": "Summarize any document to 200 words",
-            "price": 1.0,
-            "delivery_time": 1,
-        },
-        headers={"X-API-Key": seller_key},
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--role", choices=["buyer", "seller"], required=True)
+    parser.add_argument("--seller", help="seller address (buyer role)")
+    parser.add_argument("--amount", help="USDC amount (buyer role)")
+    parser.add_argument(
+        "--verification-uri",
+        default="https://example.com/task.md",
+        help="verification URI (buyer role)",
     )
-    service_id = service_resp.json().get("id")
-    print(f"Service created: {service_id}")
-
-    buyer = create_buyer_agent(buyer_key)
-    seller = create_seller_agent(seller_key)
-
-    buy_task = Task(
-        description=f"Create an escrow order for service {service_id} with requirements: 'Summarize the French Revolution in exactly 200 words'",
-        agent=buyer,
-        expected_output="Escrow order ID and confirmation that funds are locked",
+    parser.add_argument("--escrow-id", type=int, help="escrow id (seller role)")
+    parser.add_argument(
+        "--delivery",
+        default="delivery payload bytes",
+        help="delivery content to hash on-chain (seller role)",
     )
+    args = parser.parse_args()
 
-    sell_task = Task(
-        description="Deliver a 200-word summary of the French Revolution for the pending Arbitova order",
-        agent=seller,
-        expected_output="Confirmation that delivery was submitted successfully",
-        context=[buy_task],
-    )
+    for key in (
+        "ARBITOVA_RPC_URL",
+        "ARBITOVA_ESCROW_ADDRESS",
+        "ARBITOVA_USDC_ADDRESS",
+        "ARBITOVA_AGENT_PRIVATE_KEY",
+    ):
+        if not os.environ.get(key):
+            raise SystemExit(f"missing env var: {key}")
 
-    confirm_task = Task(
-        description="Review the delivery and confirm if it meets the 200-word requirement. Confirm payment or dispute if not.",
-        agent=buyer,
-        expected_output="Payment confirmed or dispute opened with reason",
-        context=[buy_task, sell_task],
-    )
-
-    crew = Crew(
-        agents=[buyer, seller],
-        tasks=[buy_task, sell_task, confirm_task],
-        verbose=True,
-    )
+    if args.role == "buyer":
+        if not args.seller or not args.amount:
+            raise SystemExit("buyer role needs --seller and --amount")
+        crew = build_buyer_crew(args.seller, args.amount, args.verification_uri)
+    else:
+        if args.escrow_id is None:
+            raise SystemExit("seller role needs --escrow-id")
+        crew = build_seller_crew(args.escrow_id, args.delivery)
 
     result = crew.kickoff()
-    print("\n=== Transaction Complete ===")
     print(result)
 
 
 if __name__ == "__main__":
-    run_demo()
+    main()
