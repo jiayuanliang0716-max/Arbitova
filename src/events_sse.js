@@ -77,58 +77,118 @@ function fmtAmt(raw) {
   try { return ethers.formatUnits(raw, USDC_DECIMALS); } catch { return String(raw); }
 }
 
+// Stateless block-polling indexer: calls eth_getLogs with an explicit
+// (fromBlock, toBlock) window instead of contract.on(), which uses
+// server-side filters that public RPC endpoints recycle every few minutes
+// (producing spammy "filter not found" errors). Polling is resilient to
+// RPC failures — one bad poll doesn't kill the indexer, it just retries.
+const POLL_INTERVAL_MS = 5000;
+const MAX_BATCH_BLOCKS = 500;          // cap per getLogs call
+const STARTUP_BACKFILL_BLOCKS = 100;   // replay last ~100 blocks on boot
+
+async function dispatchEvent(parsed, log, contract) {
+  const { name, args } = parsed;
+  const meta = { block: log.blockNumber, tx: log.transactionHash };
+  switch (name) {
+    case 'EscrowCreated': {
+      const [id, buyer, seller, amount, deadline, uri] = args;
+      partiesCache.set(String(id), { buyer, seller });
+      fanOut({ type: 'EscrowCreated', id: id.toString(), buyer, seller,
+        amount: fmtAmt(amount), deliveryDeadline: Number(deadline),
+        verificationURI: uri, ...meta });
+      break;
+    }
+    case 'Delivered': {
+      const [id, hash, deadline] = args;
+      const p = await resolveParties(id, contract);
+      fanOut({ type: 'Delivered', id: id.toString(), deliveryHash: hash,
+        reviewDeadline: Number(deadline), ...p, ...meta });
+      break;
+    }
+    case 'Released': {
+      const [id, toSeller, fee] = args;
+      const p = await resolveParties(id, contract);
+      fanOut({ type: 'Released', id: id.toString(),
+        toSeller: fmtAmt(toSeller), fee: fmtAmt(fee), ...p, ...meta });
+      break;
+    }
+    case 'Disputed': {
+      const [id, by, reason] = args;
+      const p = await resolveParties(id, contract);
+      fanOut({ type: 'Disputed', id: id.toString(), by, reason, ...p, ...meta });
+      break;
+    }
+    case 'Cancelled': {
+      const [id] = args;
+      const p = await resolveParties(id, contract);
+      fanOut({ type: 'Cancelled', id: id.toString(), ...p, ...meta });
+      break;
+    }
+    case 'Resolved': {
+      const [id, toBuyer, toSeller, fee, verdictHash] = args;
+      const p = await resolveParties(id, contract);
+      fanOut({ type: 'Resolved', id: id.toString(),
+        toBuyer: fmtAmt(toBuyer), toSeller: fmtAmt(toSeller),
+        fee: fmtAmt(fee), verdictHash, ...p, ...meta });
+      break;
+    }
+  }
+}
+
 let started = false;
 function startIndexer() {
   if (started) return;
   started = true;
+
+  let provider, contract;
   try {
-    const provider = new ethers.JsonRpcProvider(RPC);
-    const contract = new ethers.Contract(ESCROW_ADDRESS, ABI, provider);
-
-    contract.on('EscrowCreated', (id, buyer, seller, amount, deadline, uri, ev) => {
-      const e = { type: 'EscrowCreated', id: id.toString(), buyer, seller,
-        amount: fmtAmt(amount), deliveryDeadline: Number(deadline), verificationURI: uri,
-        block: ev.log.blockNumber, tx: ev.log.transactionHash };
-      partiesCache.set(String(id), { buyer, seller });
-      fanOut(e);
-    });
-
-    contract.on('Delivered', async (id, hash, deadline, ev) => {
-      const p = await resolveParties(id, contract);
-      fanOut({ type: 'Delivered', id: id.toString(), deliveryHash: hash,
-        reviewDeadline: Number(deadline), ...p,
-        block: ev.log.blockNumber, tx: ev.log.transactionHash });
-    });
-
-    contract.on('Released', async (id, toSeller, fee, ev) => {
-      const p = await resolveParties(id, contract);
-      fanOut({ type: 'Released', id: id.toString(), toSeller: fmtAmt(toSeller),
-        fee: fmtAmt(fee), ...p, block: ev.log.blockNumber, tx: ev.log.transactionHash });
-    });
-
-    contract.on('Disputed', async (id, by, reason, ev) => {
-      const p = await resolveParties(id, contract);
-      fanOut({ type: 'Disputed', id: id.toString(), by, reason, ...p,
-        block: ev.log.blockNumber, tx: ev.log.transactionHash });
-    });
-
-    contract.on('Cancelled', async (id, ev) => {
-      const p = await resolveParties(id, contract);
-      fanOut({ type: 'Cancelled', id: id.toString(), ...p,
-        block: ev.log.blockNumber, tx: ev.log.transactionHash });
-    });
-
-    contract.on('Resolved', async (id, toBuyer, toSeller, fee, verdictHash, ev) => {
-      const p = await resolveParties(id, contract);
-      fanOut({ type: 'Resolved', id: id.toString(), toBuyer: fmtAmt(toBuyer),
-        toSeller: fmtAmt(toSeller), fee: fmtAmt(fee), verdictHash, ...p,
-        block: ev.log.blockNumber, tx: ev.log.transactionHash });
-    });
-
-    console.log(`[events-sse] indexer started, contract=${ESCROW_ADDRESS} rpc=${RPC.split('?')[0]}`);
+    provider = new ethers.JsonRpcProvider(RPC);
+    contract = new ethers.Contract(ESCROW_ADDRESS, ABI, provider);
   } catch (err) {
-    console.error('[events-sse] indexer failed to start:', err.message);
+    console.error('[events-sse] provider init failed:', err.message);
+    started = false;
+    return;
   }
+
+  let lastProcessed = null;
+  let errStreak = 0;
+
+  async function poll() {
+    try {
+      const current = await provider.getBlockNumber();
+      if (lastProcessed === null) {
+        lastProcessed = Math.max(0, current - STARTUP_BACKFILL_BLOCKS);
+        console.log(`[events-sse] indexer started, contract=${ESCROW_ADDRESS} rpc=${RPC.split('?')[0]} fromBlock=${lastProcessed}`);
+      }
+      if (current <= lastProcessed) { errStreak = 0; return; }
+
+      const fromBlock = lastProcessed + 1;
+      const toBlock = Math.min(current, lastProcessed + MAX_BATCH_BLOCKS);
+
+      const logs = await provider.getLogs({
+        address: ESCROW_ADDRESS, fromBlock, toBlock,
+      });
+
+      for (const log of logs) {
+        try {
+          const parsed = contract.interface.parseLog(log);
+          if (parsed) await dispatchEvent(parsed, log, contract);
+        } catch { /* skip malformed / unknown-topic log */ }
+      }
+
+      lastProcessed = toBlock;
+      errStreak = 0;
+    } catch (err) {
+      errStreak++;
+      // Log first failure + every 12th (~1 min of errors at 5s poll) to avoid spam.
+      if (errStreak === 1 || errStreak % 12 === 0) {
+        console.warn(`[events-sse] poll failed (${errStreak}x): ${err.message}`);
+      }
+    }
+  }
+
+  poll();
+  setInterval(poll, POLL_INTERVAL_MS);
 }
 
 function sseHandler(req, res) {
