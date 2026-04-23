@@ -98,6 +98,71 @@ the ops queue; target response time documented elsewhere. Liveness
 of the arbiter is a known risk — disputed escrows can sit. No
 automatic-release fallback by design.
 
+### 2.5 Delivery content-hash verification SOP (M-4)
+
+**Problem.** The arbiter feeds `delivery.content` (the seller's
+submitted payload) to the LLM. If that content is tampered with
+between delivery submission and arbitration — e.g., by a DB
+compromise, a race during replication, a botched manual fix — the
+verdict can be coherent, well-reasoned, and wrong, because it judges
+a payload that is no longer what was actually delivered.
+
+**Countermeasure.** At delivery time we record
+`delivery_payload_hash = sha256(delivery.content)`. Before any verdict
+is accepted the arbiter recomputes that hash and must see it match.
+
+**Arbiter SOP (non-negotiable before `resolve` is signed):**
+
+1. Build the evidence bundle via `buildEvidenceBundle(...)`.
+2. Inspect `evidenceBundle.content_hash_match`:
+   - `true`   → content is unchanged since delivery; verdict is safe
+                to consider on its merits.
+   - `false`  → **content diverges from its recorded hash.** Verdict
+                is not safe. Arbiter MUST NOT sign `resolve`. Case is
+                auto-escalated to human review (`escalate_to_human`
+                is forced true with
+                `escalation_reason = "delivery content_hash mismatch"`).
+   - `null`   → no recorded hash for this delivery (legacy order or
+                an integration that did not record one). Proceed, but
+                log the advisory in `arbitration_verdicts.method`.
+3. Hashes are recorded in the verdict as
+   `delivery_payload_hash` (recorded) and
+   `delivery_payload_hash_recomputed` (recomputed at verdict time),
+   so the check is auditable after the fact.
+
+**Where enforced in code:**
+
+- `src/arbitrate.js :: verifyDeliveryContentHash(delivery)` — produces
+  `{ match, recorded, recomputed }`.
+- `src/arbitrate.js :: buildEvidenceBundle(...)` — surfaces
+  `content_hash_match`.
+- `src/arbitrate.js :: arbitrateDispute(...)` — forces
+  `escalate_to_human = true` and sets `escalation_reason` when
+  `content_hash_match === false`. This is a hard gate independent of
+  LLM confidence or ensemble agreement.
+
+**Where it ties back to the chain.** On-chain `resolve` is only
+callable by the arbiter role; the arbiter signs off-chain after the
+above SOP. A hash-mismatch verdict should never reach `resolve`; it
+goes to human review, and from there either to human resolution or,
+under Path B, to a Kleros escalation where jurors see the mismatch
+evidence directly.
+
+**Gap (acknowledged).** Today `delivery.content` is stored in
+Postgres, and `payload_hash` is populated by the delivery endpoint
+when that endpoint computes it client-side. Writing the hash to the
+same row it fingerprints gives only tamper-evidence, not
+tamper-prevention: an attacker who can rewrite `content` can rewrite
+`payload_hash` too. Hardening options (any of them closes the gap):
+
+- Anchor the hash on-chain at delivery time (cheap: one event).
+- Store the hash in a separate append-only log signed by the seller.
+- Require the seller to sign the content off-chain; verify the
+  signature at arbitration time.
+
+Tracked as a follow-up; current SOP detects drift caused by
+operational mistakes, not by an attacker who owns the DB.
+
 ---
 
 ## 3. Key / secret hygiene
