@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verdict · Arbitova</title>
+  <meta name="description" content="Per-case Arbitova verdict bundle: on-chain split, verdict hash, dispute reason, and link to Basescan transaction.">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <script>(function(){try{var t=localStorage.getItem('theme')||'light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','light');}})();</script>
+  <link rel="stylesheet" href="/css/tokens.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+    a { color: var(--brand); text-decoration: none; }
+
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .nav-brand span { color: var(--brand); }
+    .nav-links { display: flex; gap: 24px; font-size: 13px; }
+    .nav-links a { color: var(--text-secondary); }
+    .nav-links a:hover, .nav-links a.active { color: var(--text-primary); }
+
+    .wrap { max-width: 820px; margin: 0 auto; padding: 40px 32px 80px; }
+    .crumb { font-size: 12px; color: var(--text-tertiary); margin-bottom: 10px; }
+    .crumb a { color: var(--text-secondary); }
+    h1 { font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; font-family: var(--font-mono); }
+    .lede { font-size: 14px; color: var(--text-secondary); line-height: 1.6; margin: 0 0 28px; }
+
+    .chip { display: inline-block; font-size: 12px; font-family: var(--font-mono); padding: 3px 10px; border-radius: var(--radius-full); font-weight: 500; }
+    .chip.buyer { background: var(--brand-dim); color: var(--brand); }
+    .chip.seller { background: var(--warning-bg); color: var(--warning); }
+    .chip.split { background: var(--neutral-bg); color: var(--text-secondary); }
+    .chip.pending { background: var(--neutral-bg); color: var(--text-tertiary); }
+
+    .card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 16px; }
+    .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin: 0 0 14px; font-weight: 500; }
+
+    dl { margin: 0; display: grid; grid-template-columns: 160px 1fr; row-gap: 10px; column-gap: 16px; font-size: 13px; }
+    dt { color: var(--text-tertiary); }
+    dd { margin: 0; color: var(--text-primary); font-family: var(--font-mono); word-break: break-all; }
+    dd.plain { font-family: var(--font-ui); }
+
+    .reason-block { font-size: 13px; color: var(--text-primary); line-height: 1.6; white-space: pre-wrap; background: var(--bg-base); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; }
+    .none { color: var(--text-tertiary); font-style: italic; font-family: var(--font-ui); }
+
+    .split-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 6px; }
+    .split-row .side { border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 12px 14px; }
+    .split-row .side .who { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 4px; }
+    .split-row .side .amt { font-family: var(--font-mono); font-size: 18px; font-weight: 600; }
+    .split-row .side.buyer .amt { color: var(--brand); }
+    .split-row .side.seller .amt { color: var(--warning); }
+
+    .pending-row { display: grid; grid-template-columns: 180px 1fr; row-gap: 8px; column-gap: 16px; font-size: 12.5px; }
+    .pending-row dt { color: var(--text-tertiary); }
+    .pending-row dd { margin: 0; color: var(--text-tertiary); font-family: var(--font-ui); }
+
+    .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 12.5px; line-height: 1.55; margin-bottom: 18px; border: 1px solid; }
+    .alert.warn { background: var(--warning-bg); border-color: var(--warning-border); color: var(--warning); }
+    .alert.note { background: var(--bg-surface); border-color: var(--border-subtle); color: var(--text-secondary); }
+    .alert code { font-family: var(--font-mono); background: var(--bg-base); padding: 1px 6px; border-radius: 3px; }
+
+    .loading { text-align: center; padding: 60px 20px; color: var(--text-secondary); font-size: 13px; }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="/" class="nav-brand">Arbitova<span>.</span></a>
+    <div class="nav-links">
+      <a href="/pay/">Dashboard</a>
+      <a href="/docs">Docs</a>
+      <a href="/verdicts" class="active">Verdicts</a>
+      <a href="/arbiter">Arbiter</a>
+    </div>
+    <button class="theme-toggle-btn" onclick="toggleTheme()" aria-label="Toggle light/dark theme" title="Toggle light/dark">
+      <svg id="theme-icon-dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      <svg id="theme-icon-light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </nav>
+  <script src="/js/theme.js?v=20260424"></script>
+
+  <div class="wrap">
+    <div class="crumb"><a href="/verdicts">← All verdicts</a></div>
+    <h1 id="pageTitle">Verdict #—</h1>
+    <p class="lede">Per-case verdict bundle for a single Arbitova-resolved dispute. Rendered directly from the <code id="contractShort" style="font-family:var(--font-mono)">EscrowV1</code> event log on Base Sepolia. Policy: <a href="https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md" target="_blank" rel="noopener">transparency-policy v1.1</a>.</p>
+
+    <div id="loadingState" class="loading"><div class="spinner"></div><div style="margin-top:12px">Reading on-chain events…</div></div>
+
+    <div id="content" style="display:none">
+      <div id="stateAlert"></div>
+
+      <div class="card">
+        <h2>Outcome</h2>
+        <div id="outcomeChipRow" style="margin-bottom:14px"></div>
+        <div class="split-row">
+          <div class="side buyer">
+            <div class="who">→ Buyer refund</div>
+            <div class="amt" id="toBuyer">— USDC</div>
+          </div>
+          <div class="side seller">
+            <div class="who">→ Seller paid</div>
+            <div class="amt" id="toSeller">— USDC</div>
+          </div>
+        </div>
+        <dl style="margin-top:14px">
+          <dt>Resolve fee</dt><dd id="feePaid">—</dd>
+          <dt>Verdict hash</dt><dd id="verdictHash">—</dd>
+          <dt>Resolve tx</dt><dd id="resolveTx">—</dd>
+          <dt>Block</dt><dd id="resolveBlock">—</dd>
+          <dt>Timestamp</dt><dd id="resolveTimestamp" class="plain">—</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>Dispute</h2>
+        <dl>
+          <dt>Opened by</dt><dd id="disputeBy">—</dd>
+          <dt>Dispute tx</dt><dd id="disputeTx">—</dd>
+        </dl>
+        <div style="margin-top:14px">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-tertiary);margin-bottom:6px">Reason submitted on-chain</div>
+          <div id="disputeReason" class="reason-block"><span class="none">—</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Escrow record</h2>
+        <dl>
+          <dt>Escrow ID</dt><dd id="escrowIdField">—</dd>
+          <dt>Buyer</dt><dd id="buyerAddr">—</dd>
+          <dt>Seller</dt><dd id="sellerAddr">—</dd>
+          <dt>Original amount</dt><dd id="origAmount">—</dd>
+          <dt>Delivery hash</dt><dd id="deliveryHash">—</dd>
+          <dt>Verification URI</dt><dd id="verificationURI" class="plain">—</dd>
+        </dl>
+      </div>
+
+      <div class="card">
+        <h2>Per-case bundle (transparency-policy v1.1)</h2>
+        <div class="alert note" style="margin-bottom:12px">
+          The fields below are committed in the <a href="https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">transparency policy</a>. They populate once an off-chain arbiter run for this case produces reasoning + ensemble snapshot. On-chain <code>verdictHash</code> already commits the arbiter to the reasoning text that will appear here — users can always verify the published reasoning against the hash.
+        </div>
+        <dl class="pending-row">
+          <dt>Arbiter reasoning</dt><dd id="reasoningStatus">Pending — not yet published for this case.</dd>
+          <dt>Ensemble vote breakdown</dt><dd id="ensembleStatus">Pending — N=3 voter outputs will appear here.</dd>
+          <dt>Confidence / gate</dt><dd id="confidenceStatus">Pending.</dd>
+          <dt>Escalation reason</dt><dd id="escalationStatus">Pending — populated if low-confidence gate tripped.</dd>
+          <dt>content_hash_match</dt><dd id="contentHashStatus">Pending — computed from <code style="font-family:var(--font-mono)">deliveryHash</code> once review tooling ships.</dd>
+        </dl>
+      </div>
+    </div>
+
+    <div id="notFoundState" style="display:none">
+      <div class="alert warn">
+        <strong id="nfTitle">No verdict found for this escrow.</strong>
+        <div id="nfBody" style="margin-top:6px"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="/js/path-b-sdk.js?v=20260422"></script>
+  <script>
+    const env = PathB.getEnvInfo();
+    document.getElementById('contractShort').textContent = 'EscrowV1 · ' + env.escrow.slice(0, 8) + '…' + env.escrow.slice(-4);
+
+    // Extract disputeId from /verdicts/{disputeId} or ?id=
+    const pathMatch = window.location.pathname.match(/^\/verdicts\/(\d+)/);
+    const qsId = new URLSearchParams(window.location.search).get('id');
+    const disputeId = pathMatch ? pathMatch[1] : (qsId || null);
+
+    const ABI = [
+      'event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI)',
+      'event Disputed(uint256 indexed id, address indexed by, string reason)',
+      'event Resolved(uint256 indexed id, uint256 toBuyer, uint256 toSeller, uint256 fee, bytes32 verdictHash)',
+    ];
+
+    const PUBLIC_RPC = 'https://sepolia.base.org';
+    const START_BLOCK = 40478709;
+    const CHUNK = 10000;
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function fmt(raw) { try { return ethers.formatUnits(raw, 6); } catch { return String(raw); } }
+    function shortAddr(a) { return a ? a.slice(0, 8) + '…' + a.slice(-6) : '—'; }
+    function shortHash(h) { return h ? h.slice(0, 10) + '…' + h.slice(-6) : '—'; }
+    function txLink(tx) { return tx ? `<a href="${env.explorer}/tx/${tx}" target="_blank" rel="noopener">${shortHash(tx)} →</a>` : '—'; }
+    function addrLink(a) { return a ? `<a href="${env.explorer}/address/${a}" target="_blank" rel="noopener">${shortAddr(a)}</a>` : '—'; }
+
+    async function queryFilterChunked(contract, filter, fromBlock, toBlock) {
+      const out = [];
+      for (let lo = fromBlock; lo <= toBlock; lo += CHUNK) {
+        const hi = Math.min(lo + CHUNK - 1, toBlock);
+        const chunk = await contract.queryFilter(filter, lo, hi);
+        if (chunk.length) out.push(...chunk);
+      }
+      return out;
+    }
+
+    async function load() {
+      if (!disputeId || !/^\d+$/.test(disputeId)) {
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('notFoundState').style.display = 'block';
+        document.getElementById('nfTitle').textContent = 'Missing escrow id.';
+        document.getElementById('nfBody').innerHTML = 'Open this page as <code>/verdicts/{disputeId}</code>, e.g. <code>/verdicts/1</code>. Or browse <a href="/verdicts" style="color:inherit;text-decoration:underline">all verdicts</a>.';
+        return;
+      }
+
+      document.getElementById('pageTitle').textContent = `Verdict #${disputeId}`;
+      document.title = `Verdict #${disputeId} · Arbitova`;
+
+      try {
+        const provider = new ethers.JsonRpcProvider(PUBLIC_RPC);
+        const contract = new ethers.Contract(env.escrow, ABI, provider);
+        const latest = await provider.getBlockNumber();
+
+        const idBN = BigInt(disputeId);
+        const createdFilter  = contract.filters.Created(idBN);
+        const disputedFilter = contract.filters.Disputed(idBN);
+        const resolvedFilter = contract.filters.Resolved(idBN);
+
+        const [createdLogs, disputedLogs, resolvedLogs] = await Promise.all([
+          queryFilterChunked(contract, createdFilter, START_BLOCK, latest),
+          queryFilterChunked(contract, disputedFilter, START_BLOCK, latest),
+          queryFilterChunked(contract, resolvedFilter, START_BLOCK, latest),
+        ]);
+
+        document.getElementById('loadingState').style.display = 'none';
+
+        if (createdLogs.length === 0) {
+          document.getElementById('notFoundState').style.display = 'block';
+          document.getElementById('nfTitle').textContent = `No escrow #${disputeId} found on-chain.`;
+          document.getElementById('nfBody').innerHTML = `Either the id is wrong or the escrow was created outside this contract. <a href="${env.explorer}/address/${env.escrow}#events" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Browse raw events on Basescan →</a>`;
+          return;
+        }
+
+        document.getElementById('content').style.display = 'block';
+
+        const created = createdLogs[0];
+        document.getElementById('escrowIdField').textContent = `#${disputeId}`;
+        document.getElementById('buyerAddr').innerHTML = addrLink(created.args.buyer);
+        document.getElementById('sellerAddr').innerHTML = addrLink(created.args.seller);
+        document.getElementById('origAmount').textContent = `${fmt(created.args.amount)} USDC`;
+        document.getElementById('verificationURI').textContent = created.args.verificationURI || '—';
+
+        // Dispute: the latest (or only) Disputed event for this id
+        if (disputedLogs.length > 0) {
+          const d = disputedLogs[disputedLogs.length - 1];
+          document.getElementById('disputeBy').innerHTML = addrLink(d.args.by);
+          document.getElementById('disputeTx').innerHTML = txLink(d.transactionHash);
+          const reason = d.args.reason || '';
+          document.getElementById('disputeReason').innerHTML = reason
+            ? escapeHtml(reason)
+            : '<span class="none">(no reason text submitted)</span>';
+        } else {
+          document.getElementById('disputeBy').innerHTML = '<span class="none">Not disputed</span>';
+          document.getElementById('disputeTx').innerHTML = '—';
+          document.getElementById('disputeReason').innerHTML = '<span class="none">This escrow was not disputed. It resolved via the happy path or a timeout.</span>';
+        }
+
+        // Resolution
+        if (resolvedLogs.length === 0) {
+          document.getElementById('stateAlert').innerHTML = `
+            <div class="alert warn"><strong>Not yet resolved.</strong> This escrow exists on-chain but no <code>Resolved</code> event has fired. It may still be in <code>AWAITING_DELIVERY</code>, <code>DELIVERED</code>, or <code>DISPUTED</code> state. Check <a href="/pay/status.html?id=${escapeHtml(disputeId)}" style="color:inherit;text-decoration:underline">the escrow status page</a>.</div>`;
+          document.getElementById('outcomeChipRow').innerHTML = '<span class="chip pending">Pending</span>';
+          // Leave delivery hash blank, since it may not be marked yet
+          document.getElementById('deliveryHash').innerHTML = '<span class="none">Not yet delivered or not yet resolved.</span>';
+          return;
+        }
+
+        const r = resolvedLogs[resolvedLogs.length - 1];
+        const toBuyer = r.args.toBuyer;
+        const toSeller = r.args.toSeller;
+
+        let cls = 'split';
+        let chipText = 'Split';
+        if (toBuyer > 0n && toSeller === 0n) { cls = 'buyer'; chipText = 'Buyer refund'; }
+        else if (toSeller > 0n && toBuyer === 0n) { cls = 'seller'; chipText = 'Seller paid'; }
+
+        document.getElementById('outcomeChipRow').innerHTML = `<span class="chip ${cls}">${chipText}</span>`;
+        document.getElementById('toBuyer').textContent = `${fmt(toBuyer)} USDC`;
+        document.getElementById('toSeller').textContent = `${fmt(toSeller)} USDC`;
+        document.getElementById('feePaid').textContent = `${fmt(r.args.feePaid)} USDC`;
+        const vh = r.args.verdictHash;
+        document.getElementById('verdictHash').innerHTML = vh === ethers.ZeroHash
+          ? '<span class="none">ZeroHash — no reasoning committed on-chain for this case.</span>'
+          : escapeHtml(vh);
+        document.getElementById('resolveTx').innerHTML = txLink(r.transactionHash);
+        document.getElementById('resolveBlock').textContent = String(r.blockNumber);
+
+        try {
+          const block = await provider.getBlock(r.blockNumber);
+          if (block && block.timestamp) {
+            const d = new Date(block.timestamp * 1000);
+            document.getElementById('resolveTimestamp').textContent = d.toISOString().replace('T', ' ').replace('.000Z', ' UTC');
+          }
+        } catch (_) {}
+
+        // Delivery hash — read from contract storage (escrow struct)
+        try {
+          const DELIVERY_ABI = ['function getEscrow(uint256 id) view returns (tuple(address buyer, address seller, uint256 amount, uint256 deliveryDeadline, uint256 reviewDeadline, uint8 state, bytes32 deliveryHash, string verificationURI))'];
+          const ro = new ethers.Contract(env.escrow, DELIVERY_ABI, provider);
+          const e = await ro.getEscrow(idBN);
+          if (e && e.deliveryHash && e.deliveryHash !== ethers.ZeroHash) {
+            document.getElementById('deliveryHash').textContent = e.deliveryHash;
+          } else {
+            document.getElementById('deliveryHash').innerHTML = '<span class="none">No delivery hash recorded (delivery was not marked before resolution).</span>';
+          }
+        } catch (_) {
+          document.getElementById('deliveryHash').innerHTML = '<span class="none">Unable to read delivery hash from contract.</span>';
+        }
+      } catch (err) {
+        document.getElementById('loadingState').innerHTML = `
+          <div class="alert warn">Failed to load from RPC: ${escapeHtml(err.message || String(err))}.
+          You can still read the raw event log on <a href="${env.explorer}/address/${env.escrow}#events" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">Basescan</a>.</div>`;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>

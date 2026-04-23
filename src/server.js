@@ -118,6 +118,13 @@ app.use(express.static(path.join(__dirname, '..', 'public'), {
 
 // Clean URL aliases for standalone pages
 app.get('/verdicts', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'verdicts.html')));
+// Per-case verdict bundle (transparency-policy v1.1): /verdicts/{escrowId}
+// Frontend reads the specific escrow's on-chain events via ethers.js; policy body
+// documents which fields are on-chain today vs populated after off-chain arbitration.
+app.get('/verdicts/:disputeId', (req, res, next) => {
+  if (!/^\d+$/.test(req.params.disputeId)) return next();
+  res.sendFile(path.join(__dirname, '..', 'public', 'verdict.html'));
+});
 app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
 app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
 

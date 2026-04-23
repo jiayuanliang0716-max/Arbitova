@@ -88,7 +88,7 @@
     <p class="lede">Every dispute resolved by the Arbitova arbiter is on-chain. This page queries the <code>Resolved</code> event log of <a href="/arbiter">EscrowV1</a> directly — no intermediary database, no hidden cases. Each verdict links to its Basescan transaction.</p>
 
     <div class="alert warn" style="margin-bottom:24px">
-      <strong>Scope note (updated 2026-04-24).</strong> This page currently renders the on-chain <code>Resolved</code> event surface only: split, verdict hash, tx. The full per-case bundle committed in the <a href="https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">transparency policy</a> — full arbiter reasoning, ensemble vote breakdown, confidence, escalation reason, and <code>content_hash_match</code> — will appear per case at <code>/verdicts/{disputeId}</code> once the off-chain API is wired (Phase 4). Until then, the on-chain event remains the authoritative verdict record, and the <code>verdictHash</code> field commits Arbitova to the published reasoning of each case.
+      <strong>Scope note (updated 2026-04-24).</strong> This list renders the on-chain <code>Resolved</code> event surface: split, verdict hash, tx. Click any escrow id to open its per-case page at <code>/verdicts/{disputeId}</code>, which shows the current on-chain bundle plus the slots reserved for arbiter reasoning, ensemble vote breakdown, confidence, escalation reason, and <code>content_hash_match</code> per the <a href="https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline">transparency policy</a>. Those slots populate once the first real off-chain arbitration run publishes its bundle; the <code>verdictHash</code> field already commits Arbitova to the reasoning that will appear.
     </div>
 
     <div class="meta-row">
@@ -271,7 +271,7 @@
 
         return `
           <tr>
-            <td><a class="escrow-id" href="/pay/status.html?id=${v.id}">#${v.id}</a></td>
+            <td><a class="escrow-id" href="/verdicts/${v.id}">#${v.id}</a></td>
             <td><span class="chip ${cls}">${chipText}</span></td>
             <td class="split">
               <span class="b">→ buyer ${fmt(v.toBuyer)}</span><br>
