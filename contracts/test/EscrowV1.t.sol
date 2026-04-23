@@ -698,4 +698,103 @@ contract EscrowV1Test is Test {
         vm.expectRevert(EscrowV1.BpsSumNot10000.selector);
         escrow.resolve(id, buyerBps, sellerBps, bytes32(0));
     }
+
+    // ===========================================================================
+    // PAUSABLE TESTS (M-7)
+    // ===========================================================================
+
+    function test_pause_onlyOwner() public {
+        vm.prank(stranger);
+        vm.expectRevert();
+        escrow.pause();
+    }
+
+    function test_paused_blocksCreateEscrow() public {
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.prank(buyer);
+        vm.expectRevert();
+        escrow.createEscrow(seller, AMOUNT, DELIVERY_WIN, REVIEW_WIN, "");
+    }
+
+    function test_paused_blocksDispute() public {
+        uint256 id = _createAndDeliver();
+
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.prank(buyer);
+        vm.expectRevert();
+        escrow.dispute(id, "blocked");
+    }
+
+    function test_paused_blocksResolve() public {
+        uint256 id = _createDeliverDispute();
+
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.prank(arbiter);
+        vm.expectRevert();
+        escrow.resolve(id, 5_000, 5_000, bytes32(0));
+    }
+
+    // Exit paths MUST remain open even when paused —
+    // paused must never trap user funds.
+
+    function test_paused_confirmDelivery_stillWorks() public {
+        uint256 id = _createAndDeliver();
+
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.prank(buyer);
+        escrow.confirmDelivery(id);
+
+        EscrowV1.Escrow memory e = escrow.getEscrow(id);
+        assertEq(uint8(e.state), uint8(EscrowV1.State.RELEASED));
+    }
+
+    function test_paused_cancelIfNotDelivered_stillWorks() public {
+        uint256 id = _create();
+
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.warp(block.timestamp + DELIVERY_WIN + 1);
+
+        vm.prank(buyer);
+        escrow.cancelIfNotDelivered(id);
+
+        EscrowV1.Escrow memory e = escrow.getEscrow(id);
+        assertEq(uint8(e.state), uint8(EscrowV1.State.CANCELLED));
+    }
+
+    function test_paused_escalateIfExpired_stillWorks() public {
+        uint256 id = _createAndDeliver();
+
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.warp(block.timestamp + REVIEW_WIN + 1);
+
+        vm.prank(stranger);
+        escrow.escalateIfExpired(id);
+
+        EscrowV1.Escrow memory e = escrow.getEscrow(id);
+        assertEq(uint8(e.state), uint8(EscrowV1.State.DISPUTED));
+    }
+
+    function test_unpause_restoresOperations() public {
+        vm.prank(owner);
+        escrow.pause();
+
+        vm.prank(owner);
+        escrow.unpause();
+
+        uint256 id = _create();
+        EscrowV1.Escrow memory e = escrow.getEscrow(id);
+        assertEq(uint8(e.state), uint8(EscrowV1.State.CREATED));
+    }
 }

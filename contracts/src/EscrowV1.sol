@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 // TODO (V1.1): implement createEscrowWithPermit to allow gasless USDC approval via EIP-2612 permit.
@@ -34,8 +35,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  *   - On resolve: fee is taken proportionally from each party's allocated amount
  *     (buyer's fee from buyer's allocation, seller's fee from seller's allocation).
  */
-contract EscrowV1 is ReentrancyGuard, Ownable {
+contract EscrowV1 is ReentrancyGuard, Pausable, Ownable {
     using SafeERC20 for IERC20;
+
+    // Pausable gates only the entry paths: createEscrow, dispute, resolve.
+    // User-exit paths (confirmDelivery, cancelIfNotDelivered, escalateIfExpired,
+    // markDelivered) are NEVER paused — funds must always be able to leave
+    // the contract even if the owner suspends new disputes.
 
     // -------------------------------------------------------------------------
     // Types
@@ -175,6 +181,17 @@ contract EscrowV1 is ReentrancyGuard, Ownable {
         resolveFeeBps = bps;
     }
 
+    // Emergency circuit breaker. Only blocks create/dispute/resolve. Cannot
+    // block users from exiting existing escrows via confirmDelivery, cancel,
+    // escalateIfExpired, or markDelivered.
+    function pause() external onlyOwner {
+        _pause();
+    }
+
+    function unpause() external onlyOwner {
+        _unpause();
+    }
+
     // -------------------------------------------------------------------------
     // Core flow
     // -------------------------------------------------------------------------
@@ -194,7 +211,7 @@ contract EscrowV1 is ReentrancyGuard, Ownable {
         uint64  deliveryWindowSec,
         uint64  reviewWindowSec,
         string  calldata verificationURI
-    ) external returns (uint256 escrowId) {
+    ) external whenNotPaused returns (uint256 escrowId) {
         if (seller == address(0))              revert SellerIsZero();
         if (seller == msg.sender)              revert SellerIsBuyer();
         if (amount == 0)                       revert AmountIsZero();
@@ -272,7 +289,7 @@ contract EscrowV1 is ReentrancyGuard, Ownable {
      * @param id      Escrow ID.
      * @param reason  Human-readable dispute reason (emitted as event, not stored on-chain).
      */
-    function dispute(uint256 id, string calldata reason) external {
+    function dispute(uint256 id, string calldata reason) external whenNotPaused {
         Escrow storage e = escrows[id];
         if (msg.sender != e.buyer && msg.sender != e.seller) revert NotBuyerOrSeller();
         if (e.state != State.CREATED && e.state != State.DELIVERED) revert WrongState(e.state);
@@ -331,7 +348,7 @@ contract EscrowV1 is ReentrancyGuard, Ownable {
         uint16  buyerBps,
         uint16  sellerBps,
         bytes32 verdictHash
-    ) external nonReentrant {
+    ) external nonReentrant whenNotPaused {
         if (msg.sender != arbiter)    revert NotArbiter();
 
         Escrow storage e = escrows[id];
@@ -342,16 +359,19 @@ contract EscrowV1 is ReentrancyGuard, Ownable {
 
         e.state = State.RESOLVED;
 
-        uint256 buyerGross  = (e.amount * buyerBps)  / BPS_DENOM;
-        uint256 sellerGross = (e.amount * sellerBps) / BPS_DENOM;
-
-        // Fee proportional to each party's gross allocation.
-        uint256 buyerFee  = (buyerGross  * resolveFeeBps) / BPS_DENOM;
-        uint256 sellerFee = (sellerGross * resolveFeeBps) / BPS_DENOM;
-        uint256 totalFee  = buyerFee + sellerFee;
-
-        uint256 toBuyer  = buyerGross  - buyerFee;
-        uint256 toSeller = sellerGross - sellerFee;
+        uint256 toBuyer;
+        uint256 toSeller;
+        uint256 totalFee;
+        {
+            // Scope intermediate vars so they free up stack before transfers.
+            uint256 buyerGross  = (e.amount * buyerBps)  / BPS_DENOM;
+            uint256 sellerGross = (e.amount * sellerBps) / BPS_DENOM;
+            uint256 buyerFee    = (buyerGross  * resolveFeeBps) / BPS_DENOM;
+            uint256 sellerFee   = (sellerGross * resolveFeeBps) / BPS_DENOM;
+            totalFee  = buyerFee + sellerFee;
+            toBuyer   = buyerGross  - buyerFee;
+            toSeller  = sellerGross - sellerFee;
+        }
 
         if (toBuyer  > 0) IERC20(usdc).safeTransfer(e.buyer,       toBuyer);
         if (toSeller > 0) IERC20(usdc).safeTransfer(e.seller,      toSeller);
