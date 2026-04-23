@@ -1,8 +1,13 @@
 # Upstream Framework PRs — Plan and State
 
-Status: **PLAN DOC** (not-yet-filed)
-Author: 2026-04-23
+Status: **PLAN DOC** (partial progress 2026-04-24)
+Author: 2026-04-23 · Updated 2026-04-24 with verified upstream paths
 Y3 from `project_arbitova_remediation_backlog.md`
+
+**2026-04-24 progress:**
+- Cookbook notebook source written (commit `c4397dd`, `drafts/arbitova_escrow_a2a_cookbook.py`). Convert + file when ready.
+- CrewAI pivot issue drafted (`drafts/crewai-examples-pivot-issue.md`). Ready to paste.
+- LangGraph path **materially changed** — see §3 rewrite below. Not a docs PR anymore.
 
 ---
 
@@ -16,7 +21,7 @@ for upstream PRs in its original form**:
 |---------------------|-----------------------------|-------------------------------|:------------:|
 | Claude Agent SDK    | `anthropics/anthropic-cookbook` | Active, accepts `third_party/` | ✅ yes      |
 | CrewAI              | `crewAIInc/crewAI-examples` | **Archived 2026-04-20** (read-only) | ❌ no |
-| LangGraph           | `langchain-ai/langgraph/examples` | **Archived**, moved to docs.langchain.com | ⚠️ redirected |
+| LangGraph           | `langchain-ai/langgraph/examples` | **Archived**; new surface is **co-marketing**, not docs PR | 🔄 pivot to co-mkt |
 
 This doc lays out the revised strategy per framework, a ready-to-file
 PR package for the cookbook, and fallback plans for the two archived
@@ -148,57 +153,86 @@ the maintainer confirms that's the right surface.
 
 ---
 
-## 3. LangGraph — redirected to langchain docs
+## 3. LangGraph — NOT a PR, pivot to co-marketing
 
-**Problem:** `langchain-ai/langgraph/examples` says "retained purely
-for archival purposes. Examples now moved to the newly consolidated
-LangChain documentation." Active contributions go to the main
-`langchain-ai/langchain` repo's docs tree or to `docs.langchain.com`.
+**Verified 2026-04-24:** LangChain consolidated docs at
+`github.com/langchain-ai/docs` (Mintlify, served at
+`docs.langchain.com`). LangGraph content lives under
+`src/oss/langgraph/`. **But** `src/oss/contributing/comarketing.mdx`
+explicitly states community integration examples are *not* filed as
+docs PRs — they're submitted for promotion via LangChain's social
+channels (Twitter, LinkedIn).
 
-### 3a. Langchain main repo docs PR (preferred)
+Direct quote from `comarketing.mdx`:
 
-**Target:** `github.com/langchain-ai/langchain`
-**Path (tentative):** `docs/docs/integrations/tools/arbitova.mdx`
-(modeled on existing third-party tool entries — exact path needs
-confirmation against the repo's current docs layout before we
-commit to it)
+> End-to-end applications are great resources for developers looking
+> to build. We prefer to highlight applications that are more
+> complex/agentic in nature, and that use LangGraph as the
+> orchestration framework. We get particularly excited about anything
+> involving:
+> - Long-term memory systems
+> - Human-in-the-loop interaction patterns
+> - **Multi-agent architectures**
 
-**Shape:** MDX documentation page + a minimal runnable snippet.
-Probably a lighter lift than a full notebook.
+Arbitova is literally "multi-agent architecture with on-chain payment
+settlement" — dead center of what they said they want to highlight.
+Wrong shape for a docs PR; right shape for a co-marketing pitch.
 
-**Blocker:** I haven't browsed the exact docs layout of the
-consolidated repo. Before drafting the PR content, worth a
-10-minute navigation pass to confirm where tool-integration pages
-actually live today.
+### 3a. Co-marketing submission (the real play)
 
-### 3b. langchain-ai/langchain cookbook
+**Target:** LangChain social channels — Twitter @LangChain, LinkedIn
+company page, or direct inbound via their partnership address.
 
-Some integrations live in `langchain-ai/langchain/cookbook/` as
-notebooks. Could be the right surface if our example is more
-demo-shaped than docs-shaped.
+**Package to send:**
+1. Short pitch email / DM (3–4 sentences — what it is, why LangGraph
+   shape, link to demo)
+2. Link to `examples/langgraph/` in the Arbitova repo (the
+   end-to-end runnable example we already have)
+3. Short Loom or asciinema recording of the demo running end-to-end
+   (buyer agent hires seller agent → escrow settles on Sepolia)
+4. One-paragraph "why developers should care" framing
 
-**Recommendation:** verify the right path (3a or 3b) before
-drafting. I'll do that as a follow-up pass after this plan doc
-lands.
+**Angle:** "First open protocol for payment-conditional
+agent-to-agent workflows, LangGraph-orchestrated, end-to-end on
+Base." Fits their stated "multi-agent architectures" bucket.
+
+### 3b. Fallback — `langchain-ai/docs` PR only if they redirect us there
+
+If co-marketing declines but they say "we'd accept a docs page,"
+target would be `src/oss/langgraph/` (Mintlify MDX format). Lower
+trust signal than co-marketing placement. Don't pre-file — wait for
+explicit invite.
+
+**Recommendation:** skip the docs-PR attempt entirely. Go
+co-marketing first. The contribution guide explicitly tells us
+that's the intended surface for end-to-end applications like ours.
 
 ---
 
 ## Action split — me vs. you
 
-### 🤖 I'll do next (no sign-off needed):
+### 🤖 Done as of 2026-04-24
 
-1. Write the actual `arbitova_escrow_a2a.ipynb` for the cookbook PR.
-2. Verify the langchain docs layout and pick between 3a and 3b.
-3. Draft the CrewAI issue text (so you can paste-and-file quickly).
+1. ✅ Cookbook notebook source written — `drafts/arbitova_escrow_a2a_cookbook.py`
+   (jupytext percent-format; convert with `jupytext --to ipynb` before filing PR)
+2. ✅ LangGraph path verified — it's co-marketing, not a docs PR
+3. ✅ CrewAI pivot issue drafted — `drafts/crewai-examples-pivot-issue.md`
+
+### 🤖 Optional polish (can do if you want)
+
+- Record the LangGraph demo as a Loom/asciinema for the co-marketing package
+- Write 3-sentence co-marketing pitch text ready to paste into LangChain's channel
+- Re-skim the cookbook notebook one more time after you review scope
 
 ### 👤 You push the button:
 
-1. `gh repo fork` + `gh pr create` for the cookbook PR (once notebook
-   exists and you've skimmed it).
-2. Open the CrewAI issue on `crewAIInc/crewAI` asking where
-   integration examples belong now.
-3. After my langchain-path verification, `gh pr create` on
-   `langchain-ai/langchain`.
+1. **Cookbook PR**: `jupytext --to ipynb drafts/arbitova_escrow_a2a_cookbook.py`
+   → move to `third_party/Arbitova/arbitova_escrow_a2a.ipynb` inside your fork
+   of `anthropics/anthropic-cookbook` → `gh pr create`.
+2. **CrewAI issue**: paste `drafts/crewai-examples-pivot-issue.md` body into
+   a new issue on `crewAIInc/crewAI`. Wait for maintainer reply before any PR.
+3. **LangGraph co-marketing**: DM/email LangChain with the pitch package.
+   No PR. No fork. Just link to existing `examples/langgraph/` + demo recording.
 
 ### ⚠️ Memory update needed
 
