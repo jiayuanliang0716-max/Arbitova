@@ -788,6 +788,61 @@
 
     <h3>Review-window safety</h3>
     <p>The review window never silently pays out. If the buyer does not confirm within the window, the escrow enters <code>DISPUTED</code>, not <code>RELEASED</code>. An arbiter has to look at every unconfirmed escrow. Silence is not consent.</p>
+
+    <h3>Deployed contracts</h3>
+    <table class="state-table">
+      <thead>
+        <tr><th>Contract</th><th>Network</th><th>Address</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>EscrowV1</code></td>
+          <td>Base Sepolia (84532)</td>
+          <td><code>0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC</code></td>
+        </tr>
+        <tr>
+          <td>USDC (Circle)</td>
+          <td>Base Sepolia (84532)</td>
+          <td><code>0x036CbD53842c5426634e7929541eC2318f3dCF7e</code></td>
+        </tr>
+        <tr>
+          <td><code>EscrowV1</code></td>
+          <td>Base mainnet</td>
+          <td>Not deployed — gated on mainnet-readiness list below</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Pre-mainnet gates</h3>
+    <p>Four gates block a mainnet deploy. None are negotiable — each one came out of a real failure mode during Sepolia drills.</p>
+    <table class="state-table">
+      <thead>
+        <tr><th>Gate</th><th>Why it blocks</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>External audit of <code>EscrowV1.sol</code></td>
+          <td>A single reentrancy or arithmetic bug in <code>resolve()</code> can drain every live escrow. 66/66 Foundry tests is not a substitute for adversarial review.</td>
+          <td>Not started</td>
+        </tr>
+        <tr>
+          <td>Multisig arbiter (3-of-5 Safe)</td>
+          <td>A single compromised arbiter key on mainnet is a cash-out event. The Sepolia arbiter is intentionally a single EOA so drills are easy; mainnet must not be.</td>
+          <td>Design drafted at <code>docs/multisig-arbiter-design.md</code></td>
+        </tr>
+        <tr>
+          <td>On-chain arbiter registry</td>
+          <td>Today <code>arbiter</code> is a single address in storage. A registry lets Arbitova support multiple arbiter providers (self-hosted, Kleros, others) without redeploying the escrow.</td>
+          <td>Not started</td>
+        </tr>
+        <tr>
+          <td>One-week zero-drift indexer run</td>
+          <td>The off-chain indexer that powers <code>/arbiter</code> must match <code>eth_getLogs</code> byte-for-byte for a full week under Sepolia load, including a planned RPC outage. Drift means someone reads a state that isn't real.</td>
+          <td>Not started</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="hint">Full checklist: <a href="https://github.com/jiayuanliang0716-max/Arbitova/blob/master/docs/security-checklist.md"><code>docs/security-checklist.md</code></a> · Rehearsal plan: <a href="https://github.com/jiayuanliang0716-max/Arbitova/blob/master/docs/e2e-rehearsal-plan.md"><code>docs/e2e-rehearsal-plan.md</code></a>.</p>
   </section>
 
 </main>
