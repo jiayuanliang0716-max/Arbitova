@@ -1,2 +1,2 @@
 /docs           https://api.arbitova.com/docs  301
-/verdicts/:id   /verdict.html                  200
+/verdicts/:id   /verdict.html?id=:id           200
