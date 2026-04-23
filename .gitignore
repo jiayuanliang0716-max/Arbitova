@@ -5,6 +5,7 @@ data/
 !.env.example
 *.db
 .memsearch/
+.arbitova-gm/
 
 # Secrets — never commit
 *.key

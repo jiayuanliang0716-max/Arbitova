@@ -3596,3 +3596,14 @@ code { font-family: var(--font-mono); font-size: 0.875em; color: var(--brand); }
     transition: none !important;
   }
 }
+
+/* ---------- Roadmap Section (P1: protocol positioning) ---------- */
+.roadmap-section { padding: 64px 24px; border-bottom: 1px solid var(--border-subtle); }
+.roadmap-inner { max-width: 900px; margin: 0 auto; }
+.roadmap-title { font-size: 28px; margin-bottom: 8px; }
+.roadmap-subtitle { color: var(--text-muted); margin-bottom: 32px; }
+.roadmap-list { list-style: none; padding: 0; margin: 0; }
+.roadmap-item { padding: 16px 0; border-bottom: 1px solid var(--border-subtle); display: flex; gap: 16px; align-items: flex-start; }
+.roadmap-item:last-child { border-bottom: 0; }
+.roadmap-tag { display: inline-block; padding: 4px 10px; font-size: 12px; border: 1px solid var(--border-subtle); border-radius: 999px; white-space: nowrap; color: var(--text-muted); flex-shrink: 0; }
+.roadmap-text { flex: 1; line-height: 1.5; }

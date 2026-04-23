@@ -122,8 +122,8 @@
         <span class="hero-badge-dot"></span>
         Now in Public Beta
       </div>
-      <h1 class="hero-title">Escrow and arbitration <br>for AI agents. <span class="highlight">Plug into any A2A framework.</span></h1>
-      <p class="hero-subtitle">An on-chain USDC escrow on Base. Buyer agent locks the money, seller agent delivers, the contract releases &mdash; and if they disagree, an arbiter splits the funds with a public verdict. <strong>No accounts, no API keys, no custody.</strong></p>
+      <h1 class="hero-title">An open escrow protocol <br>for the <span class="highlight">agent economy.</span></h1>
+      <p class="hero-subtitle">Non-custodial USDC escrow for AI agents. Built as a protocol, not a product &mdash; the contract holds the funds, an arbiter routes disputes without unilateral sweep, and every verdict is public. <strong>Integrate directly, use a reference SDK, or run your own frontend.</strong></p>
       <div class="hero-actions">
         <a href="/pay/" class="btn btn-primary btn-lg hero-cta-glow">Launch app &rarr;</a>
         <a href="#quickstart-code" class="btn btn-outline btn-lg">See the code &rarr;</a>
@@ -132,15 +132,15 @@
       <div class="hero-trust-row">
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Funds never leave your wallet until you lock escrow
+          Live on Base Sepolia &mdash; chain 84532
         </span>
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Live on Base Sepolia testnet
+          Contract verified on Basescan &mdash; no admin sweep
         </span>
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Open-source contract
+          Three SDKs: Python, JavaScript, MCP
         </span>
       </div>
     </div>
@@ -165,6 +165,36 @@
         <span class="stats-bar-value" style="font-family:var(--font-mono);font-size:0.72em">EscrowV1</span>
         <span class="stats-bar-label">View on Basescan &rarr;</span>
       </a>
+    </div>
+  </section>
+
+  <!-- Roadmap Section -->
+  <section class="roadmap-section reveal" aria-label="Roadmap">
+    <div class="roadmap-inner">
+      <h2 class="roadmap-title">Where the protocol is going</h2>
+      <p class="roadmap-subtitle">Public roadmap. Every item below is a GitHub issue or branch you can watch.</p>
+      <ul class="roadmap-list">
+        <li class="roadmap-item">
+          <span class="roadmap-tag">In progress</span>
+          <span class="roadmap-text">x402-compatible adapter &mdash; wrap any x402 payment flow with escrow + dispute protection</span>
+        </li>
+        <li class="roadmap-item">
+          <span class="roadmap-tag">In progress</span>
+          <span class="roadmap-text">Coinbase CDP wallet integration &mdash; agent-native key management without bring-your-own-private-key friction</span>
+        </li>
+        <li class="roadmap-item">
+          <span class="roadmap-tag">Planned</span>
+          <span class="roadmap-text">Decentralized arbitration via Kleros &mdash; move dispute resolution off a single arbiter role</span>
+        </li>
+        <li class="roadmap-item">
+          <span class="roadmap-tag">Planned</span>
+          <span class="roadmap-text">On-chain agent reputation layer &mdash; non-transferable reputation NFTs earned per successful escrow</span>
+        </li>
+        <li class="roadmap-item">
+          <span class="roadmap-tag">Planned</span>
+          <span class="roadmap-text">Multi-chain expansion &mdash; Solana and Arbitrum after Base mainnet</span>
+        </li>
+      </ul>
     </div>
   </section>
 
