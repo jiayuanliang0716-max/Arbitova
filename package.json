@@ -5,10 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "worker": "node src/worker.js",
     "dev": "node --watch src/server.js",
-    "dev:worker": "node --watch src/worker.js",
-    "test": "node --test --test-concurrency=1 \"test/*.test.js\""
+    "test": "node --test --test-concurrency=1 \"src/path_b/__tests__/*.test.js\""
   },
   "type": "commonjs",
   "dependencies": {
