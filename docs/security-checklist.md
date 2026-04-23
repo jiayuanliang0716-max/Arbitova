@@ -79,8 +79,8 @@ Single EOA signs `resolve(...)` calls after a Claude verdict passes a
 |---|---|---|
 | Arbiter key compromise | Hot key, hardware wallet storage | 3-of-5 Safe multisig (docs/multisig-arbiter-design.md) |
 | Claude verdict hallucination | 0.7 confidence gate escalates to human review | Same |
-| Correlated key+operator compromise | Kleros v2 path (docs/kleros-v2-integration-plan.md) |
-| Operator coerced to sign biased verdict | Multisig raises cost; Kleros removes it entirely |
+| Correlated key+operator compromise | Per-case verdict publication (docs/transparency-policy.md) so bias is visible | 3-of-5 multisig separates verdict reasoning from signing (docs/multisig-arbiter-design.md) |
+| Operator coerced to sign biased verdict | Verdict + reasoning published per-case; rolling-30 re-audit disagreement gate 10% triggers public dev log | Multisig raises coercion cost; Phase 6 UMA Optimistic Oracle research (docs/decisions/M-0-arbiter-architecture-v1.md) as possible opt-in appeal path |
 
 ### 2.3 Rotation procedure
 
@@ -144,9 +144,11 @@ is accepted the arbiter recomputes that hash and must see it match.
 **Where it ties back to the chain.** On-chain `resolve` is only
 callable by the arbiter role; the arbiter signs off-chain after the
 above SOP. A hash-mismatch verdict should never reach `resolve`; it
-goes to human review, and from there either to human resolution or,
-under Path B, to a Kleros escalation where jurors see the mismatch
-evidence directly.
+goes to human review for resolution. The resulting verdict — including
+the recorded vs. recomputed hashes and the reasoning for how the
+mismatch was handled — is published per-case at `/verdicts` like any
+other, so the affected parties and re-auditors can scrutinize it
+directly.
 
 **Gap (acknowledged).** Today `delivery.content` is stored in
 Postgres, and `payload_hash` is populated by the delivery endpoint
@@ -248,7 +250,7 @@ user key is automatically out of scope.
 - **No bug bounty yet.** Planned post-mainnet with a realistic payout
   budget.
 - **`ReputationV1` is unreviewed.** Draft contract; not deployed.
-- **Kleros integration is plan-only.** No on-chain path exists today.
+- **External appeal layer is research-only.** v1 ships single-tier by design (docs/decisions/M-0-arbiter-architecture-v1.md); UMA Optimistic Oracle is Phase 6 research for a possible opt-in appeal path in a future V2 contract. No on-chain external-appeal path exists today, and v1 escrows will never have one.
 
 ---
 

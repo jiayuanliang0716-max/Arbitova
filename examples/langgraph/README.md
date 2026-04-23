@@ -69,9 +69,11 @@ print(final)
   `eth_account`-compatible signer. If you want CDP, import
   `arbitova.cdp_adapter.CdpEscrowClient` and drive it from whatever
   orchestration layer you prefer.
-- **Kleros arbitration.** The EscrowV1 deployment uses a single
-  Arbitova-operated arbiter with a confidence gate. Kleros v2
-  integration is a separate track.
+- **External appeal layer.** v1 EscrowV1 uses a single
+  Arbitova-operated arbiter with a confidence gate and per-case
+  public verdicts at arbitova.com/verdicts. External appeal (UMA
+  Optimistic Oracle) is Phase 6 research targeting a possible V2
+  contract, not on the v1 path.
 
 ## What the upstream PR claims
 

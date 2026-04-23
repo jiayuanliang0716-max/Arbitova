@@ -209,7 +209,7 @@ If a scenario fails:
 
 ## Out of scope for v0.1 rehearsal
 
-- Kleros dispute path (contract extension is draft-only)
+- External appeal layer (ruled out for v1 by design — see docs/decisions/M-0-arbiter-architecture-v1.md; UMA OO appeal is Phase 6 research on a possible V2 contract, not v1)
 - Multisig arbiter path (not deployed)
 - ReputationV1 mint hook (not wired up)
 - ERC-4337 session keys (not implemented)

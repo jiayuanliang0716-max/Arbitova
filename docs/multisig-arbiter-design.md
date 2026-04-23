@@ -78,8 +78,11 @@ full verdict rationale. Public verification remains unchanged.
 ## What this does NOT give us
 
 - **Not decentralized.** A multisig controlled by Arbitova + our
-  counsel + an advisor is still five named people. Kleros is the
-  correct target for actually decentralized dispute resolution.
+  counsel + an advisor is still five named people. Actually
+  decentralized dispute resolution is a separate Phase 6 research
+  track (UMA Optimistic Oracle as an opt-in appeal layer on a future
+  V2 contract — see docs/decisions/M-0-arbiter-architecture-v1.md
+  for why Kleros v2 was ruled out for v1).
 - **Not audit-complete.** Changing the arbiter address does not
   change the contract. But it doesn't remove the need for a full
   `EscrowV1.sol` audit before mainnet.
@@ -110,8 +113,6 @@ Mainnet deployment is separately gated on:
 - **Full audit of `EscrowV1.sol`.** Must cover: reentrancy paths
   through USDC transfer hooks, state machine invariants, fee math
   edge cases (1 bps losses), gas griefing on `escalateIfExpired`.
-- **Kleros v2 integration prototype** as a fallback arbiter role,
-  even if not primary at launch.
 - **Signer rotation tooling**: documented, tested, rehearsed.
 - **Published SOP**: public-facing doc describing who the signers
   are (by role, not name if signers request privacy) and how
@@ -136,5 +137,6 @@ no rush.
 ## Related
 
 - `docs/x402-adapter-spec.md` — x402 integration that uses this arbiter path on dispute.
-- Kleros v2 integration plan — to be drafted as `docs/kleros-integration-plan.md`.
+- `docs/decisions/M-0-arbiter-architecture-v1.md` — v1 single-tier decision and why Kleros was ruled out; Phase 6 UMA OO research.
+- `docs/transparency-policy.md` — per-case verdict publication + re-audit gate that makes multisig verdict scrutiny meaningful.
 - Dev Log #019 "Positioning as Protocol" — mentions multisig arbiter as the next concrete reduction in single-arbiter trust.

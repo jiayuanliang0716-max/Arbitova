@@ -29,7 +29,9 @@ import "@openzeppelin/contracts/utils/Strings.sol";
  *
  * Status: v0.1 draft. Not deployed. Gated on:
  *   - Audit of EscrowV1
- *   - Decision on whether to deploy pre- or post-Kleros integration
+ *   - Decision on deploy ordering relative to the Phase 6 UMA
+ *     Optimistic Oracle appeal research (see
+ *     docs/decisions/M-0-arbiter-architecture-v1.md)
  *   - Product review of soulbound vs. transferable (current design:
  *     soulbound to prevent reputation-mule selling)
  */
