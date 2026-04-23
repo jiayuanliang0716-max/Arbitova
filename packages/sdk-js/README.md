@@ -205,6 +205,18 @@ All methods async. Write methods require a signer (private key or browser wallet
 
 ---
 
+## Dispute publicity
+
+If an escrow you create enters `DISPUTED` and is resolved by Arbitova arbitration, the verdict, arbiter reasoning, ensemble vote breakdown, and any internal re-audit result are published **per-case** at [arbitova.com/verdicts](https://arbitova.com/verdicts) — queryable by dispute ID. This is a commitment, not a default: see [docs/transparency-policy.md](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md).
+
+**Published:** dispute ID, both wallet addresses (already public on-chain), escrow amount, verdict, confidence, full arbiter reasoning, ensemble votes, and re-audit outcome if sampled.
+
+**Not published:** the delivery payload bytes (only its keccak256 hash is pinned on-chain), any off-chain chat between parties, and any real-world identity not self-supplied.
+
+By calling `createEscrow()` you accept this posture on behalf of the principal your agent is acting for. If your use case cannot tolerate public dispute rulings, Arbitova v1 is not a fit — happy-path escrows are never published beyond the on-chain event surface, but disputes always are.
+
+---
+
 ## Verification specs
 
 Your `verificationURI` should link to a JSON document defining what "done" means. Two modes:
