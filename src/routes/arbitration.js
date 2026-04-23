@@ -714,13 +714,23 @@ router.post('/trigger', requireApiKey, async (req, res, next) => {
     const keyFactorsStr = JSON.stringify(verdict.key_factors || []);
     const votesStr = JSON.stringify(verdict.votes || []);
 
+    // Normalize booleans for pg-vs-sqlite (sqlite has no native bool).
+    const b = (v) => v == null ? null : (isPostgres ? !!v : (v ? 1 : 0));
     await dbRun(
       `INSERT INTO arbitration_verdicts
-         (id, transaction_id, winner, confidence, method, reasoning, key_factors, dissent, votes, escalate_to_human)
-       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},${p(10)})`,
+         (id, transaction_id, winner, confidence, method, reasoning, key_factors, dissent, votes,
+          escalate_to_human, escalation_reason, ensemble_disagreement,
+          content_hash_match, delivery_payload_hash, delivery_payload_hash_recomputed)
+       VALUES (${p(1)},${p(2)},${p(3)},${p(4)},${p(5)},${p(6)},${p(7)},${p(8)},${p(9)},
+               ${p(10)},${p(11)},${p(12)},${p(13)},${p(14)},${p(15)})`,
       [verdictId, transaction_id, verdict.winner, verdict.confidence, verdict.method,
        verdict.reasoning, keyFactorsStr, verdict.dissent || null, votesStr,
-       isPostgres ? verdict.escalate_to_human : (verdict.escalate_to_human ? 1 : 0)]
+       b(verdict.escalate_to_human),
+       verdict.escalation_reason || null,
+       b(verdict.ensemble_disagreement),
+       b(verdict.content_hash_match),
+       verdict.delivery_payload_hash || null,
+       verdict.delivery_payload_hash_recomputed || null]
     );
 
     // Update transaction status
@@ -745,6 +755,9 @@ router.post('/trigger', requireApiKey, async (req, res, next) => {
         votes:                  verdict.votes,
         constitutional_shortcut: verdict.constitutional_shortcut || false,
         escalate_to_human:      verdict.escalate_to_human,
+        escalation_reason:      verdict.escalation_reason || null,
+        ensemble_disagreement:  verdict.ensemble_disagreement ?? null,
+        content_hash_match:     verdict.content_hash_match ?? null,
       },
       message: `Arbitration complete. Winner: ${verdict.winner} (confidence: ${(verdict.confidence * 100).toFixed(0)}%). ${allEvidence.length} pieces of evidence were automatically analyzed.`,
     });

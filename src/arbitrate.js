@@ -523,6 +523,11 @@ async function arbitrateDispute({ order, service, dispute, delivery }) {
     ensemble_disagreement: ensembleDisagreement,
     escalate_to_human: escalateToHuman,
     escalation_reason: escalationReason,
+    // M-4: surface the hash-gate state so it lands in the verdict row
+    // and stays auditable after the LLM output is discarded.
+    content_hash_match: evidenceBundle.content_hash_match,
+    delivery_payload_hash: evidenceBundle.delivery_payload_hash,
+    delivery_payload_hash_recomputed: evidenceBundle.delivery_payload_hash_recomputed,
     constitutional_shortcut: false,
   };
 }

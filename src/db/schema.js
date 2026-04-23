@@ -350,6 +350,14 @@ if (DATABASE_URL) {
         escalate_to_human BOOLEAN DEFAULT FALSE,
         created_at      TIMESTAMPTZ DEFAULT NOW()
       );
+      -- C-6 / M-4: expose escalation rationale and hash-gate state in the
+      -- verdict row so ops can audit "why did this escalate" without
+      -- re-running the LLM pipeline.
+      ALTER TABLE arbitration_verdicts ADD COLUMN IF NOT EXISTS escalation_reason TEXT;
+      ALTER TABLE arbitration_verdicts ADD COLUMN IF NOT EXISTS ensemble_disagreement BOOLEAN;
+      ALTER TABLE arbitration_verdicts ADD COLUMN IF NOT EXISTS content_hash_match BOOLEAN;
+      ALTER TABLE arbitration_verdicts ADD COLUMN IF NOT EXISTS delivery_payload_hash TEXT;
+      ALTER TABLE arbitration_verdicts ADD COLUMN IF NOT EXISTS delivery_payload_hash_recomputed TEXT;
       CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
     `);
 
@@ -620,6 +628,11 @@ if (DATABASE_URL) {
       dissent         TEXT,
       votes           TEXT,
       escalate_to_human INTEGER DEFAULT 0,
+      escalation_reason TEXT,
+      ensemble_disagreement INTEGER,
+      content_hash_match INTEGER,
+      delivery_payload_hash TEXT,
+      delivery_payload_hash_recomputed TEXT,
       created_at      TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_arb_verdicts_tx ON arbitration_verdicts (transaction_id);
@@ -648,6 +661,12 @@ if (DATABASE_URL) {
   // M-4: delivery-time content hash, consumed by verifyDeliveryContentHash
   // in src/arbitrate.js to detect content drift between delivery and verdict.
   addColIfMissing('deliveries', 'payload_hash', 'TEXT');
+  // C-6 / M-4: audit-trail fields on the verdict record.
+  addColIfMissing('arbitration_verdicts', 'escalation_reason', 'TEXT');
+  addColIfMissing('arbitration_verdicts', 'ensemble_disagreement', 'INTEGER');
+  addColIfMissing('arbitration_verdicts', 'content_hash_match', 'INTEGER');
+  addColIfMissing('arbitration_verdicts', 'delivery_payload_hash', 'TEXT');
+  addColIfMissing('arbitration_verdicts', 'delivery_payload_hash_recomputed', 'TEXT');
 
   // tips table
   try {
