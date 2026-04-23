@@ -1,32 +1,12 @@
 const express = require('express');
 const path = require('path');
 const rateLimit = require('express-rate-limit');
-// Swagger / openapi.json removed 2026-04-24 — the /api-reference mount
-// was a Path A surface. Source in v2-path-a-legacy tag.
-// const swaggerUi = require('swagger-ui-express');
-// const openApiSpec = require('./openapi.json');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 
-// 初始化資料庫（必須在 routes 之前）
 require('./db/schema');
 
-// Path A fees module removed 2026-04-24 (only referenced inside the
-// disabled /simulate + /pricing + /platform/stats comment blocks below).
-// const { SETTLEMENT_FEE_RATE, DISPUTE_FEE_RATE } = require('./config/fees');
-
-// Path A route requires removed 2026-04-24 — mounts already disabled.
-// Source in v2-path-a-legacy tag. Files pending deletion in follow-up commit.
-// const agentRoutes = require('./routes/agents');
-// const serviceRoutes = require('./routes/services');
-// const orderRoutes = require('./routes/orders');
-// const withdrawalRoutes = require('./routes/withdrawals');
-// const webhookRouter = require('./webhook');
-// const notificationRoutes = require('./routes/notifications');
 const adminRoutes = require('./routes/admin');
-// const webhookRoutes = require('./routes/webhooks');
-// const apiKeyRoutes = require('./routes/apikeys');
-// const { router: x402Routes, PLATFORM_ADDRESS } = require('./routes/x402route');
 const arbitrationRoutes = require('./routes/arbitration');
 // const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
