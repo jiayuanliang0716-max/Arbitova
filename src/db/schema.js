@@ -155,8 +155,10 @@ if (DATABASE_URL) {
         id           TEXT PRIMARY KEY,
         order_id     TEXT NOT NULL REFERENCES orders(id),
         content      TEXT NOT NULL,
+        payload_hash TEXT,
         delivered_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS payload_hash TEXT;
 
       CREATE TABLE IF NOT EXISTS disputes (
         id          TEXT PRIMARY KEY,
@@ -470,6 +472,7 @@ if (DATABASE_URL) {
       id           TEXT PRIMARY KEY,
       order_id     TEXT NOT NULL REFERENCES orders(id),
       content      TEXT NOT NULL,
+      payload_hash TEXT,
       delivered_at TEXT DEFAULT (datetime('now'))
     );
 
@@ -642,6 +645,9 @@ if (DATABASE_URL) {
   addColIfMissing('orders', 'parent_order_id', 'TEXT');
   addColIfMissing('agents', 'wallet_address', 'TEXT');
   addColIfMissing('agents', 'wallet_encrypted_key', 'TEXT');
+  // M-4: delivery-time content hash, consumed by verifyDeliveryContentHash
+  // in src/arbitrate.js to detect content drift between delivery and verdict.
+  addColIfMissing('deliveries', 'payload_hash', 'TEXT');
 
   // tips table
   try {

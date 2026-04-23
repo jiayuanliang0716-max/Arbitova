@@ -2,7 +2,7 @@ const express = require('express');
 const { v4: uuidv4 } = require('uuid');
 const { dbGet, dbAll, dbRun, dbTransaction } = require('../db/helpers');
 const { requireApiKey } = require('../middleware/auth');
-const { arbitrateDispute } = require('../arbitrate');
+const { arbitrateDispute, sha256Hex } = require('../arbitrate');
 const { fire, EVENTS } = require('../webhooks');
 const { checkVelocity } = require('../middleware/velocity');
 const { idempotency } = require('../middleware/idempotency');
@@ -886,7 +886,16 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
     }
 
     const deliveryId = uuidv4();
-    await dbRun(`INSERT INTO deliveries (id, order_id, content) VALUES (${p(1)},${p(2)},${p(3)})`, [deliveryId, order.id, content]);
+    // M-4: fingerprint the content at delivery time so the arbiter can
+    // detect drift (tamper, replication race, botched manual fix) before
+    // ruling. Share the helper with verifyDeliveryContentHash so both
+    // sides of the check use identical bytes → identical digest.
+    const contentBytes = typeof content === 'string' ? content : JSON.stringify(content);
+    const payloadHash = sha256Hex(contentBytes);
+    await dbRun(
+      `INSERT INTO deliveries (id, order_id, content, payload_hash) VALUES (${p(1)},${p(2)},${p(3)},${p(4)})`,
+      [deliveryId, order.id, content, payloadHash]
+    );
 
     fire([order.buyer_id, order.seller_id], EVENTS.ORDER_DELIVERED, {
       order_id: order.id, delivery_id: deliveryId,
@@ -897,6 +906,7 @@ router.post('/:id/deliver', requireApiKey, async (req, res, next) => {
       delivery_id: deliveryId,
       order_id: order.id,
       status: 'delivered',
+      payload_hash: payloadHash,
       message: 'Delivery submitted. Buyer has 7 days to confirm or dispute.'
     });
   } catch (err) { next(err); }
