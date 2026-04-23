@@ -1,120 +1,106 @@
 ---
-slug: dev-log-023-from-promise-to-runbook
-title: "Dev Log #023 — From Promise to Runbook"
+slug: dev-log-023-scoping-the-promise-down
+title: "Dev Log #023 — Scoping the Transparency Promise Down on Day Two"
 category: transparency
-excerpt: "Yesterday's log ended with a transparency commitment: every dispute verdict published per-case, 10% sampled for re-audit, any month where we disagree with ourselves more than 10% of the time produces a public root-cause post within 30 days. Writing that commitment took five minutes. Making it executable took a day. This is what 'executable' actually meant."
-cover_image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=675&fit=crop&q=80"
+excerpt: "On 2026-04-23 I published Arbitova's transparency policy. It committed us to per-case verdict publication, a 10% internal re-audit sample by a second operator, and a rolling-30 disagreement gate that forces a public post-mortem if we breach. On 2026-04-24 I amended that policy to remove the re-audit half. This log is why, and what 'amending' actually looks like when the policy is 24 hours old."
+cover_image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1200&h=675&fit=crop&q=80"
 ---
 
 ## TL;DR
 
-On 2026-04-23 I wrote Arbitova's transparency policy: every Arbitova-resolved dispute goes public per-case, 10% of decisions get re-audited by a second operator, and a rolling-30-day disagreement rate above 10% forces a public post-mortem within 30 days.
+Yesterday I wrote a transparency policy that promised two things: every dispute verdict public per-case, and a 10% re-audit of decisions by a different operator that feeds a rolling-30 gate.
 
-On 2026-04-24 I realized the policy had no SOP behind it. If mainnet went live tomorrow and the first dispute arrived, there was no written process for who does the re-audit, how they're sampled, what counts as disagreement, how the gate is monitored, or what the public page is supposed to show that it doesn't already show.
+Today I started writing the SOP behind the re-audit half. I got 192 lines into it before I hit the load-bearing sentence: *"reviewer `operator_id` must not equal the original verdict's `operator_id`."* Arbitova has one operator. That sentence wasn't SOP; it was fiction.
 
-This log is the day I filled those gaps. Four commits, one new runbook, one scope-note admitting what's not ready yet, and a round of outreach drafts for the three framework communities we need to reach next.
+The founder's response when I raised this, verbatim: *"I don't think this is something we should be doing right now, cancel everything."* The policy was amended the same day. The v1.1 version in the repo now commits only to what the team can actually deliver — per-case publication — with the re-audit program removed in full and the amendment documented in the same policy document that used to promise it.
 
-## What the policy actually promised
+This log is the amendment record. The policy itself said *"any change must be proposed in a dev log with rationale and an explicit comparison to the old commitment"* — here it is.
 
-The relevant paragraph of `docs/transparency-policy.md`:
+## What the v1 policy promised (2026-04-23)
 
-> Every verdict resolved by Arbitova arbitration is published per-case at arbitova.com/verdicts, queryable by dispute ID. Published: verdict, reasoning, ensemble vote breakdown, re-audit result if sampled. Not published: delivery payload bytes (only the keccak256 hash is pinned on-chain), off-chain chat between parties, and any real-world identity not self-supplied. 10% of decisions are re-audited nightly by a different operator. If the rolling-30-day disagreement rate exceeds 10%, we publish a root-cause dev log within 30 days.
+Three commitments, in rough order of staffing cost:
 
-Five things that have to be true for that paragraph to be honest:
+1. **Per-case publication.** Every verdict surfaced at `/verdicts/{disputeId}` with reasoning, vote breakdown, escalation flags, content-hash integrity data.
+2. **10% re-audit sample.** A nightly job samples 10% of the prior day's verdicts (confidence-weighted toward the 0.60–0.75 band) and assigns each to a *different* operator for a second read. The re-audit result — agree / disagree / reasoning-holds-up — gets published alongside the original verdict on the same page.
+3. **Rolling-30 disagreement gate.** If the internal disagreement rate on the last 30 re-audits exceeds 10%, a public root-cause dev log is published within 30 days explaining what the re-audits caught and what's changing in the arbitration pipeline.
 
-1. The `/verdicts` page can actually serve per-case bundles.
-2. There's a nightly job that samples disputes and runs re-audits.
-3. There's a rule for what "disagree" means.
-4. There's a monitor that watches the rolling-30 rate.
-5. The person escrowing funds knows their dispute may become public *before* they lock.
+Commitment #1 is deliverable with one person: it's a page template, a database query, an on-chain event listener. Commitments #2 and #3 are a staffed operation. They require, at minimum, a second human who is (a) independent of the primary arbiter, (b) not on the same on-call rotation, (c) reliable enough to sustain a nightly cadence. Without that second person, the SOP that executes the commitment reads as aspirational.
 
-On 2026-04-23, zero of those were true. Today, three of them are documented in a runbook that can be handed to whoever's on call, one is documented honestly as "Phase 4 engineering work," and the fifth is live in three places on the client surfaces.
+## What I did between 2026-04-23 evening and 2026-04-24 morning
 
-## What I wrote
+Wrote `docs/arbiter-ops-runbook.md` §1. A nine-subsection, 192-line operational procedure covering:
 
-### `docs/arbiter-ops-runbook.md`, §1 — the re-audit workflow
+- Nightly sampling cadence and RNG-seed logging.
+- Confidence-weighted sample selection.
+- Reviewer assignment rules (different `operator_id`, not on-call).
+- Review packet contents (deliberately non-blind — calibration, not adversarial).
+- Three-tier disagreement definition (winner-mismatch, split-delta > 20pp, reasoning-level error).
+- `arbitration_reaudits` table schema.
+- Rolling-30 gate monitor with `GATE_BREACH` alert and 30-day clock.
+- Publication rules at `/verdicts/{disputeId}`.
+- The engineering queue that has to ship before any of this runs.
 
-A nine-subsection SOP covering:
+It was a clean-looking document. It was clean-looking the way a dining-hall kitchen is clean-looking when the health inspector walks through and the equipment is new but the grease hasn't hit it yet. Nothing about the document tells you whether the staff exists to run the procedure it describes.
 
-- **Cadence** — nightly at 03:00 UTC, seeded RNG, seed logged.
-- **Sampling** — 10% floor, confidence-weighted so decisions in the 0.60–0.75 band (the ones where the arbiter was least sure) get 2× weight. Minimum one sample per week regardless of volume.
-- **Reviewer assignment** — must be a different `operator_id` from the original arbiter; must not be on-call for the current rotation.
-- **Review packet** — intentionally *not* blind. The reviewer sees the original verdict and reasoning. This is a calibration approach, not an adversarial one; we're asking "would a second read reach the same call?", not "can we trick a fresh reviewer into disagreeing?"
-- **Disagreement definition** — three tiers: winner-flip, split differs by more than 20 percentage points, or reasoning doesn't hold up even if the outcome matches.
-- **Data model** — a full `arbitration_reaudits` table schema: audit batch ID, auditor operator ID, review timestamp, three boolean agreement fields, recommended split, free-text reasoning.
-- **Monitor** — a rolling-30 gate computation, a `GATE_BREACH` alert, a 30-day clock starting at breach.
-- **Publication states** — five states a `/verdicts/{disputeId}` page can be in (pending, published, under-reaudit, correction-posted, withdrawn-for-legal).
-- **Phase 4 engineering queue** — what has to be built before the runbook can execute against real disputes.
+## Where the failure landed
 
-The runbook is 192 lines. You could hand it to a new operator and they'd know what their job is on day one. That was the missing piece.
+The founder asked, in the afternoon: *"who does the re-audit? which human?"*
 
-### Consent disclosure at three surfaces
+I wrote a staffing proposal. Four options — a founder-plus-one minimal version, a three-person part-time rotation, outsourcing to a dispute-resolution BPO, a community-jury MVP. I priced them. I recommended starting at option A and scaling to option B.
 
-Policies nobody agreed to aren't policies. So:
+The founder's next message was: *"I don't think this is something we should be doing right now, cancel everything."*
 
-1. **SDK JSDoc** — the `createEscrow` method in `@arbitova/sdk` now has a docstring explicitly stating that dispute publicity is a *consequence* of calling this method. An agent author who reads the API surface will see the disclosure before they ever call it.
-2. **`packages/sdk-js/README.md`** — new "Dispute publicity" section between "Networks" and "Verification specs," with a published/not-published split.
-3. **`public/pay/new.html`** — a disclosure hint above the "Lock funds in escrow" button, so users on the web UI see the same language before they commit.
+That was correct. I had been so focused on how the SOP would execute *if staffed* that I hadn't weighed the alternative — not staffing it, and not promising it either. The v1 policy had been in force for less than 24 hours. The cost of amending on day two, while the ink was wet, was almost zero. The cost of leaving a commitment in place that we couldn't deliver on would have been enormous: the next post-audit disagreement would have surfaced the gap publicly, not privately.
 
-The wording is identical across all three: same published list, same not-published list, same link to the transparency policy. Nobody gets to claim they saw it on one surface and not the other.
+## What v1.1 changes
 
-### The scope-note on `/verdicts`
+The amendment is short. From the policy file:
 
-The live `/verdicts` page currently renders the on-chain event surface: dispute ID, amount, verdict split, transaction hash. That's it. The transparency policy promises more — reasoning, ensemble votes, re-audit results. Those live in off-chain bundles that the Phase 4 work will expose.
+> **2026-04-24 — re-audit program removed.** The original v1 policy (2026-04-23) committed Arbitova to a 10% sample re-audit of every verdict, executed by a second operator, with a pre-committed rolling-30 disagreement gate at 10% that would force a public root-cause dev log within 30 days on breach. The amendment removes this commitment in full. What changed between 2026-04-23 and 2026-04-24: the re-audit SOP was drafted and we confirmed it required a second operator Arbitova does not currently staff. Rather than keep a commitment we could not execute, we scoped the promise down to what the current team can deliver — per-case public publication — and removed the re-audit mechanism.
 
-So I added a visible scope-note to `public/verdicts.html`: *"This page renders the on-chain event surface only. Full verdict bundles (arbiter reasoning, ensemble vote breakdown, re-audit outcomes) are on the Phase 4 engineering queue. See the transparency policy for the full commitment."*
+What was dropped:
 
-That's an awkward paragraph to put on a page titled "Verdicts." It's also the honest one. Without it, anyone reading the transparency policy and then loading the page would catch a mismatch on first scroll. With it, the gap is acknowledged, there's a pointer to what's coming, and nobody gets to claim over-promise.
+- The 10% sample re-audit and its SOP (runbook §1 removed in full; the 192 lines live only in git history now).
+- The rolling-30 gate and the 30-day public-post-mortem clock.
+- The re-audit bundle in every per-case page.
+- The "re-audited flag" column on `/verdicts`, the "re-audited-only" filter, the reviewer CLI that would have written to `arbitration_reaudits`.
 
-### Kleros cleanup across the surfaces
+What was kept:
 
-A deeper consequence of the 2026-04-23 M-0 decision (single-tier Arbitova arbitration for v1, no Kleros integration at launch) was that "Kleros" was still baked into the live site, the design docs, the security checklist, and one contract's NatSpec. Five files touched across two commits. None of it was new architecture; it was just making the visible story match the current decision. A reader who only reads the homepage should reach the same conclusion as a reader who reads `contracts/src/ReputationV1.sol`.
+- Per-case publication at `/verdicts/{disputeId}`, including full arbiter reasoning, ensemble vote breakdown, confidence, escalation flags, and content-hash integrity data.
+- The consent disclosure at three surfaces (`@arbitova/sdk` JSDoc, `packages/sdk-js/README.md`, `public/pay/new.html`) — updated to match the new scope.
+- The scope-note on `/verdicts` itself, which remains an acknowledgment that the full per-case bundle is Phase 4 engineering work, not already built.
+- The "any change must be dev-logged" rule. This log is that rule working on itself.
 
-## What else shipped today
+## What this means in practice
 
-Three outreach drafts, so the framework-community rollout has concrete artifacts ready:
+For someone using Arbitova today: no change to the *what is published* on the happy path (nothing), and one change on the dispute path — the per-case page will show the arbiter's reasoning and votes, but it will not show a second opinion from a different operator. The AI ensemble's internal vote breakdown (three models voting, with their confidence scores visible) is the only quality signal this policy commits to.
 
-- `drafts/arbitova_escrow_a2a_cookbook.py` — a 539-line Jupytext source for the Anthropic Cookbook PR (`third_party/Arbitova/arbitova_escrow_a2a.ipynb`). Single-notebook scope: a Claude agent using `claude-agent-sdk` to buy a task from an inline seller, content-hash-verify the delivery, and confirm payment on Base Sepolia. Dispute path explained in markdown, not executed (the execution would require a third process, and cookbook convention is one notebook per folder).
-- `drafts/crewai-examples-pivot-issue.md` — a paste-ready issue for `crewAIInc/crewAI` asking where community examples should land now that `crewAI-examples` was archived on 2026-04-20.
-- `drafts/langgraph-comarketing-pitch.md` — after verifying `langchain-ai/docs/src/oss/contributing/comarketing.mdx`, the LangGraph outreach pivoted: their consolidated docs explicitly don't accept community integration PRs. Instead, multi-agent applications go through a co-marketing pipeline (Twitter, LinkedIn, partnerships email). Arbitova is literally what their contribution guide lists as "we get particularly excited about." Wrong shape for a PR; right shape for a pitch.
+For someone reading the policy: a v1.1 commitment that the team can demonstrably keep, instead of a v1 commitment with a staffing footnote that wasn't there. The amendment log sits at the bottom of the policy file and cannot be quietly removed without a further visible edit.
 
-None of the three outreach items are button-pressed yet. That's a user action (I don't have the GitHub account or the social channels). But the artifacts are sitting in `drafts/` waiting for that button-press, and the upstream paths have been verified — no surprise 404s or archived-repo redirects left to discover.
+For Arbitova: one less operational dependency on hiring. The re-audit program can return — with attached staffing — in a future version if it earns its way back. "Earns its way back" meaning: we have the operator, we have a reason to spend their time, and we have the evidence that the arbiter produces enough low-confidence verdicts to warrant the check. None of those are currently true.
 
-## What's still gapped
+## What this isn't
 
-Three Phase 4 items block the `/verdicts/{disputeId}` page from being real:
+Not a retreat on transparency. Per-case publication is still the strongest commitment any escrow protocol in the A2A space has made publicly. Aggregate reports, quarterly summaries, "we resolve 95% correctly" marketing — none of those are on the table. Every verdict still has a URL; every piece of reasoning still has a permanent home. A critic who wants to argue that Arbitova got a specific case wrong can still do it with a link, not an FOIA request.
 
-- The per-case page itself (currently `verdicts.html` is one page for all events; needs a route and a detail view).
-- The off-chain bundle API that serves reasoning/votes/re-audit JSON.
-- The reviewer CLI that lets a human operator fill in the re-audit schema without hand-writing SQL.
+Not a retreat on accountability. The founder is still the single point of failure on verdict issuance; the pause switch still exists; the consent disclosure still warns parties before they lock funds. What changed is we stopped promising a mechanism we couldn't execute.
 
-I'm not starting those today. They're blocked on having actual production verdicts to render against, which requires mainnet, which requires the multisig signer list and the Pimlico budget — both user decisions. Building the UI now against mock data would be a scaffold that gets rewritten as soon as the real data shape moved by 2%.
+Not a retreat on honesty. The opposite: shipping a v1 with an aspirational commitment and shipping a v1.1 that removes it is better than shipping a v1 that quietly doesn't happen. The amendment is public because the commitment was public. The log you're reading is the policy enforcing itself.
 
-The runbook is the artifact that *isn't* blocked by that — because the runbook is what we'd hand a human on day one of mainnet, and it doesn't need the UI to exist to be reviewed, critiqued, or simulated against hypothetical cases.
+## What I should have done on 2026-04-23
 
-## Why the sequence matters
+Written v1 with only commitment #1 to begin with, and filed commitments #2 and #3 as design sketches pending staffing. That would have saved a day of SOP writing and a same-day amendment. The SOP wasn't wasted — it's in git history and it's the draft we'd pick up if and when the re-audit program returns — but shipping it as if it were live was premature.
 
-Writing the policy first and the SOP second felt backwards for about ten minutes. Then it felt right. The policy is the commitment to the outside world; the SOP is the operational mechanism. If you write the SOP first you end up writing something defensive and internal — "here's what we'd do if we had to" — because there's no external commitment pulling it into shape. Writing the policy first forces the SOP to answer a specific question ("how do we honor *this*?"), which is tighter than the open-ended "how should we handle disputes."
+Why I didn't: the transparency maximalist posture is attractive, and writing the stronger version of a commitment feels like the right move until you ask who executes it. I wrote the stronger version. The founder asked who executes it. I didn't have an answer. The only honest follow-up was the amendment.
 
-Same logic on the consent disclosures. You don't write them until you've written what you're asking consent *for*. If you wrote them first, they'd be vague in exactly the way that terms-of-service paragraphs are vague when nobody knows what they mean yet.
-
-The order was: promise → operational plan → consent → scope-honesty. Each step constrained the next. The outcome is a stack where every layer can be inspected independently — the policy page tells you what we commit to, the runbook tells you how we'd execute, the disclosures tell you where consent is captured, the scope-note tells you what we haven't built yet. No layer is allowed to wave at any other layer and say "trust me, the details are over there."
-
-## The uncomfortable part
-
-The part I'm least sure about, and want to flag for readers who've been following: the 10% re-audit rate is a guess. I don't have a calibration study that says 10% is the right number. I picked it because below 5% the statistical signal on disagreement is too weak to trigger monthly post-mortems meaningfully, and above 20% the operational cost eats a disproportionate share of dispute-resolution capacity before any actual disputes have been resolved.
-
-What I should do — and will, once prod verdicts exist — is recompute the rate from real data. If the first-month disagreement rate is 2%, the sampling should drop to 5%. If it's 15%, we've got a calibration problem and 10% is also the wrong answer. The runbook's §1.7 is written to make that adjustment straightforward (the sampling rate is a single constant with an explanation), not buried in procedure.
-
-I'd rather ship with a placeholder I can defend as "here's the reasoning, here's when I'd change it" than ship without a number and hand-wave about "we'll decide later." The commitment has a number. The number has a review gate. That's as close as I can get, today, to a policy I'm actually comfortable with.
+The lesson isn't "don't make strong commitments." It's "don't commit to mechanisms whose first operational question isn't already answered." If the answer to *"who does this?"* is a staffing proposal written after the commitment, the commitment has no staffing. If it has no staffing, it's a wish, and wishes don't belong in a transparency policy.
 
 ## For the curious
 
-- Runbook: `docs/arbiter-ops-runbook.md`
-- Transparency policy: `docs/transparency-policy.md`
-- Upstream outreach plan: `docs/upstream-prs-plan.md`
-- Commits this log covers: `9019421`, `87a4ebc`, `98d70c5`, `8d31e4c`, `73c1d6a`, `c4397dd`, `5d3d902`
+- v1.1 policy: `docs/transparency-policy.md` (amendment log at bottom)
+- v0.2 runbook: `docs/arbiter-ops-runbook.md` (§1 removed; amendment note at top)
+- v1 policy: recoverable from `git log docs/transparency-policy.md` at commit preceding today
+- v0.1 runbook: recoverable from `git log docs/arbiter-ops-runbook.md` at commit preceding today
 
-The runbook is where new readers should start. It's the most load-bearing document Arbitova has written this year, because it's what turns our transparency story from a marketing claim into something we could actually be audited against.
-
-Next log — whenever the next interesting thing happens.
+Next log will be about something that ships, not something that unships. Promised.

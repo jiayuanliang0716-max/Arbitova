@@ -129,10 +129,10 @@ export class Arbitova {
    * Lock `amount` USDC on behalf of the signer (buyer) against `seller`.
    *
    * Dispute publicity: if this escrow later enters DISPUTED and is
-   * resolved by Arbitova arbitration, the verdict, reasoning, ensemble
-   * vote breakdown, and any internal re-audit result will be published
-   * per-case at https://arbitova.com/verdicts. The delivery payload is
-   * NOT published (only its keccak256 hash). The buyer/seller wallet
+   * resolved by Arbitova arbitration, the verdict, reasoning, and
+   * ensemble vote breakdown will be published per-case at
+   * https://arbitova.com/verdicts. The delivery payload is NOT
+   * published (only its keccak256 hash). The buyer/seller wallet
    * addresses are already public on-chain. By calling createEscrow you
    * accept this disclosure on behalf of your agent/principal. See
    * docs/transparency-policy.md for the full commitment.

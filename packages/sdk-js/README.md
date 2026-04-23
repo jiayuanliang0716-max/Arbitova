@@ -207,9 +207,9 @@ All methods async. Write methods require a signer (private key or browser wallet
 
 ## Dispute publicity
 
-If an escrow you create enters `DISPUTED` and is resolved by Arbitova arbitration, the verdict, arbiter reasoning, ensemble vote breakdown, and any internal re-audit result are published **per-case** at [arbitova.com/verdicts](https://arbitova.com/verdicts) — queryable by dispute ID. This is a commitment, not a default: see [docs/transparency-policy.md](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md).
+If an escrow you create enters `DISPUTED` and is resolved by Arbitova arbitration, the verdict, arbiter reasoning, and ensemble vote breakdown are published **per-case** at [arbitova.com/verdicts](https://arbitova.com/verdicts) — queryable by dispute ID. This is a commitment, not a default: see [docs/transparency-policy.md](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md).
 
-**Published:** dispute ID, both wallet addresses (already public on-chain), escrow amount, verdict, confidence, full arbiter reasoning, ensemble votes, and re-audit outcome if sampled.
+**Published:** dispute ID, both wallet addresses (already public on-chain), escrow amount, verdict, confidence, full arbiter reasoning, and ensemble votes.
 
 **Not published:** the delivery payload bytes (only its keccak256 hash is pinned on-chain), any off-chain chat between parties, and any real-world identity not self-supplied.
 

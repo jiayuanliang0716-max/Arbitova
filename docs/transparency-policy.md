@@ -1,16 +1,17 @@
-# Arbitova Transparency Policy (v1)
+# Arbitova Transparency Policy (v1.1)
 
-Status: **ADOPTED 2026-04-23**
+Status: **ADOPTED 2026-04-23 · AMENDED 2026-04-24** (re-audit program removed — see §"When this policy changes")
 Decision source: `docs/decisions/M-2-transparency-posture.md`
 Architecture context: `docs/decisions/M-0-arbiter-architecture-v1.md`
+Amendment rationale: dev log #023
 
 ---
 
 ## The commitment, in one sentence
 
 **Every Arbitova arbitration verdict is public, per-case, queryable
-by dispute ID, and includes the reasoning, the vote ensemble, any
-escalation flags, and the result of any internal re-audit.**
+by dispute ID, and includes the reasoning, the vote ensemble, and
+any escalation flags.**
 
 No quarterly aggregation, no annual report as a substitute. The raw
 data is available at `arbitova.com/verdicts` and mirrored by
@@ -64,13 +65,7 @@ For every dispute that reaches a verdict:
    - `delivery_payload_hash` (what was recorded)
    - `delivery_payload_hash_recomputed` (what the arbiter computed)
 
-5. **Re-audit status**
-   - Whether this case was selected for internal re-audit
-   - If audited: re-audit verdict, re-audit reasoning, and
-     agree/disagree flag vs original verdict
-   - Re-audit timestamp and audit batch ID
-
-6. **Link to on-chain proof**
+5. **Link to on-chain proof**
    - Tx hash of the multisig `resolve` call
    - Contract-event ABI-decoded payload
 
@@ -92,48 +87,6 @@ For every dispute that reaches a verdict:
 
 ---
 
-## The re-audit program
-
-Operational SOP: `docs/arbiter-ops-runbook.md` §1.
-
-Even with maximum publication, we still need an internal quality
-signal — the public can see every ruling, but only we can
-systematically re-grade past rulings to detect drift.
-
-**Sample rate:** 10% of rulings selected for re-audit.
-**Selection method:** Random + confidence-weighted (lower-confidence
-rulings sampled at higher rate, specifically rulings with final
-confidence in the 0.60–0.75 band get 2× sample weight).
-**Auditor:** A different operations person than the original ruler
-(minimum). Target state, reached at 500 rulings: contracted
-external arbitrator paid per case.
-
-**Publication:** Re-audit results are published on the same
-per-case page as the original verdict. If re-audit disagrees
-with the original, both rulings are visible side-by-side. **We
-do not quietly "correct" the original verdict.** The on-chain
-verdict is what it is; re-audit is additional data, not
-overwriting history.
-
-**Pre-committed gate:**
-
-> If the rolling-30-case re-audit disagreement rate exceeds **10%**,
-> Arbitova publishes a public root-cause dev log within 30 days
-> describing what the re-audits caught and what we're changing in
-> the arbitration pipeline.
-
-This gate is declared here so that it cannot be quietly removed
-later without a visible edit to this document.
-
-**Why 10%?** The 10% gate assumes internal re-audit is stricter
-than external reversal (we're grading our own, with knowledge of
-our own failure modes). In a world where Kleros-style external
-reversal rates of 10–15% are "normal," an internal-only
-disagreement rate should fall below external rates. 10% is the
-tight bar; if we can't hit it, we owe an explanation.
-
----
-
 ## Party consent
 
 Because per-case publication is a commitment that affects every
@@ -144,19 +97,16 @@ and the in-app UI (before escrow creation) must state, in plain
 language:
 
 > If this escrow is disputed and resolved by Arbitova
-> arbitration, the verdict, reasoning, vote breakdown, and any
-> internal re-audit result will be published at
-> arbitova.com/verdicts. The delivery payload itself is not
-> published (only its hash). Your wallet address is already
-> public on-chain.
+> arbitration, the verdict, reasoning, and vote breakdown will
+> be published at arbitova.com/verdicts. The delivery payload
+> itself is not published (only its hash). Your wallet address
+> is already public on-chain.
 
 **Implementation:**
-- SDK `createEscrow()` call documentation: add a "publicity"
-  section that links here.
-- arbitova.com escrow-creation UI: consent banner that must be
-  acknowledged (not a blocker — agents are expected to consume
-  this programmatically via SDK, not through a click UI; but
-  for human-facing flows it's a required acknowledgment).
+- SDK `createEscrow()` call documentation: includes this disclosure
+  in the JSDoc and in `README.md`.
+- arbitova.com escrow-creation UI (`/pay/new`): disclosure hint
+  visible above the "Lock funds in escrow" button.
 - This is not a cryptographic consent (we can't enforce it
   on-chain), it's a documented-terms-of-service signal.
 
@@ -168,10 +118,10 @@ Location: `https://arbitova.com/verdicts`
 
 **List view:** Paginated list of all verdicts, most recent first.
 Columns: dispute ID (truncated), date, escrow size, winner,
-confidence, escalated flag, re-audited flag.
+confidence, escalated flag.
 
 **Filter surface:** Date range, winner, escrow-size bucket,
-escalated-only, re-audited-only, disagreement-only.
+escalated-only.
 
 **Per-case view:** `/verdicts/{disputeId}` — full data per the
 "What is published" section above, plus a link to the on-chain
@@ -221,6 +171,13 @@ archive services may index this tree. That's intentional.
    legal-primer item.** Counsel will tell us what, if any,
    specific adjustments this policy needs.
 
+6. **No internal quality signal beyond the public record.**
+   As of the 2026-04-24 amendment, Arbitova does not commit
+   to an internal re-audit program (see below). The public
+   record is the only quality signal this policy promises.
+   Readers who want a secondary check must construct it from
+   the published data themselves.
+
 ---
 
 ## How this interacts with the single-tier arbiter architecture (M-0)
@@ -230,14 +187,13 @@ two-tier world, external reversal rate was the canonical trust
 signal. In v1, we replaced that signal with:
 
 1. Per-case publication (this policy).
-2. Internal re-audit with published results and a 10% gate.
-3. Contract-level escape hatch (`Pausable`) for
+2. Contract-level escape hatch (`Pausable`) for
    catastrophic-error scenarios.
 
-Together these three mechanisms are the answer to "but who
+Together these two mechanisms are the answer to "but who
 checks you?" **No external arbiter checks us. The public
-checks us. The re-audit program checks us. The pause switch
-exists if we break badly enough to need it.**
+checks us. The pause switch exists if we break badly enough
+to need it.**
 
 ---
 
@@ -250,6 +206,27 @@ Any change to this policy must:
    can see what we're giving up.
 4. Be approved by the founder.
 
-The pre-committed 10% gate, in particular, cannot be relaxed
-without a public dev log explaining why. We cannot quietly
-change the number. That's the commitment behind the commitment.
+### Amendment log
+
+**2026-04-24 — re-audit program removed.**
+Rationale: dev log #023. The original v1 policy (2026-04-23)
+committed Arbitova to a 10% sample re-audit of every verdict,
+executed by a second operator, with a pre-committed rolling-30
+disagreement gate at 10% that would force a public root-cause
+dev log within 30 days on breach. The amendment removes this
+commitment in full. What changed between 2026-04-23 and
+2026-04-24: the re-audit SOP was drafted (see `docs/arbiter-ops-runbook.md`
+git history) and we confirmed it required a second operator
+Arbitova does not currently staff. Rather than keep a commitment
+we could not execute, we scoped the promise down to what the
+current team can deliver — per-case public publication — and
+removed the re-audit mechanism. If a quality-signal program
+returns in a future version, it will be proposed via dev log
+with operational staffing attached to the proposal, not left
+aspirational.
+
+What we gave up: the internal disagreement gate, the public
+post-mortem clock, and the re-audit bundle in every per-case
+page. What we kept: per-case publication, every dispute visible,
+no aggregation substitute, the same disclosure and consent
+surface at the SDK and UI.
