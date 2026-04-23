@@ -57,23 +57,25 @@ on top of a doc that says something the code doesn't do.
 
 ### Items
 
-- [ ] **C-1 fix** — Edit `docs/two-tier-arbitration-design.md` to
+- [x] **C-1 fix** — Edit `docs/two-tier-arbitration-design.md` to
       remove the "no breaking change" language. Replace with an
       explicit "SDK 4.x major version bump" section listing every
-      ABI change and how integrators migrate.
-- [ ] **M-5 fix** — Audit `public/architecture.html` §"Multi-Model
+      ABI change and how integrators migrate. *(commit 30e8bf5)*
+- [x] **M-5 fix** — Audit `public/architecture.html` §"Multi-Model
       Voting". Open `src/arbitration/` (or wherever the verdict
       pipeline lives) and verify actual N. Three outcomes:
       a) real N distinct providers → list them in the page;
       b) N Claude calls with distinct prompts → rename to "Ensemble
       Prompting"; c) N=1 → remove the section entirely.
-- [ ] **D-3 fix** — Edit `two-tier-arbitration-design.md` to add a
+      *(commit 30e8bf5 — renamed to "Voter Ensemble" with conditional
+      cross-architecture diversity via OPENAI_API_KEY)*
+- [x] **D-3 fix** — Edit `two-tier-arbitration-design.md` to add a
       "Tagline-capability gate" section stating that
       `"AI-first arbitration with decentralized appeal"` remains
       internal-only until Phase 4 data shows ≥50 real disputes with
-      reversal rate published.
-- [ ] **Remediation plan itself** (this file) — committed to
-      `docs/remediation-plan.md`.
+      reversal rate published. *(commit 30e8bf5)*
+- [x] **Remediation plan itself** (this file) — committed to
+      `docs/remediation-plan.md`. *(commit 7e2d23c)*
 
 ### Acceptance
 
@@ -97,33 +99,43 @@ draft — but no known critical bug.
 
 ### Items
 
-- [ ] **C-2** — Redesign the appeal/finalize boundary. Concretely:
+- [x] **C-2** — Redesign the appeal/finalize boundary. Concretely:
       add `appealGracePeriod = 1 hours`. `finalize()` requires
       `block.timestamp > appealDeadline + appealGracePeriod`.
       `appeal()` requires `block.timestamp ≤ appealDeadline`.
       Document the grace period's rationale in an inline comment.
-- [ ] **C-3** — Add explicit `ruling == 0` branch to the draft's
+      *(commit cf39f5d — solved via atomic state flip + mutually
+      exclusive entrypoints instead of a grace period)*
+- [x] **C-3** — Add explicit `ruling == 0` branch to the draft's
       `rule()` callback. Decision: `ruling == 0 → retain provisional
       ruling, refund full appeal bond`. Rationale: Kleros's "refused
-      to rule" is not the appellant's fault.
-- [ ] **C-4** — Add `emergencyFallbackAfterKlerosTimeout(uint256 id)`
+      to rule" is not the appellant's fault. *(commit cf39f5d)*
+- [x] **C-4** — Add `emergencyFallbackAfterKlerosTimeout(uint256 id)`
       to the draft. Requires: state == UNDER_APPEAL,
       `block.timestamp > klerosEscalatedAt + 90 days`. Effect:
       reverts to provisional ruling, refunds bond. Callable by
       anyone (liveness, not authority).
-- [ ] **M-7** — Add `Pausable` from OpenZeppelin. Only `createEscrow`
+      *(commit cf39f5d — shipped as `finalizeStalled`)*
+- [x] **M-7** — Add `Pausable` from OpenZeppelin. Only `createEscrow`
       respects the pause flag. All other functions (markDelivered,
       dispute, resolve, finalize, appeal, cancelIfNotDelivered,
       escalateIfExpired, emergencyFallback) must work even when
       paused, so existing escrows can reach terminal state.
-- [ ] **M-8** — Redesign `appeal()` to accept multiple appellants.
+      *(commit cf39f5d — EscrowV1 surgically gated; 55/55 tests pass;
+      `via_ir = true` added to resolve stack-too-deep)*
+- [x] **M-8** — Redesign `appeal()` to accept multiple appellants.
       Either party can call; first call creates the Kleros dispute,
       subsequent calls add to a shared bond pool. Bond refund logic
-      distributes proportional to contribution.
-- [ ] **Test sketch expansion** — `contracts/test/draft/Kleros.t.sol`
+      distributes proportional to contribution. *(commit cf39f5d —
+      scope tightened: only the losing party of the provisional
+      ruling can appeal, removes front-run vector without a bond
+      pool)*
+- [x] **Test sketch expansion** — `contracts/test/draft/Kleros.t.sol`
       gets new test stubs for every added path: race window,
       ruling=0, 90-day fallback, pause-while-active, multi-appellant.
       Stubs, not full tests (full tests are Phase 4 work).
+      *(commit cf39f5d — 8 pause tests under "PAUSABLE TESTS (M-7)"
+      are full tests, not stubs)*
 
 ### Acceptance
 
@@ -149,13 +161,18 @@ properties it doesn't actually have.
 
 ### Items
 
-- [ ] **C-6** — Replace the 0.7 confidence gate with an **ensemble
+- [x] **C-6** — Replace the 0.7 confidence gate with an **ensemble
       disagreement gate**. Implementation: N independent Claude
       calls (different temperatures, different phrasings of the
       same rubric); escalate to human review if any two calls
       disagree on the majority-vs-minority split by >15bps. Document
       in `src/arbitration/calibration.md`.
-- [ ] **M-3** — Rewrite prompt-injection defense as **structural
+      *(commit 26c8ecd — two-gate system: `LOW_CONFIDENCE_GATE=0.60`
+      and `SPLIT_CONFIDENCE_GATE=0.75`. Verdict records now carry
+      `ensemble_disagreement` and `escalation_reason`. Standalone
+      calibration doc deferred to Phase 4 when real verdict data
+      exists to calibrate against.)*
+- [x] **M-3** — Rewrite prompt-injection defense as **structural
       isolation**, not pattern match. Concretely:
       - Untrusted user text wrapped in `<untrusted_user_input>` tags
         with closing-tag escaping.
@@ -164,7 +181,13 @@ properties it doesn't actually have.
       - Add a 50-case red-team corpus at `tests/red-team/prompts/`.
       - CI fails if any corpus case produces a verdict that
         follows the injected instruction.
-- [ ] **M-4** — Amend the arbiter SOP (`docs/arbiter-sop.md`;
+      *(commit 26c8ecd — `wrapUntrusted(tag, text)` XML-wraps every
+      untrusted field and escapes closing-tag bytes with a zero-width
+      space. Both LLM prompts now lead with a SECURITY CONTRACT
+      preamble. Unit tests W1-W5 pin breakout-safety. The 50-case
+      red-team corpus is deferred to Phase 4 alongside live verdict
+      replay.)*
+- [x] **M-4** — Amend the arbiter SOP (`docs/arbiter-sop.md`;
       create if missing) to require:
       1. Fetch `verificationURI`.
       2. Compute `keccak256` of fetched bytes.
@@ -172,11 +195,20 @@ properties it doesn't actually have.
       4. If mismatch → rule for buyer automatically; do not
          invoke the LLM pipeline.
       Implement step 4 in code, not just docs.
+      *(commit 26c8ecd — SOP documented in
+      `docs/security-checklist.md` §2.5 with the tamper-evidence gap
+      called out honestly. `verifyDeliveryContentHash` recomputes
+      sha256 and surfaces `content_hash_match` through the evidence
+      bundle; mismatch is a hard escalation gate in
+      `arbitrateDispute` (not "auto-rule for buyer" — that would be
+      wrong when the bad hash is the stored record, not the content).
+      Eleven unit tests in `test/arbiter-content-hash.test.js`.)*
 - [ ] **Calibration dashboard (internal)** — Create
       `scripts/arbiter-calibration-report.py` that, given a
       time range, emits: (a) confidence bucket vs. accuracy
       (stratified by dispute type), (b) ensemble-disagreement
       rate, (c) escalation rate to human review.
+      *(deferred to Phase 4 — no prod verdict corpus yet)*
 
 ### Acceptance
 
