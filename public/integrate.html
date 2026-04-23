@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){try{
+      var t = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    }catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+  </script>
+  <title>Integrate — Arbitova</title>
+  <meta name="description" content="Three ways to integrate Arbitova: raw contract calls, reference SDKs (Python / JavaScript / MCP), or Coinbase CDP agent-native wallets. Non-custodial USDC escrow on Base.">
+  <meta property="og:title" content="Integrate — Arbitova">
+  <meta property="og:description" content="Three paths to integrate non-custodial USDC escrow into your agent stack.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=675&fit=crop&q=80">
+  <link rel="canonical" href="https://arbitova.com/integrate">
+  <meta property="og:url" content="https://arbitova.com/integrate">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/logo-192.png">
+  <link rel="apple-touch-icon" href="/logo-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@200&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css?v=202604230001">
+  <link rel="stylesheet" href="/css/main.css?v=202604230001">
+  <style>
+    .integrate-hero { padding: 80px 24px 32px; text-align: center; max-width: 820px; margin: 0 auto; }
+    .integrate-hero h1 { font-size: 44px; line-height: 1.1; margin-bottom: 16px; }
+    .integrate-hero p { color: var(--text-muted); font-size: 18px; line-height: 1.6; }
+    .integrate-grid { padding: 40px 24px 80px; max-width: 1040px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 900px) { .integrate-grid { grid-template-columns: 1fr; } }
+    .integrate-card { background: var(--bg-surface, #fafafa); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; }
+    .integrate-card-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand); margin-bottom: 8px; }
+    .integrate-card h2 { font-size: 22px; margin-bottom: 8px; }
+    .integrate-card .audience { color: var(--text-muted); font-size: 14px; margin-bottom: 20px; }
+    .integrate-card pre { background: #0a0a0f; color: #e8e8f0; padding: 16px; border-radius: 8px; font-size: 13px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; line-height: 1.6; margin: 0 0 20px; }
+    .integrate-card ul { padding-left: 18px; color: var(--text-muted); font-size: 14px; line-height: 1.7; margin: 0 0 20px; }
+    .integrate-card .card-cta { margin-top: auto; display: inline-block; color: var(--brand); text-decoration: none; font-weight: 500; }
+    .integrate-card .card-cta:hover { text-decoration: underline; }
+    .integrate-note { max-width: 820px; margin: 0 auto 80px; padding: 24px; border: 1px dashed var(--border-subtle); border-radius: 8px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+    .integrate-note strong { color: var(--text); }
+  </style>
+</head>
+<body>
+  <nav class="landing-nav">
+    <div class="landing-nav-inner">
+      <div class="landing-nav-left">
+        <a href="/" class="landing-nav-brand">Arbitova</a>
+        <div class="landing-nav-links">
+          <a href="/docs" class="landing-nav-link">Docs</a>
+          <a href="/integrate" class="landing-nav-link active">Integrate</a>
+          <a href="/pricing" class="landing-nav-link">Fees</a>
+          <a href="/blog" class="landing-nav-link">Blog</a>
+          <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-nav-link">GitHub Issues</a>
+        </div>
+      </div>
+      <div class="landing-nav-right">
+        <a class="btn btn-primary btn-sm" href="/pay/">Launch app</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="integrate-hero">
+    <h1>Three ways to integrate</h1>
+    <p>Arbitova is a non-custodial escrow protocol, not a hosted service. Pick the integration path that matches how your agent already handles keys and calls the chain.</p>
+  </section>
+
+  <section class="integrate-grid">
+
+    <!-- Path 1: Raw contract -->
+    <div class="integrate-card">
+      <span class="integrate-card-tag">Path 1 &mdash; Raw contract</span>
+      <h2>Call EscrowV1 directly</h2>
+      <p class="audience">For teams with their own signing stack (ethers, viem, web3.py). No Arbitova code in your runtime.</p>
+      <pre>import { ethers } from 'ethers';
+
+const escrow = new ethers.Contract(
+  '0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC',
+  EscrowV1_ABI,
+  signer
+);
+
+await usdc.approve(escrow.target, amount);
+const tx = await escrow.createEscrow(
+  seller, amount, 86400n, 86400n, 'ipfs://spec.json'
+);</pre>
+      <ul>
+        <li>ABI available from Basescan (contract verified)</li>
+        <li>You own key management, gas funding, retries</li>
+        <li>Zero trust surface beyond the contract itself</li>
+      </ul>
+      <a class="card-cta" href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#code" target="_blank" rel="noopener">View verified contract &rarr;</a>
+    </div>
+
+    <!-- Path 2: Reference SDK -->
+    <div class="integrate-card">
+      <span class="integrate-card-tag">Path 2 &mdash; Reference SDK</span>
+      <h2>Use a published SDK</h2>
+      <p class="audience">For teams that want ergonomics but still hold their own keys. JavaScript, Python, and MCP reference implementations.</p>
+      <pre>// JavaScript
+import { createEscrow } from '@arbitova/sdk';
+
+# Python
+from arbitova import Escrow
+
+# Claude Desktop / MCP
+npx -y @arbitova/mcp-server</pre>
+      <ul>
+        <li>Same non-custodial guarantees &mdash; SDK never ships keys off your machine</li>
+        <li>Handles ABI, state enum, gas estimation, and event parsing</li>
+        <li>MCP server exposes seven tools for any MCP-compatible agent</li>
+      </ul>
+      <a class="card-cta" href="/docs">Read the SDK docs &rarr;</a>
+    </div>
+
+    <!-- Path 3: Agent-native (CDP) -->
+    <div class="integrate-card">
+      <span class="integrate-card-tag">Path 3 &mdash; Agent-native</span>
+      <h2>Coinbase CDP + x402</h2>
+      <p class="audience">For agents that don't have a wallet yet. Spin up a CDP-managed account, pay via x402, wrap disputable work with escrow. <em>In progress.</em></p>
+      <pre>// Planned — see roadmap
+import { withEscrow } from '@arbitova/x402-adapter';
+
+const paidFetch = withEscrow(fetch, {
+  disputeWindow: 86400,
+  arbiter: 'default',
+});
+
+await paidFetch('https://api.example/work');</pre>
+      <ul>
+        <li>Wraps an x402 payment flow with an escrow + dispute window</li>
+        <li>Target: drop-in for any agent already using x402</li>
+        <li>Status: spec in draft, adapter package in progress</li>
+      </ul>
+      <a class="card-cta" href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener">Follow on GitHub &rarr;</a>
+    </div>
+
+  </section>
+
+  <div class="integrate-note">
+    <strong>Not listed here:</strong> hosted APIs, webhooks, account creation endpoints, subscription tiers.
+    Arbitova does not run any of those. The whole surface is an on-chain contract plus reference clients that call it.
+    If you want us to host the arbiter or manage keys for you, that is <em>not</em> the product.
+  </div>
+
+</body>
+</html>
