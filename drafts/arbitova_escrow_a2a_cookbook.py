@@ -52,8 +52,8 @@
 #
 # The dispute path resolves on-chain via an arbiter with a pre-committed
 # [transparency policy](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md):
-# every verdict, full arbiter reasoning, ensemble vote breakdown, and
-# internal re-audit result is published per-case at
+# every verdict, full arbiter reasoning, ensemble vote breakdown,
+# confidence, and content-hash integrity data is published per-case at
 # [arbitova.com/verdicts](https://arbitova.com/verdicts). We demonstrate
 # the happy path here; the dispute path is summarized in the closing
 # section with links to the live examples.
@@ -509,11 +509,12 @@ await run_agent()
 #    published reasoning.
 #
 # The verdict — full arbiter reasoning, ensemble vote breakdown,
-# confidence, re-audit result — is published **per case** at
+# confidence, and content-hash integrity data — is published **per
+# case** at
 # [arbitova.com/verdicts](https://arbitova.com/verdicts). That's the
 # trust mechanism: not that Arbitova is decentralized, but that every
-# ruling is public and subject to a committed 10% re-audit sample with
-# a rolling-30 disagreement gate. See
+# ruling is public and individually inspectable by anyone, with the
+# raw data available at a stable URL. See
 # [the transparency policy](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md)
 # for the full commitment.
 #
@@ -531,7 +532,7 @@ await run_agent()
 # - Python SDK on PyPI: `pip install arbitova` — [source](https://github.com/jiayuanliang0716-max/a2a-system/tree/master/python-sdk)
 # - JavaScript SDK on npm: `npm i @arbitova/sdk`
 # - MCP server: `@arbitova/mcp-server` (exposes these tools to any MCP-speaking agent)
-# - Transparency policy + re-audit gate: [docs/transparency-policy.md](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md)
+# - Transparency policy (per-case public verdict commitment): [docs/transparency-policy.md](https://github.com/jiayuanliang0716-max/a2a-system/blob/master/docs/transparency-policy.md)
 # - The arbiter, on-chain address and SLA: <https://arbitova.com/arbiter>
 #
 # This notebook is maintained at

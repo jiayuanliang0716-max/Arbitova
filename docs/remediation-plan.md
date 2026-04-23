@@ -270,7 +270,7 @@ floor, decided v1 will ship **without** a Kleros appeal layer. See
       Engineering — Phase 4 territory.
 - [ ] 🤖 Add SDK + UI disclosure banner for party consent to
       per-case publication, per the transparency policy.
-- [ ] 🤖 Add re-audit workflow to ops runbook.
+- [~] 🤖 Add re-audit workflow to ops runbook. **Superseded 2026-04-24:** re-audit program removed in transparency policy v1.1 (staffing gap — Arbitova has one operator; `operator_id ≠ original` is not satisfiable). See dev log #023 and `docs/transparency-policy.md` amendment log. Runbook §1 re-audit workflow removed in the same amendment.
 
 ### Stop condition
 

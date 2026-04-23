@@ -138,5 +138,5 @@ no rush.
 
 - `docs/x402-adapter-spec.md` — x402 integration that uses this arbiter path on dispute.
 - `docs/decisions/M-0-arbiter-architecture-v1.md` — v1 single-tier decision and why Kleros was ruled out; Phase 6 UMA OO research.
-- `docs/transparency-policy.md` — per-case verdict publication + re-audit gate that makes multisig verdict scrutiny meaningful.
+- `docs/transparency-policy.md` — per-case verdict publication (v1.1, 2026-04-24) that makes multisig verdict scrutiny meaningful; internal re-audit program was proposed in v1 and removed in v1.1, see amendment log.
 - Dev Log #019 "Positioning as Protocol" — mentions multisig arbiter as the next concrete reduction in single-arbiter trust.

@@ -1,9 +1,18 @@
 # M-2 Decision Brief: Transparency Posture (single-tier revision)
 
-Status: **AWAITING FOUNDER DECISION**
+Status: **DECIDED 2026-04-23 · AMENDED 2026-04-24**
 Source audit finding: `docs/remediation-plan.md` row M-2
 Reframed: 2026-04-23 after M-0 (no Kleros in v1)
 Date: 2026-04-23
+Current authoritative policy: `docs/transparency-policy.md` (v1.1)
+
+---
+
+## 2026-04-24 amendment banner
+
+The original decision on 2026-04-23 selected option **(a) per-case public**, with a 10% internal re-audit program layered on top. On 2026-04-24, while drafting the operational runbook, we confirmed the re-audit SOP requires a reviewer `operator_id` different from the original verdict's `operator_id` — a condition Arbitova does not currently satisfy (single operator). Rather than maintain an aspirational commitment, the re-audit program was removed and the policy amended to v1.1. Dev log #023 documents the rationale.
+
+**Net effect on this brief:** the "per-case public" decision stands. The re-audit sections below (options, recommendation, 10% gate, followups) are preserved as historical record of the 2026-04-23 reasoning; they are **no longer current commitments**. See `docs/transparency-policy.md` for the authoritative v1.1 scope.
 
 ---
 
