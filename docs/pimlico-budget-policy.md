@@ -1,7 +1,9 @@
-# Pimlico Monthly Budget Policy (v0.1 draft — structure only)
+# Pimlico Monthly Budget Policy (v0.1)
 
-Status: **draft** · not yet in force · dollar figures below are placeholders
-for the founder to fill.
+Status: **in force** (numbers set 2026-04-24) · Pimlico account not yet
+provisioned · this policy becomes active the moment the API key is
+wired into Render env. Until then the numbers stand as a public
+pre-commitment.
 
 Depends on: `docs/pimlico-paymaster-plan.md` (integration plan).
 Related: `packages/paymaster-policy/src/index.js` (the pure-logic sponsorship
@@ -55,7 +57,7 @@ These inputs feed the envelope math in §3.
 
 ## 3. Monthly envelope
 
-Arbitova commits to a rolling **$`__` / month** Pimlico sponsorship envelope
+Arbitova commits to a rolling **$50 / month** Pimlico sponsorship envelope
 for Base Sepolia. This envelope is:
 
 - **Set by**: founder, documented in this file.
@@ -65,12 +67,12 @@ for Base Sepolia. This envelope is:
 
 Derived ceilings:
 
-| Ceiling | Formula | Placeholder |
+| Ceiling | Formula | Value |
 |---|---|---|
-| Per-month cap | Envelope | `$__` |
-| Per-day cap | Envelope ÷ 30, floored to 80% to absorb weekend spikes | `$__/day` |
+| Per-month cap | Envelope | **$50** |
+| Per-day cap | Envelope ÷ 30 × 0.8 (weekend-spike absorber), rounded | **$2/day** |
 | Per-op gas cap | `docs/pimlico-paymaster-plan.md` §v0.1 | `600k gas` |
-| Per-op USD cap | Per-op gas × current Sepolia price × 1.5× headroom | `$__/op` |
+| Per-op USD cap | Per-op gas × Sepolia ~0.05 gwei × ETH ~$3500 × 2× headroom, rounded | **$0.25/op** |
 
 The per-day and per-op USD caps are fed into
 `packages/paymaster-policy` as `dailyBudgetWei` and `perOpGasCeilingWei`
@@ -92,10 +94,11 @@ alert on:
 | Per-day cap hit before 18:00 UTC | Pause sponsorship for the rest of the day; investigate before next day | Founder |
 
 Monitoring wiring: Pimlico dashboard email alerts at the 50/80/100% marks,
-pointed at the ops inbox (`__@arbitova.com`). If email alerts prove
-unreliable, we poll the Pimlico API from the existing daily reconcile cron
-(see `project_arbitova_fee_pipeline` memory) and raise on the same
-threshold.
+pointed at the founder inbox (`jiayuanliang0716@gmail.com` until an
+`ops@arbitova.com` alias is provisioned; swap at that point). If email
+alerts prove unreliable, we poll the Pimlico API from the existing daily
+reconcile cron (see `project_arbitova_fee_pipeline` memory) and raise on
+the same threshold.
 
 ---
 
@@ -133,8 +136,10 @@ message, dev log entry, or `docs/pimlico-budget-policy.md` amendment):
 
 Emergency refill during a live incident (e.g. legitimate traffic spike
 during a Show HN thread): founder can authorize a one-time top-up up to
-**`$__`** above the envelope without amending this document, but must
-dev-log it within 7 days.
+**$50** above the envelope without amending this document, but must
+dev-log it within 7 days. This bounds the worst-case month at **$100
+total** (envelope + one emergency). Anything beyond that requires a
+policy amendment, not an operational decision.
 
 ---
 
@@ -150,9 +155,10 @@ card. Reasons:
 - **Separable from other spend.** Arbitova's stripe/LemonSqueezy/etc.
   billing surfaces stay separate from sponsorship spend.
 
-Top-up cadence: when Pimlico balance drops below **`$__`**, top up to
-the next full month's envelope. Keeps us one month of runway ahead
-without carrying large float.
+Top-up cadence: when Pimlico balance drops below **$10**, top up to
+the next full month's envelope. $10 at the $2/day cap = 5 days of
+runway — enough to notice and refill, small enough that float stays
+tight.
 
 ---
 
@@ -187,21 +193,39 @@ document). Four layers; each catches errors the layer above missed.
 
 ---
 
-## 10. Open placeholders for the founder
+## 10. Founder-set numbers (resolved 2026-04-24)
 
-The following numbers are **intentionally not set** in this draft. Fill
-them before this policy goes into force.
+All six placeholders resolved. The policy is now in force as a public
+pre-commitment; it becomes operationally active the moment the Pimlico
+API key is wired into Render env.
 
-- [ ] §3 monthly envelope `$__ / month`
-- [ ] §3 per-day cap `$__ / day` (suggested: monthly ÷ 30 × 0.8 rounded
-      down; founder decides)
-- [ ] §3 per-op USD cap `$__ / op`
-- [ ] §4 alert inbox `__@arbitova.com`
-- [ ] §6 emergency top-up ceiling `$__`
-- [ ] §7 top-up threshold `$__ balance floor`
+- [x] §3 monthly envelope — **$50 / month**
+- [x] §3 per-day cap — **$2 / day** (= $50 ÷ 30 × 0.8, rounded up)
+- [x] §3 per-op USD cap — **$0.25 / op** (500k gas × 0.05 gwei × $3500
+      ETH × 2× headroom, rounded)
+- [x] §4 alert inbox — `jiayuanliang0716@gmail.com` until
+      `ops@arbitova.com` alias is provisioned
+- [x] §6 emergency top-up ceiling — **+$50** (caps worst-case month at
+      **$100 total**)
+- [x] §7 top-up threshold — **$10 balance floor** (≈ 5 days runway at
+      the $2/day cap)
 
-Once these are filled, this doc moves from `draft` to `in force` with a
-commit message noting the change and the dollar amounts that went in.
+Rationale: at Phase 1 (target 300 tx), actual Sepolia gas spend is
+$1–5/month. The $50 envelope gives 10–50× headroom and stays small
+enough that a full drain is tolerable. The $0.25/op cap bounds
+single-op abuse blast radius. The $100 worst-case month matches the
+"no open-ended spend" discipline elsewhere in the project.
+
+Activation checklist (do these in order when the first real-user signal
+arrives — HN traffic, paying demo, or mainnet gate):
+
+1. Sign up at pimlico.io (Gmail SSO)
+2. Create a Base Sepolia project
+3. Set per-op USD cap = $0.25 and per-day cap = $2 in the Pimlico UI
+4. Fund prepaid balance with $50
+5. Generate API key → set `PIMLICO_API_KEY` in Render env
+6. Smoke-test a sponsored `createEscrow`
+7. Set email alerts at 50/80/100% to the inbox above
 
 ---
 
