@@ -322,6 +322,9 @@ async function arbitrateDispute({ order, service, dispute, delivery }) {
   ]);
 
   const results = [v1, v2, v3];
+  const diversity = process.env.OPENAI_API_KEY && v3.model === 'gpt-4o-mini'
+    ? 'cross_architecture'
+    : 'same_architecture';
   const buyerVotes  = results.filter(r => r.winner === 'buyer');
   const sellerVotes = results.filter(r => r.winner === 'seller');
 
@@ -384,6 +387,7 @@ async function arbitrateDispute({ order, service, dispute, delivery }) {
     })),
     method:       finalMethod,
     fourth_vote:  fourthVote,
+    diversity,
     escalate_to_human:
       (finalConf !== undefined ? finalConf : 0) < HUMAN_ESCALATION_THRESHOLD,
     constitutional_shortcut: false,

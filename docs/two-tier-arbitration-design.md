@@ -358,9 +358,82 @@ two new gates:
 - Content-hash integrity. `markDelivered(id, hash, uri)` unchanged.
 - The 2% platform fee. Unchanged.
 - The state enum encoding for existing states (0–5). Unchanged.
-- The SDK surface for the 95% happy-path flow. A small addition
-  for listening to first-instance events and for initiating an
-  appeal; no breaking change.
+- The SDK surface for the 95% happy-path flow (`createEscrow`,
+  `markDelivered`, `confirmDelivery`, `cancel`). Callers that never
+  touch the dispute branch see identical behavior.
+
+---
+
+## What this DOES change — SDK 4.x major version bump (breaking)
+
+Earlier drafts of this doc claimed "no breaking change." That was
+wrong. The contract surface changes below break binary compatibility
+and require a coordinated SDK major-version release. This section
+enumerates every breaking change and the migration path for each.
+
+### Contract ABI breakages
+
+| Change                                       | What breaks                                                        |
+|----------------------------------------------|--------------------------------------------------------------------|
+| `resolve(...)` → split into two functions    | Any caller/indexer decoding `resolve` by selector or name          |
+| `resolveFirstInstance(id, bps..., hash)`     | New selector; ABI diff                                             |
+| `finalize(id)`                               | New selector; must be called after appeal window                   |
+| `appeal(id)` payable                         | New selector; requires bond value                                  |
+| `rule(disputeId, ruling)` Kleros callback    | New selector; only callable by `IArbitratorV2`                     |
+| State enum grows from 6 → 8 values           | Off-chain decoders must enumerate 6 and 7, not just 0–5            |
+| New events `FirstInstanceResolved`, `Appealed`, `AppealRuling` | Indexers must add these or miss the dispute branch |
+
+### SDK-side breakages (`@arbitova/sdk` 3.x → 4.x)
+
+| Caller                                | Before (3.x)               | After (4.x)                                                      |
+|---------------------------------------|----------------------------|------------------------------------------------------------------|
+| Arbiter service (multisig signer tool)| `sdk.resolve(id, buyerBps, sellerBps)` | `sdk.resolveFirstInstance(id, buyerBps, sellerBps, verdictHash)` |
+| Anyone                                | *n/a*                      | `sdk.finalize(id)` (callable after appeal window if no appeal)   |
+| Disputing party                       | *n/a*                      | `sdk.appeal(id, bondAmount)`                                     |
+| Indexer / block-reader                | `State ∈ {0..5}`           | `State ∈ {0..7}`; handle 6/7 or ignore with explicit fallthrough  |
+| Typing (`EscrowState` union)          | 6 members                  | 8 members; TypeScript users must exhaust `PROVISIONAL_RESOLVED` and `UNDER_APPEAL` |
+| `getEscrow(id).state` return          | same encoding              | callers that do `if state === RESOLVED` must *not* assume dispute path ended; inspect `PROVISIONAL_RESOLVED`/`UNDER_APPEAL` too |
+
+### Python SDK (`arbitova` 2.x → 3.x)
+
+Same breakages, Python-typed. The existing `resolve()` wrapper must
+be removed (or kept only as a deprecation shim that raises on call).
+`ArbitrationState` enum gains two members. Tests that assert
+`state in {CREATED, DELIVERED, RELEASED, DISPUTED, RESOLVED, CANCELLED}`
+will fail until updated.
+
+### MCP server (`@arbitova/mcp-server` 4.x → 5.x)
+
+Tool schemas change. `resolve_dispute` tool removed; replaced by
+`resolve_first_instance`, `finalize_escrow`, `appeal_escrow` tools.
+Agents that discovered tools via the old MCP server will not see
+the new ones until the client refetches the schema.
+
+### Migration guide for integrators
+
+1. **Happy-path callers** (buyers calling `createEscrow`/`confirm`,
+   sellers calling `markDelivered`): no change required. Upgrade
+   SDK at your convenience.
+2. **Arbiter-side callers** (anyone with the arbiter key): MUST
+   upgrade to SDK 4.x before the contract migration is deployed,
+   and MUST stop calling `resolve` (it no longer exists as an
+   entrypoint).
+3. **Indexers / subgraphs**: MUST update state-enum decoders and
+   add handlers for the three new events before mainnet cut-over.
+4. **Agent operators using MCP**: force a tool-schema refetch after
+   `@arbitova/mcp-server` 5.0.0 releases. Agents whose tool list is
+   cached will silently miss the new flows.
+
+### Version strategy
+
+- SDKs ship `4.0.0-beta` / `3.0.0-beta` as the first release against
+  a Sepolia deployment of the amended contract. Beta stays ≥4 weeks.
+- `resolve` is not removed from the old (3.x SDK) package; the old
+  package remains installable for anyone pinned to the non-two-tier
+  EscrowV1. Mainnet cutover retires the 3.x line to maintenance only.
+- A `CHANGELOG_V4.md` ships in each SDK with every breakage listed
+  and a codemod script for the common rename (`resolve` →
+  `resolveFirstInstance`).
 
 ---
 

@@ -467,6 +467,61 @@
       <span>Currently deployed on <strong>Base Sepolia</strong> (<code>0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC</code>). Mainnet launch gated on four items: external audit, multisig arbiter, on-chain arbiter registry, and a one-week zero-drift indexer run.</span>
     </div>
 
+    <h3>Capability gate — what's shipped vs. what's designed</h3>
+    <p>This page describes the target architecture. Some pieces are live on Sepolia today; others are written as designs and drafts that will land before mainnet. The table below is the honest status as of the latest dev log.</p>
+    <table class="state-table">
+      <thead>
+        <tr><th>Capability</th><th>Status</th><th>Evidence</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Non-custodial USDC escrow on Base Sepolia</td>
+          <td><strong>Shipped</strong></td>
+          <td><code>EscrowV1</code> at <code>0xA8a0…88fC</code>; E2E four flows green in T4</td>
+        </tr>
+        <tr>
+          <td>Framework-agnostic SDKs (JS / Python / MCP)</td>
+          <td><strong>Shipped</strong></td>
+          <td><code>@arbitova/sdk@3.0.1</code>, <code>arbitova==2.5.2</code>, <code>@arbitova/mcp-server@4.0.1</code></td>
+        </tr>
+        <tr>
+          <td>N=3 voter ensemble with cross-architecture diversity</td>
+          <td><strong>Conditional</strong></td>
+          <td>Cross-architecture only when <code>OPENAI_API_KEY</code> configured; otherwise Claude×3 fallback. <code>verdict.diversity</code> field exposes which ran.</td>
+        </tr>
+        <tr>
+          <td>Content-hash integrity for delivered bytes</td>
+          <td><strong>Shipped</strong></td>
+          <td><code>markDelivered(id, keccak256, uri)</code> on-chain</td>
+        </tr>
+        <tr>
+          <td>Two-tier arbitration (Arbitova first instance + Kleros appeal)</td>
+          <td><strong>Design</strong></td>
+          <td><code>docs/two-tier-arbitration-design.md</code>; contract draft at <code>contracts/draft/EscrowV1WithKleros.sol</code>; not deployed</td>
+        </tr>
+        <tr>
+          <td>3-of-5 multisig arbiter</td>
+          <td><strong>Design</strong></td>
+          <td><code>docs/multisig-arbiter-design.md</code>; Sepolia still runs single-EOA arbiter</td>
+        </tr>
+        <tr>
+          <td>ERC-4337 session keys + sponsored gas</td>
+          <td><strong>Design</strong></td>
+          <td><code>docs/erc4337-session-keys-design.md</code>, <code>docs/pimlico-paymaster-plan.md</code>; no live paymaster</td>
+        </tr>
+        <tr>
+          <td>External security audit</td>
+          <td><strong>Not started</strong></td>
+          <td>Mainnet gate; see remediation plan Phase 6</td>
+        </tr>
+        <tr>
+          <td>Mainnet deployment</td>
+          <td><strong>Not deployed</strong></td>
+          <td>Blocked on four gates above</td>
+        </tr>
+      </tbody>
+    </table>
+
     <h3>Four Core Layers</h3>
 
     <div class="layer-grid">
@@ -476,7 +531,7 @@
       </div>
       <div class="layer-card">
         <div class="layer-card-title">Arbitration Engine</div>
-        <p>4-stage pipeline: constitutional rules → evidence bundle → N=3 multi-model vote → explainable verdict. Framework-agnostic by construction.</p>
+        <p>4-stage pipeline: constitutional rules → evidence bundle → N=3 voter ensemble → explainable verdict. Framework-agnostic by construction. Cross-architecture diversity when <code>OPENAI_API_KEY</code> is configured; honest fallback otherwise.</p>
       </div>
       <div class="layer-card">
         <div class="layer-card-title">On-chain Content Hash</div>
@@ -590,8 +645,8 @@
       <div class="pipeline-step">
         <div class="pipeline-icon">3</div>
         <div class="pipeline-body">
-          <div class="pipeline-title">N=3 Multi-Model Vote <span class="pipeline-tag llm">LLM</span></div>
-          <div class="pipeline-desc">Three voters run in parallel: Claude Haiku (x2) + GPT-4o-mini (x1). True model diversity — different architectures disagree on genuine edge cases. Majority wins. 3-0 unanimous returns immediately.</div>
+          <div class="pipeline-title">N=3 Voter Ensemble <span class="pipeline-tag llm">LLM</span></div>
+          <div class="pipeline-desc">Three voters run in parallel. When <code>OPENAI_API_KEY</code> is configured: Claude Haiku ×2 + GPT-4o-mini ×1 (cross-architecture diversity). When not configured: Claude Haiku ×3 (same-architecture ensemble with independent prompts). Majority wins; 3-0 unanimous returns immediately. The <code>verdict.diversity</code> field records which configuration ran.</div>
         </div>
       </div>
       <div class="pipeline-step">
@@ -661,7 +716,7 @@
   <section id="multimodel">
     <h2>Multi-Model Voting</h2>
 
-    <p>Three arbitrators run in parallel. Each returns a vote with confidence, key factors, and optional dissent. True multi-model diversity — not the same model called three times.</p>
+    <p>Three arbitrators run in parallel. Each returns a vote with confidence, key factors, and optional dissent. <strong>Cross-architecture diversity is conditional</strong>: if <code>OPENAI_API_KEY</code> is set, Voter 3 runs on GPT-4o-mini and the ensemble spans two different model families. If it is not set, Voter 3 falls back to Claude, and the ensemble is three independent Claude calls — still useful (stochastic disagreement, prompt-order effects) but not cross-architecture. Every verdict exposes a <code>diversity</code> flag so downstream consumers can see which mode actually ran.</p>
 
     <table>
       <thead>
