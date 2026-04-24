@@ -65,6 +65,16 @@
 
     .alert { padding: 12px 14px; border-radius: var(--radius-sm); font-size: 13px; line-height: 1.5; margin-bottom: 16px; }
     .alert.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); }
+
+    .partners-strip { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 14px 16px; margin-bottom: 20px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); }
+    .partners-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); flex-shrink: 0; }
+    .partners-row { display: flex; gap: 12px; flex-wrap: wrap; flex: 1; }
+    .partner-card { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border-default); border-radius: var(--radius-sm); color: var(--text-primary); font-size: 13px; background: var(--bg-base); }
+    .partner-card:hover { border-color: var(--brand-border); }
+    .partner-logo { width: 18px; height: 18px; border-radius: 3px; object-fit: contain; }
+    .partner-name { font-weight: 500; }
+    .partners-cta { font-size: 11px; color: var(--text-tertiary); border-bottom: 1px dotted var(--border-default); }
+    .partners-cta:hover { color: var(--text-secondary); }
   </style>
 </head>
 <body>
@@ -111,6 +121,12 @@
       <button class="filter-btn" data-filter="buyer">Buyer-favored</button>
       <button class="filter-btn" data-filter="seller">Seller-favored</button>
       <button class="filter-btn" data-filter="split">Split</button>
+    </div>
+
+    <div id="partnersStrip" class="partners-strip" style="display:none">
+      <div class="partners-label">Building on Arbitova:</div>
+      <div class="partners-row" id="partnersRow"></div>
+      <a href="/partners" class="partners-cta">List your project →</a>
     </div>
 
     <div id="loadingState" class="loading"><div class="spinner"></div><div style="margin-top:12px">Scanning Resolved events…</div></div>
@@ -294,6 +310,33 @@
       });
     });
 
+    // Verified partners strip (opt-in attribution, populated from /api/partners/verified).
+    async function loadPartners() {
+      try {
+        const apiBase = location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com'
+          ? 'https://api.arbitova.com' : '';
+        const res = await fetch(apiBase + '/api/partners/verified');
+        if (!res.ok) return;
+        const { partners } = await res.json();
+        if (!partners || partners.length === 0) return;
+
+        const row = document.getElementById('partnersRow');
+        row.innerHTML = partners.map((p) => {
+          const logo = p.project_logo
+            ? `<img src="${escapeHtml(p.project_logo)}" alt="${escapeHtml(p.project_name)}" class="partner-logo" onerror="this.style.display='none'" />`
+            : '';
+          return `<a class="partner-card" href="${escapeHtml(p.project_url)}" target="_blank" rel="noopener">
+                    ${logo}
+                    <span class="partner-name">${escapeHtml(p.project_name)}</span>
+                  </a>`;
+        }).join('');
+        document.getElementById('partnersStrip').style.display = 'flex';
+      } catch (err) {
+        // partners strip is opt-in and non-essential; failure is silent
+      }
+    }
+
+    loadPartners();
     load();
   </script>
 </body>

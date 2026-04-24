@@ -11,8 +11,13 @@ const arbitrationRoutes = require('./routes/arbitration');
 // const credentialRoutes = require('./routes/credentials');
 const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
+const usersAdminRoutes = require('./routes/users-admin');
+const partnersRoutes = require('./routes/partners');
 // const authRoutes = require('./routes/auth');
 const { dbAll } = require('./db/helpers');
+const { userEventsMiddleware } = require('./middleware/userEvents');
+const { attribution: attributionMiddleware } = require('./middleware/attribution');
+const userAccumDb = require('./user_accumulation/db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -85,6 +90,14 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// User accumulation: capture every request into user_events (async, non-blocking).
+// Disable with USER_EVENTS_DISABLED=1. Design doc: docs/user-accumulation-system.md.
+app.use(userEventsMiddleware());
+
+// Attribution: if X-Attribution-Key matches a verified key, attach req.attribution.
+// Never blocks; never required. See docs/user-accumulation-system.md §6.
+app.use(attributionMiddleware());
 
 // Static frontend (SPA — public/index.html is served at /)
 // Cache static assets aggressively so Cloudflare doesn't hit Render every time
@@ -684,6 +697,12 @@ apiV1.get('/site-config', async (req, res) => {
 
 app.use('/api/v1', apiV1);
 
+// Admin: user accumulation surface (X-Admin-Key gated)
+app.use('/admin/users', usersAdminRoutes);
+
+// Public: /partners (signup page + POST /api/partners/signup)
+app.use('/', partnersRoutes);
+
 // MCP HTTP endpoint for Smithery.ai and HTTP-based MCP clients
 app.use('/mcp', mcpHttpRoutes);
 
@@ -840,6 +859,11 @@ app.use((err, req, res, next) => {
 // ── Demo seller bot (auto-deliver for single-wallet testing) ─────────────────
 const { startDemoSellerBot } = require('./demo_seller_bot');
 startDemoSellerBot();
+
+// Bootstrap user-accumulation schema on startup (idempotent).
+userAccumDb.ensureSchema()
+  .then(() => console.log('user_accumulation schema ready'))
+  .catch((e) => console.error('user_accumulation ensureSchema failed:', e.message));
 
 app.listen(PORT, () => {
   console.log(`Arbitova running on http://localhost:${PORT}`);

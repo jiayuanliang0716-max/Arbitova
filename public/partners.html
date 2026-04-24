@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Partners — Arbitova</title>
+  <meta name="description" content="Tell us you're building on Arbitova. Your logo shows up on /verdicts when your escrows are arbitrated." />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { max-width: 720px; margin: 0 auto; padding: 40px 20px; font-family: system-ui, -apple-system, sans-serif; color: #111; line-height: 1.55; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .lede { color: #444; margin-bottom: 32px; }
+    form { display: grid; gap: 18px; }
+    label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+    input[type="text"], input[type="url"], input[type="email"] {
+      width: 100%; padding: 10px 12px; border: 1px solid #d0d7de; border-radius: 6px; font-size: 15px;
+    }
+    button { padding: 12px 20px; background: #111; color: #fff; border: 0; border-radius: 6px; font-size: 15px; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .hint { font-size: 13px; color: #666; margin-top: 4px; }
+    .result { margin-top: 24px; padding: 16px; border: 1px solid #d0d7de; border-radius: 6px; background: #f6f8fa; }
+    .key { font-family: monospace; background: #fff; padding: 8px; border-radius: 4px; border: 1px solid #d0d7de; word-break: break-all; }
+    .error { color: #b42318; margin-top: 12px; }
+    .bullet { padding-left: 20px; }
+    .bullet li { margin-bottom: 4px; }
+  </style>
+</head>
+<body>
+  <h1>List your project on /verdicts</h1>
+  <p class="lede">
+    Arbitova publishes every dispute verdict on <a href="/verdicts">/verdicts</a>.
+    If your project uses Arbitova escrows, your logo shows up next to your verdicts —
+    receipts you can point customers and investors at. Identification is voluntary;
+    the core flow never requires it.
+  </p>
+
+  <ul class="bullet">
+    <li>You get an attribution key. Include it as <code>X-Attribution-Key</code> when your agents talk to Arbitova.</li>
+    <li>We manually verify your project is real (typically within 24h) before the logo goes live.</li>
+    <li>You can revoke the key any time — email <a href="mailto:hello@arbitova.com">hello@arbitova.com</a>.</li>
+    <li>No fee, no subscription. This is an opt-in transparency upgrade.</li>
+  </ul>
+
+  <form id="partnerForm">
+    <div>
+      <label for="project_name">Project name</label>
+      <input type="text" id="project_name" name="project_name" required maxlength="80" />
+    </div>
+    <div>
+      <label for="project_url">Project URL</label>
+      <input type="url" id="project_url" name="project_url" required placeholder="https://..." />
+    </div>
+    <div>
+      <label for="project_logo">Logo URL (optional)</label>
+      <input type="url" id="project_logo" name="project_logo" placeholder="https://..." />
+      <div class="hint">Square image, at least 64×64, hosted on your own domain or a public CDN.</div>
+    </div>
+    <div>
+      <label for="contact_email">Contact email</label>
+      <input type="email" id="contact_email" name="contact_email" required />
+      <div class="hint">We email the verification result here. Not published.</div>
+    </div>
+    <div>
+      <label for="contact_wallet">Contact wallet (optional)</label>
+      <input type="text" id="contact_wallet" name="contact_wallet" placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$" />
+      <div class="hint">If you use Arbitova from an on-chain address, providing it here speeds up verification.</div>
+    </div>
+    <button type="submit" id="submitBtn">Request attribution key</button>
+    <div id="error" class="error" hidden></div>
+  </form>
+
+  <div id="result" class="result" hidden>
+    <h3>Attribution key issued</h3>
+    <p>Store this key somewhere safe — it will <strong>not</strong> be shown again.</p>
+    <div class="key" id="keyBox"></div>
+    <p class="hint">Verification is pending. We'll email you once your logo is live.</p>
+    <p>To use it:<br/>
+      <code>curl -H "X-Attribution-Key: YOUR_KEY" https://api.arbitova.com/...</code>
+    </p>
+  </div>
+
+  <script>
+    const form = document.getElementById('partnerForm');
+    const errorBox = document.getElementById('error');
+    const result = document.getElementById('result');
+    const keyBox = document.getElementById('keyBox');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorBox.hidden = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+
+      const payload = {
+        project_name:  form.project_name.value.trim(),
+        project_url:   form.project_url.value.trim(),
+        project_logo:  form.project_logo.value.trim() || null,
+        contact_email: form.contact_email.value.trim(),
+        contact_wallet: form.contact_wallet.value.trim() || null,
+      };
+
+      try {
+        const apiBase = location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com'
+          ? 'https://api.arbitova.com' : '';
+        const res = await fetch(apiBase + '/api/partners/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Signup failed');
+        keyBox.textContent = body.key;
+        result.hidden = false;
+        form.hidden = true;
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.hidden = false;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Request attribution key';
+      }
+    });
+  </script>
+</body>
+</html>
