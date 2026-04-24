@@ -18,6 +18,7 @@ const { dbAll } = require('./db/helpers');
 const { userEventsMiddleware } = require('./middleware/userEvents');
 const { attribution: attributionMiddleware } = require('./middleware/attribution');
 const userAccumDb = require('./user_accumulation/db');
+const chainIndexer = require('./user_accumulation/chainIndexer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -861,9 +862,13 @@ app.use((err, req, res, next) => {
 const { startDemoSellerBot } = require('./demo_seller_bot');
 startDemoSellerBot();
 
-// Bootstrap user-accumulation schema on startup (idempotent).
+// Bootstrap user-accumulation schema on startup (idempotent), then start the
+// in-process chain indexer (no-op if USER_ACCUM_CHAIN_INDEXER != '1').
 userAccumDb.ensureSchema()
-  .then(() => console.log('user_accumulation schema ready'))
+  .then(() => {
+    console.log('user_accumulation schema ready');
+    chainIndexer.start();
+  })
   .catch((e) => console.error('user_accumulation ensureSchema failed:', e.message));
 
 app.listen(PORT, () => {

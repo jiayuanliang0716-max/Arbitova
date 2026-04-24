@@ -29,14 +29,16 @@ async function ensureSchema() {
   const fs = require('fs');
   const path = require('path');
   const suffix = isPg() ? 'pg' : 'sqlite';
-  const file = path.resolve(
-    __dirname,
-    '../../migrations/user_accumulation/001_user_events.' + suffix + '.sql'
-  );
-  const sql = fs.readFileSync(file, 'utf8');
-  const stmts = sql.split(/;\s*\n/).map((s) => s.trim()).filter(Boolean);
-  for (const stmt of stmts) {
-    await dbRun(stmt + (stmt.endsWith(';') ? '' : ';'), []);
+  const dir = path.resolve(__dirname, '../../migrations/user_accumulation');
+  const files = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.' + suffix + '.sql'))
+    .sort();
+  for (const f of files) {
+    const sql = fs.readFileSync(path.join(dir, f), 'utf8');
+    const stmts = sql.split(/;\s*\n/).map((s) => s.trim()).filter(Boolean);
+    for (const stmt of stmts) {
+      await dbRun(stmt + (stmt.endsWith(';') ? '' : ';'), []);
+    }
   }
 }
 

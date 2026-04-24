@@ -14,10 +14,12 @@
  *   POST /admin/attribution/:id/verify     mark an attribution key as verified
  *   POST /admin/attribution/:id/revoke     revoke an attribution key
  *   GET  /admin/github-snapshots           list daily snapshots (?repo=...)
+ *   POST /admin/users/chain-indexer/run    manually trigger one indexer pass
  */
 
 const express = require('express');
 const accum = require('../user_accumulation/db');
+const chainIndexer = require('../user_accumulation/chainIndexer');
 
 const router = express.Router();
 
@@ -133,6 +135,17 @@ router.get('/github-snapshots', async (req, res) => {
       limit: Math.min(365, Number(req.query.limit) || 60),
     });
     res.json({ snapshots: rows, count: rows.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message, code: 'internal_error' });
+  }
+});
+
+// Manually trigger one pass of the chain indexer and return the result.
+// Useful for catch-up runs without waiting for the interval.
+router.post('/chain-indexer/run', async (req, res) => {
+  try {
+    const result = await chainIndexer.runOnce();
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message, code: 'internal_error' });
   }
