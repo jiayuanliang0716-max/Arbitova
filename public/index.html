@@ -111,7 +111,7 @@
           <svg id="theme-icon-dark" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
           <svg id="theme-icon-light" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <a class="btn btn-primary btn-sm" href="/pay/">Launch app</a>
+        <a class="btn btn-ghost btn-sm" href="/docs">Read the docs</a>
       </div>
     </div>
   </nav>
@@ -122,10 +122,10 @@
     <div class="hero-inner">
       <div class="hero-badge">
         <span class="hero-badge-dot"></span>
-        Now in Public Beta
+        EscrowV1 deployed &middot; Base Sepolia
       </div>
       <h1 class="hero-title">An open escrow protocol <br>for the <span class="highlight">agent economy.</span></h1>
-      <p class="hero-subtitle">Non-custodial USDC escrow for AI agents. Built as a protocol, not a product &mdash; the contract holds the funds, an arbiter routes disputes without unilateral sweep, and every verdict is public. <strong>Integrate directly, use a reference SDK, or run your own frontend.</strong></p>
+      <p class="hero-subtitle">An open escrow + arbitration layer for agent-to-agent USDC payments. The contract is the product: verified on Basescan, no admin sweep, every verdict public. <strong>Integrate the contract directly, or call it via the reference Python / JavaScript / MCP clients.</strong></p>
       <div class="hero-actions">
         <a href="/try-real" class="btn btn-primary btn-lg hero-cta-glow">Sign a real tx in 60s &rarr;</a>
         <span class="hero-secondary-links" style="display:inline-flex;gap:20px;align-items:center;margin-left:8px;font-size:14px">
@@ -482,44 +482,16 @@
   <!-- Bottom CTA Section -->
   <section class="cta-section reveal-scale" aria-label="Call to action">
     <div class="cta-inner">
-      <h2 class="cta-heading">Ready to run agent-to-agent escrow?</h2>
-      <p class="cta-sub">Connect your wallet on Base Sepolia and try a live flow in under a minute.</p>
-      <a class="btn btn-primary btn-lg" href="/pay/">Launch app &rarr;</a>
+      <h2 class="cta-heading">Build on it</h2>
+      <p class="cta-sub">EscrowV1 is verified on Basescan. Read the spec, install a client, or call the contract directly.</p>
+      <div style="display:inline-flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:8px">
+        <a class="btn btn-primary btn-lg" href="/integrate">Integration paths &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" rel="noopener">GitHub &rarr;</a>
+        <a class="btn btn-ghost btn-lg" href="/try-real">Sign a real tx &rarr;</a>
+      </div>
     </div>
   </section>
 
-  <!-- Contact Section -->
-  <section class="contact-section" id="contact" aria-label="Contact">
-    <div class="contact-inner">
-      <h2 class="contact-heading">Get in touch</h2>
-      <p class="contact-sub">Questions about integration, partnerships, or the arbitration engine? We read every message.</p>
-      <form class="contact-form" id="contactForm">
-        <div class="contact-row">
-          <div class="contact-field">
-            <label for="cf-name">Name</label>
-            <input type="text" id="cf-name" placeholder="Your name" required>
-          </div>
-          <div class="contact-field">
-            <label for="cf-email">Email</label>
-            <input type="email" id="cf-email" placeholder="you@example.com" required>
-          </div>
-        </div>
-        <div class="contact-field">
-          <label for="cf-subject">Subject</label>
-          <input type="text" id="cf-subject" placeholder="Integration question, partnership, feedback...">
-        </div>
-        <div class="contact-field">
-          <label for="cf-message">Message</label>
-          <textarea id="cf-message" rows="5" placeholder="Tell us what you are building or what you need..." required></textarea>
-        </div>
-        <div class="contact-footer">
-          <span class="contact-email-hint">Or email directly: <a href="mailto:dev@arbitova.com">dev@arbitova.com</a></span>
-          <button type="submit" class="btn btn-primary" id="contactSubmit">Send Message</button>
-        </div>
-        <div id="contactResult" class="contact-result" style="display:none"></div>
-      </form>
-    </div>
-  </section>
 
   <!-- Footer -->
   <footer class="landing-footer" role="contentinfo">
@@ -536,6 +508,7 @@
         <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
         <a href="/status" class="landing-footer-link">Status</a>
         <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-footer-link">GitHub Issues</a>
+        <a href="mailto:dev@arbitova.com" class="landing-footer-link">dev@arbitova.com</a>
         <a href="#" class="landing-footer-link" id="replayTourLink">Replay intro</a>
       </div>
     </div>
