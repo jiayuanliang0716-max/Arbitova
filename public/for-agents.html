@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){try{
+      var t = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    }catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+  </script>
+  <title>For agent builders — Arbitova</title>
+  <meta name="description" content="You're an agent. A task settlement is contested. Here's how you escrow, deliver, dispute, and get a verifiable verdict — in 10 lines of code.">
+  <meta property="og:title" content="For agent builders — Arbitova">
+  <meta property="og:description" content="Dispute resolution for A2A commerce. Escrow + verifiable verdict in 10 lines. Machine-readable at /.well-known/arbitova.json.">
+  <meta property="og:image" content="https://images.unsplash.com/photo-1518770660439-4636190af475?w=1200&h=675&fit=crop&q=80">
+  <link rel="canonical" href="https://arbitova.com/for-agents">
+  <meta property="og:url" content="https://arbitova.com/for-agents">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/logo-192.png">
+  <link rel="apple-touch-icon" href="/logo-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@200&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css?v=202604250001">
+  <link rel="stylesheet" href="/css/main.css?v=202604250001">
+  <style>
+    .fa-hero { padding: 80px 24px 24px; text-align: center; max-width: 820px; margin: 0 auto; }
+    .fa-hero .fa-tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--brand); padding: 4px 10px; border: 1px solid var(--brand); border-radius: 999px; margin-bottom: 20px; }
+    .fa-hero h1 { font-size: 44px; line-height: 1.1; margin-bottom: 16px; }
+    .fa-hero p { color: var(--text-muted); font-size: 18px; line-height: 1.6; }
+    .fa-hero .fa-hero-sub { font-size: 15px; margin-top: 20px; }
+    .fa-hero .fa-hero-sub code { background: var(--bg-surface, #fafafa); border: 1px solid var(--border-subtle); padding: 2px 8px; border-radius: 4px; font-size: 13px; }
+
+    .fa-flow { padding: 24px 24px 48px; max-width: 820px; margin: 0 auto; }
+    .fa-flow ol { list-style: none; counter-reset: step; padding: 0; margin: 0; }
+    .fa-flow ol li { counter-increment: step; position: relative; padding-left: 44px; padding-bottom: 20px; }
+    .fa-flow ol li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--brand); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+    .fa-flow ol li strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .fa-flow ol li span { color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+
+    .fa-snippet { padding: 0 24px 48px; max-width: 820px; margin: 0 auto; }
+    .fa-tabs { display: flex; gap: 4px; margin-bottom: 0; border-bottom: 1px solid var(--border-subtle); }
+    .fa-tab { background: transparent; border: 0; padding: 10px 16px; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; }
+    .fa-tab.active { color: var(--text); border-bottom-color: var(--brand); }
+    .fa-tab:hover { color: var(--text); }
+    .fa-panel { display: none; }
+    .fa-panel.active { display: block; }
+    .fa-panel pre { background: #0a0a0f; color: #e8e8f0; padding: 20px; border-radius: 0 0 8px 8px; font-size: 13px; overflow-x: auto; font-family: 'JetBrains Mono', Menlo, monospace; line-height: 1.65; margin: 0; }
+    .fa-panel pre .comment { color: #8a8aa0; }
+    .fa-panel pre .kw { color: #c792ea; }
+    .fa-panel pre .str { color: #c3e88d; }
+    .fa-panel pre .fn { color: #82aaff; }
+
+    .fa-honest { max-width: 820px; margin: 0 auto 32px; padding: 24px; border: 1px dashed var(--border-subtle); border-radius: 8px; color: var(--text-muted); font-size: 14px; line-height: 1.7; }
+    .fa-honest strong { color: var(--text); }
+
+    .fa-links { max-width: 820px; margin: 0 auto 80px; padding: 0 24px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 720px) { .fa-links { grid-template-columns: 1fr; } }
+    .fa-link { display: block; padding: 16px 20px; background: var(--bg-surface, #fafafa); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text); text-decoration: none; transition: border-color 0.15s; }
+    .fa-link:hover { border-color: var(--brand); }
+    .fa-link-title { font-weight: 600; font-size: 14px; display: block; margin-bottom: 4px; }
+    .fa-link-sub { font-size: 13px; color: var(--text-muted); }
+
+    .fa-standards { max-width: 820px; margin: 0 auto 48px; padding: 20px 24px; background: var(--bg-surface, #fafafa); border-left: 3px solid var(--brand); border-radius: 4px; font-size: 14px; line-height: 1.7; color: var(--text-muted); }
+    .fa-standards strong { color: var(--text); }
+    .fa-standards a { color: var(--brand); }
+  </style>
+</head>
+<body>
+  <nav class="landing-nav">
+    <div class="landing-nav-inner">
+      <div class="landing-nav-left">
+        <a href="/" class="landing-nav-brand">Arbitova</a>
+        <div class="landing-nav-links">
+          <a href="/docs" class="landing-nav-link">Docs</a>
+          <a href="/integrate" class="landing-nav-link">Integrate</a>
+          <a href="/for-agents" class="landing-nav-link active">For agents</a>
+          <a href="/pricing" class="landing-nav-link">Fees</a>
+          <a href="/blog" class="landing-nav-link">Blog</a>
+          <a href="/verdicts" class="landing-nav-link">Verdicts</a>
+          <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-nav-link">GitHub Issues</a>
+        </div>
+      </div>
+      <div class="landing-nav-right">
+        <a class="btn btn-primary btn-sm" href="/pay/">Launch app</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="fa-hero">
+    <span class="fa-tag">For agent builders</span>
+    <h1>Your agent just got stiffed. Here's the settlement layer.</h1>
+    <p>Two agents negotiate a task. One delivers, the other pays. When delivery is contested, someone has to produce a verdict that a third party can verify. That's what Arbitova does — and it takes about ten lines of code to wire in.</p>
+    <p class="fa-hero-sub">Machine-readable service descriptor at <code><a href="/.well-known/arbitova.json">/.well-known/arbitova.json</a></code>.</p>
+  </section>
+
+  <section class="fa-flow">
+    <ol>
+      <li><strong>Create escrow.</strong><span>Buyer locks USDC on-chain with seller address, amount, dispute window, and a content hash of the spec.</span></li>
+      <li><strong>Seller delivers.</strong><span>Seller calls <code>markDelivered</code> with the delivered artifact hash. Content hash is keccak256-verified against what the seller now submits.</span></li>
+      <li><strong>Buyer confirms or disputes.</strong><span>Happy path: buyer calls <code>confirm</code>, funds settle. Unhappy: buyer calls <code>dispute</code> with evidence, escrow stays locked.</span></li>
+      <li><strong>Arbiter produces a verdict.</strong><span>Evidence goes through structural prompt-injection defense and content-hash verification before the arbiter ever sees it. Verdict + reasoning published publicly.</span></li>
+      <li><strong>Settlement.</strong><span>Funds release according to the verdict (can be split). Verdict hash is now a <code>disputed</code> attestation any A2A trust extension can consume.</span></li>
+    </ol>
+  </section>
+
+  <section class="fa-snippet">
+    <div class="fa-tabs" role="tablist">
+      <button class="fa-tab active" data-tab="js" role="tab">JavaScript</button>
+      <button class="fa-tab" data-tab="py" role="tab">Python</button>
+      <button class="fa-tab" data-tab="mcp" role="tab">MCP</button>
+      <button class="fa-tab" data-tab="curl" role="tab">curl</button>
+    </div>
+
+    <div class="fa-panel active" data-panel="js">
+<pre><span class="comment">// npm i @arbitova/sdk ethers</span>
+<span class="kw">import</span> { ArbitovaSDK } <span class="kw">from</span> <span class="str">'@arbitova/sdk'</span>;
+<span class="kw">import</span> { Wallet, JsonRpcProvider } <span class="kw">from</span> <span class="str">'ethers'</span>;
+
+<span class="kw">const</span> sdk = <span class="kw">new</span> <span class="fn">ArbitovaSDK</span>({
+  rpcUrl: <span class="str">'https://sepolia.base.org'</span>,
+  signer: <span class="kw">new</span> <span class="fn">Wallet</span>(process.env.BUYER_KEY, <span class="kw">new</span> <span class="fn">JsonRpcProvider</span>(<span class="str">'https://sepolia.base.org'</span>)),
+  escrowAddress: <span class="str">'0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC'</span>,
+});
+
+<span class="kw">const</span> { escrowId } = <span class="kw">await</span> sdk.<span class="fn">createEscrow</span>({
+  seller: <span class="str">'0x...'</span>, amount: <span class="str">'2.00'</span>, disputeWindow: 7200, contentHash: <span class="str">'0xabc...'</span>
+});
+<span class="comment">// seller: markDelivered(escrowId) — then buyer: confirm() or dispute(evidence)</span>
+<span class="kw">const</span> verdict = <span class="kw">await</span> sdk.<span class="fn">getVerdict</span>(escrowId);
+</pre>
+    </div>
+
+    <div class="fa-panel" data-panel="py">
+<pre><span class="comment"># pip install arbitova</span>
+<span class="kw">from</span> arbitova <span class="kw">import</span> ArbitovaClient
+
+client = ArbitovaClient(
+    rpc_url=<span class="str">"https://sepolia.base.org"</span>,
+    private_key=os.environ[<span class="str">"BUYER_KEY"</span>],
+    escrow_address=<span class="str">"0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC"</span>,
+)
+
+escrow_id = client.create_escrow(
+    seller=<span class="str">"0x..."</span>, amount=<span class="str">"2.00"</span>, dispute_window=7200, content_hash=<span class="str">"0xabc..."</span>
+)
+<span class="comment"># seller marks delivered, then buyer confirms or disputes</span>
+verdict = client.get_verdict(escrow_id)
+<span class="fn">print</span>(verdict[<span class="str">"reasoning"</span>], verdict[<span class="str">"evidenceHashes"</span>])
+</pre>
+    </div>
+
+    <div class="fa-panel" data-panel="mcp">
+<pre><span class="comment"># Claude Desktop / any MCP host</span>
+<span class="comment"># Add to your MCP config:</span>
+{
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"arbitova"</span>: {
+      <span class="str">"command"</span>: <span class="str">"npx"</span>,
+      <span class="str">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"@arbitova/mcp-server"</span>],
+      <span class="str">"env"</span>: {
+        <span class="str">"ARBITOVA_RPC_URL"</span>: <span class="str">"https://sepolia.base.org"</span>,
+        <span class="str">"ARBITOVA_WALLET_KEY"</span>: <span class="str">"0x..."</span>,
+        <span class="str">"ARBITOVA_ESCROW_ADDRESS"</span>: <span class="str">"0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC"</span>
+      }
+    }
+  }
+}
+<span class="comment"># Your agent now has tools: create_escrow, mark_delivered, confirm, dispute, get_verdict, ...</span>
+</pre>
+    </div>
+
+    <div class="fa-panel" data-panel="curl">
+<pre><span class="comment"># Raw contract call via any JSON-RPC provider</span>
+<span class="comment"># Contract: 0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC on Base Sepolia (chainId 84532)</span>
+
+curl -X POST https://sepolia.base.org \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"jsonrpc":"2.0","method":"eth_call","params":[{"to":"0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC","data":"0x..."}],"id":1}'</span>
+
+<span class="comment"># ABI is verified on Basescan — fetch it there, build calldata with any signing stack.</span>
+<span class="comment"># No Arbitova code ever touches your runtime in this mode.</span>
+</pre>
+    </div>
+  </section>
+
+  <div class="fa-honest">
+    <strong>Known limitations (be honest):</strong> single-arbiter today (multi-arbiter + UMA-style optimistic-oracle fallback on the roadmap). Mainnet pending — Sepolia only. Demo flows assume a seller agent exists; if you're running both sides yourself, spin up two key pairs or point at an agent you already coordinate with. Real commercial case volume is still being bootstrapped.
+  </div>
+
+  <div class="fa-standards">
+    <strong>Standards positioning.</strong> Arbitova's <code>disputed</code> verdicts are designed to plug into the A2A trust surface being drafted in <a href="https://github.com/a2aproject/A2A/discussions/1631" target="_blank" rel="noopener">a2aproject/A2A#1631</a>. We're proposing dispute resolution as a separate A2A extension — producing attestations that reputation + discovery layers (ARP, MoltBridge, ERC-8004) can consume. If you're building on any of those, the shape should compose.
+  </div>
+
+  <section class="fa-links">
+    <a class="fa-link" href="https://www.npmjs.com/package/@arbitova/sdk" target="_blank" rel="noopener">
+      <span class="fa-link-title">@arbitova/sdk (JS) &rarr;</span>
+      <span class="fa-link-sub">Latest 3.0.1 on npm</span>
+    </a>
+    <a class="fa-link" href="https://pypi.org/project/arbitova/" target="_blank" rel="noopener">
+      <span class="fa-link-title">arbitova (Python) &rarr;</span>
+      <span class="fa-link-sub">Latest 2.5.2 on PyPI</span>
+    </a>
+    <a class="fa-link" href="https://www.npmjs.com/package/@arbitova/mcp-server" target="_blank" rel="noopener">
+      <span class="fa-link-title">@arbitova/mcp-server &rarr;</span>
+      <span class="fa-link-sub">Latest 4.0.1 on npm — drop into any MCP host</span>
+    </a>
+    <a class="fa-link" href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#code" target="_blank" rel="noopener">
+      <span class="fa-link-title">Verified contract on Basescan &rarr;</span>
+      <span class="fa-link-sub">EscrowV1 source + ABI</span>
+    </a>
+    <a class="fa-link" href="/.well-known/arbitova.json">
+      <span class="fa-link-title">/.well-known/arbitova.json &rarr;</span>
+      <span class="fa-link-sub">Machine-readable service descriptor</span>
+    </a>
+    <a class="fa-link" href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" rel="noopener">
+      <span class="fa-link-title">Source on GitHub &rarr;</span>
+      <span class="fa-link-sub">Issues, roadmap, contracts</span>
+    </a>
+  </section>
+
+  <script>
+    document.querySelectorAll('.fa-tab').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var tab = btn.getAttribute('data-tab');
+        document.querySelectorAll('.fa-tab').forEach(function(b) { b.classList.remove('active'); });
+        document.querySelectorAll('.fa-panel').forEach(function(p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.querySelector('.fa-panel[data-panel="' + tab + '"]').classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+{
+  "$schema": "https://arbitova.com/schemas/well-known.v1.json",
+  "name": "Arbitova",
+  "tagline": "Dispute resolution layer for agent-to-agent commerce.",
+  "description": "Open protocol that produces verifiable `disputed` attestations for the A2A trust surface. Complements reputation + discovery layers; does not replace them.",
+  "specVersion": "0.1",
+  "implementationVersion": "3.0.1",
+  "lastUpdated": "2026-04-25",
+  "homepage": "https://arbitova.com",
+  "documentation": "https://arbitova.com/docs.html",
+  "repository": "https://github.com/jiayuanliang0716-max/a2a-system",
+  "contact": {
+    "issues": "https://github.com/jiayuanliang0716-max/a2a-system/issues",
+    "maintainer": "https://github.com/jiayuanliang0716-max"
+  },
+
+  "protocol": {
+    "type": "dispute-resolution",
+    "role": "produces `disputed` relations that attestation-layer extensions can consume",
+    "doesNotProvide": [
+      "reputation scoring",
+      "agent discovery",
+      "identity issuance"
+    ]
+  },
+
+  "networks": [
+    {
+      "name": "base-sepolia",
+      "chainId": 84532,
+      "status": "live",
+      "purpose": "testnet",
+      "contracts": {
+        "escrowV1": "0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC",
+        "usdc": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      },
+      "arbiter": "0xbB79E21f8561238DB10d839bC3D8D5e07DEA738c",
+      "explorer": "https://sepolia.basescan.org"
+    },
+    {
+      "name": "base-mainnet",
+      "chainId": 8453,
+      "status": "pending",
+      "purpose": "production",
+      "note": "Mainnet deploy paused pending standards positioning on A2A trust surface."
+    }
+  ],
+
+  "endpoints": {
+    "api": "https://api.arbitova.com",
+    "verdictPublication": "https://arbitova.com/verdicts.html",
+    "statusPage": "https://arbitova.com/status.html",
+    "agentQuickstart": "https://arbitova.com/for-agents"
+  },
+
+  "sdks": {
+    "javascript": {
+      "package": "@arbitova/sdk",
+      "version": "3.0.1",
+      "registry": "https://www.npmjs.com/package/@arbitova/sdk",
+      "minNodeVersion": "18"
+    },
+    "python": {
+      "package": "arbitova",
+      "version": "2.5.2",
+      "registry": "https://pypi.org/project/arbitova/",
+      "minPythonVersion": "3.9"
+    },
+    "mcp": {
+      "package": "@arbitova/mcp-server",
+      "version": "4.0.1",
+      "registry": "https://www.npmjs.com/package/@arbitova/mcp-server"
+    }
+  },
+
+  "arbitration": {
+    "model": "single-arbiter-v1",
+    "stage": "bootstrapping",
+    "defenses": [
+      {
+        "id": "M-3",
+        "name": "structural-prompt-injection-isolation",
+        "description": "Untrusted evidence fields are XML-wrapped with zero-width-space escaping of closing tags, so neither party can break out of their evidence frame to address the arbiter directly."
+      },
+      {
+        "id": "M-4",
+        "name": "content-hash-verification-keccak256",
+        "description": "Delivery artifact is keccak256-hashed and compared against the on-chain hash before the arbiter pipeline sees it. A mismatch short-circuits the arbiter to a deterministic verdict."
+      }
+    ],
+    "trustAssumption": {
+      "model": "deterministic-recomputation",
+      "statement": "You don't trust Arbitova — you reconstruct the verdict. Evidence hashes are on-chain, content-hash verification is deterministic, arbiter reasoning is public. A third party can recompute every step.",
+      "boundedTo": "arbiter reasoning was sound given the evidence it saw",
+      "notAssumed": "trust Arbitova as an institution"
+    },
+    "evidenceSurface": {
+      "escrowIdAsDisputeLocus": true,
+      "onChainFields": ["escrowId", "contentHash", "verdictTxHash", "settlementTxHash"],
+      "publicFields": ["arbiterReasoning", "evidenceHashes", "verificationResult"]
+    },
+    "slaTarget": {
+      "disputeResolutionWindow": "2h",
+      "targetCaseSize": "sub-$10 to sub-$100 agent tasks"
+    },
+    "knownLimitations": [
+      "single-arbiter — no consensus layer yet; multi-arbiter selection on roadmap",
+      "testnet only — mainnet deploy pending",
+      "real commercial case volume is still being bootstrapped"
+    ]
+  },
+
+  "a2aIntegration": {
+    "pattern": "A2A extension — produces attestation-shape data for trust-layer extensions to consume",
+    "producedAttestationType": "disputed-with-evidence",
+    "relatedDiscussion": "https://github.com/a2aproject/A2A/discussions/1631",
+    "composableWith": [
+      "ARP (ledger-first reputation substrate)",
+      "MoltBridge (attestation-edge graph)",
+      "ERC-8004 (on-chain reputation registry)"
+    ]
+  },
+
+  "roadmap": {
+    "multiArbiterSelection": "planned",
+    "optimisticOracleFallback": {
+      "status": "planned",
+      "style": "UMA-style, for high-value cases where 2h SLA is relaxed"
+    },
+    "mainnetDeploy": "planned (post standards positioning)",
+    "disputeResolutionSurfaceSpec": "drafting (provider-neutral spec proposed in a2aproject/A2A#1631)"
+  },
+
+  "whyNotKlerosOrUMA": {
+    "kleros": "~$60 floor too heavy for sub-$100 agent tasks; juror model does not handle structured evidence (content hashes, JSON artifacts) natively.",
+    "uma": "48h dispute window does not fit agent SLAs. UMA-style optimistic-oracle fallback is on our roadmap as a backstop for high-value cases, not the primary path."
+  }
+}

@@ -1,67 +1,78 @@
 ---
 target: https://github.com/a2aproject/A2A/discussions/1631
-status: DRAFT — do not post without founder review
+status: FINAL v3 (founder-polished 2026-04-25) — awaiting post approval
 author: Arbitova (Jiayuan Liang)
-intent: Contribute the dispute-resolution layer that complements the trust-attestation surface being converged on in this thread. Position as peer, not vendor.
-length: ~550 words (thread norm is 300-800)
+intent: Contribute the dispute-resolution layer that complements the trust-attestation surface being converged on in this thread. Position as peer, not vendor. Preempt "why trust Arbitova's verdicts" objection.
+length: ~620 words (thread norm 300-800)
+revision_notes: v3 is founder's own polish of v2 — prose smoothed, openings tightened ("Really appreciate" → "Thanks to everyone", "falls apart for disputed" → "Disputed is a harder case"), plural "we" used for company references. Code-formatting backticks restored on protocol state names (`positive`, `disputed`, `disputed_at` etc.) to match thread convention — revert if founder prefers plain text.
 ---
 
-# Draft reply to a2aproject/A2A Discussion #1631
+# Final reply to a2aproject/A2A Discussion #1631
 
-Really appreciate the shape this thread has taken — the distinction between assertion semantics (`positive` / `negative` / `incomplete`) and relation semantics (`revoked` / `disputed`) that @makito20256 drew is the thing I keep coming back to, because it surfaces a subtle issue that a pure attestation surface can't answer on its own.
+Thanks to everyone — the split @makito20256 drew between assertion semantics (`positive` / `negative` / `incomplete`) and relation semantics (`revoked` / `disputed`) is what's been nagging at me, because it quietly surfaces a gap the attestation surface alone can't close.
 
-**The issue: who gets to produce a `disputed` relation, and on what basis?**
+The gap is: who gets to produce a `disputed` relation, and on what grounds?
 
-In a purely attestation-first world, any two parties can emit attestations about each other. That works fine for `positive` — a counterparty saying "this agent delivered" is weak evidence but honest evidence. It falls apart for `disputed`. If either party can unilaterally publish `disputed_at` with a free-form reason, then:
+In a purely attestation-first world any two parties can emit attestations about each other. That's fine for `positive` — a counterparty saying "this agent delivered" is weak evidence but honest evidence. `disputed` is a harder case. If either party can unilaterally publish `disputed_at` with a free-form reason, you get problems like:
 
-1. A buyer who didn't like an honest delivery can tank a seller's attestation graph by marking it `disputed` with a plausible-sounding rationale.
-2. A seller who delivered garbage can pre-emptively publish `disputed` on the buyer to counter any negative attestation the buyer makes.
-3. Consumers of the attestation graph have no way to distinguish "real dispute with evidence" from "retaliatory dispute with fabricated evidence."
+- A buyer who didn't like an honest delivery marks it `disputed` with a plausible-sounding rationale and tanks the seller's attestation graph.
+- A seller who under-delivered pre-emptively publishes `disputed` on the buyer to neutralize whatever negative attestation the buyer is about to emit.
+- And the consumer of the graph has no principled way to tell a real dispute from a retaliatory one.
 
-The minimal attestation surface you're converging on handles the *data shape* of dispute correctly. But the surface is only useful if the `disputed` relations that populate it are themselves *trustworthy*, and that's a separate protocol — a dispute resolution protocol — not an attestation protocol.
+ARP's anti-gaming measures — transaction-bound evidence, self-eval rejection, same-owner decay — are designed for the case where attestations are *fake* (the evaluator was never party to a real interaction, or the same entity is evaluating itself). They don't cover the case where attestations are *contested*: two parties who really did interact, but now disagree on the outcome. Different threat model, different protocol.
 
-**What we've been building at Arbitova**
+The minimal attestation surface you're converging on handles the shape of a `disputed` relation correctly. The surface only does useful work if the `disputed` relations that populate it are themselves trustworthy, and producing a trustworthy `disputed` relation is its own protocol — a dispute resolution protocol — whose output the substrate can then consume.
 
-Disclosure: I've been working on exactly this problem for the last few months as an open protocol called Arbitova (github.com/jiayuanliang0716-max/a2a-system, arbitova.com). Very deliberately it does *not* do reputation scoring or discovery — those layers are addressed well by the proposals in this thread. What it does is the post-transaction arbitration process: the mechanism by which a `disputed` relation gets produced in a way that an independent consumer can trust.
+**What I've been building at Arbitova**
 
-Concretely:
+Disclosure: this is what I've been working on for the last few months, as an open protocol called Arbitova (github.com/jiayuanliang0716-max/a2a-system, arbitova.com). I deliberately don't do reputation scoring or discovery — those layers are addressed well by the proposals already in this thread. What Arbitova does is the post-transaction arbitration process: the mechanism that produces a `disputed` relation in a form a third party can independently verify.
 
-- **Escrow as dispute locus.** Two agents lock USDC on-chain before the task. The escrow ID is the identity of the dispute, not an off-chain claim.
-- **Arbiter bound by structural prompt-injection defenses + content-hash verification of the delivery artifact.** The arbiter can't be manipulated by either party through the evidence they submit (any untrusted field is XML-wrapped with zero-width-space escaping of closing tags; delivery content is keccak256-verified against the on-chain hash before the arbiter ever sees it).
-- **Every verdict published publicly with reasoning, evidence hashes, and the content-hash verification result.** These public verdicts are exactly the kind of "verifiable `disputed` attestation with evidence pointer" the minimal surface is defining a slot for.
+A few concrete pieces:
 
-Stage check (being honest): mechanism is deployed to Base Sepolia, SDKs published (JS/Python/MCP), adversarial review of the arbiter pipeline is done. Real commercial case volume is still being bootstrapped — we're roughly at the stage ARP was when @makito20256 published v0.1. I mention this because I don't want to oversell, only to flag that the design is real.
+- **Escrow as the dispute locus.** Two agents lock USDC on-chain before the task starts. The escrow ID is the identity of the dispute — not an off-chain claim pointing at one. Same "transaction-bound evidence" principle the ARP substrate uses: no recorded interaction, no dispute.
+- **Arbiter bound by structural prompt-injection defenses and content-hash verification.** Untrusted evidence fields are XML-wrapped with zero-width-space escaping of closing tags; delivered content is keccak256-verified against the on-chain hash before the arbiter ever sees it. Neither party can manipulate the arbiter through what they submit.
+- **Every verdict published with reasoning, evidence hashes, and verification result.** These public verdicts look to me like exactly the kind of "verifiable `disputed` attestation with evidence pointer" the minimal surface is defining a slot for.
 
-**What I'd like to ask the thread**
+**Why would you trust an Arbitova verdict?**
 
-1. Does it make sense for the dispute-resolution layer to be a *separate* A2A extension that produces the `disputed` relations, with the attestation extension consuming them? Or is there a cleaner composition I'm missing?
-2. Would it be useful for me to write up a minimal dispute-resolution surface (inputs, outputs, trust properties) in the same provider-neutral style, to see where it composes with what's converging here?
+Fair question, and honestly the one I'd ask first. The short version: you don't trust Arbitova — you reconstruct the verdict. Evidence hashes sit on-chain, the content-hash check is deterministic, the arbiter's reasoning is public, escrow release is gated by the same verification. A third party auditing a `disputed` record produced this way can recompute every step. The trust assumption becomes "the arbiter's reasoning was sound given the evidence it saw," which is auditable. It is *not* "trust Arbitova as an institution."
 
-Happy to contribute either way. The arbitration layer and the attestation layer solve different halves of the same problem, and I'd rather it be standardized together than drift apart.
+The arbiter being a single party is a known limitation, not a stance. Multi-arbiter selection and an optimistic-oracle fallback (UMA-style) are on the roadmap for the same reason the PageRank move is on yours — decentralizing the weight-producing role. The current version is deliberately minimal so the core mechanism can get stress-tested before a consensus layer is bolted on.
+
+**Stage check, being honest:** mechanism is deployed to Base Sepolia, JS / Python / MCP SDKs published, adversarial review of the arbiter pipeline done. Real commercial case volume is still being bootstrapped. Roughly where ARP was around v0.1 — the mechanism is real, the volume isn't there yet.
+
+**Two things I'd like to ask the thread**
+
+1. Does it make sense to treat dispute resolution as a *separate* A2A extension that produces `disputed` relations, with the attestation extension consuming them? The extensions pattern ARP already uses seems to support this cleanly.
+2. Would a minimal dispute-resolution surface — inputs, outputs, trust assumptions, threat model — written up in the same provider-neutral style be useful input to the thread?
+
+Happy to contribute either way. Arbitration and attestation are two halves of the same problem, and I'd much rather see them standardized together than drift apart.
 
 — Jiayuan
 
 ---
 
-## Why this draft, what to check before posting
+## Why this draft v2, what to check before posting
 
-- **Doesn't claim 329 cases** — the other Claude inflated this. We cite honest stage ("roughly where ARP was at v0.1").
-- **Opens with their own framing** (makito's assertion vs relation distinction). Engineers respond well to "I read your stuff and here's a thing I couldn't stop thinking about."
-- **Gives them the gap on a plate** — the unilateral `disputed` problem. This is real and unsolved in the thread; once stated, it's obvious in retrospect. That's a good contribution shape.
-- **Positions Arbitova as complementary, not competing** — "reputation, discovery: you. dispute resolution: us." No one has claimed the dispute layer. If we can anchor it while nobody else wants it, Arbitova becomes the default reference implementation for the dispute half of A2A trust.
-- **Asks a concrete question** at the end so the thread has something to respond to. Open-ended "happy to contribute" usually gets no reply.
-- **Length:** ~550 words. Shorter than makito's OP, longer than balthazar's latency comment. Fits the thread rhythm.
+- **No specific case counts.** v1's footnote about "329" is not in the body; all stage references are qualitative. Explicitly: "mechanism deployed on Sepolia, SDKs published, adversarial review done, volume still bootstrapping."
+- **Opens with makito's framing** (assertion vs relation). Engineers respond well to "I read your stuff, here's a thing I couldn't stop thinking about."
+- **Shows repo reading** — the fake-vs-contested observation references ARP's actual anti-gaming table (self-eval, drive-by, decay) by category, not by flattery. That's the cheapest credibility signal available.
+- **"Why trust our verdicts" is now its own beat**, not implicit. The deterministic-recomputation frame borrows makito's own substrate principle ("same ledger always produces the same derived scores"), which should read as native thread language.
+- **Multi-arbiter roadmap briefly flagged** — preempts "centralized trust intermediary" critique without derailing into the UMA/Kleros comparison. If asked, drop in the prepared Kleros/UMA answer below.
+- **Asks concrete questions** — open-ended "happy to contribute" usually gets no reply. Question #1 is a real design choice, question #2 is a low-friction yes/no.
+- **Length ~620 words.** Slightly over v1 (~550). Still within thread rhythm — makito's OP is longer.
 
-## What could go wrong
+## Pre-drafted follow-ups for likely responses
 
-1. **Makito or JKHeadley respond "we already cover dispute via the `state: disputed` field"** — we need a clean rebuttal: yes, the field; no, the process. Consider pre-drafting a short follow-up.
-2. **Someone asks for our case data / verdict examples** — we have verdicts on arbitova.com/verdicts, but volume is low. Honest answer: "here are the ones we have, it's bootstrap-stage, the mechanism is what we're offering, not volume."
-3. **Someone asks "why not use Kleros / UMA?"** — prepared answer: "Kleros's $60 floor is too heavy for sub-$100 agent tasks, UMA's 48h windows don't fit agent SLAs, we're at the 2-hour / sub-$10 tier."
-4. **Tone-check**: re-read as someone who'd never heard of Arbitova. Does it read like contribution or sales pitch? I think contribution, but founder should stress-test.
+1. **"We already cover dispute via the `state: disputed` field."** → "Agreed on the field — the data shape works. My point is the *process* that fills the field. Without a protocol for producing the value, `state: disputed` is whatever the last writer said. The field is necessary; what I'm suggesting is a companion extension that specifies how the value is produced so that a third-party consumer can verify it."
+2. **"Show us your verdicts / case data."** → Honest: "arbitova.com/verdicts has the ones we've run. Volume is bootstrap-stage; I'm not pitching volume, I'm pitching the mechanism. If the mechanism holds, I'd rather integrate with whatever attestation surface you land on than run it in isolation."
+3. **"Why not Kleros / UMA?"** → "Kleros's ~$60 floor is too heavy for sub-$100 agent tasks and their juror model doesn't handle structured evidence (content hashes, JSON artifacts) well. UMA's 48h dispute window doesn't fit agent SLAs. We target the 2-hour / sub-$10 tier that neither of them serves. UMA-style optimistic-oracle fallback is on our roadmap as a backstop for high-value cases."
+4. **"Are you just another centralized arbitrator?"** → "Right now, yes — single-arbiter, which is why I flagged it as a limitation. Multi-arbiter selection is on the roadmap. The design goal is that even with a single arbiter, the verdict is *auditable* — anyone can recompute the content-hash check and inspect the reasoning. Trust in the arbiter is bounded, not assumed."
 
 ## Operational
 
-- **Don't post with the GitHub account used by the Arbitova repo.** Use @jiayuanliang0716 (personal) or the account with most OSS history. Identifying as "Arbitova maintainer" is fine, posting as "ArbitovaBot" is not.
-- **Post timing:** weekday morning US Pacific. Thread participants span US + Asia based on timestamps. Avoid Friday evening.
-- **Before posting, star arp-trust-substrate** (the main author's repo). Minor but real signal of actual engagement.
-- **After posting, reply promptly to any response within 24h.** Standards threads die fast if the original poster ghosts.
+- **Do not post from a bot account.** Use @jiayuanliang0716 (personal) or the GH account with most OSS history. Identifying as "Arbitova maintainer" in text is fine, posting as an org account is not.
+- **Before posting: star `makito20256/arp-trust-substrate`.** Minor but real signal of engagement; current star count is 1, so it moves the needle.
+- **Timing:** weekday US Pacific morning. Thread participants span US + Asia based on timestamps. Avoid Friday evening.
+- **After posting: reply promptly to any response within 24h.** Standards threads die fast if the original poster ghosts.
+- **Footer check:** no `🤖 Generated with Claude Code` line. Post from user, not AI identity.
