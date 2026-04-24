@@ -15,7 +15,7 @@
 
 ## Install command for the Glama sandbox
 ```bash
-npx -y @arbitova/mcp-server@4.0.0
+npx -y @arbitova/mcp-server@4.0.1
 ```
 
 ## Environment variables (v4.0.1)
@@ -26,9 +26,9 @@ npx -y @arbitova/mcp-server@4.0.0
 | `ARBITOVA_USDC_ADDRESS` | yes | USDC token. Sepolia: `0x036CbD53842c5426634e7929541eC2318f3dCF7e` |
 | `ARBITOVA_AGENT_PRIVATE_KEY` | no | Omit for introspection / read-only mode. Signs locally, never leaves the process. |
 
-For Glama's introspection check: the first three are sufficient. No wallet key needed to pass `tools/list` — the server boots in READ-ONLY mode, exposes all six tool schemas, and only blocks signing at call time.
+For Glama's introspection check: the first three are sufficient. No wallet key needed to pass `tools/list` — the server boots in READ-ONLY mode, exposes all seven tool schemas, and only blocks signing at call time.
 
-## Tool surface (exactly 6)
+## Tool surface (exactly 7)
 
 ```
 arbitova_create_escrow
@@ -37,9 +37,10 @@ arbitova_confirm_delivery
 arbitova_dispute
 arbitova_get_escrow
 arbitova_cancel_if_not_delivered
+arbitova_escalate_if_expired
 ```
 
-All six are thin wrappers over the deployed `EscrowV1` contract. No proprietary backend is involved — a user could reimplement the same surface against the ABI exported at `arbitova://resources/escrow-abi`.
+All seven are thin wrappers over the deployed `EscrowV1` contract. No proprietary backend is involved — a user could reimplement the same surface against the ABI exported at `arbitova://resources/escrow-abi`.
 
 ## Resources exposed
 
@@ -66,7 +67,7 @@ Already at `mcp-server/Dockerfile`. Produces a ~40 MB `node:20-alpine` image, en
 
 ## Local smoke test (already run, 8/8 passed)
 
-`node mcp-server/smoke-test.js` — boots the server, sends `initialize`, `tools/list`, `resources/list`, one `resources/read`, and two `tools/call` invocations. Verifies: v4.0.0 reported, 6 tools returned with correct names, descriptions >= 100 chars and free of Path A references, 4 resources listed, ABI contains `getEscrow` + `createEscrow`, write tools fail politely in read-only mode with a hint about `ARBITOVA_AGENT_PRIVATE_KEY`, and `get_escrow` actually decodes escrow 1 on Base Sepolia.
+`node mcp-server/smoke-test.js` — boots the server, sends `initialize`, `tools/list`, `resources/list`, one `resources/read`, and two `tools/call` invocations. Verifies: v4.0.1 reported, 7 tools returned with correct names, descriptions >= 100 chars and free of Path A references, 4 resources listed, ABI contains `getEscrow` + `createEscrow`, write tools fail politely in read-only mode with a hint about `ARBITOVA_AGENT_PRIVATE_KEY`, and `get_escrow` actually decodes escrow 1 on Base Sepolia.
 
 ## Badge placement after approval
 
