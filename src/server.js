@@ -126,6 +126,7 @@ app.get('/verdicts/:disputeId', (req, res, next) => {
 });
 app.get('/status',   (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'status.html')));
 app.get('/admin',    (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'admin.html')));
+app.get('/admin/dashboard', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html')));
 
 // Path A — /api/mode + Swagger UI disabled (2026-04-23).
 // Path A is deprecated; non-custodial Path B has no server-side keys.

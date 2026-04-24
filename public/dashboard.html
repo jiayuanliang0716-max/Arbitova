@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Users dashboard — Arbitova</title>
+  <link rel="icon" href="/favicon.ico" />
+  <link rel="stylesheet" href="/css/tokens.css" />
+  <style>
+    body { background: var(--bg-base); color: var(--text-primary); font-family: var(--font-ui); margin: 0; min-height: 100vh; }
+    a { color: var(--brand); text-decoration: none; }
+
+    /* Nav */
+    .nav { display: flex; align-items: center; justify-content: space-between; padding: 0 32px; height: 56px; border-bottom: 1px solid var(--border-subtle); }
+    .nav-brand { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+    .nav-brand span { color: var(--brand); }
+    .nav-right { display: flex; gap: 16px; font-size: 13px; align-items: center; color: var(--text-secondary); }
+    .nav-right .pill { font-family: var(--font-mono); font-size: 11px; padding: 3px 8px; border-radius: var(--radius-full); background: var(--bg-surface); border: 1px solid var(--border-subtle); }
+    .nav-right button { background: transparent; border: 1px solid var(--border-default); color: var(--text-secondary); padding: 5px 10px; border-radius: var(--radius-sm); font-size: 12px; cursor: pointer; font-family: var(--font-ui); }
+    .nav-right button:hover { border-color: var(--brand-border); color: var(--text-primary); }
+
+    /* Main */
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px; }
+    h1 { font-size: 26px; font-weight: 700; margin: 0 0 6px; letter-spacing: -0.01em; }
+    .lede { font-size: 14px; color: var(--text-secondary); margin: 0 0 24px; max-width: 720px; line-height: 1.6; }
+    .lede code { font-family: var(--font-mono); background: var(--bg-surface); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+    /* Stat row */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .stat { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 16px; }
+    .stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); margin-bottom: 4px; }
+    .stat .v { font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--text-primary); }
+    .stat .v.hot { color: var(--warning); }
+    .stat .v.warm { color: var(--brand); }
+    .stat .v.cold { color: var(--text-tertiary); }
+    .stat .v.customer { color: #10b981; }
+
+    /* Filter bar */
+    .filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+    .filter-btn { padding: 6px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-default); background: transparent; color: var(--text-secondary); font-size: 12px; cursor: pointer; font-family: var(--font-ui); }
+    .filter-btn:hover { border-color: var(--brand-border); color: var(--text-primary); }
+    .filter-btn.active { background: var(--brand); border-color: var(--brand); color: #000; font-weight: 600; }
+    .filters input[type=number] { width: 70px; padding: 5px 8px; background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-primary); font-family: var(--font-mono); font-size: 12px; border-radius: var(--radius-sm); }
+    .filters label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); }
+
+    /* Table */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { text-align: left; padding: 10px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); border-bottom: 1px solid var(--border-subtle); font-weight: 500; }
+    tbody tr { border-bottom: 1px solid var(--border-subtle); cursor: pointer; }
+    tbody tr:hover { background: var(--bg-surface); }
+    tbody tr.expanded { background: var(--bg-surface); }
+    tbody td { padding: 10px 12px; vertical-align: top; }
+    td .eid { font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); }
+    td .eid .pre { color: var(--text-tertiary); }
+    td .heat { font-family: var(--font-mono); font-weight: 600; }
+    td .ago { font-size: 11px; color: var(--text-tertiary); }
+
+    /* State chips */
+    .chip { display: inline-block; font-size: 10px; font-family: var(--font-mono); padding: 2px 7px; border-radius: var(--radius-full); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .chip.cold { background: var(--neutral-bg); color: var(--text-tertiary); }
+    .chip.warm { background: var(--brand-dim); color: var(--brand); }
+    .chip.hot { background: var(--warning-bg); color: var(--warning); }
+    .chip.customer { background: rgba(16,185,129,0.12); color: #10b981; }
+    .chip.reference { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+    .chip.ignored { background: var(--neutral-bg); color: var(--text-tertiary); text-decoration: line-through; }
+
+    /* Identity tags */
+    .tags { display: flex; gap: 4px; flex-wrap: wrap; }
+    .tag { font-family: var(--font-mono); font-size: 10px; padding: 2px 6px; background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); color: var(--text-secondary); }
+    .tag.w { color: var(--brand); }
+    .tag.g { color: #8b5cf6; }
+    .tag.e { color: var(--warning); }
+
+    /* Expanded event pane */
+    tr.events-row td { padding: 0 12px 12px 12px; background: var(--bg-surface); }
+    .events-list { max-height: 360px; overflow-y: auto; border-left: 2px solid var(--border-subtle); padding-left: 12px; margin-left: 8px; }
+    .event-row { font-size: 12px; padding: 4px 0; font-family: var(--font-mono); color: var(--text-secondary); display: grid; grid-template-columns: 140px 160px 1fr 40px; gap: 10px; }
+    .event-row .ts { color: var(--text-tertiary); }
+    .event-row .type { color: var(--brand); }
+    .event-row .path { color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .event-row .pts { text-align: right; color: var(--text-tertiary); }
+
+    /* Loading / empty */
+    .loading, .empty { text-align: center; padding: 60px 20px; color: var(--text-secondary); font-size: 13px; }
+    .spinner { display: inline-block; width: 28px; height: 28px; border: 2px solid var(--border-strong); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Login overlay */
+    .login-overlay { position: fixed; inset: 0; background: var(--bg-base); display: flex; align-items: center; justify-content: center; z-index: 100; }
+    .login-card { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 28px; width: 100%; max-width: 360px; }
+    .login-card h2 { margin: 0 0 4px; font-size: 18px; }
+    .login-card p { margin: 0 0 18px; font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+    .login-card input { width: 100%; padding: 10px 12px; background: var(--bg-base); border: 1px solid var(--border-default); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; border-radius: var(--radius-sm); box-sizing: border-box; }
+    .login-card input:focus { outline: none; border-color: var(--brand); }
+    .login-card button { width: 100%; margin-top: 10px; padding: 10px; background: var(--brand); border: none; color: #000; font-weight: 600; font-size: 13px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-ui); }
+    .login-card button:hover { filter: brightness(1.1); }
+    .login-card .err { color: var(--warning); font-size: 12px; margin-top: 8px; min-height: 16px; }
+  </style>
+</head>
+<body>
+
+  <!-- Login overlay -->
+  <div id="loginOverlay" class="login-overlay">
+    <form id="loginForm" class="login-card">
+      <h2>Arbitova users dashboard</h2>
+      <p>Enter your admin key to unlock. The key is stored locally in your browser only — never sent to anywhere except <code>api.arbitova.com</code>.</p>
+      <input id="keyInput" type="password" placeholder="admin key" autocomplete="off" autofocus />
+      <button type="submit">Unlock</button>
+      <div class="err" id="loginErr"></div>
+    </form>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav" id="app" style="display:none">
+    <div class="nav-brand">arbi<span>tova</span> <span style="color:var(--text-tertiary);font-weight:400;font-size:12px;margin-left:8px">/ users dashboard</span></div>
+    <div class="nav-right">
+      <span class="pill" id="refreshPill">—</span>
+      <button onclick="refresh()">Refresh</button>
+      <button onclick="logout()">Lock</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="main" id="mainContent" style="display:none">
+    <h1>Users dashboard</h1>
+    <p class="lede">Every entity (wallet / github / api-key / IP) that has ever touched <code>api.arbitova.com</code>. Heat scores decay nothing today — they only add on known signals (see <code>src/user_accumulation/db.js</code> HEAT_POINTS). Click a row to see its event timeline.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="k">Total entities</div><div class="v" id="statTotal">—</div></div>
+      <div class="stat"><div class="k">Hot (≥100)</div><div class="v hot" id="statHot">—</div></div>
+      <div class="stat"><div class="k">Warm (≥20)</div><div class="v warm" id="statWarm">—</div></div>
+      <div class="stat"><div class="k">Cold</div><div class="v cold" id="statCold">—</div></div>
+      <div class="stat"><div class="k">Customers</div><div class="v customer" id="statCustomer">—</div></div>
+    </div>
+
+    <div class="filters">
+      <button class="filter-btn active" data-state="">All</button>
+      <button class="filter-btn" data-state="hot">Hot</button>
+      <button class="filter-btn" data-state="warm">Warm</button>
+      <button class="filter-btn" data-state="cold">Cold</button>
+      <button class="filter-btn" data-state="customer">Customer</button>
+      <span style="flex:1"></span>
+      <label>min heat</label>
+      <input type="number" id="minHeat" value="0" min="0" step="1" />
+    </div>
+
+    <div id="loading" class="loading"><div class="spinner"></div><div style="margin-top:10px">Loading…</div></div>
+
+    <table id="entitiesTable" style="display:none">
+      <thead>
+        <tr>
+          <th>Entity</th>
+          <th>Heat</th>
+          <th>State</th>
+          <th>Identities</th>
+          <th>First seen</th>
+          <th>Last seen</th>
+        </tr>
+      </thead>
+      <tbody id="entitiesBody"></tbody>
+    </table>
+
+    <div class="empty" id="empty" style="display:none">No entities match the filter.</div>
+  </div>
+
+  <script>
+    // ---------- config ----------
+    const API_BASE = location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com'
+      ? 'https://api.arbitova.com'
+      : ''; // same-origin on api.arbitova.com or localhost
+    const STORAGE_KEY = 'arbitova_admin_key_v1';
+    const REFRESH_INTERVAL = 30_000;
+
+    let adminKey = localStorage.getItem(STORAGE_KEY) || '';
+    let currentState = '';
+    let currentMinHeat = 0;
+    let expandedEntityId = null;
+    let refreshTimer = null;
+
+    // ---------- fetch helpers ----------
+    async function fetchJSON(path) {
+      const res = await fetch(API_BASE + path, {
+        headers: { 'X-Admin-Key': adminKey },
+      });
+      if (res.status === 401 || res.status === 403) {
+        adminKey = '';
+        localStorage.removeItem(STORAGE_KEY);
+        showLogin('Key rejected — re-enter.');
+        throw new Error('unauthorized');
+      }
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    }
+
+    // ---------- auth ----------
+    function showLogin(err) {
+      document.getElementById('loginOverlay').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('loginErr').textContent = err || '';
+      if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    }
+
+    function hideLogin() {
+      document.getElementById('loginOverlay').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      document.getElementById('mainContent').style.display = 'block';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const v = document.getElementById('keyInput').value.trim();
+      if (!v) return;
+      adminKey = v;
+      try {
+        // probe
+        await fetchJSON('/admin/users?limit=1');
+        localStorage.setItem(STORAGE_KEY, adminKey);
+        document.getElementById('keyInput').value = '';
+        hideLogin();
+        startRefresh();
+      } catch (err) {
+        document.getElementById('loginErr').textContent = 'Key rejected.';
+      }
+    });
+
+    function logout() {
+      adminKey = '';
+      localStorage.removeItem(STORAGE_KEY);
+      showLogin();
+    }
+
+    // ---------- formatting ----------
+    function timeAgo(iso) {
+      const ms = Date.now() - new Date(iso).getTime();
+      const s = Math.floor(ms/1000);
+      if (s < 60) return s + 's ago';
+      const m = Math.floor(s/60);
+      if (m < 60) return m + 'm ago';
+      const h = Math.floor(m/60);
+      if (h < 24) return h + 'h ago';
+      const d = Math.floor(h/24);
+      return d + 'd ago';
+    }
+    function fmtTs(iso) {
+      const d = new Date(iso);
+      return d.toISOString().slice(11,19);
+    }
+    function entityIdDisplay(id) {
+      const [pre, rest] = id.split(':');
+      let shown = rest;
+      if (pre === 'wallet' && rest.length > 12) shown = rest.slice(0,6) + '…' + rest.slice(-4);
+      else if (pre === 'ip' && rest.length > 12) shown = rest.slice(0,10) + '…';
+      else if (pre === 'apikey' && rest.length > 12) shown = rest.slice(0,12) + '…';
+      return `<span class="pre">${pre}:</span>${shown}`;
+    }
+
+    // ---------- render ----------
+    async function refresh() {
+      if (!adminKey) return;
+      try {
+        const qs = new URLSearchParams();
+        if (currentState) qs.set('state', currentState);
+        if (currentMinHeat > 0) qs.set('minHeat', currentMinHeat);
+        qs.set('limit', 200);
+        const data = await fetchJSON('/admin/users?' + qs);
+        renderEntities(data.entities || []);
+        document.getElementById('refreshPill').textContent = 'updated ' + new Date().toISOString().slice(11,19);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    function renderEntities(entities) {
+      const loading = document.getElementById('loading');
+      const table = document.getElementById('entitiesTable');
+      const empty = document.getElementById('empty');
+      loading.style.display = 'none';
+
+      // Update stats from full unfiltered set if no filter active
+      if (!currentState && currentMinHeat === 0) {
+        const counts = { hot: 0, warm: 0, cold: 0, customer: 0, reference: 0, ignored: 0 };
+        for (const e of entities) counts[e.state] = (counts[e.state] || 0) + 1;
+        document.getElementById('statTotal').textContent = entities.length;
+        document.getElementById('statHot').textContent = counts.hot || 0;
+        document.getElementById('statWarm').textContent = counts.warm || 0;
+        document.getElementById('statCold').textContent = counts.cold || 0;
+        document.getElementById('statCustomer').textContent = counts.customer || 0;
+      }
+
+      if (entities.length === 0) {
+        table.style.display = 'none';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      table.style.display = 'table';
+
+      const body = document.getElementById('entitiesBody');
+      body.innerHTML = '';
+      for (const e of entities) {
+        const tr = document.createElement('tr');
+        if (e.id === expandedEntityId) tr.classList.add('expanded');
+        tr.dataset.eid = e.id;
+
+        const tags = [];
+        (e.wallets || []).forEach(w => tags.push(`<span class="tag w">wallet:${w.slice(0,6)}…</span>`));
+        (e.githubs || []).forEach(g => tags.push(`<span class="tag g">gh:${g}</span>`));
+        (e.emails || []).forEach(em => tags.push(`<span class="tag e">${em.split('@')[0]}@…</span>`));
+        if (e.project_name) tags.push(`<span class="tag">project:${e.project_name}</span>`);
+
+        tr.innerHTML = `
+          <td><span class="eid">${entityIdDisplay(e.id)}</span></td>
+          <td><span class="heat">${e.total_heat}</span></td>
+          <td><span class="chip ${e.state}">${e.state}</span></td>
+          <td><div class="tags">${tags.join('') || '<span style="color:var(--text-tertiary);font-size:11px">—</span>'}</div></td>
+          <td><span class="ago">${timeAgo(e.first_seen)}</span></td>
+          <td><span class="ago">${timeAgo(e.last_seen)}</span></td>
+        `;
+        tr.addEventListener('click', () => toggleExpand(e.id, tr));
+        body.appendChild(tr);
+
+        if (e.id === expandedEntityId) {
+          const evRow = createEventsRow(e.id);
+          body.appendChild(evRow);
+          loadEvents(e.id, evRow);
+        }
+      }
+    }
+
+    function createEventsRow(eid) {
+      const tr = document.createElement('tr');
+      tr.classList.add('events-row');
+      tr.innerHTML = `<td colspan="6"><div class="events-list" id="ev_${cssEscape(eid)}"><div class="loading" style="padding:12px"><div class="spinner"></div></div></div></td>`;
+      return tr;
+    }
+
+    function cssEscape(s) { return s.replace(/[^a-zA-Z0-9_]/g, '_'); }
+
+    async function loadEvents(eid, evRow) {
+      try {
+        const data = await fetchJSON('/admin/users/events?entityId=' + encodeURIComponent(eid) + '&limit=100');
+        const container = evRow.querySelector('.events-list');
+        if (!data.events || data.events.length === 0) {
+          container.innerHTML = '<div style="padding:8px;color:var(--text-tertiary);font-size:12px">No events.</div>';
+          return;
+        }
+        container.innerHTML = data.events.map(ev => `
+          <div class="event-row">
+            <span class="ts">${fmtTs(ev.ts)}</span>
+            <span class="type">${ev.event_type}</span>
+            <span class="path" title="${ev.path || ''}">${ev.path || ''}</span>
+            <span class="pts">+${ev.heat_points || 0}</span>
+          </div>
+        `).join('');
+      } catch (err) {
+        evRow.querySelector('.events-list').innerHTML = '<div style="padding:8px;color:var(--warning);font-size:12px">Failed to load events.</div>';
+      }
+    }
+
+    function toggleExpand(eid, tr) {
+      if (expandedEntityId === eid) {
+        expandedEntityId = null;
+      } else {
+        expandedEntityId = eid;
+      }
+      refresh();
+    }
+
+    // ---------- filter buttons ----------
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentState = btn.dataset.state;
+        refresh();
+      });
+    });
+    document.getElementById('minHeat').addEventListener('input', (e) => {
+      currentMinHeat = parseInt(e.target.value, 10) || 0;
+      refresh();
+    });
+
+    // ---------- auto refresh ----------
+    function startRefresh() {
+      refresh();
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(refresh, REFRESH_INTERVAL);
+    }
+
+    // ---------- boot ----------
+    if (adminKey) {
+      hideLogin();
+      startRefresh();
+    } else {
+      showLogin();
+    }
+  </script>
+</body>
+</html>
