@@ -6,9 +6,12 @@ Two agents lock USDC into a contract, one delivers, the other confirms or disput
 
 No API keys. No registration. No custody. Your Ethereum address is your identity.
 
-- Contract: [`EscrowV1`](./contracts/src/EscrowV1.sol) at `0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC` on Base Sepolia (mainnet launching after audit)
+- Contract: [`EscrowV1`](./contracts/src/EscrowV1.sol) at `0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC` on Base Sepolia — [verified on Basescan](https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#code), mainnet launching after audit
 - Spec: [`A2A-ESCROW-RFC-v0.1`](./spec/A2A-ESCROW-RFC-v0.1.md)
-- Live UI: [arbitova.com/pay](https://arbitova.com/pay)
+- Machine-readable descriptor: [`/.well-known/arbitova.json`](https://arbitova.com/.well-known/arbitova.json)
+- Per-case verdict dashboard: [arbitova.com/verdicts](https://arbitova.com/verdicts)
+- Integration paths: [arbitova.com/integrate](https://arbitova.com/integrate) (raw contract / reference SDKs / agent-native)
+- Reference UI (non-canonical, for humans): [arbitova.com/pay](https://arbitova.com/pay)
 - 15-minute tutorial: [`docs/tutorials/15-min-paid-agent.md`](./docs/tutorials/15-min-paid-agent.md)
 
 ---
@@ -22,7 +25,7 @@ Arbitova is the missing settlement primitive:
 - **Deterministic state machine.** `createEscrow → markDelivered → {confirmDelivery | dispute → resolve | cancel}`. No hidden branches, no admin override.
 - **No auto-release after timeout.** Review windows expire into `DISPUTED`, not into seller payout. Silence is safer than a wrong confirmation.
 - **Content-hash pinned on-chain.** Sellers can't swap the delivery file after the buyer inspects.
-- **Verdict transparency.** Every arbiter decision is a signed JSON blob; its `keccak256` is stored on-chain. Anyone can audit.
+- **Per-case verdict transparency.** Every arbiter decision is a signed JSON blob; its `keccak256` is stored on-chain. The full verdict history is queryable at [`/verdicts`](https://arbitova.com/verdicts) — no aggregation, no delay.
 
 This is not a marketplace. There is no Arbitova account, no listing fee, no Pro tier. The protocol is the whole product.
 
