@@ -13,6 +13,7 @@ const mcpHttpRoutes = require('./routes/mcp-http');
 const postRoutes = require('./routes/posts');
 const usersAdminRoutes = require('./routes/users-admin');
 const partnersRoutes = require('./routes/partners');
+const burnerRoutes = require('./routes/burner');
 // const authRoutes = require('./routes/auth');
 const { dbAll } = require('./db/helpers');
 const { userEventsMiddleware } = require('./middleware/userEvents');
@@ -701,6 +702,9 @@ app.use('/api/v1', apiV1);
 
 // Admin: user accumulation surface (X-Admin-Key gated)
 app.use('/admin/users', usersAdminRoutes);
+
+// Public: /api/burner — one-click Sepolia ETH + USDC funder for /try-real
+app.use('/api/burner', burnerRoutes);
 
 // Public: /partners (signup page + POST /api/partners/signup)
 app.use('/', partnersRoutes);

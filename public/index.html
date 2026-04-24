@@ -101,6 +101,7 @@
           <a href="/integrate" class="landing-nav-link">Integrate</a>
           <a href="/pricing" class="landing-nav-link" data-i18n="nav_pricing">Fees</a>
           <a href="/blog" class="landing-nav-link">Blog</a>
+          <a href="/verdicts" class="landing-nav-link">Verdicts</a>
           <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-nav-link">GitHub Issues</a>
           <a href="/pay/" class="landing-nav-link">Dashboard</a>
         </div>
@@ -126,9 +127,9 @@
       <h1 class="hero-title">An open escrow protocol <br>for the <span class="highlight">agent economy.</span></h1>
       <p class="hero-subtitle">Non-custodial USDC escrow for AI agents. Built as a protocol, not a product &mdash; the contract holds the funds, an arbiter routes disputes without unilateral sweep, and every verdict is public. <strong>Integrate directly, use a reference SDK, or run your own frontend.</strong></p>
       <div class="hero-actions">
-        <a href="/pay/" class="btn btn-primary btn-lg hero-cta-glow">Launch app &rarr;</a>
-        <a href="#quickstart-code" class="btn btn-outline btn-lg">See the code &rarr;</a>
-        <a href="/docs" class="btn btn-ghost btn-lg">View Docs &rarr;</a>
+        <a href="/try" class="btn btn-primary btn-lg hero-cta-glow">Try in 30 seconds &rarr;</a>
+        <a href="/pay/" class="btn btn-outline btn-lg">Launch app &rarr;</a>
+        <a href="#quickstart-code" class="btn btn-ghost btn-lg">See the code &rarr;</a>
       </div>
       <div class="hero-trust-row">
         <span class="hero-trust-item">
@@ -575,11 +576,159 @@
         <a href="https://github.com/jiayuanliang0716-max/a2a-system" target="_blank" class="landing-footer-link" data-i18n="footer_github">GitHub</a>
         <a href="/status" class="landing-footer-link">Status</a>
         <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-footer-link">GitHub Issues</a>
+        <a href="#" class="landing-footer-link" id="replayTourLink">Replay intro</a>
       </div>
     </div>
   </footer>
 
 </div>
+
+<!-- ============================= -->
+<!-- First-visit tour overlay       -->
+<!-- ============================= -->
+<div id="arbitova-tour" class="tour-overlay" style="display:none" role="dialog" aria-modal="true" aria-labelledby="tourTitle">
+  <div class="tour-box">
+    <button class="tour-close" aria-label="Close intro" id="tourCloseBtn">&times;</button>
+    <div class="tour-dots" id="tourDots">
+      <span class="tour-dot active" data-i="1"></span>
+      <span class="tour-dot" data-i="2"></span>
+      <span class="tour-dot" data-i="3"></span>
+      <span class="tour-dot" data-i="4"></span>
+    </div>
+
+    <div class="tour-step active" data-step="1">
+      <div class="tour-tag">Intro · 1 of 4</div>
+      <h3 id="tourTitle">What Arbitova is</h3>
+      <p>A non-custodial USDC escrow protocol on Base. Buyer locks funds, seller delivers, the contract releases &mdash; minus a 0.5% fee. If they disagree, an arbiter resolves and the verdict is public.</p>
+    </div>
+
+    <div class="tour-step" data-step="2">
+      <div class="tour-tag">Intro · 2 of 4</div>
+      <h3>Why it matters for agents</h3>
+      <p>When one AI agent pays another for work, there's no recourse if the delivery is garbage. Arbitova adds a dispute window on top of any payment rail (x402, CDP, raw USDC) so agents can transact with recourse, not just optimism.</p>
+    </div>
+
+    <div class="tour-step" data-step="3">
+      <div class="tour-tag">Intro · 3 of 4</div>
+      <h3>You can try it right now</h3>
+      <p><strong>/try</strong> walks you through the flow in 30 seconds, no wallet needed. <strong>/try-real</strong> spins up a disposable wallet with pre-funded Sepolia USDC and runs a real tx on the deployed contract. Both free.</p>
+    </div>
+
+    <div class="tour-step" data-step="4">
+      <div class="tour-tag">Intro · 4 of 4</div>
+      <h3>Where to go next</h3>
+      <p><strong>Verdicts</strong> shows every real dispute resolved so far, on-chain. <strong>Integrate</strong> covers the three paths (raw contract, SDK, agent-native) to plug Arbitova into your stack. That's the whole surface &mdash; no accounts, no API keys.</p>
+    </div>
+
+    <div class="tour-footer">
+      <button class="tour-btn-ghost" id="tourSkipBtn">Skip</button>
+      <div class="tour-footer-right">
+        <button class="tour-btn-ghost" id="tourBackBtn" disabled>Back</button>
+        <button class="tour-btn-primary" id="tourNextBtn">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .tour-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 20px; animation: tourFade 0.18s ease-out; }
+  @keyframes tourFade { from { opacity: 0; } to { opacity: 1; } }
+  .tour-box { background: var(--bg-base, #fff); color: var(--text, #111); border-radius: 14px; max-width: 520px; width: 100%; padding: 28px 28px 20px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  [data-theme="dark"] .tour-box { background: #12131a; color: #e8e8f0; }
+  .tour-close { position: absolute; top: 10px; right: 14px; background: transparent; border: none; font-size: 24px; color: var(--text-tertiary, #999); cursor: pointer; line-height: 1; padding: 4px 8px; }
+  .tour-close:hover { color: var(--text, #111); }
+  .tour-dots { display: flex; gap: 6px; margin-bottom: 18px; }
+  .tour-dot { width: 22px; height: 3px; background: var(--border-subtle, #e5e5e5); border-radius: 2px; transition: background 0.2s; }
+  .tour-dot.active { background: var(--brand, #00c2a8); }
+  .tour-step { display: none; }
+  .tour-step.active { display: block; }
+  .tour-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--brand, #00c2a8); margin-bottom: 6px; }
+  .tour-step h3 { font-size: 22px; line-height: 1.25; margin: 0 0 10px; }
+  .tour-step p { font-size: 15px; line-height: 1.6; color: var(--text-muted, var(--text-secondary)); margin: 0; }
+  .tour-step p strong { color: var(--text, #111); }
+  [data-theme="dark"] .tour-step p strong { color: #e8e8f0; }
+  .tour-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--border-subtle, #eee); }
+  .tour-footer-right { display: flex; gap: 8px; }
+  .tour-btn-ghost { background: transparent; border: 1px solid var(--border-default, #ddd); color: var(--text-muted, var(--text-secondary)); padding: 8px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .tour-btn-ghost:hover { border-color: var(--brand, #00c2a8); color: var(--brand, #00c2a8); }
+  .tour-btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+  .tour-btn-primary { background: var(--brand, #00c2a8); color: #000; border: none; padding: 9px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .tour-btn-primary:hover { filter: brightness(0.95); }
+</style>
+
+<script>
+  (function(){
+    var TOUR_KEY = 'arbitova_tour_seen_v1';
+    var overlay = document.getElementById('arbitova-tour');
+    if (!overlay) return;
+    var steps = overlay.querySelectorAll('.tour-step');
+    var dots  = overlay.querySelectorAll('.tour-dot');
+    var backBtn = document.getElementById('tourBackBtn');
+    var nextBtn = document.getElementById('tourNextBtn');
+    var skipBtn = document.getElementById('tourSkipBtn');
+    var closeBtn = document.getElementById('tourCloseBtn');
+    var replayLink = document.getElementById('replayTourLink');
+    var current = 1;
+    var total = steps.length;
+
+    function show(i) {
+      current = i;
+      steps.forEach(function(s){ s.classList.toggle('active', Number(s.dataset.step) === i); });
+      dots.forEach(function(d){ d.classList.toggle('active', Number(d.dataset.i) <= i); });
+      backBtn.disabled = i === 1;
+      nextBtn.textContent = i === total ? 'Try it in 30s →' : 'Next →';
+    }
+
+    function open() {
+      overlay.style.display = 'flex';
+      show(1);
+      document.body.style.overflow = 'hidden';
+    }
+
+    function close() {
+      overlay.style.display = 'none';
+      document.body.style.overflow = '';
+      try { localStorage.setItem(TOUR_KEY, '1'); } catch (e) {}
+    }
+
+    function finish() {
+      close();
+      location.href = '/try';
+    }
+
+    nextBtn.addEventListener('click', function(){
+      if (current < total) show(current + 1);
+      else finish();
+    });
+    backBtn.addEventListener('click', function(){
+      if (current > 1) show(current - 1);
+    });
+    skipBtn.addEventListener('click', close);
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', function(e){
+      if (e.target === overlay) close();
+    });
+    document.addEventListener('keydown', function(e){
+      if (overlay.style.display === 'flex' && e.key === 'Escape') close();
+    });
+
+    if (replayLink) {
+      replayLink.addEventListener('click', function(e){
+        e.preventDefault();
+        try { localStorage.removeItem(TOUR_KEY); } catch (e2) {}
+        open();
+      });
+    }
+
+    try {
+      if (!localStorage.getItem(TOUR_KEY)) {
+        setTimeout(open, 700);
+      }
+    } catch (e) {
+      // localStorage blocked — skip auto-open rather than annoy the user
+    }
+  })();
+</script>
 
 
 

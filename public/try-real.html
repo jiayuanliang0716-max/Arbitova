@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script>
+    (function(){try{
+      var t = localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    }catch(e){document.documentElement.setAttribute('data-theme','light');}})();
+  </script>
+  <title>Try for real — Arbitova</title>
+  <meta name="description" content="Run a real Arbitova escrow on Base Sepolia with a one-time burner wallet. No MetaMask, no faucet — we top up a disposable wallet in your browser and you sign the tx.">
+  <meta name="robots" content="noindex">
+  <link rel="canonical" href="https://arbitova.com/try-real">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/logo-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Josefin+Sans:wght@200&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/tokens.css?v=202604240001">
+  <link rel="stylesheet" href="/css/main.css?v=202604240001">
+  <style>
+    .try-hero { padding: 56px 24px 16px; text-align: center; max-width: 780px; margin: 0 auto; }
+    .try-hero h1 { font-size: 36px; line-height: 1.15; margin-bottom: 10px; }
+    .try-hero p { color: var(--text-muted, var(--text-secondary)); font-size: 16px; line-height: 1.55; }
+    .wrap { max-width: 780px; margin: 0 auto 80px; padding: 0 24px; }
+
+    .panel { background: var(--bg-surface, #fafafa); border: 1px solid var(--border-subtle, #e5e5e5); border-radius: 12px; padding: 24px; margin-bottom: 18px; }
+    .panel h2 { font-size: 18px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+    .panel h2 .num { display: inline-flex; width: 22px; height: 22px; align-items: center; justify-content: center; border-radius: 50%; background: var(--brand, #00c2a8); color: #000; font-size: 12px; font-weight: 700; }
+    .panel p { color: var(--text-muted, var(--text-secondary)); font-size: 14px; line-height: 1.6; margin: 0 0 14px; }
+    .panel .mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; word-break: break-all; background: var(--bg-base, #fff); border: 1px solid var(--border-subtle, #e5e5e5); border-radius: 6px; padding: 10px 12px; }
+
+    .row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .btn-primary-big { background: var(--brand, #00c2a8); color: #000; border: none; padding: 11px 22px; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-primary-big:hover { filter: brightness(0.95); }
+    .btn-primary-big:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost-sm { background: transparent; border: 1px solid var(--border-default, #ddd); color: var(--text-muted, var(--text-secondary)); padding: 9px 16px; border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit; }
+    .btn-ghost-sm:hover { border-color: var(--brand, #00c2a8); color: var(--brand, #00c2a8); }
+
+    .log { background: #0a0a0f; color: #cbd5e1; padding: 14px 16px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; max-height: 240px; overflow-y: auto; margin-top: 12px; }
+    .log .ok { color: #6ee7b7; }
+    .log .err { color: #fca5a5; }
+    .log .info { color: #93c5fd; }
+    .log a { color: #93c5fd; text-decoration: underline; }
+
+    .balances { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+    .bal { background: var(--bg-base, #fff); border: 1px solid var(--border-subtle, #e5e5e5); border-radius: 6px; padding: 10px 14px; }
+    .bal .k { font-size: 11px; color: var(--text-tertiary, #999); text-transform: uppercase; letter-spacing: 0.08em; }
+    .bal .v { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 600; color: var(--text, #222); }
+
+    .warn { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 12px 16px; border-radius: 8px; font-size: 13px; line-height: 1.55; margin-top: 12px; }
+    [data-theme="dark"] .warn { background: rgba(154, 52, 18, 0.15); border-color: rgba(254, 215, 170, 0.25); color: #fdba74; }
+
+    .done-panel { background: linear-gradient(135deg, rgba(0,194,168,0.1), rgba(0,194,168,0.02)); border: 1px solid rgba(0,194,168,0.35); }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(0,194,168,0.12); color: var(--brand, #00c2a8); font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+  <nav class="landing-nav">
+    <div class="landing-nav-inner">
+      <div class="landing-nav-left">
+        <a href="/" class="landing-nav-brand">Arbitova</a>
+        <div class="landing-nav-links">
+          <a href="/try" class="landing-nav-link">Demo</a>
+          <a href="/docs" class="landing-nav-link">Docs</a>
+          <a href="/integrate" class="landing-nav-link">Integrate</a>
+          <a href="/verdicts" class="landing-nav-link">Verdicts</a>
+        </div>
+      </div>
+      <div class="landing-nav-right">
+        <a class="btn btn-primary btn-sm" href="/pay/">Launch app</a>
+      </div>
+    </div>
+  </nav>
+
+  <section class="try-hero">
+    <h1>Try Arbitova — for real</h1>
+    <p>No wallet, no faucet. We generate a one-time burner wallet in your browser and pre-fund it with Base Sepolia ETH + USDC. You sign a real transaction that creates a real escrow on the real contract.</p>
+  </section>
+
+  <section class="wrap">
+
+    <div class="panel">
+      <h2><span class="num">1</span> Your burner wallet</h2>
+      <p>Generated in this browser tab. The private key lives only in your sessionStorage &mdash; close the tab and it's gone. Arbitova never sees it.</p>
+      <div class="mono" id="burnerAddr">Generating…</div>
+      <div class="balances">
+        <div class="bal"><div class="k">Sepolia ETH</div><div class="v" id="balEth">—</div></div>
+        <div class="bal"><div class="k">Sepolia USDC</div><div class="v" id="balUsdc">—</div></div>
+      </div>
+      <div class="row">
+        <button class="btn-ghost-sm" id="refreshBalBtn">Refresh balances</button>
+        <button class="btn-ghost-sm" id="resetBurnerBtn">Generate a new burner</button>
+      </div>
+    </div>
+
+    <div class="panel" id="fundPanel">
+      <h2><span class="num">2</span> Fund from the Arbitova treasury</h2>
+      <p>One tap &mdash; we send the burner 0.01 Sepolia ETH (for gas) and 5 Sepolia USDC (to lock in escrow). Daily cap: 20 funds / 3 per IP. When the cap hits, <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's public faucet</a> still works.</p>
+      <div class="row">
+        <button class="btn-primary-big" id="fundBtn">Fund my burner →</button>
+        <span class="pill" id="fundStatus" style="display:none">Funded</span>
+      </div>
+      <div class="log" id="fundLog" style="display:none"></div>
+    </div>
+
+    <div class="panel" id="escrowPanel">
+      <h2><span class="num">3</span> Create a real escrow</h2>
+      <p>Your burner, as the buyer, will call <code>approve</code> on the USDC contract and then <code>createEscrow</code> on EscrowV1. 1 USDC gets pulled from your burner into the contract. Seller = Arbitova's demo seller address (funds will be released there on the seller's <code>markDelivered</code> + your <code>confirmDelivery</code>).</p>
+      <div class="row">
+        <button class="btn-primary-big" id="createEscrowBtn" disabled>Create 1 USDC escrow →</button>
+      </div>
+      <div class="log" id="escrowLog" style="display:none"></div>
+    </div>
+
+    <div class="panel done-panel" id="donePanel" style="display:none">
+      <h2>Escrow is live on Base Sepolia.</h2>
+      <p>You just ran the full buyer-side flow on the real deployed contract. The seller can now call <code>markDelivered</code>, and you can call <code>confirmDelivery</code> or <code>dispute</code>. That requires a second signer &mdash; see <a href="/integrate">/integrate</a> for the full multi-party pattern.</p>
+      <div class="row">
+        <a class="btn-primary-big" href="/verdicts">See real dispute verdicts →</a>
+        <a class="btn-ghost-sm" href="/integrate">Integration paths →</a>
+      </div>
+    </div>
+
+    <div class="warn">
+      <strong>Testnet only.</strong> Everything on this page is Base Sepolia (chain 84532). USDC and ETH are testnet tokens with no real-world value. Don't send real funds to your burner.
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script>
+    (function(){
+      var CHAIN_ID = 84532;
+      var ESCROW_ADDR = '0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC';
+      var USDC_ADDR   = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
+      // Demo seller — Arbitova's stable test address. We pre-fund it out-of-band.
+      var DEMO_SELLER = '0x000000000000000000000000000000000000dEaD';
+      var RPC_URL     = 'https://sepolia.base.org';
+      var EXPLORER    = 'https://sepolia.basescan.org';
+
+      var USDC_ABI = [
+        'function approve(address spender, uint256 amount) returns (bool)',
+        'function balanceOf(address owner) view returns (uint256)',
+      ];
+      var ESCROW_ABI = [
+        'function createEscrow(address seller, uint256 amount, uint256 deliveryWindowSec, uint256 reviewWindowSec, string verificationURI) returns (uint256)',
+        'event EscrowCreated(uint256 indexed id, address indexed buyer, address indexed seller, uint256 amount, uint64 deliveryDeadline, string verificationURI)',
+      ];
+
+      var SS_KEY = 'arbitova_burner_pk';
+      var provider = new ethers.JsonRpcProvider(RPC_URL, CHAIN_ID, { staticNetwork: true });
+      var wallet;
+
+      function log(panelId, html, cls) {
+        var el = document.getElementById(panelId);
+        el.style.display = 'block';
+        var line = document.createElement('div');
+        if (cls) line.className = cls;
+        line.innerHTML = html;
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function txLink(h) {
+        return '<a href="' + EXPLORER + '/tx/' + h + '" target="_blank" rel="noopener">' + h.slice(0, 10) + '…' + h.slice(-6) + '</a>';
+      }
+
+      function loadOrCreateBurner() {
+        var pk = sessionStorage.getItem(SS_KEY);
+        if (!pk) {
+          pk = ethers.Wallet.createRandom().privateKey;
+          sessionStorage.setItem(SS_KEY, pk);
+        }
+        wallet = new ethers.Wallet(pk, provider);
+        document.getElementById('burnerAddr').textContent = wallet.address;
+      }
+
+      async function refreshBalances() {
+        if (!wallet) return;
+        document.getElementById('balEth').textContent = '…';
+        document.getElementById('balUsdc').textContent = '…';
+        try {
+          var ethBal = await provider.getBalance(wallet.address);
+          document.getElementById('balEth').textContent = Number(ethers.formatEther(ethBal)).toFixed(4);
+          var usdc = new ethers.Contract(USDC_ADDR, USDC_ABI, provider);
+          var usdcBal = await usdc.balanceOf(wallet.address);
+          document.getElementById('balUsdc').textContent = (Number(usdcBal) / 1_000_000).toFixed(2);
+          var funded = ethBal > 0n && usdcBal >= 1_000_000n;
+          document.getElementById('createEscrowBtn').disabled = !funded;
+        } catch (err) {
+          document.getElementById('balEth').textContent = '?';
+          document.getElementById('balUsdc').textContent = '?';
+        }
+      }
+
+      async function fund() {
+        var btn = document.getElementById('fundBtn');
+        btn.disabled = true;
+        log('fundLog', 'Requesting funds from treasury…', 'info');
+        try {
+          var apiBase = (location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com')
+            ? 'https://api.arbitova.com' : '';
+          var res = await fetch(apiBase + '/api/burner/fund', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: wallet.address }),
+          });
+          var body = await res.json();
+          if (!res.ok) {
+            log('fundLog', 'Fund failed: ' + (body.error || res.status), 'err');
+            btn.disabled = false;
+            return;
+          }
+          log('fundLog', 'Treasury sent ETH: ' + txLink(body.ethTxHash), 'ok');
+          log('fundLog', 'Treasury sent USDC: ' + txLink(body.usdcTxHash), 'ok');
+          log('fundLog', 'Waiting for confirmations…', 'info');
+          await provider.waitForTransaction(body.ethTxHash, 1);
+          await provider.waitForTransaction(body.usdcTxHash, 1);
+          log('fundLog', 'Funded. Refreshing balances…', 'ok');
+          document.getElementById('fundStatus').style.display = 'inline-block';
+          await refreshBalances();
+        } catch (err) {
+          log('fundLog', 'Fund error: ' + (err.message || String(err)), 'err');
+          btn.disabled = false;
+        }
+      }
+
+      async function createEscrow() {
+        var btn = document.getElementById('createEscrowBtn');
+        btn.disabled = true;
+        var amount = 1_000_000n; // 1 USDC
+        try {
+          log('escrowLog', 'Step 1/2: approving 1 USDC for EscrowV1…', 'info');
+          var usdc = new ethers.Contract(USDC_ADDR, USDC_ABI, wallet);
+          var approveTx = await usdc.approve(ESCROW_ADDR, amount);
+          log('escrowLog', 'Approve tx: ' + txLink(approveTx.hash), 'ok');
+          await approveTx.wait(1);
+          log('escrowLog', 'Approved.', 'ok');
+
+          log('escrowLog', 'Step 2/2: calling createEscrow…', 'info');
+          var escrow = new ethers.Contract(ESCROW_ADDR, ESCROW_ABI, wallet);
+          var tx = await escrow.createEscrow(
+            DEMO_SELLER,
+            amount,
+            86400,   // delivery window 24h
+            86400,   // review window 24h
+            'ipfs://demo-try-real'
+          );
+          log('escrowLog', 'createEscrow tx: ' + txLink(tx.hash), 'ok');
+          var receipt = await tx.wait(1);
+          var escrowId = null;
+          for (var i = 0; i < receipt.logs.length; i++) {
+            try {
+              var parsed = escrow.interface.parseLog(receipt.logs[i]);
+              if (parsed && parsed.name === 'EscrowCreated') {
+                escrowId = parsed.args.id.toString();
+                break;
+              }
+            } catch (e) {}
+          }
+          if (escrowId) {
+            log('escrowLog', 'Escrow #' + escrowId + ' created on-chain.', 'ok');
+          } else {
+            log('escrowLog', 'Escrow created (id not parsed from event).', 'ok');
+          }
+          document.getElementById('donePanel').style.display = 'block';
+          refreshBalances();
+        } catch (err) {
+          log('escrowLog', 'createEscrow failed: ' + (err.shortMessage || err.message || String(err)), 'err');
+          btn.disabled = false;
+        }
+      }
+
+      function resetBurner() {
+        sessionStorage.removeItem(SS_KEY);
+        location.reload();
+      }
+
+      document.addEventListener('DOMContentLoaded', function(){
+        loadOrCreateBurner();
+        refreshBalances();
+        document.getElementById('fundBtn').addEventListener('click', fund);
+        document.getElementById('createEscrowBtn').addEventListener('click', createEscrow);
+        document.getElementById('refreshBalBtn').addEventListener('click', refreshBalances);
+        document.getElementById('resetBurnerBtn').addEventListener('click', resetBurner);
+      });
+    })();
+  </script>
+</body>
+</html>
