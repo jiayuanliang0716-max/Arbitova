@@ -127,8 +127,8 @@
       <h1 class="hero-title">An open escrow protocol <br>for the <span class="highlight">agent economy.</span></h1>
       <p class="hero-subtitle">Non-custodial USDC escrow for AI agents. Built as a protocol, not a product &mdash; the contract holds the funds, an arbiter routes disputes without unilateral sweep, and every verdict is public. <strong>Integrate directly, use a reference SDK, or run your own frontend.</strong></p>
       <div class="hero-actions">
-        <a href="/try" class="btn btn-primary btn-lg hero-cta-glow">Try in 30 seconds &rarr;</a>
-        <a href="/pay/" class="btn btn-outline btn-lg">Launch app &rarr;</a>
+        <a href="/try-real" class="btn btn-primary btn-lg hero-cta-glow">Sign a real tx in 60s &rarr;</a>
+        <a href="/try" class="btn btn-outline btn-lg">Watch click-through &rarr;</a>
         <a href="#quickstart-code" class="btn btn-ghost btn-lg">See the code &rarr;</a>
       </div>
       <div class="hero-trust-row">
@@ -610,14 +610,14 @@
 
     <div class="tour-step" data-step="3">
       <div class="tour-tag">Intro · 3 of 4</div>
-      <h3>You can try it right now</h3>
-      <p><strong>/try</strong> walks you through the flow in 30 seconds, no wallet needed. <strong>/try-real</strong> spins up a disposable wallet with pre-funded Sepolia USDC and runs a real tx on the deployed contract. Both free.</p>
+      <h3>Here&rsquo;s what you&rsquo;re about to do</h3>
+      <p>We&rsquo;ll generate a <strong>one-time burner wallet</strong> in this tab, send it Base Sepolia ETH + USDC from our treasury, and you&rsquo;ll sign <strong>one real transaction</strong> that creates an escrow on the deployed contract. No MetaMask, no faucet, no signup. Takes about a minute.</p>
     </div>
 
     <div class="tour-step" data-step="4">
       <div class="tour-tag">Intro · 4 of 4</div>
-      <h3>Where to go next</h3>
-      <p><strong>Verdicts</strong> shows every real dispute resolved so far, on-chain. <strong>Integrate</strong> covers the three paths (raw contract, SDK, agent-native) to plug Arbitova into your stack. That's the whole surface &mdash; no accounts, no API keys.</p>
+      <h3>Pick a path</h3>
+      <p><strong>Sign a real tx →</strong> Click Next to start the one-minute flow. You&rsquo;ll end with a real <code>EscrowCreated</code> event on Base Sepolia.<br><br>Prefer to read first? <a href="/try" id="tourTryClickThrough">Watch a 30-second click-through</a> of the same flow without signing anything.</p>
     </div>
 
     <div class="tour-footer">
@@ -676,7 +676,7 @@
       steps.forEach(function(s){ s.classList.toggle('active', Number(s.dataset.step) === i); });
       dots.forEach(function(d){ d.classList.toggle('active', Number(d.dataset.i) <= i); });
       backBtn.disabled = i === 1;
-      nextBtn.textContent = i === total ? 'Try it in 30s →' : 'Next →';
+      nextBtn.textContent = i === total ? 'Sign a real tx →' : 'Next →';
     }
 
     function open() {
@@ -693,7 +693,7 @@
 
     function finish() {
       close();
-      location.href = '/try';
+      location.href = '/try-real';
     }
 
     nextBtn.addEventListener('click', function(){
@@ -717,6 +717,15 @@
         e.preventDefault();
         try { localStorage.removeItem(TOUR_KEY); } catch (e2) {}
         open();
+      });
+    }
+
+    // If user picks the click-through secondary path, still mark tour as seen
+    // so it doesn't re-open on their next visit.
+    var clickThroughLink = document.getElementById('tourTryClickThrough');
+    if (clickThroughLink) {
+      clickThroughLink.addEventListener('click', function(){
+        try { localStorage.setItem(TOUR_KEY, '1'); } catch (e2) {}
       });
     }
 

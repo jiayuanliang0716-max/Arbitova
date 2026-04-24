@@ -77,7 +77,7 @@
 
   <section class="try-hero">
     <h1>Try Arbitova — for real</h1>
-    <p>No wallet, no faucet. We generate a one-time burner wallet in your browser and pre-fund it with Base Sepolia ETH + USDC. You sign a real transaction that creates a real escrow on the real contract.</p>
+    <p>No wallet install, no faucet hunt. We generate a one-time burner wallet in this browser tab, top it up with Base Sepolia ETH + USDC when you click Fund, and you sign a real transaction that creates a real escrow on the real contract. The burner lives only in sessionStorage &mdash; close the tab and it&rsquo;s gone.</p>
   </section>
 
   <section class="wrap">
@@ -98,7 +98,7 @@
 
     <div class="panel" id="fundPanel">
       <h2><span class="num">2</span> Fund from the Arbitova treasury</h2>
-      <p>One tap &mdash; we send the burner 0.01 Sepolia ETH (for gas) and 5 Sepolia USDC (to lock in escrow). Daily cap: 20 funds / 3 per IP. When the cap hits, <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's public faucet</a> still works.</p>
+      <p id="fundDesc">One tap &mdash; we send the burner a small amount of Sepolia ETH (for gas) and Sepolia USDC (to lock in escrow). <span id="fundAmounts"></span>Daily cap: 20 funds / 3 per IP. When the cap hits, <a href="https://faucet.circle.com" target="_blank" rel="noopener">Circle's public faucet</a> still works.</p>
       <div class="row">
         <button class="btn-primary-big" id="fundBtn">Fund my burner →</button>
         <span class="pill" id="fundStatus" style="display:none">Funded</span>
@@ -117,10 +117,11 @@
 
     <div class="panel done-panel" id="donePanel" style="display:none">
       <h2>Escrow is live on Base Sepolia.</h2>
-      <p>You just ran the full buyer-side flow on the real deployed contract. The seller can now call <code>markDelivered</code>, and you can call <code>confirmDelivery</code> or <code>dispute</code>. That requires a second signer &mdash; see <a href="/integrate">/integrate</a> for the full multi-party pattern.</p>
+      <p>You just signed the buyer side of the flow on the real deployed contract &mdash; the 1 USDC is now locked in EscrowV1. To finish the flow (seller <code>markDelivered</code> → buyer <code>confirmDelivery</code>) you&rsquo;d need a second agent playing seller. See <a href="/integrate">/integrate</a> for the full two-party pattern with code.</p>
       <div class="row">
-        <a class="btn-primary-big" href="/verdicts">See real dispute verdicts →</a>
-        <a class="btn-ghost-sm" href="/integrate">Integration paths →</a>
+        <a class="btn-primary-big" href="/integrate">Integration paths →</a>
+        <a class="btn-ghost-sm" href="/verdicts">See real dispute verdicts</a>
+        <a class="btn-ghost-sm" href="/try">Click-through of full flow</a>
       </div>
     </div>
 
@@ -152,6 +153,28 @@
       var SS_KEY = 'arbitova_burner_pk';
       var provider = new ethers.JsonRpcProvider(RPC_URL, CHAIN_ID, { staticNetwork: true });
       var wallet;
+
+      function apiBase() {
+        return (location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com')
+          ? 'https://api.arbitova.com' : '';
+      }
+
+      async function refreshFundAmounts() {
+        try {
+          var res = await fetch(apiBase() + '/api/burner/status');
+          if (!res.ok) return;
+          var s = await res.json();
+          var el = document.getElementById('fundAmounts');
+          if (!el) return;
+          if (s.enabled) {
+            el.innerHTML = 'This demo sends <strong>' + s.amounts.eth + ' ETH</strong> + <strong>' + s.amounts.usdc + ' USDC</strong> per tap. ';
+          } else {
+            el.innerHTML = '<strong>Faucet is paused right now</strong> &mdash; treasury refill in progress. ';
+            var btn = document.getElementById('fundBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Faucet paused'; }
+          }
+        } catch (e) { /* network blip — silent */ }
+      }
 
       function log(panelId, html, cls) {
         var el = document.getElementById(panelId);
@@ -200,9 +223,7 @@
         btn.disabled = true;
         log('fundLog', 'Requesting funds from treasury…', 'info');
         try {
-          var apiBase = (location.hostname === 'arbitova.com' || location.hostname === 'www.arbitova.com')
-            ? 'https://api.arbitova.com' : '';
-          var res = await fetch(apiBase + '/api/burner/fund', {
+          var res = await fetch(apiBase() + '/api/burner/fund', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ address: wallet.address }),
@@ -281,6 +302,7 @@
       document.addEventListener('DOMContentLoaded', function(){
         loadOrCreateBurner();
         refreshBalances();
+        refreshFundAmounts();
         document.getElementById('fundBtn').addEventListener('click', fund);
         document.getElementById('createEscrowBtn').addEventListener('click', createEscrow);
         document.getElementById('refreshBalBtn').addEventListener('click', refreshBalances);
