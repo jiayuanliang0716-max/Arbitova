@@ -3,10 +3,13 @@
  * src/routes/burner.js
  *
  * POST /api/burner/fund  { address }
- *   Sends 0.01 Sepolia ETH + 5 Sepolia USDC from a treasury wallet to the
+ *   Sends 0.00002 Sepolia ETH + 2 Sepolia USDC from a treasury wallet to the
  *   supplied address. Intended for /try-real — a zero-friction way to let
  *   visitors run a full Arbitova escrow flow without installing MetaMask,
  *   hunting for a faucet, or DMing us for gas.
+ *
+ * Amounts are deliberately tiny: Base Sepolia gas is fractions of a gwei, so
+ * 0.00002 ETH covers ~20 full escrow flows and testnet faucets are stingy.
  *
  * Non-custodial invariant: the treasury wallet is Arbitova-owned, but once
  * funds are sent to the user's burner, the private key lives only in their
@@ -16,8 +19,8 @@
  *   BURNER_TREASURY_PRIVATE_KEY   — 0x-prefixed private key for the funding wallet
  *   BURNER_RPC_URL                — Base Sepolia RPC (falls back to BASE_RPC_URL)
  *   BURNER_USDC_ADDRESS           — defaults to Circle Sepolia USDC
- *   BURNER_ETH_AMOUNT             — wei string, defaults to 0.01 ETH
- *   BURNER_USDC_AMOUNT            — uint string (6 decimals), defaults to 5 USDC = 5000000
+ *   BURNER_ETH_AMOUNT             — wei string, defaults to 0.00002 ETH
+ *   BURNER_USDC_AMOUNT            — uint string (6 decimals), defaults to 2 USDC = 2000000
  *   BURNER_DAILY_CAP              — global daily cap, defaults to 20
  *   BURNER_PER_IP_DAILY_CAP       — per-IP cap, defaults to 3
  */
@@ -59,8 +62,8 @@ function config() {
     pk:       process.env.BURNER_TREASURY_PRIVATE_KEY,
     rpcUrl:   process.env.BURNER_RPC_URL || process.env.BASE_RPC_URL,
     usdc:     process.env.BURNER_USDC_ADDRESS || DEFAULT_USDC_SEPOLIA,
-    ethWei:   BigInt(process.env.BURNER_ETH_AMOUNT || '10000000000000000'), // 0.01 ETH
-    usdcAmt:  BigInt(process.env.BURNER_USDC_AMOUNT || '5000000'),           // 5 USDC
+    ethWei:   BigInt(process.env.BURNER_ETH_AMOUNT || '20000000000000'),    // 0.00002 ETH — plenty for Base Sepolia gas (~20 txs)
+    usdcAmt:  BigInt(process.env.BURNER_USDC_AMOUNT || '2000000'),           // 2 USDC
     globalCap: parseInt(process.env.BURNER_DAILY_CAP || '20', 10),
     perIpCap:  parseInt(process.env.BURNER_PER_IP_DAILY_CAP || '3', 10),
   };
