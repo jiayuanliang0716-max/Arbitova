@@ -103,7 +103,6 @@
           <a href="/pricing" class="landing-nav-link" data-i18n="nav_pricing">Fees</a>
           <a href="/blog" class="landing-nav-link">Blog</a>
           <a href="/verdicts" class="landing-nav-link">Verdicts</a>
-          <a href="https://github.com/jiayuanliang0716-max/a2a-system/issues" target="_blank" rel="noopener" class="landing-nav-link">GitHub Issues</a>
           <a href="/pay/" class="landing-nav-link">Dashboard</a>
         </div>
       </div>
@@ -143,7 +142,7 @@
         </span>
         <span class="hero-trust-item">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-          Three SDKs: Python, JavaScript, MCP
+          SDKs in Python &amp; JavaScript. MCP server available.
         </span>
       </div>
     </div>
@@ -186,8 +185,8 @@
           <span class="roadmap-text">Coinbase CDP wallet integration &mdash; agent-native key management without bring-your-own-private-key friction</span>
         </li>
         <li class="roadmap-item">
-          <span class="roadmap-tag">Planned</span>
-          <span class="roadmap-text">Per-case public verdict dashboard at <code>/verdicts</code> &mdash; every ruling, reasoning, vote ensemble, and content-hash integrity data, queryable by dispute ID</span>
+          <span class="roadmap-tag">Shipped</span>
+          <span class="roadmap-text">Per-case public verdict dashboard at <a href="/verdicts" style="color:var(--brand)"><code>/verdicts</code></a> &mdash; queries the <code>Resolved</code> event log on-chain; each row links to its Basescan transaction. Reasoning + vote-ensemble fields expand as multi-arbiter ships.</span>
         </li>
         <li class="roadmap-item">
           <span class="roadmap-tag">Research</span>
@@ -369,48 +368,6 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Every event is public on Basescan. No private logs, no off-chain accounting.
         <a href="https://sepolia.basescan.org/address/0xA8a031bcaD2f840b451c19db8e43CEAF86a088fC#events" target="_blank" rel="noopener" style="color:var(--brand);margin-left:6px">See live events &rarr;</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Monetization Logic Section -->
-  <section class="features-section reveal" id="monetization" aria-label="How Arbitova makes money">
-    <div class="features-inner" style="max-width:900px">
-      <div style="text-align:center;margin-bottom:40px">
-        <h2 class="section-heading">Simple, Transparent Fees</h2>
-        <p class="section-sub">You only pay when value is delivered. No subscriptions, no hidden costs.</p>
-      </div>
-      <div class="profit-cards-row reveal-stagger">
-        <!-- Card 1 -->
-        <div class="profit-card">
-          <div class="profit-card-icon" style="background:rgba(0,212,170,0.1);color:var(--brand)">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </div>
-          <div class="profit-card-rate">0.5%</div>
-          <div class="profit-card-title">Successful Delivery</div>
-          <div class="profit-card-desc">Charged only when both parties confirm delivery. Zero fee on order creation or failed transactions.</div>
-          <div class="profit-card-example">e.g. $100 order → $0.50 fee</div>
-        </div>
-        <!-- Card 2 -->
-        <div class="profit-card profit-card-highlight">
-          <div class="profit-card-icon" style="background:rgba(139,92,246,0.12);color:#8b5cf6">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          </div>
-          <div class="profit-card-rate" style="color:#8b5cf6">2%</div>
-          <div class="profit-card-title">Resolve fee on dispute</div>
-          <div class="profit-card-desc">Charged only when the arbiter resolves a dispute. Paid by the losing party from their share. Winners pay nothing.</div>
-          <div class="profit-card-example">e.g. $100 dispute → $2 from loser</div>
-        </div>
-        <!-- Card 3 -->
-        <div class="profit-card">
-          <div class="profit-card-icon" style="background:rgba(59,130,246,0.1);color:#3b82f6">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </div>
-          <div class="profit-card-rate" style="color:#3b82f6">$0</div>
-          <div class="profit-card-title">To get started</div>
-          <div class="profit-card-desc">No registration, no monthly fee. Just a wallet on Base Sepolia with some test USDC. Gas is fractions of a cent.</div>
-          <div class="profit-card-example">Free testnet faucets in the docs</div>
-        </div>
       </div>
     </div>
   </section>
