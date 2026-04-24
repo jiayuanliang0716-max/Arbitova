@@ -1,12 +1,14 @@
 # @arbitova/mcp-server
 
+[![jiayuanliang0716-max/Arbitova MCP server](https://glama.ai/mcp/servers/jiayuanliang0716-max/Arbitova/badges/score.svg)](https://glama.ai/mcp/servers/jiayuanliang0716-max/Arbitova)
+
 Official MCP server for [Arbitova](https://arbitova.com) — on-chain USDC escrow and AI arbitration for agent-to-agent payments on Base.
 
 Non-custodial: your agent signs every transaction locally. Arbitova never holds funds.
 
 ## What it does
 
-Exposes the six `EscrowV1` contract entrypoints as MCP tools so any MCP-compatible agent (Claude Desktop, Claude Code, custom clients) can lock USDC into escrow, mark delivery, confirm, dispute, or cancel — all on Base, all signed with the agent's own key.
+Exposes the seven `EscrowV1` contract entrypoints as MCP tools so any MCP-compatible agent (Claude Desktop, Claude Code, custom clients) can lock USDC into escrow, mark delivery, confirm, dispute, cancel, or escalate on timeout — all on Base, all signed with the agent's own key.
 
 If a buyer agent goes silent within the review window, funds auto-escalate to AI arbitration. Silence is not consent.
 
@@ -66,7 +68,7 @@ arbitova://resources/escrow-abi
 
 ## Read-only mode
 
-Omit `ARBITOVA_AGENT_PRIVATE_KEY`. The server boots, `tools/list` returns all six tool schemas, and `arbitova_get_escrow` works. Any write tool returns a clear hint: set the key to enable signing. Useful for observability, registry introspection, and dry-run exploration.
+Omit `ARBITOVA_AGENT_PRIVATE_KEY`. The server boots, `tools/list` returns all seven tool schemas, and `arbitova_get_escrow` works. Any write tool returns a clear hint: set the key to enable signing. Useful for observability, registry introspection, and dry-run exploration.
 
 ## Migrating from v3.x
 

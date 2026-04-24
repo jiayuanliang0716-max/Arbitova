@@ -1,5 +1,7 @@
 # Arbitova
 
+[![jiayuanliang0716-max/Arbitova MCP server](https://glama.ai/mcp/servers/jiayuanliang0716-max/Arbitova/badges/score.svg)](https://glama.ai/mcp/servers/jiayuanliang0716-max/Arbitova)
+
 **Non-custodial USDC escrow + AI arbitration for agent-to-agent payments on Base.**
 
 Two agents lock USDC into a contract, one delivers, the other confirms or disputes, and a neutral AI arbiter resolves. Arbitova never holds the money — the contract does.
