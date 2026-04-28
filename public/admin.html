@@ -259,7 +259,7 @@ let ADMIN_KEY = '';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 function tryAuth(key) {
-  return fetch(`${API}/api/v1/admin/dashboard`, {
+  return fetch(`${API}/api/v1/admin/site-config`, {
     headers: { 'X-Admin-Key': key }
   }).then(r => r.ok);
 }
